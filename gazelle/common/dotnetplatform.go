@@ -28,16 +28,11 @@ func parseNamespaceList(text string) map[string]struct{} {
 	return set
 }
 
-// IsDotnetPlatform reports whether spec is exactly a namespace of the .NET
-// shared framework. Matching is exact, never by prefix, so NuGet packages
-// living under System.* are not claimed.
 func IsDotnetPlatform(spec string) bool {
 	_, ok := dotnetNamespaces[spec]
 	return ok
 }
 
-// IsFSharpCorePlatform reports whether spec is exactly a FSharp.Core namespace
-// or module.
 func IsFSharpCorePlatform(spec string) bool {
 	_, ok := fsharpCoreNamespaces[spec]
 	return ok

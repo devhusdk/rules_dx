@@ -1,30 +1,19 @@
-//! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
-//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run and the hub resolvers, the aspects `dx check` and `dx docs` pick, the wrapper
-//! package whose `deps` carry them, the `file://` URL of a stub, and the stub `python_tools` bundle.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use dx_plan::args::Command;
 use dx_plan::plan::registry::{Consumer, aspects_for};
 
-/// The rule kind prefixes of compiled binaries; shell stubs and `native_binary` stay out.
 pub const COMPILED: &[&str] = &[
     "cc_", "gazelle_", "go_", "haskell_", "java_", "kt_jvm_", "rust_", "scala_",
 ];
 
-/// The target name crate_universe gives a crate's build script binary.
 pub const BUILD_SCRIPT: &str = ":_bs_";
 
-/// The repository of the `dx_prebuilt` hub.
 pub const PREBUILT_HUB_REPO: &str = "rules_dx++dx_prebuilt+dx_prebuilt";
 
-/// The prefix of the repos of the upstream rule sets that `dx_pins` fetches.
 pub const RULE_SET_REPO: &str = "rules_dx++dx_pins+rules_";
 
-/// The allowlist: binary labels the consumer may compile, each with the consumer languages it
-/// applies to (none: every language), and upstream rule set repos whose binaries a consumer of
-/// one of their languages may compile.
 #[derive(Debug, Default, PartialEq)]
 pub struct Allowlist {
     pub labels: BTreeMap<String, BTreeSet<String>>,
@@ -32,7 +21,6 @@ pub struct Allowlist {
 }
 
 impl Allowlist {
-    /// The labels a consumer of `langs` may compile.
     pub fn labels_for(&self, langs: &[&str]) -> BTreeSet<String> {
         self.labels
             .iter()
@@ -41,7 +29,6 @@ impl Allowlist {
             .collect()
     }
 
-    /// The rule set repos whose binaries a consumer of `langs` may compile.
     pub fn repos_for(&self, langs: &[&str]) -> BTreeSet<String> {
         self.repos
             .iter()
@@ -51,8 +38,6 @@ impl Allowlist {
     }
 }
 
-/// Reads `label <canonical label> [<lang>...]` and `repo <canonical repo> <lang>...` lines; each
-/// needs a `#` reason, and a `repo` line names a [`RULE_SET_REPO`] repo and at least one language.
 pub fn allowlist(text: &str) -> Result<Allowlist, String> {
     let mut list = Allowlist::default();
     for (number, line) in text.lines().enumerate() {
@@ -92,7 +77,6 @@ pub fn allowlist(text: &str) -> Result<Allowlist, String> {
     Ok(list)
 }
 
-/// The rules_dx-declared compiled binaries in `cquery --output=label_kind` lines, each with its lines.
 pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
     let mut found: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for line in cquery.lines() {
@@ -104,8 +88,6 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
             continue;
         }
         let label = rest.split_whitespace().next().unwrap_or_default();
-        // A crate build script comes with the crate's rust_library; the tool that pulls the
-        // crate in is reported on its own, so the scripts would only bury it.
         if label.ends_with(BUILD_SCRIPT) {
             continue;
         }
@@ -123,7 +105,6 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
     found
 }
 
-/// The canonical repo of `label`.
 fn label_repo(label: &str) -> &str {
     label
         .trim_start_matches('@')
@@ -132,7 +113,6 @@ fn label_repo(label: &str) -> &str {
         .unwrap_or_default()
 }
 
-/// Drops from `found` each binary of a repo in `repos`, and returns the repos that held one.
 pub fn drop_rule_set_repos(
     found: &mut BTreeMap<String, BTreeSet<String>>,
     repos: &BTreeSet<String>,
@@ -150,7 +130,6 @@ pub fn drop_rule_set_repos(
     matched
 }
 
-/// One problem per allowlisted repo that `matched` leaves out.
 pub fn stale_repos(repos: &BTreeSet<String>, matched: &BTreeSet<String>) -> Vec<String> {
     repos
         .difference(matched)
@@ -158,27 +137,22 @@ pub fn stale_repos(repos: &BTreeSet<String>, matched: &BTreeSet<String>) -> Vec<
         .collect()
 }
 
-/// The `srcs` query whose labels are the source-compiled JVM rules `label` depends on.
 pub fn jvm_sources_query(label: &str) -> String {
     format!("attr(srcs, \"\\[.+\\]\", kind(\"(java|kt_jvm|scala)_\", deps({label})))")
 }
 
-/// Whether `cquery --output=label` lines of [`jvm_sources_query`] name a rules_dx rule.
 pub fn compiles_rules_dx_sources(cquery: &str) -> bool {
     cquery
         .lines()
         .any(|line| line.trim().trim_start_matches('@').starts_with("rules_dx+"))
 }
 
-/// Whether every line of a found binary is a `java_binary`, the one kind that may only launch jars.
 pub fn java_binary_only(lines: &BTreeSet<String>) -> bool {
     lines
         .iter()
         .all(|line| line.trim_start_matches('_').starts_with("java_binary "))
 }
 
-/// Drops from `found` each `java_binary` whose `sources` cquery output, for its label, compiles no
-/// rules_dx source.
 pub fn drop_jar_launchers(
     found: &mut BTreeMap<String, BTreeSet<String>>,
     mut sources: impl FnMut(&str) -> Result<String, String>,
@@ -195,7 +169,6 @@ pub fn drop_jar_launchers(
     Ok(())
 }
 
-/// The problems: compiled binaries not allowlisted, and allowlisted labels no longer compiled.
 pub fn problems(
     found: &BTreeMap<String, BTreeSet<String>>,
     allowed: &BTreeSet<String>,
@@ -205,7 +178,6 @@ pub fn problems(
     problems
 }
 
-/// One problem per line of a compiled binary that `allowed` leaves out.
 pub fn unlisted(
     found: &BTreeMap<String, BTreeSet<String>>,
     allowed: &BTreeSet<String>,
@@ -217,7 +189,6 @@ pub fn unlisted(
         .collect()
 }
 
-/// One problem per allowlisted label that `found` no longer holds.
 pub fn stale(
     found: &BTreeMap<String, BTreeSet<String>>,
     allowed: &BTreeSet<String>,
@@ -229,9 +200,6 @@ pub fn stale(
         .collect()
 }
 
-/// `label` as a consumer of rules_dx names it, for a label of rules_dx as the root module:
-/// `fixtures`, the canonical repo of the consumer fixtures, is the consumer's main repo, the main
-/// repo is `rules_dx+`, and a repo of a root-module extension or repo rule is under `rules_dx+`.
 pub fn consumer_label(label: &str, fixtures: &str) -> String {
     if let Some(rest) = label.strip_prefix(&format!("@@{fixtures}//")) {
         format!("//{rest}")
@@ -247,8 +215,6 @@ pub fn consumer_label(label: &str, fixtures: &str) -> String {
     }
 }
 
-/// `label` as rules_dx as the root module names it; the inverse of [`consumer_label`] for rules_dx
-/// labels.
 pub fn root_label(label: &str) -> String {
     if let Some(rest) = label.strip_prefix("@@rules_dx+//") {
         format!("@@//{rest}")
@@ -259,7 +225,6 @@ pub fn root_label(label: &str) -> String {
     }
 }
 
-/// A `cquery --output=label_kind` line with its label mapped by `consumer_label`.
 pub fn consumer_line(line: &str, fixtures: &str) -> String {
     let Some((kind, rest)) = line.split_once(" rule ") else {
         return line.to_owned();
@@ -270,8 +235,6 @@ pub fn consumer_line(line: &str, fixtures: &str) -> String {
         .to_owned()
 }
 
-/// The aspects `dx check` (format, lint, typecheck) and `dx docs` pass for a consumer with
-/// `extensions`, each list in command order and without repeats.
 pub fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&'static str>) {
     let consumer = Consumer { extensions };
     let mut check: Vec<&'static str> = Vec::new();
@@ -285,11 +248,8 @@ pub fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&
     (check, aspects_for(Command::Docs, consumer))
 }
 
-/// The languages whose `dx docs` aspects reach no docs tool of the listed other languages, each
-/// with the label fragments that name those tools.
 pub const DOCS_FOREIGN: &[(&str, &[&str])] = &[("java", &["scala", "dokka", "kotlin"])];
 
-/// The labels of a `cquery --output=label` result that contain any of `fragments`.
 pub fn foreign_docs_labels(cquery: &str, fragments: &[&str]) -> Vec<String> {
     cquery
         .lines()
@@ -299,9 +259,6 @@ pub fn foreign_docs_labels(cquery: &str, fragments: &[&str]) -> Vec<String> {
         .collect()
 }
 
-/// The `.bzl` file of the `dx_prebuilt_guard` package: rules `check_root` and `docs_root`, whose
-/// `deps` carry the `check` and `docs` aspects (`<package>:<file>%<name>` labels in rules_dx, the
-/// repo `rules_dx` names).
 pub fn wrapper_bzl(rules_dx: &str, check: &[&str], docs: &[&str]) -> String {
     let mut loads = String::new();
     let mut rules = String::from("def _root_impl(_ctx):\n    return []\n");
@@ -323,7 +280,6 @@ pub fn wrapper_bzl(rules_dx: &str, check: &[&str], docs: &[&str]) -> String {
     format!("{loads}\n{rules}")
 }
 
-/// The `repo` targets dx commands run for every language and for `langs`, as cquery roots.
 pub fn command_roots(repo: &str, langs: &[&str]) -> Vec<String> {
     dx_families::COMMAND_TARGETS
         .iter()
@@ -337,8 +293,6 @@ pub fn command_roots(repo: &str, langs: &[&str]) -> Vec<String> {
         .collect()
 }
 
-/// The `setup.hubs[].resolver` labels of `langs`, which `dx update` and `dx generate` run, as
-/// cquery roots.
 pub fn resolver_roots(langs: &[&str]) -> Vec<String> {
     let roots: BTreeSet<String> = langs
         .iter()
@@ -348,7 +302,6 @@ pub fn resolver_roots(langs: &[&str]) -> Vec<String> {
     roots.into_iter().collect()
 }
 
-/// The `file://` URL of `path`, with `/` separators and `file:///C:/` for a drive path.
 pub fn stub_url(path: &Path) -> String {
     let path = path.to_string_lossy().replace('\\', "/");
     if path.starts_with('/') {
@@ -358,8 +311,6 @@ pub fn stub_url(path: &Path) -> String {
     }
 }
 
-/// One tool of the `python_tools` bundle: its hub name, its `bin/` launcher, and the platform
-/// keys whose bundle leaves it out.
 #[derive(Debug, PartialEq)]
 pub struct BundleTool {
     pub name: String,
@@ -368,13 +319,11 @@ pub struct BundleTool {
 }
 
 impl BundleTool {
-    /// The canonical label of the hub target that serves the tool.
     pub fn hub_target(&self) -> String {
         format!("@@{PREBUILT_HUB_REPO}//:python_tool_{}", self.name)
     }
 }
 
-/// Reads `<name> <launcher> [<missing platform key>...]` lines of `//cli/prebuilt:python_hub_targets`.
 pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
     text.lines()
         .map(str::trim)
@@ -392,8 +341,6 @@ pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
         .collect()
 }
 
-/// A `tar.gz` with an executable `bin/<launcher>` stub per tool, plus `bin/<launcher>.cmd` on
-/// Windows, where the hub runs the `.cmd` launcher.
 pub fn stub_bundle(tools: &[BundleTool], windows: bool) -> std::io::Result<Vec<u8>> {
     let mut tar = dx_archive::TarWriter::new();
     for tool in tools {
@@ -410,7 +357,6 @@ pub fn stub_bundle(tools: &[BundleTool], windows: bool) -> std::io::Result<Vec<u
     tar.finish()
 }
 
-/// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
 pub fn wrapper_build(targets: &[&str]) -> String {
     let deps: String = targets
         .iter()
@@ -425,14 +371,11 @@ pub fn wrapper_build(targets: &[&str]) -> String {
     build
 }
 
-/// The `@platforms` os and cpu of a registry platform key such as `windows_arm64`.
 pub fn release_platform(key: &str) -> Option<(&str, &str)> {
     let (os, cpu) = key.split_once('_')?;
     Some((os, if cpu == "arm64" { "aarch64" } else { cpu }))
 }
 
-/// The `.bzl` file of the `dx_target_guard` package: rule `target_root`, whose `deps` are split
-/// over `<rules_dx>//tools/platforms:<key>` for each of its `keys`.
 pub fn target_guard_bzl(rules_dx: &str) -> String {
     format!(
         "_PLATFORMS = Label(\"{rules_dx}//tools/platforms:BUILD.bazel\")\n\n\
@@ -443,15 +386,12 @@ pub fn target_guard_bzl(rules_dx: &str) -> String {
     )
 }
 
-/// One target-platform tool of the `dx_target_guard` package: its registry keys and hub targets.
 pub struct TargetRoot {
     pub tool: String,
     pub keys: Vec<String>,
     pub targets: Vec<String>,
 }
 
-/// The `BUILD.bazel` of the `dx_target_guard` package: one `target_root` per tool, and `targets`
-/// over all of them.
 pub fn target_guard_build(roots: &[TargetRoot]) -> String {
     let quoted = |items: &[String]| -> String {
         items
@@ -476,7 +416,6 @@ pub fn target_guard_build(roots: &[TargetRoot]) -> String {
     build
 }
 
-/// The canonical name of the repo that downloads `tool` for the registry platform `key`.
 pub fn target_repo(tool: &str, key: &str) -> Option<String> {
     let (os, cpu) = release_platform(key)?;
     Some(format!(
@@ -484,8 +423,6 @@ pub fn target_repo(tool: &str, key: &str) -> Option<String> {
     ))
 }
 
-/// One line per (tool, key) of `roots` whose download repo no target in the `label_kind` cquery
-/// output comes from.
 pub fn missing_target_repos(cquery: &str, roots: &[TargetRoot]) -> Vec<String> {
     let repos: BTreeSet<&str> = cquery
         .lines()
@@ -715,7 +652,7 @@ mod tests {
             stub_url(Path::new(r"C:/t/_tmp\stubs\go")),
             "file:///C:/t/_tmp/stubs/go"
         );
-        assert_eq!(stub_url(Path::new("/tmp/stubs/go")), "file:///tmp/stubs/go");
+        assert_eq!(stub_url(Path::new("/opt/stubs/go")), "file:///opt/stubs/go");
     }
 
     #[test]

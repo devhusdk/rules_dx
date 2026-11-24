@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 
 const UPSTREAM: &str = "_main/pkg/upstream";
 
-/// The canonical name of rules_dx: `_main` in rules_dx itself, `rules_dx+` in a consumer.
 const SELF: &str = "_main";
 const CONSUMER: &str = "rules_dx+";
 
@@ -30,7 +29,6 @@ fn launch(name: &str, key: &str, coverage: Option<&Path>) -> Launch {
     launch_in(name, SELF, key, coverage)
 }
 
-/// Runs the launcher with a runfiles manifest where rules_dx is the repository `repo`.
 fn launch_in(name: &str, repo: &str, key: &str, coverage: Option<&Path>) -> Launch {
     let dir = dx_testing::scratch_dir(name);
     let upstream = std::env::current_exe().expect("the test binary path");

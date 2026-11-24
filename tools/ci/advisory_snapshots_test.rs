@@ -16,7 +16,6 @@ const RETRIEVED_AT: &str = "${{ needs.advisory-snapshots.outputs.retrieved_at }}
 
 const PREP_TARGET: &str = "@rules_dx//dx/advisory_prep";
 
-/// Returns the `uses` action of every step that names one.
 fn actions(name: &str) -> Vec<String> {
     steps(WORKFLOW, name)
         .unwrap()
@@ -25,7 +24,6 @@ fn actions(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// Returns the one step of a job that uses `action`, with its pin.
 fn action_step<'a>(steps: &'a [Value], action: &str) -> &'a Value {
     let found: Vec<&Value> = steps
         .iter()
@@ -62,7 +60,6 @@ fn one_preparation_job_runs_per_run_and_not_per_platform() {
     }
 }
 
-/// Returns the one run script of a job that mentions `needle`.
 fn script_running(name: &str, needle: &str) -> String {
     let found = steps(WORKFLOW, name).unwrap();
     let found: Vec<&Value> = found
@@ -348,7 +345,6 @@ fn the_artifact_name_and_concurrency_carry_the_validated_invocation() {
     );
 }
 
-/// Returns true when a job names an advisory database it would download itself.
 fn names_an_advisory_database(job: &str) -> bool {
     job.contains("all.zip") || job.contains("osv-vulnerabilities")
 }

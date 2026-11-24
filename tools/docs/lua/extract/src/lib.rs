@@ -1,5 +1,3 @@
-//! Converts the `LDoc` filter's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -17,7 +15,6 @@ const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "lua.config";
 const KEY_INCOMPLETE: &str = "lua.incomplete";
 
-/// Why one `LDoc` JSON document could not become a shard.
 #[derive(Debug)]
 pub enum LuaExtractError {
     Read(PathIoError),
@@ -86,7 +83,6 @@ impl From<JsonError> for LuaExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -94,23 +90,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `lua_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("lua_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: lua_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -120,11 +109,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), LuaExtractError> {
     let json = path_io::read_to_string(Path::new(&options.json)).map_err(LuaExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
@@ -147,12 +131,10 @@ fn entries<'a>(
         .collect()
 }
 
-/// Returns the symbol kind of one `LDoc` module type.
 fn module_kind(name: &str, at: &str) -> Result<Option<SymbolKind>, LuaExtractError> {
     Ok(match name {
         "module" | "script" => Some(SymbolKind::Module),
         "classmod" => Some(SymbolKind::Class),
-        // Examples and topics carry prose, not API.
         "example" | "topic" => None,
         other => {
             return Err(LuaExtractError::UnknownModuleType {
@@ -163,7 +145,6 @@ fn module_kind(name: &str, at: &str) -> Result<Option<SymbolKind>, LuaExtractErr
     })
 }
 
-/// Returns the symbol kind of one `LDoc` item type, or None for items that are not API.
 fn item_kind(name: &str, item_name: &str, at: &str) -> Result<Option<SymbolKind>, LuaExtractError> {
     Ok(match name {
         "function" if item_name.contains(':') => Some(SymbolKind::Method),
@@ -180,7 +161,6 @@ fn item_kind(name: &str, item_name: &str, at: &str) -> Result<Option<SymbolKind>
     })
 }
 
-/// Returns the escaped qualified part of one dotted name.
 fn qualified(name: &str) -> String {
     name.split('.')
         .filter(|segment| !segment.is_empty())
@@ -189,7 +169,6 @@ fn qualified(name: &str) -> String {
         .join(".")
 }
 
-/// Normalizes CRLF line endings and trims trailing whitespace.
 fn normalize(text: &str) -> String {
     text.replace("\r\n", "\n").trim_end().to_owned()
 }
@@ -201,7 +180,6 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// Joins the summary and the description into one markdown body.
 fn body(summary: &str, description: &str) -> String {
     let summary = normalize(summary);
     let description = normalize(description);
@@ -212,7 +190,6 @@ fn body(summary: &str, description: &str) -> String {
     }
 }
 
-/// Returns the item name without a leading `module.` prefix.
 fn local_name<'a>(module: &str, name: &'a str) -> &'a str {
     name.strip_prefix(module)
         .and_then(|rest| rest.strip_prefix('.'))
@@ -326,11 +303,6 @@ fn member_symbol(
     Ok(Some(symbol))
 }
 
-/// Converts one `LDoc` filter document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, LuaExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(LuaExtractError::InvalidPackage {

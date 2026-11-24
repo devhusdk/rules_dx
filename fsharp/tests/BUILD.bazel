@@ -1,4 +1,5 @@
 load("@rules_dotnet//dotnet/private:common.bzl", "framework_preprocessor_symbols")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//dotnet/private:symbols.bzl", "fsharp_compile_defines")
@@ -118,4 +119,11 @@ test_suite(
         "//fsharp/tests/fixtures/nuget:fsharplint_group_test",
         "//fsharp/tests/fixtures/nuget:main_group_test",
     ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

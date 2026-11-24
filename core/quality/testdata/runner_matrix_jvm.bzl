@@ -118,4 +118,15 @@ JVM_CASES = [
         },
         config = "//core/quality/tiers/detekt:strict.yml",
     ),
+    matrix_case(
+        name = "matrix_kotlin_detekt_strict_guards",
+        capability = "lint",
+        tool = "detekt",
+        binary = "//java/private/quality/tools:detekt",
+        source_class = "kotlin",
+        generated = {
+            "matrix/detektguards/Guards.kt": "package matrix.detektguards\n\n/** Guarded. */\nclass Guards {\n    /** Not done. */\n    fun pending(): Int = TODO()\n\n    /** Swallowed. */\n    fun swallowed(value: String): Int {\n        try {\n            return value.toInt()\n        } catch (error: IllegalStateException) {\n            return value.length\n        }\n    }\n}\n",
+        },
+        config = "//core/quality/tiers/detekt:strict.yml",
+    ),
 ]

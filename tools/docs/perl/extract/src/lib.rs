@@ -1,5 +1,3 @@
-//! Converts the Perl POD driver's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -17,7 +15,6 @@ const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "perl.config";
 const KEY_INCOMPLETE: &str = "perl.incomplete";
 
-/// Why one Perl POD JSON document could not become a shard.
 #[derive(Debug)]
 pub enum PerlExtractError {
     Read(PathIoError),
@@ -89,7 +86,6 @@ impl From<JsonError> for PerlExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -97,23 +93,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `perl_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("perl_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: perl_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -123,11 +112,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the input cannot be read or converted or the shard cannot be written.
 pub fn run(options: &Options) -> Result<(), PerlExtractError> {
     let json = path_io::read_to_string(Path::new(&options.json)).map_err(PerlExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
@@ -143,7 +127,6 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// Escapes the `::` separated segments of a Perl name into one id part.
 fn qualified(path: &str) -> String {
     path.split("::")
         .map(documentation_ir::escape_id_segment)
@@ -151,16 +134,10 @@ fn qualified(path: &str) -> String {
         .join(".")
 }
 
-/// Normalizes line endings and trims trailing whitespace.
 fn normalize(text: &str) -> String {
     text.replace("\r\n", "\n").trim_end().to_owned()
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the JSON is malformed, names an unknown kind, lists no public API or does not validate.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, PerlExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(PerlExtractError::InvalidPackage {

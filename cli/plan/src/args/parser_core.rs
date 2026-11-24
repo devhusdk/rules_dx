@@ -103,7 +103,6 @@ fn min_coverage_rejects_bad_values_and_other_commands() {
     );
 }
 
-/// The words one command needs before `--apply`, mirroring the required slots.
 fn plain_words(command: Command) -> Vec<String> {
     let mut words = vec![command.name().to_owned()];
     match command {

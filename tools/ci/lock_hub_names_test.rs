@@ -1,5 +1,3 @@
-//! No non-test Go or Rust file names a lock hub repository (`@<hub>//`, `@<hub>"` or `"<hub>//`) outside `tools/ci/lock_hub_names_allowlist.txt`, and the allowlist holds no spare line.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -9,15 +7,12 @@ use serde_json::Value;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/lock_hub_names_allowlist.txt";
 
-/// Fewer snapshot entries than this means the sweep lost the tree.
 const MIN_LANGUAGES: usize = 50;
 const MIN_RUST: usize = 300;
 const MIN_GO: usize = 100;
 
-/// The hub names of every `<lang>/lang.json` `setup.hubs` entry.
 fn hubs(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for (path, text) in files {
@@ -42,7 +37,6 @@ fn hubs(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     out
 }
 
-/// Whether the source names `hub` as a repository.
 fn names_hub(source: &str, hub: &str) -> bool {
     [
         format!("@{hub}//"),
@@ -53,7 +47,6 @@ fn names_hub(source: &str, hub: &str) -> bool {
     .any(|shape| source.contains(shape.as_str()))
 }
 
-/// One allowlist line per source and hub it names.
 fn violations(
     hubs: &BTreeSet<String>,
     rust: &BTreeMap<String, String>,
@@ -73,17 +66,14 @@ fn violations(
     out
 }
 
-/// Whether `line` is `hub <path> <hub>`.
 fn well_formed(line: &str) -> bool {
     line.split(' ').count() == 3 && line.starts_with("hub ")
 }
 
-/// What to do about a new line.
 fn fix(_line: &str) -> String {
     "read the hub name from the lock registry".to_owned()
 }
 
-/// Reads one runfile named by an environment variable.
 fn read_input(variable: &str) -> String {
     let key = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} is set by the test"));
     let path = dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("{variable}: {error}"));

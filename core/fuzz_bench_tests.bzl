@@ -2,7 +2,6 @@
 
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 def dx_runner_attr_test(name, runner, expected, size = "small"):

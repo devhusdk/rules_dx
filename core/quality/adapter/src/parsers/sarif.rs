@@ -142,7 +142,6 @@ fn percent_decoded(path: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-/// Returns the forward-slash path one file URL names, with or without a drive.
 pub(super) fn file_url_path(url: &Url) -> Result<String, dx_path::UriError> {
     match url.host_str() {
         None | Some("") if url.query().is_none() && url.fragment().is_none() => {
@@ -254,7 +253,6 @@ fn end(
     }))
 }
 
-/// SARIF gives `columnKind` no default, so `absent` names the producer's units.
 fn column_encoding(
     tool: &'static str,
     kind: Option<&impl serde::Serialize>,
@@ -318,9 +316,6 @@ fn check_invocations(tool: &'static str, invocations: &[Invocation]) -> Result<(
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sarif(
     tool: &'static str,
     stdout: &[u8],
@@ -340,7 +335,6 @@ pub(super) fn read_sarif(tool: &'static str, stdout: &[u8]) -> Result<Sarif, Par
     })
 }
 
-/// Reports whether a result's suppressions all count as accepted.
 pub(super) fn suppressed<'a>(
     statuses: impl IntoIterator<Item = Option<&'a serde_json::Value>>,
 ) -> bool {

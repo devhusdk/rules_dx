@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-/// Registrations for toolchain types `rules_dx` defines.
 const OWN_TYPES: &[&str] = &[
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
@@ -16,31 +15,32 @@ const OWN_TYPES: &[&str] = &[
     "@julia_toolchains//:all",
 ];
 
-/// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
-    "//core/hermetic_launcher:all",
-    "//cuda/private/toolchain/hub:all",
     "//java/private/toolchain:all",
-    "//julia/private/runtime:source_toolchain",
     "@android_ndk_toolchain//:all",
     "@dx_cc_toolchains//:all",
+    "@dx_cuda_toolchains//:all",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",
     "@dx_haskell_toolchains//:dx_haskell_toolchains__linux_arm64_musl",
     "@dx_haskell_toolchains//:dx_haskell_toolchains__linux_x86_64_musl",
+    "@dx_julia_toolchains//:all",
+    "@dx_launcher_toolchains//:all",
     "@dx_protoc_toolchains//:all",
     "@dx_python_toolchains//:all",
     "@dx_ruby_toolchains//:all",
     "@dx_rust_toolchains//:all",
+    "@dx_rust_toolchains//:rust_linux_aarch64__aarch64-unknown-linux-musl__stable",
+    "@dx_rust_toolchains//:rust_linux_aarch64__aarch64-unknown-linux-musl__stable__cargo",
+    "@dx_rust_toolchains//:rust_linux_x86_64__x86_64-unknown-linux-musl__stable",
+    "@dx_rust_toolchains//:rust_linux_x86_64__x86_64-unknown-linux-musl__stable__cargo",
     "@dx_swift_toolchains//:all",
     "@python_interpreters//:all",
     "@rust_toolchains//:all",
 ];
 
-/// Ungated registrations for shared toolchain types; entries are only removed.
 const UNGATED: &[&str] = &[];
 
-/// Labels of every `register_toolchains` call that is not `dev_dependency = True`.
 fn registered(module: &str) -> BTreeSet<String> {
     let mut labels = BTreeSet::new();
     let mut rest = module;

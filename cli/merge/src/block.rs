@@ -1,8 +1,5 @@
-//! A marked block of text that is added or replaced in place.
-
 use crate::Error;
 
-/// The byte range of the block, including one trailing line break.
 #[must_use]
 pub fn span(text: &str, begin: &str, end: &str) -> Option<(usize, usize)> {
     let start = text.find(begin)?;
@@ -18,19 +15,16 @@ pub fn span(text: &str, begin: &str, end: &str) -> Option<(usize, usize)> {
     Some((start, stop))
 }
 
-/// Whether the text has the begin marker but no end marker after it.
 #[must_use]
 pub fn orphaned(text: &str, begin: &str, end: &str) -> bool {
     text.contains(begin) && span(text, begin, end).is_none()
 }
 
-/// The line break the text uses.
 #[must_use]
 pub fn eol(text: &str) -> &'static str {
     if text.contains("\r\n") { "\r\n" } else { "\n" }
 }
 
-/// The text with `block` (LF, markers included) replaced or appended and every other byte kept.
 pub fn merge(text: &str, begin: &str, end: &str, block: &str) -> Result<String, Error> {
     if orphaned(text, begin, end) {
         return Err(Error::OrphanedMarker {

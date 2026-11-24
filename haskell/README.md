@@ -61,6 +61,20 @@ with `haskell_cabal_binary`. Haddock is off for these packages.
 The [quality commands page](../docs/cli/commands/quality.md) covers the
 flags and family setup.
 
+### Compiler warnings
+
+`haskell_library`, `haskell_binary` and `haskell_test` compile with the
+`config_tier` warning set ahead of your `ghcopts`. Warnings are errors unless
+`warnings_as_errors = False`.
+
+The `strict` tier, the default, passes `-Wall`, `-Wcompat`,
+`-Wredundant-constraints`, `-Widentities`, `-Wredundant-bang-patterns`,
+`-Wunticked-promoted-constructors`, `-Woperator-whitespace`,
+`-Wincomplete-uni-patterns`, `-Wincomplete-record-updates`, `-Wx-partial`,
+`-Wpartial-fields`, `-Wmissing-deriving-strategies`, `-Wunused-packages` and
+`-Wmissing-home-modules`. Libraries also get `-Wmissing-export-lists`. The
+`standard` tier passes `-Wall`.
+
 ## Coverage
 
 Haskell tests write LCOV under `bazel coverage` and `dx coverage`. The test

@@ -9,7 +9,7 @@ dart_package_metadata(
 )
 
 builder_shim_library(
-    name = "shim_runner",
+    name = "builder_runner",
     pub_hub = "@dx_dart_deps",
 )
 
@@ -18,7 +18,7 @@ dart_binary(
     main = "generator.dart",
     target_compatible_with = DART_COMPATIBLE_WITH,
     deps = [
-        ":shim_runner",
+        ":builder_runner",
         "@dx_dart_deps//:build",
     ],
 )

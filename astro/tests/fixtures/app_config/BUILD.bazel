@@ -52,5 +52,6 @@ typescript_config(
 
 framework_build_tool_tests(
     name = "build_tool_tests",
+    size = "small",
     build = "site",
 )

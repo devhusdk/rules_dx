@@ -6,17 +6,6 @@ const TOOL: &str = "latexindent";
 
 const FATAL: &str = "FATAL:";
 
-/// `latexindent -k FILE` prints the re-indented document on stdout and exits 0 when the document
-/// body is unchanged and 1 when it would change. Nothing is written in check mode. A fatal
-/// condition (a missing file, say) prints `FATAL: ...` and exits 3. The check runs on one file
-/// per process, so the single checked file is the one a dirty exit names.
-///
-/// Exit 0 is only clean with an empty stderr, so a crash that still ends at exit 0 is never read
-/// as clean, and exit 1 needs a document on stdout.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_latexindent(
     stdout: &[u8],
     stderr: &[u8],
@@ -42,7 +31,6 @@ pub fn parse_latexindent(
             detail: line.to_owned(),
         });
     }
-    // The missing-HOME settings warning carries no result.
     let unexpected = diagnostics
         .lines()
         .map(str::trim)

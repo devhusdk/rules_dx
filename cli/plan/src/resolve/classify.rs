@@ -29,9 +29,6 @@ pub(crate) fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
     Ok(parts.join("/"))
 }
 
-/// The workspace-relative files and directories named when every scope is a path.
-/// A `clippy.toml` inside a package stands for that package's directory, the crates it configures.
-/// A scope with a label gives `None`: its whole target is wanted.
 #[must_use]
 pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
     let mut cache = PackageCache::default();
@@ -51,7 +48,6 @@ pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
     (!paths.is_empty()).then_some(paths)
 }
 
-/// Whether `path` is one of `filter` or lies under one. An empty entry is the workspace root.
 #[must_use]
 pub fn path_in_filter(path: &str, filter: &[String]) -> bool {
     filter.iter().any(|entry| {
@@ -117,9 +113,6 @@ pub(crate) fn classify_scopes(
     classify(scopes, workspace, cache, false)
 }
 
-/// Maps generate scopes to labels without asking Bazel: generate creates the
-/// BUILD files, so a directory is taken as the package tree `//dir/...` and a
-/// file as its own package `//dir:all`, neither of which needs a BUILD file yet.
 pub(crate) fn classify_generate_scopes(
     scopes: &[String],
     workspace: &Path,
@@ -168,9 +161,6 @@ pub(crate) fn classify_run_scopes(
     classify(scopes, workspace, cache, true)
 }
 
-/// Rejects `//pkg/...` labels when no BUILD file exists under `pkg`, so the
-/// failure surfaces once as an input error instead of as Bazel's
-/// "no targets found" warning turning into an analysis failure per phase.
 fn check_recursive_label_has_packages(raw: &str, workspace: &Path) -> Result<(), ResolveError> {
     let Some(prefix) = raw.strip_suffix("/...") else {
         return Ok(());
@@ -189,9 +179,6 @@ fn check_recursive_label_has_packages(raw: &str, workspace: &Path) -> Result<(),
     }
 }
 
-/// Walks up to the nearest existing directory and returns up to three sibling
-/// directories with a BUILD file whose name is within edit distance 2 of the
-/// missing path segment.
 fn suggest_packages(rel: &str, workspace: &Path) -> Vec<String> {
     let mut parent = Path::new(rel.trim_end_matches('/'));
     let mut missing = String::new();

@@ -1,41 +1,3 @@
-//! Reader for Bazel's `--execution_log_compact_file`, a comparison of two logs, and a diff that
-//! names why cacheable spawns missed the cache, traces each changed input to the source file or
-//! non-reproducible spawn it came from, and sums the uncacheable spawns by mnemonic.
-//!
-//! The log is a zstd stream of varint-length `ExecLogEntry` messages. Every spawn output
-//! becomes the key `<label> <mnemonic> <output path>`, valued with the file digest, the sorted
-//! child digests of a directory, or the target of an unresolved symlink. An output that
-//! several spawns list is keyed with the smallest of their labels.
-//!
-//! The fixtures in `exec_log_fixtures` were recorded with Bazel 9.3.1 from a scratch workspace
-//! holding `.bazelversion` (`9.3.1`) and an empty `MODULE.bazel`.
-//!
-//! `first` and `second` come from a `BUILD.bazel` with two genrules: `stable` (`echo hi > $@`)
-//! and `stamped` (`date +%s%N > $@`):
-//!
-//! ```text
-//! bazel --output_base=$PWD/ob_first --bazelrc=/dev/null build --noenable_workspace \
-//!   --remote_cache= --remote_executor= --disk_cache= \
-//!   --execution_log_compact_file=$PWD/first.log.zst //:stable //:stamped
-//! bazel --output_base=$PWD/ob_second --bazelrc=/dev/null build --noenable_workspace \
-//!   --remote_cache= --remote_executor= --disk_cache= \
-//!   --execution_log_compact_file=$PWD/second.log.zst //:stable //:stamped
-//! ```
-//!
-//! `cache_first` and `cache_second` come from three genrules that each run `cat $< > $@`:
-//! `same` on `same.txt` (`fixed`), `changed` on `changed.txt`, and `nocache` on `same.txt`
-//! with `tags = ["no-cache"]`. `changed.txt` holds `old` for the first run and `new` for the
-//! second, and both runs share one disk cache:
-//!
-//! ```text
-//! bazel --output_base=$PWD/ob_old --bazelrc=/dev/null build --noenable_workspace \
-//!   --remote_cache= --remote_executor= --disk_cache=$PWD/dc \
-//!   --execution_log_compact_file=$PWD/cache_first.log.zst //:same //:changed //:nocache
-//! bazel --output_base=$PWD/ob_new --bazelrc=/dev/null build --noenable_workspace \
-//!   --remote_cache= --remote_executor= --disk_cache=$PWD/dc \
-//!   --execution_log_compact_file=$PWD/cache_second.log.zst //:same //:changed //:nocache
-//! ```
-
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Read;
 use std::rc::Rc;
@@ -80,7 +42,6 @@ impl Node {
         }
     }
 
-    /// Returns each file path this node stands for with its digest, directories expanded.
     fn files(&self) -> Vec<(String, String)> {
         match self {
             Self::File { path, hash } => vec![(path.clone(), hash.clone())],
@@ -97,7 +58,6 @@ impl Node {
     }
 }
 
-/// Bazel records a directory's children either relative to it or by their full path.
 fn child_path(dir: &str, child: &str) -> String {
     if child.starts_with(&format!("{dir}/")) {
         child.to_owned()
@@ -106,7 +66,6 @@ fn child_path(dir: &str, child: &str) -> String {
     }
 }
 
-/// One spawn of an execution log.
 #[derive(Debug, Default)]
 pub struct Spawn {
     pub label: String,
@@ -123,7 +82,6 @@ pub struct Spawn {
     outputs: Vec<u64>,
 }
 
-/// A parsed execution log: its spawns plus the files and input sets they point at.
 #[derive(Default)]
 pub struct ExecLog {
     nodes: BTreeMap<u64, Node>,
@@ -248,7 +206,6 @@ fn symlink(bytes: &[u8]) -> Result<Node, String> {
     Ok(Node::Symlink { path, target })
 }
 
-/// Reads a repeated uint32 field, which protobuf may write packed or one value per tag.
 fn ids(value: Value<'_>, into: &mut Vec<u64>) -> Result<(), String> {
     match value {
         Value::Varint(id) => into.push(id),
@@ -350,11 +307,6 @@ fn spawn(bytes: &[u8]) -> Result<Spawn, String> {
 }
 
 impl ExecLog {
-    /// Parses a compact execution log.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` when the bytes are not a zstd stream of log entries.
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         let mut decoder =
             ruzstd::decoding::StreamingDecoder::new(bytes).map_err(|e| e.to_string())?;
@@ -390,11 +342,6 @@ impl ExecLog {
         Ok(log)
     }
 
-    /// Returns each output path of a spawn with its digest.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` when an output id has no file, directory or symlink entry.
     pub fn outputs(&self, spawn: &Spawn) -> Result<Vec<(String, String)>, String> {
         spawn
             .outputs
@@ -409,11 +356,6 @@ impl ExecLog {
             .collect()
     }
 
-    /// Returns every input and tool file of a spawn, keyed by path, with directories expanded.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` when an input id has no entry.
     pub fn inputs(&self, spawn: &Spawn) -> Result<BTreeMap<String, String>, String> {
         let mut found = BTreeMap::new();
         let mut seen = BTreeSet::new();
@@ -432,7 +374,6 @@ impl ExecLog {
                 Some(
                     node @ (Node::File { .. } | Node::Directory { .. } | Node::Symlink { .. }),
                 ) => found.extend(node.files()),
-                // The tree's files are keyed by their exec path; the manifest sits in the tree.
                 Some(Node::Runfiles {
                     path,
                     set,
@@ -449,8 +390,6 @@ impl ExecLog {
         Ok(found)
     }
 
-    /// Maps each output file path, directories expanded, to the index of the first spawn that
-    /// writes it.
     #[must_use]
     pub fn producers(&self) -> BTreeMap<String, usize> {
         let mut found = BTreeMap::new();
@@ -464,7 +403,6 @@ impl ExecLog {
         found
     }
 
-    /// Returns `<label> <mnemonic> <first output path>`, which names a spawn across runs.
     #[must_use]
     pub fn key(&self, spawn: &Spawn) -> String {
         let path = spawn
@@ -477,11 +415,6 @@ impl ExecLog {
     }
 }
 
-/// Parses an execution log into its output keys and digests.
-///
-/// # Errors
-///
-/// Returns `Err` when the log cannot be parsed or a spawn output has no entry.
 pub fn read(bytes: &[u8]) -> Result<Log, String> {
     let parsed = ExecLog::parse(bytes)?;
     let mut owners: BTreeMap<String, (&str, &str, String)> = BTreeMap::new();
@@ -502,7 +435,6 @@ pub fn read(bytes: &[u8]) -> Result<Log, String> {
         .collect())
 }
 
-/// Most differing inputs one spawn lists before it only counts the rest.
 const INPUT_LINES: usize = 20;
 
 fn ran_here(spawn: &Spawn) -> bool {
@@ -531,7 +463,6 @@ fn view(map: &BTreeMap<String, String>) -> BTreeMap<String, &str> {
     map.iter().map(|(k, v)| (k.clone(), v.as_str())).collect()
 }
 
-/// Keys each arg by its zero-padded position, so a changed arg shows where it sits.
 fn args(spawn: &Spawn) -> BTreeMap<String, &str> {
     spawn
         .args
@@ -541,10 +472,8 @@ fn args(spawn: &Spawn) -> BTreeMap<String, &str> {
         .collect()
 }
 
-/// Most origin lines one spawn lists before it only counts the rest.
 const ORIGIN_LINES: usize = 5;
 
-/// Returns each path whose value differs between two input maps, in path order.
 fn differing<'m>(
     old: &'m BTreeMap<String, String>,
     new: &'m BTreeMap<String, String>,
@@ -563,7 +492,6 @@ fn differing<'m>(
         .collect()
 }
 
-/// Why a spawn of the second log wrote an output that differs from the first log.
 #[derive(Clone)]
 enum Why {
     NotInFirst,
@@ -572,7 +500,6 @@ enum Why {
     Inputs(Rc<Vec<String>>),
 }
 
-/// Follows differing generated inputs back through their producers in the second log.
 struct Tracer<'a> {
     first: &'a ExecLog,
     second: &'a ExecLog,
@@ -596,7 +523,6 @@ impl<'a> Tracer<'a> {
         }
     }
 
-    /// Returns the `origin:` lines for the inputs that differ, without repeats.
     fn origins(
         &mut self,
         old: &BTreeMap<String, String>,
@@ -642,7 +568,6 @@ impl<'a> Tracer<'a> {
         if let Some(why) = self.memo.get(&at) {
             return Ok(why.clone());
         }
-        // A spawn that reads its own output would recurse forever; it stops here instead.
         self.memo.insert(at, Why::Inputs(Rc::default()));
         let new = &self.second.spawns[at];
         let why = match self.earlier.get(&self.key(at)).copied() {
@@ -685,12 +610,6 @@ fn seconds(millis: u64) -> String {
     format!("{}.{}s", millis / 1000, millis % 1000 / 100)
 }
 
-/// Names why the slowest cacheable spawns that ran in the second log missed the cache, against
-/// the first, then sums the spawns that can never be cached by mnemonic.
-///
-/// # Errors
-///
-/// Returns `Err` when a spawn points at an input with no entry.
 pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>, String> {
     let mut tracer = Tracer::new(first, second);
     let mut slow: Vec<&Spawn> = second
@@ -708,7 +627,6 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
             spawn.runner
         ));
         let reasons = if let Some(old) = tracer.earlier.get(&key).copied() {
-            // Bazel records no digest for some spawns, such as test runs.
             let digested = !old.digest.is_empty() && !spawn.digest.is_empty();
             let found = if digested && old.digest == spawn.digest {
                 Vec::new()
@@ -751,11 +669,6 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
     Ok(out)
 }
 
-/// Parses an allowlist file of `<label> <mnemonic> <path>` lines into its entries.
-///
-/// # Errors
-///
-/// Returns `Err` listing every malformed, unsorted or repeated line.
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
     let (keys, problems) = crate::allowlist::parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
@@ -771,15 +684,12 @@ pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
     }
 }
 
-/// Maps each output path of `log` to its `<label> <mnemonic> <path>` key.
 fn keys_by_path(log: &Log) -> BTreeMap<&str, &str> {
     log.keys()
         .map(|key| (key.splitn(3, ' ').nth(2).unwrap_or(""), key.as_str()))
         .collect()
 }
 
-/// Compares two logs by output path; the label in a key only names the entry,
-/// because a shared action's owner can change between builds.
 #[must_use]
 pub fn problems(first: &Log, second: &Log, allowlist: &BTreeSet<String>) -> Vec<String> {
     let mut out = Vec::new();
@@ -970,7 +880,6 @@ mod tests {
     const CHANGED: &str = "//:changed Genrule bazel-out/k8-fastbuild/bin/changed.out";
     const NOCACHE: &str = "//:nocache Genrule bazel-out/k8-fastbuild/bin/nocache.out";
     const SAME: &str = "//:same Genrule bazel-out/k8-fastbuild/bin/same.out";
-    /// The first fixture log built `changed.txt` from this text.
     const OLD_TEXT: &[u8] = b"old\n";
 
     fn cache_logs() -> (ExecLog, ExecLog) {
@@ -1179,7 +1088,6 @@ mod tests {
 
     const MID: &str = "//:mid Genrule mid.out";
 
-    /// `//:mid` reads `src.txt` and writes `mid.out`; `//:top` reads `mid.out`.
     fn chain(src: &str, mid_out: &str, mid_digest: &str) -> ExecLog {
         let nodes = [
             (1, file("src.txt", src)),

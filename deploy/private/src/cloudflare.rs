@@ -29,19 +29,16 @@ const PASSTHROUGH_ENV: [&str; 11] = [
     "LC_ALL",
 ];
 
-/// Names one Cloudflare Pages deployment target.
 pub struct PagesLaunch<'a> {
     pub deploy_name: &'a str,
     pub account_id: &'a str,
     pub project: &'a str,
     pub branch: &'a str,
     pub production_branch: &'a str,
-    /// Names the site directory's runfiles rlocation.
     pub site_rloc: &'a str,
     pub wrangler_rloc: &'a str,
 }
 
-/// Holds the runtime environment one Pages deploy reads.
 pub struct PagesEnv {
     pub token: String,
     pub account_id: Option<String>,
@@ -49,7 +46,6 @@ pub struct PagesEnv {
     pub build_mode: String,
 }
 
-/// Lists one validated site file.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PagesFile {
     pub path: String,
@@ -57,7 +53,6 @@ pub struct PagesFile {
     pub size: u64,
 }
 
-/// Holds one reported Pages deployment.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PagesDeployment {
     pub id: String,
@@ -65,10 +60,8 @@ pub struct PagesDeployment {
     pub environment: String,
 }
 
-/// Why a Pages site check, stage or deployment record was refused.
 #[derive(Debug)]
 pub enum PagesError {
-    /// An identity value failed `pages_identity_error`; the message names it.
     Identity(String),
     AccountMismatch,
     NotUtf8 {
@@ -245,7 +238,6 @@ impl std::error::Error for PagesError {
     }
 }
 
-/// Returns whether the branch deploys to production or preview.
 pub fn pages_intent(branch: &str, production_branch: &str) -> &'static str {
     if branch == production_branch {
         "production"
@@ -258,7 +250,6 @@ fn pages_name_ok(value: &str, max: usize, allowed: impl Fn(char) -> bool) -> boo
     !value.is_empty() && value.len() <= max && value.chars().all(allowed)
 }
 
-/// Validates the project, account, branch and production branch values.
 pub fn pages_identity_error(
     account_id: &str,
     project: &str,
@@ -316,7 +307,6 @@ fn pages_component_error(rel: &str, name: &str) -> Option<PagesError> {
     None
 }
 
-/// Converts a directory entry name to UTF-8, rejecting anything else.
 fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, PagesError> {
     raw.into_string().map_err(|raw| PagesError::NotUtf8 {
         dir: dir.to_path_buf(),
@@ -326,7 +316,6 @@ fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, Pages
 
 fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<(), PagesError> {
     for path in path_io::read_dir(dir).map_err(PagesError::List)? {
-        // read_dir joins each entry name onto dir, so the last component is always there.
         let raw = path.file_name().unwrap_or_default().to_owned();
         let name = pages_entry_name(dir, raw)?;
         let rel = if prefix.is_empty() {
@@ -387,7 +376,6 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
     Ok(())
 }
 
-/// Lists the files of one static site directory after validating them.
 pub fn pages_scan_site(root: &Path) -> Result<Vec<PagesFile>, PagesError> {
     let meta = std::fs::metadata(root).map_err(|source| PagesError::SiteMissing {
         root: root.to_path_buf(),
@@ -413,7 +401,6 @@ pub fn pages_scan_site(root: &Path) -> Result<Vec<PagesFile>, PagesError> {
     Ok(files)
 }
 
-/// Builds the Wrangler arguments for one Pages deploy.
 pub fn pages_wrangler_args(staged: &Path, project: &str, branch: &str) -> Vec<OsString> {
     vec![
         "pages".into(),
@@ -427,7 +414,6 @@ pub fn pages_wrangler_args(staged: &Path, project: &str, branch: &str) -> Vec<Os
     ]
 }
 
-/// Reads the deployment Wrangler wrote to its output file.
 pub fn pages_parse_output(
     text: &str,
     project: &str,
@@ -545,7 +531,6 @@ fn pages_fail(err: &mut dyn std::io::Write, name: &str, message: &str) -> i32 {
     1
 }
 
-/// Writes the report lines to `out`; a failed write is reported on `err` and fails the run.
 fn pages_report(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
@@ -560,7 +545,6 @@ fn pages_report(
     }
 }
 
-/// Stages one site, runs Wrangler and reports the deployment.
 pub fn pages_deploy_run(
     launch: &PagesLaunch<'_>,
     site: &Path,
@@ -602,7 +586,6 @@ fn pages_validate(
     Ok((files, pages_intent(launch.branch, launch.production_branch)))
 }
 
-/// Checks the pinned site and identity and reports it without uploading.
 fn pages_check_run(
     launch: &PagesLaunch<'_>,
     site: &Path,
@@ -636,7 +619,6 @@ fn pages_check_run(
     )
 }
 
-/// Owner approval gate for `cloudflare_pages_deploy`.
 const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
     tool: "cloudflare_pages_deploy",
     action: "upload",
@@ -773,7 +755,6 @@ fn pages_deploy_staged(
     )
 }
 
-/// Runs the Cloudflare Pages deploy tool.
 pub fn cloudflare_pages_main(launch: &PagesLaunch<'_>, argv: &[String]) -> i32 {
     // LCOV_EXCL_START - reason: process wiring, issue: 1684
     pages_main_with(
@@ -861,7 +842,6 @@ fn pages_runfiles_root(dir: Option<String>, exe: Option<PathBuf>) -> Option<Stri
     tree.is_dir().then(|| tree.to_string_lossy().into_owned())
 }
 
-/// Checks one Pages deployment locally and writes its manifest.
 pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
     let [_, account, project, branch, production, site, out] = argv else {
         return super::bin_usage(
@@ -1583,7 +1563,6 @@ exit 7
     #[test]
     fn scan_rejects_unsafe_names_and_special_files() {
         use std::os::unix::ffi::OsStrExt as _;
-        // APFS refuses non-UTF-8 names, so test the conversion directly.
         let raw = std::ffi::OsStr::from_bytes(b"bad\xff").to_owned();
         assert!(matches!(
             pages_entry_name(Path::new("/site"), raw).expect_err("utf8"),

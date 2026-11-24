@@ -5,11 +5,6 @@ use crate::{ColumnEncoding, TextPosition};
 const TOOL: &str = "pkl";
 const TRAILER: &str = "An error occurred during formatting.";
 
-/// Exit 0 is clean, 11 lists unformatted files, and 1 lists them and reports located errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl(
     stdout: &[u8],
     stderr: &[u8],
@@ -94,7 +89,6 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
     Ok(findings)
 }
 
-/// The message and the start of its trailing ` at (<row>:<col>)` or ` at (<row>:<col> - <row>:<col>)` position.
 fn split_location(message: &str) -> (&str, u64, u64) {
     let located: Option<(&str, u64, u64)> = message.strip_suffix(')').and_then(|rest| {
         let (text, range) = rest.rsplit_once(" at (")?;
@@ -108,20 +102,12 @@ fn split_location(message: &str) -> (&str, u64, u64) {
     }
 }
 
-/// `pkl eval` of one module. Exit 0 with no output on stderr is clean. Exit 1 prints one
-/// `Pkl Error` block; its first `at ... (file:///path, line N)` frame is the finding, which may
-/// sit in an imported file. Every other exit or output shape is an error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl_eval(
     stdout: &[u8],
     stderr: &[u8],
     code: Option<i32>,
     known: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
-    // Stdout holds the rendered module on success; it is size-checked and otherwise ignored.
     as_text(TOOL, stdout)?;
     let errors = as_text(TOOL, stderr)?;
     match code {
@@ -187,12 +173,10 @@ fn eval_error(stderr: &str, known: &[&str]) -> Result<FileFinding, ParseError> {
     ))
 }
 
-/// The file path and line of an `at <name> (file:///path, line N)` frame.
 fn frame_location(frame: &str) -> Option<(String, u64)> {
     let inner = frame.strip_suffix(')')?.rsplit_once(" (")?.1;
     let (uri, row) = inner.rsplit_once(", line ")?;
     let path = percent_decode(uri.strip_prefix("file://")?)?;
-    // A Windows drive path is spelled `file:///C:/dir/a.pkl`.
     let path = match path.strip_prefix('/') {
         Some(rest) if matches!(rest.as_bytes(), [drive, b':', _, ..] if drive.is_ascii_alphabetic()) => {
             rest.to_owned()
@@ -222,7 +206,6 @@ fn percent_decode(text: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-/// The 1-based column of the first caret under the snippet line above the frame, or 1.
 fn frame_column(before: &[&str]) -> u64 {
     let [.., snippet, carets] = before else {
         return 1;

@@ -9,11 +9,6 @@ fn manifest_error(message: String) -> DepcheckError {
     DepcheckError::ManifestParse(message)
 }
 
-/// Reads the `collections` of an ansible manifest: each entry's `name` and `version`.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_ansible_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let root: yaml_serde::Value = yaml_serde::from_str(&text)
@@ -63,11 +58,6 @@ pub fn parse_ansible_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
     Ok(deps)
 }
 
-/// Maps every collection in an ansible lock to its version.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_ansible_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

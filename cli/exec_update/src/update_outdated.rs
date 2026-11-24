@@ -231,7 +231,6 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
 
 const BAZEL_TIMEOUT: Duration = Duration::from_mins(30);
 
-/// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
 fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
     if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
         return Ok(PathBuf::from(dir));
@@ -272,7 +271,6 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
     }
 }
 
-/// What the registries said about the resolved sets.
 pub(super) struct Collected {
     pub found: Findings,
     pub unsupported: Vec<String>,
@@ -280,7 +278,6 @@ pub(super) struct Collected {
     pub ecosystems: BTreeMap<String, Ecosystem>,
 }
 
-/// Looks up every resolved set and returns sorted, unique candidates.
 fn hub_name(
     lookup: Result<&'static str, dx_adopt::AdoptError>,
     set: &str,
@@ -828,7 +825,6 @@ fn collect_hex(acc: &mut Acc, cx: &Ctx<'_>) {
     );
 }
 
-/// The registry page for a candidate, including the built-in items.
 pub(super) fn registry_for(
     registries: &BTreeMap<String, Registry>,
     candidate: &Candidate,
@@ -1162,7 +1158,6 @@ impl Fetch for DirFetch {
     }
 }
 
-/// A missing fixture file answers like a registry 404.
 fn fixture_error(url: &str, error: &std::io::Error) -> DxError {
     if error.kind() == std::io::ErrorKind::NotFound {
         DxError::failure("HTTP 404")
@@ -1171,14 +1166,11 @@ fn fixture_error(url: &str, error: &std::io::Error) -> DxError {
     }
 }
 
-/// Registry lookups through the shared dx HTTP client, with an optional GitHub token.
 struct HttpFetch(Result<dx_http::Client, dx_http::Error>, Option<String>);
 
 const MANIFEST_ACCEPT: &str = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
 
-/// The largest archive `dx update` hashes; it streams, so this bounds time, not memory.
 const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
-/// The largest registry document `dx update` reads into memory.
 const DOCUMENT_LIMIT: u64 = 10 * 1024 * 1024;
 
 fn http_settings(https_only: bool) -> dx_http::Settings {
@@ -1189,7 +1181,6 @@ fn http_settings(https_only: bool) -> dx_http::Settings {
     }
 }
 
-/// A status the registry sent is a failure; anything that kept dx from an answer is infra.
 fn http_error(error: dx_http::Error) -> DxError {
     match error {
         dx_http::Error::Status { code, .. } => DxError::failure(format!("HTTP {code}")),
@@ -1340,8 +1331,6 @@ mod tests {
         assert_eq!(started["mode"], "default");
     }
 
-    /// A fetcher for loopback URLs that ignores the host's proxy settings. It tries once,
-    /// since each test server answers one request; dx_http's own tests cover retries.
     fn plain_fetch() -> HttpFetch {
         let settings = dx_http::Settings {
             attempts: 1,

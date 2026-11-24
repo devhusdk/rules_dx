@@ -1,6 +1,7 @@
 """Analysis tests for the clang syntax aspect."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality/testdata:all_languages.bzl", "real_cc_lint_aspect")
@@ -43,6 +44,30 @@ _no_tidy_config_test = analysistest.make(
     _no_tidy_config_impl,
 )
 
+def _sourceless_compile_impl(ctx):
+    """Registers a compile action while holding no source file."""
+    tool = ctx.actions.declare_file(ctx.label.name + ".tool")
+    ctx.actions.write(tool, "", is_executable = True)
+    obj = ctx.actions.declare_file(ctx.label.name + ".o")
+    ctx.actions.run(executable = tool, outputs = [obj], arguments = ["/MD"], mnemonic = "CppCompile")
+    return [CcInfo(), DefaultInfo(files = depset([obj]))]
+
+_sourceless_compile = rule(
+    implementation = _sourceless_compile_impl,
+    doc = "A C/C++ target whose compile action names no source.",
+)
+
+def _sourceless_impl(ctx):
+    """Checks a target that holds no workspace source gets no replay."""
+    env = analysistest.begin(ctx)
+    asserts.false(env, ClangSyntaxInfo in analysistest.target_under_test(env), "want no replay")
+    return analysistest.end(env)
+
+_sourceless_test = analysistest.make(
+    _sourceless_impl,
+    extra_target_under_test_aspects = [clang_syntax_aspect],
+)
+
 def clang_syntax_analysis_tests(name):
     """Instantiates the clang syntax analysis tests as one suite."""
     _windows_argv_test(
@@ -73,4 +98,13 @@ def clang_syntax_analysis_tests(name):
         target = name + "_tidy_without_config_subject",
         expected_failure_substring = "has no clang_tidy config",
     )
-    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config"])
+    _sourceless_compile(
+        name = name + "_sourceless_target",
+        tags = ["manual"],
+    )
+    _sourceless_test(
+        name = name + "_sourceless",
+        size = "small",
+        target_under_test = name + "_sourceless_target",
+    )
+    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless"])

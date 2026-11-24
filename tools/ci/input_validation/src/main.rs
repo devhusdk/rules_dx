@@ -1,6 +1,3 @@
-//! `input_validation_bin` validates the consumer workflow inputs and writes them to `GITHUB_OUTPUT`.
-//! With the `deployables` argument it validates the release workflow list instead.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::io::Write;
@@ -15,7 +12,6 @@ fn get(name: &str) -> String {
     std::env::var(name).unwrap_or_default()
 }
 
-/// `input_validation_bin deployables` checks `DX_DEPLOYABLES` and prints one label per line.
 fn deployables() -> ExitCode {
     match input_validation::validate_deployables(&get(input_validation::DEPLOYABLES_ENV)) {
         Ok(labels) => {

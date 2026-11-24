@@ -4,7 +4,6 @@ use quality_adapter::parsers::{self, FileFinding};
 use super::check::ToolDef;
 use super::{RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed};
 
-/// What a `br:` module reference means for the user; Bicep itself only says "not restored".
 const UNRESTORED_HINT: &str =
     " (declare the module with bicep.registry_module in MODULE.bazel and add it to deps)";
 
@@ -14,7 +13,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Formats (stdout compared to the file) or lints (SARIF) each owned Bicep file in turn.
     pub(super) fn check_bicep(
         &self,
         tool_id: &str,
@@ -46,7 +44,6 @@ impl RealBackend {
                     tool_id,
                     parsers::parse_bicep_format(&out.stdout, &out.stderr, out.code, &input, &file),
                 )?);
-                // `bicep format` exits 0 on a syntax error, so lint finds it.
                 let invocation = commands::bicep_lint_check(&tool.binary, absolute);
                 let out = self.run(tool_id, tool, &invocation, scratch)?;
                 let linted = parsed(

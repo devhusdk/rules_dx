@@ -1,5 +1,3 @@
-//! Runs the consumer report under Wasmtime.
-
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

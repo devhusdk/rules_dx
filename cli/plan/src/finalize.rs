@@ -206,9 +206,6 @@ fn gazelle_status(
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 #[expect(
     clippy::too_many_lines,
     reason = "one linear sequence of steps read top to bottom"
@@ -397,9 +394,6 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     Ok(Finalized { manifest, gazelle })
 }
 
-/// Writes the changes of a check-mode `manifest` that fall inside `writable` and
-/// records it as a default-mode result. Every other file is not applied, and so is
-/// one whose bytes on disk moved since the check.
 pub fn apply_within(manifest: &mut GenerationManifest, workspace: &Path, writable: &[String]) {
     for file in &mut manifest.files {
         let (outcome, failure_code) = if crate::resolve::path_in_filter(&file.path, writable) {

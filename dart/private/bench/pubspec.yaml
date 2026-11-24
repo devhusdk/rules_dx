@@ -1,4 +1,4 @@
-name: dx_dart_bench
+name: dx_bench
 publish_to: none
 environment:
   sdk: ^3.10.0

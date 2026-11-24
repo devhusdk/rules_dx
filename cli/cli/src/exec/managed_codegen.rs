@@ -512,7 +512,6 @@ mod tests {
             ],
         );
         set_mode(&dir, 0o755);
-        // Root may change a read-only directory, so for root both stages land.
         if dx_test_scratch::running_as_root() {
             replaced.expect("root replaces");
             linked.expect("root links");

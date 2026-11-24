@@ -1,5 +1,3 @@
-//! Lists modules whose newest release on `MetaCPAN` is newer than the version in the manifest.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, semver_cmp, unquote};
@@ -7,7 +5,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://fastapi.metacpan.org";
 
-/// Checks each versioned `requires` line of the manifests against the API at `base`.
 pub fn outdated(
     set: &str,
     cpanfiles: &[String],
@@ -67,8 +64,6 @@ fn newest(body: &str) -> Result<(String, Option<String>, bool), DxError> {
     ))
 }
 
-/// Orders CPAN versions: `v1.2.3` and `1.2.3` are dotted, `1.23` is decimal with three
-/// digits per segment, so `1.9` is newer than `1.10`.
 fn version_cmp(a: &str, b: &str) -> Ordering {
     semver_cmp(&dotted(a), &dotted(b))
 }

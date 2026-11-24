@@ -26,30 +26,30 @@ package(
 
 flutter_library(
     name = "conformance",
-    package = ":conformance-metadata",
     srcs = ["lib/greet.dart"],
+    package = ":conformance-metadata",
     deps = ["@dx_flutter_deps//:flutter"],
 )
 
 flutter_library(
     name = "lint_dirty",
-    package = ":conformance_lint_dirty-metadata",
     srcs = ["lib/lint_dirty.dart"],
+    package = ":conformance_lint_dirty-metadata",
     tags = ["manual"],
 )
 
 flutter_library(
     name = "format_dirty",
-    package = ":conformance_format_dirty-metadata",
     srcs = ["lib/format_dirty.dart"],
+    package = ":conformance_format_dirty-metadata",
     tags = ["manual"],
 )
 
 flutter_test(
     name = "pass_subject_test",
     size = "small",
-    package = ":conformance-metadata",
     main = "test/pass_test.dart",
+    package = ":conformance-metadata",
     target_compatible_with = subject_compatible_with(),
     deps = [
         ":conformance",
@@ -60,8 +60,8 @@ flutter_test(
 flutter_test(
     name = "fail_subject_test",
     size = "small",
-    package = ":conformance-metadata",
     main = "test/fail_test.dart",
+    package = ":conformance-metadata",
     target_compatible_with = subject_compatible_with(),
     deps = [
         ":conformance",

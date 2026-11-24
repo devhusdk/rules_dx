@@ -1,13 +1,9 @@
-//! Archive downloads over HTTPS.
-
 use dx_http::{Client, Rewrites, Settings};
 
 use crate::{Error, Fetch};
 
-/// The largest registry document or archive a lock step reads.
 const BODY_LIMIT: u64 = 1 << 30;
 
-/// Downloads registry documents and archives through the shared dx HTTP client.
 pub struct HttpFetch(Result<Client, Error>);
 
 fn settings() -> Settings {
@@ -18,7 +14,6 @@ fn settings() -> Settings {
     }
 }
 
-/// The variable that names the downloader config Bazel uses, as an absolute path.
 pub const DOWNLOADER_CONFIG_ENV: &str = "DX_DOWNLOADER_CONFIG";
 
 fn with_config(
@@ -45,10 +40,6 @@ fn lock_error(error: dx_http::Error) -> Error {
 }
 
 impl HttpFetch {
-    /// A fetcher that refuses any URL that is not HTTPS. A bad proxy or CA setting fails each download.
-    ///
-    /// When `DX_DOWNLOADER_CONFIG` names a Bazel downloader config, every request goes through
-    /// its rewrites, allow list and block list. A config that cannot be read fails each download.
     #[must_use]
     pub fn new() -> Self {
         let config = std::env::var_os(DOWNLOADER_CONFIG_ENV).filter(|value| !value.is_empty());
@@ -70,18 +61,10 @@ impl Default for HttpFetch {
 }
 
 impl HttpFetch {
-    /// Downloads `url` and returns its bytes.
-    ///
-    /// # Errors
-    /// Fails when the request fails or the status is not 2xx.
     pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.accepting(url, "*/*")
     }
 
-    /// Downloads `url` with the `Accept` header `accept` and returns its bytes.
-    ///
-    /// # Errors
-    /// Fails when the request fails or the status is not 2xx.
     pub fn accepting(&self, url: &str, accept: &str) -> Result<Vec<u8>, Error> {
         self.client()?
             .bytes(url, &[("Accept", accept)], BODY_LIMIT)
@@ -104,7 +87,6 @@ mod tests {
 
     use super::*;
 
-    /// Serves one connection per response, in order, on a loopback port and returns its URL.
     fn serve(responses: &[(&'static str, &'static str)]) -> String {
         let responses = responses.to_vec();
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -129,7 +111,6 @@ mod tests {
         format!("http://127.0.0.1:{port}/archive")
     }
 
-    /// A fetcher for loopback URLs that ignores the host's proxy settings.
     fn plain() -> HttpFetch {
         let settings = Settings {
             https_only: false,
@@ -163,7 +144,6 @@ mod tests {
         assert_eq!(plain().sha256(&url), Err(Error::new("HTTP 404")));
     }
 
-    /// A loopback fetcher whose requests go through the downloader config `text`.
     fn configured(text: &str) -> HttpFetch {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("downloader.cfg");

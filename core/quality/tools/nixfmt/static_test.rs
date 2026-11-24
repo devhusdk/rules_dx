@@ -1,5 +1,3 @@
-//! The musl nixfmt names no program interpreter, so it runs on any Linux host.
-
 #[test]
 fn nixfmt_is_static() {
     let bytes = std::fs::read(dx_testing::env_file("NIXFMT")).expect("read nixfmt");

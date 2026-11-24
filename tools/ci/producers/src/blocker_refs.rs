@@ -1,5 +1,3 @@
-//! Blocker references: the issues and pull requests named on a "Blocked on:" line.
-
 use std::fmt::Write as _;
 use std::io::Read;
 
@@ -46,7 +44,6 @@ fn bare_len(text: &str) -> Option<usize> {
     (digits > 0).then_some(1 + digits)
 }
 
-/// Takes every match of `matcher` out of `text`, returning the matches and what is left.
 fn take(text: &str, matcher: fn(&str) -> Option<usize>) -> (Vec<String>, String) {
     let mut found = Vec::new();
     let mut left = String::new();
@@ -64,10 +61,6 @@ fn take(text: &str, matcher: fn(&str) -> Option<usize>) -> (Vec<String>, String)
     (found, left)
 }
 
-/// One `<owner/repo> <number> <ref as written>` line per reference; URLs, then
-/// `owner/repo#N`, then bare `#N`, which belongs to `local_repo`. When the rest of
-/// the line has the word `release`, each reference outside `local_repo` gets a
-/// fourth column `release`.
 pub fn refs(local_repo: &str, line: &str) -> String {
     let (urls, rest) = take(line, url_len);
     let (shorts, rest) = take(&rest, short_len);
@@ -97,12 +90,16 @@ pub fn refs(local_repo: &str, line: &str) -> String {
         writeln!(out, "{repo} {number} {short}{}", column(repo)).unwrap_or_default();
     }
     for bare in bares {
-        writeln!(out, "{local_repo} {} {bare}", bare.strip_prefix('#').unwrap_or_default()).unwrap_or_default();
+        writeln!(
+            out,
+            "{local_repo} {} {bare}",
+            bare.strip_prefix('#').unwrap_or_default()
+        )
+        .unwrap_or_default();
     }
     out
 }
 
-/// Reads a "Blocked on:" line on stdin and prints its references for `args` = `[local_repo]`.
 pub fn print(args: &[String]) -> Result<(), String> {
     let [local_repo] = args else {
         return Err("usage: producers_bin --blocker-refs OWNER/REPO".to_string());
@@ -178,13 +175,19 @@ mod tests {
             ),
             "bazelbuild/rules_rust 4380 https://github.com/bazelbuild/rules_rust/pull/4380 release\n"
         );
-        assert_eq!(refs(LOCAL, "Blocked on: a/b#7, Release\n"), "a/b 7 a/b#7 release\n");
+        assert_eq!(
+            refs(LOCAL, "Blocked on: a/b#7, Release\n"),
+            "a/b 7 a/b#7 release\n"
+        );
     }
 
     #[test]
     fn release_lines_leave_local_refs_unmarked() {
         assert_eq!(
-            refs(LOCAL, "Blocked on: #4, devhusdk/rules_dx#5, DevHusdk/Rules_DX#6, a/b#7 in a release\n"),
+            refs(
+                LOCAL,
+                "Blocked on: #4, devhusdk/rules_dx#5, DevHusdk/Rules_DX#6, a/b#7 in a release\n"
+            ),
             "devhusdk/rules_dx 5 devhusdk/rules_dx#5\n\
              DevHusdk/Rules_DX 6 DevHusdk/Rules_DX#6\n\
              a/b 7 a/b#7 release\n\
@@ -195,7 +198,10 @@ mod tests {
     #[test]
     fn release_must_be_a_word_outside_the_refs() {
         assert_eq!(
-            refs(LOCAL, "Blocked on: https://github.com/googleapis/release-please/pull/5\n"),
+            refs(
+                LOCAL,
+                "Blocked on: https://github.com/googleapis/release-please/pull/5\n"
+            ),
             "googleapis/release-please 5 https://github.com/googleapis/release-please/pull/5\n"
         );
         assert_eq!(refs(LOCAL, "Blocked on: a/b#1 released\n"), "a/b 1 a/b#1\n");

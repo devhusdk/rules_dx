@@ -3,13 +3,6 @@ use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "container_structure_test";
 
-/// Parses `container-structure-test test --output json`: each failed entry of `Results` is one
-/// finding per error, on `file` line 1, naming the image `name`. The rule is the test kind before
-/// the colon of the entry name, such as `File Existence Test`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_container_structure_test(
     stdout: &[u8],
     stderr: &[u8],

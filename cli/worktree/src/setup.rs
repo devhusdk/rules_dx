@@ -5,19 +5,13 @@ use serde_json::{Value, json};
 
 use super::HookKind;
 
-/// One agent hooks file and the hooks dx puts in it.
 pub struct HookFile {
-    /// The path under the workspace root.
     pub path: &'static str,
-    /// The event and tool matcher that run each hook kind this file carries.
     pub hooks: &'static [(HookKind, &'static str, Option<&'static str>)],
-    /// Whether the file carries the Claude Code `permissions.allow` rules.
     allow: bool,
-    /// Whether an entry is the hook itself (`bash` key) instead of a group holding a `hooks` list.
     flat: bool,
 }
 
-/// Claude Code reads this file, and Cursor imports it by default.
 pub const CLAUDE: HookFile = HookFile {
     path: ".claude/settings.json",
     hooks: &[
@@ -34,10 +28,8 @@ pub const CLAUDE: HookFile = HookFile {
     flat: false,
 };
 
-/// The Claude Code settings file.
 pub const SETTINGS: &str = CLAUDE.path;
 
-/// Codex reads this file once the user trusts it with `/hooks`.
 pub const CODEX: HookFile = HookFile {
     path: ".codex/hooks.json",
     hooks: &[(HookKind::Guard, "PreToolUse", Some("Bash"))],
@@ -45,7 +37,6 @@ pub const CODEX: HookFile = HookFile {
     flat: false,
 };
 
-/// Gemini CLI reads the hooks in this file in trusted folders.
 pub const GEMINI: HookFile = HookFile {
     path: ".gemini/settings.json",
     hooks: &[(
@@ -57,8 +48,6 @@ pub const GEMINI: HookFile = HookFile {
     flat: false,
 };
 
-/// Copilot reads every `.github/hooks/*.json` file. The `PreToolUse` spelling selects the
-/// Claude Code payload, so the guard reads it as it reads Claude's.
 pub const COPILOT: HookFile = HookFile {
     path: ".github/hooks/dx.json",
     hooks: &[(HookKind::Guard, "PreToolUse", Some("Bash"))],
@@ -66,7 +55,6 @@ pub const COPILOT: HookFile = HookFile {
     flat: true,
 };
 
-/// Every agent hooks file dx writes.
 pub const HOOK_FILES: [&HookFile; 4] = [&CLAUDE, &CODEX, &GEMINI, &COPILOT];
 
 fn hook_command(kind: HookKind) -> String {
@@ -100,14 +88,10 @@ fn entry_value(file: &HookFile, matcher: Option<&str>, command: &str) -> Value {
     }
 }
 
-/// Read-only commands Claude Code may run without asking. Never add a writer.
 const ALLOW: [&str; 4] = ["check", "test", "build", "status"];
 
-/// Variables the guard hook exports ahead of a dx command; each export is its own
-/// segment, so Manual mode would prompt for it without a rule.
 const EXPORT_ALLOW: [&str; 2] = ["DX_WORKTREE_SESSION", "DX_WORKTREE_HOLDER"];
 
-/// The `permissions.allow` rules a fresh settings file carries.
 #[must_use]
 pub fn allow_rules() -> Vec<String> {
     ALLOW
@@ -121,13 +105,11 @@ pub fn allow_rules() -> Vec<String> {
         .collect()
 }
 
-/// Commands Claude Code must ask before running: `dx deploy --apply` publishes.
 const ASK: [&str; 2] = [
     "Bash(tools/dx deploy --apply *)",
     "Bash(tools/dx deploy * --apply*)",
 ];
 
-/// The `permissions.ask` rules a fresh settings file carries.
 pub fn ask_rules() -> Vec<String> {
     ASK.into_iter().map(str::to_owned).collect()
 }
@@ -152,19 +134,16 @@ fn missing_rules(existing: &str, list: &str, rules: Vec<String>) -> Vec<String> 
         .collect()
 }
 
-/// Allow rules an existing settings file lacks.
 #[must_use]
 pub fn missing_allow(existing: &str) -> Vec<String> {
     missing_rules(existing, "allow", allow_rules())
 }
 
-/// Ask rules an existing settings file lacks.
 #[must_use]
 pub fn missing_ask(existing: &str) -> Vec<String> {
     missing_rules(existing, "ask", ask_rules())
 }
 
-/// The hooks file a fresh repository gets.
 #[must_use]
 pub fn settings_text(file: &HookFile) -> String {
     let mut hooks = serde_json::Map::new();
@@ -190,7 +169,6 @@ pub fn settings_text(file: &HookFile) -> String {
     format!("{text}\n")
 }
 
-/// The entries under `event` that run `command`.
 fn command_entries<'a>(
     file: &HookFile,
     existing: &'a Value,
@@ -231,7 +209,6 @@ fn has_command(
         .any(|group| group.get("matcher").and_then(Value::as_str) == matcher)
 }
 
-/// The entries dx wrote with another matcher, which the entry with `matcher` replaces.
 fn stale_entries(
     file: &HookFile,
     existing: &Value,
@@ -249,7 +226,6 @@ fn stale_entries(
         .collect()
 }
 
-/// Hook entries an existing hooks file lacks, as `event: command` lines.
 #[must_use]
 pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
     let parsed = parse(existing);
@@ -263,9 +239,6 @@ pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
         .collect()
 }
 
-/// The existing workspace hooks files that lack entries, with the entries each lacks.
-///
-/// An absent file is never reported; the agent it belongs to was not chosen.
 #[must_use]
 pub fn workspace_missing(workspace: &Path) -> Vec<(&'static str, Vec<String>)> {
     HOOK_FILES
@@ -280,30 +253,22 @@ pub fn workspace_missing(workspace: &Path) -> Vec<(&'static str, Vec<String>)> {
         .collect()
 }
 
-/// What setup did for the worktree pool, as report data.
 pub struct Outcome {
     pub wrote: Vec<String>,
-    /// Each existing hooks file that lacks entries, with the entries it lacks.
     pub missing: Vec<(&'static str, Vec<String>)>,
-    /// The allow rules an existing Claude Code settings file lacks.
     pub missing_allow: Vec<String>,
-    /// The ask rules an existing Claude Code settings file lacks.
     pub missing_ask: Vec<String>,
-    /// Each existing hooks file that is not a JSON object, such as a truncated or empty one.
     pub unparsable: Vec<&'static str>,
 }
 
-/// Writes each absent hooks file whose path is in `create` and adds missing entries to existing ones in place.
 pub fn apply(workspace: &Path, create: &[&str]) -> io::Result<Outcome> {
     sync(workspace, true, create)
 }
 
-/// Merges missing entries into existing hooks files; absent files stay absent.
 pub fn refresh(workspace: &Path) -> io::Result<Outcome> {
     sync(workspace, true, &[])
 }
 
-/// What [`apply`] would do, without writing; fails where it would fail to read.
 pub fn inspect(workspace: &Path, create: &[&str]) -> io::Result<Outcome> {
     sync(workspace, false, create)
 }
@@ -598,7 +563,6 @@ mod tests {
         );
     }
 
-    // A rename replaces a dangling link; a plain write would follow it and create its target.
     #[cfg(unix)]
     #[test]
     fn create_uses_atomic_write() {

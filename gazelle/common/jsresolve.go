@@ -9,8 +9,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-// JSLookup is the result of FindJSImport: either an exact override label or the
-// rule index matches, plus the candidate name that produced them.
 type JSLookup struct {
 	Override    label.Label
 	HasOverride bool
@@ -18,13 +16,6 @@ type JSLookup struct {
 	Matched     string
 }
 
-// FindJSImport looks up a JavaScript or TypeScript import name. A local
-// (relative) name tries name, then name + "/index", each as override then rule
-// index. A bare name tries an exact override on the name first, then each
-// candidate from the nearest tsconfig/jsconfig paths and baseUrl (see
-// ConfigureTSPaths) as override, index, then <candidate>/index, and last the
-// rule index for the name. New candidate sources belong here so the language
-// Resolve functions stay unchanged.
 func FindJSImport(c *config.Config, ix *resolve.RuleIndex, lang, name string, local bool) JSLookup {
 	try := func(cand string) (JSLookup, bool) {
 		spec := resolve.ImportSpec{Lang: lang, Imp: cand}
@@ -66,8 +57,6 @@ func FindJSImport(c *config.Config, ix *resolve.RuleIndex, lang, name string, lo
 
 var declarationSuffixes = []string{".d.ts", ".d.mts", ".d.cts"}
 
-// aliasIdentity turns a workspace-relative alias target into the module
-// identity languages index, stripping a module or declaration extension.
 func aliasIdentity(cand string) string {
 	for _, suffix := range declarationSuffixes {
 		if trimmed, ok := strings.CutSuffix(cand, suffix); ok {
@@ -79,8 +68,6 @@ func aliasIdentity(cand string) string {
 	return root
 }
 
-// IsAssetSource reports whether a srcs entry is a plain file name rather than a
-// label.
 func IsAssetSource(src string) bool {
 	if src == "" || strings.HasPrefix(src, ":") || strings.HasPrefix(src, "//") || strings.HasPrefix(src, "@") {
 		return false
@@ -88,15 +75,12 @@ func IsAssetSource(src string) bool {
 	return true
 }
 
-// JSFind returns a ResolveSpec.Find hook that looks refs up with FindJSImport.
 func JSFind(lang string) func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup {
 	return func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup {
 		return FindJSImport(c, ix, lang, ref.Root, ref.Relative)
 	}
 }
 
-// JSImportRefs drops Node builtins, merges refs by Root (a root is Relative if
-// any ref is, and keeps any non-empty Ext) and sorts the result.
 func JSImportRefs(refs []ImportRef) []ImportRef {
 	var out []ImportRef
 	index := make(map[string]int)
@@ -118,8 +102,6 @@ func JSImportRefs(refs []ImportRef) []ImportRef {
 	return out
 }
 
-// ConfigureTSPathsExt is a SingleLangSpec.ConfigureExt hook that loads the
-// nearest tsconfig/jsconfig paths.
 func ConfigureTSPathsExt(c *config.Config, rel string, _ *rule.File, rep Reporter) {
 	if err := ConfigureTSPaths(c, rel); err != nil {
 		rep.Fail(InPackage(rel), "%v", err)

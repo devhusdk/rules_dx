@@ -1,6 +1,3 @@
-//! Import closure: which libraries a shipped binary may import without shipping them.
-
-/// System libraries a shipped binary may import without shipping them; a trailing '*' is a prefix.
 pub const SYSTEM_IMPORTS: [(&str, &[&str]); 3] = [
     (
         "linux",
@@ -61,7 +58,6 @@ pub const SYSTEM_IMPORTS: [(&str, &[&str]); 3] = [
     ),
 ];
 
-/// Returns whether `needed` is a system import on `os` or one of the shipped runtime members.
 pub fn import_allowed(os: &str, needed: &str, runtime: &[String]) -> bool {
     let fold = |text: &str| {
         if os == "windows" {
@@ -105,8 +101,6 @@ fn matches_pattern(os: &str, needed: &str, pattern: &str) -> bool {
     }
 }
 
-/// Returns the imports of `image_bytes` that are neither shipped `members`, system imports,
-/// nor named by `provides`; bytes that are not a binary image import nothing.
 pub fn missing_imports(
     image_bytes: &[u8],
     members: &[String],
@@ -133,8 +127,6 @@ pub fn missing_imports(
     Ok(missing)
 }
 
-/// Runs `[--check <member>]... [--provides <name>]... <member=path>...`: every checked member
-/// (all members when none is named) must import only shipped, system or provided libraries.
 pub fn check_imports(args: &[String]) -> Result<(), String> {
     let mut checks: Vec<&str> = Vec::new();
     let mut provides: Vec<String> = Vec::new();
@@ -198,7 +190,6 @@ mod tests {
         image[at..at + bytes.len()].copy_from_slice(bytes);
     }
 
-    /// Builds one minimal 64-bit little-endian ELF executable with DT_NEEDED entries.
     fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
         let mut image = vec![0u8; 64];
         put(&mut image, 0, &[0x7f, b'E', b'L', b'F', 2, 1, 1, 0]);

@@ -6,7 +6,6 @@ use std::io;
 use std::path::Path;
 use std::rc::Rc;
 
-/// Returns the pinned gitleaks path the fakes hand to the backend.
 pub(super) fn hermetic_gitleaks() -> String {
     if cfg!(windows) {
         r"C:\hermetic\gitleaks.exe".to_owned()
@@ -15,7 +14,6 @@ pub(super) fn hermetic_gitleaks() -> String {
     }
 }
 
-/// Returns the pinned trivy path the fakes hand to the image scan.
 pub(super) fn hermetic_trivy() -> String {
     if cfg!(windows) {
         r"C:\hermetic\trivy.exe".to_owned()
@@ -30,7 +28,6 @@ pub(super) struct AuditRunner {
     pub(super) envs: Rc<RefCell<Vec<Vec<(String, String)>>>>,
     pub(super) code: Option<i32>,
     pub(super) sarif: Option<String>,
-    /// The JSON report the fake trivy writes; set, `DX_TRIVY` names the fake.
     pub(super) trivy_report: Option<String>,
 }
 
@@ -164,7 +161,6 @@ nuget.lock(name = "nuget", lock = "//third_party/dotnet:{nuget_lock}")
     )
 }
 
-/// Declares the hubs the audit tests read their locks through.
 pub(super) fn write_hubs(harness: &Harness) {
     harness.write_source("MODULE.bazel", &hubs_module());
 }
@@ -344,7 +340,6 @@ pub(super) fn write_pin(harness: &Harness, family: &str, url: &str, date: &str, 
     harness.write_source(".dx/pins", &pins);
 }
 
-/// Pins the standard tier, whose audit base passes without a yanked-version snapshot.
 pub(super) fn write_standard_tier(harness: &Harness) {
     harness.write_source("dx.toml", "schema_version = 1\ntier = \"standard\"\n");
 }
@@ -1313,7 +1308,6 @@ pub(super) fn audit_live_target_scopes_to_owning_set_only() {
     assert_eq!(runner.calls.borrow().len(), 0);
 }
 
-/// Runs the pinned gitleaks binary from the test runfiles with a cleared environment.
 struct RealGitleaks {
     tool: std::path::PathBuf,
 }
@@ -1341,7 +1335,6 @@ impl Runner for RealGitleaks {
     }
 }
 
-/// Answers `git` queries with the real git binary; Bazel queries are unexpected.
 struct RealGit;
 
 impl dx_plan::resolve::QueryRunner for RealGit {

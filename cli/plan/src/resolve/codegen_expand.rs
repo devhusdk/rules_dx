@@ -3,9 +3,6 @@ use std::path::Path;
 use super::rule_graph::RuleGraph;
 use super::{QueryRunner, ResolveError};
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn expand_codegen_roots(
     label: &str,
     workspace: &Path,

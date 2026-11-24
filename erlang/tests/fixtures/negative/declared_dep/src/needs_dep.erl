@@ -4,4 +4,5 @@
 
 -export([value/0]).
 
+-spec value() -> term().
 value() -> ?BASE_VALUE.

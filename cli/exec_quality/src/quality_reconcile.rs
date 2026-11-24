@@ -73,12 +73,6 @@ fn retag_terminals(
     }
 }
 
-/// Merges per-producer results, rejecting paths whose producers disagree.
-///
-/// A producer that has no change for a path, saw the same original bytes the
-/// editors did, and left them untouched is an observer: it does not conflict
-/// with the editors. Its terminal findings on that path describe the original
-/// bytes, so they are retagged `Initial` when an editor rewrites the file.
 pub(crate) fn reconcile(workspace: &Path, mut producers: Vec<Producer>) -> Reconciled {
     let mut changes: BTreeMap<String, Vec<(usize, &FileChange)>> = BTreeMap::new();
     let mut digests: BTreeMap<String, Vec<(usize, [u8; 32])>> = BTreeMap::new();

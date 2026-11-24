@@ -5,21 +5,16 @@ use crate::DepcheckError;
 use crate::dep_key::normalize_dep_key;
 use dx_ecosystems::Language;
 
-/// A declared dependency that no source file under the scanned root uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnusedDep {
     pub name: String,
-    /// One-based line of the declaration in the manifest, 0 when it cannot be found.
     pub line: usize,
 }
 
-/// A dependency declared in a manifest, as the Bazel graph would name it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclaredDep {
     pub name: String,
-    /// The lock name when the entry is renamed, else the declared name.
     pub hub: String,
-    /// One-based line of the declaration in the manifest, 0 when it cannot be found.
     pub line: usize,
 }
 
@@ -41,8 +36,6 @@ fn string_list(value: Option<&toml::Value>) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Names the manifest itself marks as intentionally unused: cargo-machete `ignored` for Cargo and
-/// deptry `DEP002` for pyproject.
 fn native_ignores(eco: Language, text: &str) -> Result<BTreeSet<String>, DepcheckError> {
     let parse = || toml::from_str::<toml::Value>(text).map_err(DepcheckError::ManifestToml);
     let names = match eco {
@@ -105,11 +98,6 @@ fn manifest_text(manifest: &Path) -> Result<String, DepcheckError> {
     std::fs::read_to_string(manifest).map_err(DepcheckError::ManifestIo)
 }
 
-/// Declared dependencies of `manifest` without JS peers and natively ignored entries.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, DepcheckError> {
     let mut deps = crate::consistency::load_manifest(eco, manifest)?;
     if matches!(eco, Language::Js | Language::Ts) {
@@ -137,11 +125,6 @@ pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, Depc
     Ok(out)
 }
 
-/// Declared dependencies of `manifest` that nothing under `sources` uses and no target depends on (`used`).
-///
-/// # Errors
-///
-/// Returns an error when the manifest or a source cannot be read or does not parse.
 pub fn find_unused(
     eco: Language,
     manifest: &Path,

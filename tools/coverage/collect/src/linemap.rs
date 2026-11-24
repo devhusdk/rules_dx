@@ -1,5 +1,3 @@
-//! Files coverage of nvcc's kept host translation unit under the sources its linemarkers name.
-
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
@@ -7,7 +5,6 @@ use std::path::PathBuf;
 
 const GENERATED_SUFFIXES: [&str; 2] = [".cudafe1.cpp", ".cudafe1.stub.c"];
 
-/// Maps lines of a preprocessed file to `(source, line)` from its `# N "f"` and `#line N "f"` markers.
 pub struct LineMap {
     lines: Vec<Option<(String, u64)>>,
 }
@@ -32,7 +29,6 @@ impl LineMap {
         Self { lines }
     }
 
-    /// The source position of 1-based `line`, if a marker covers it.
     #[must_use]
     pub fn lookup(&self, line: u64) -> Option<(&str, u64)> {
         let index = usize::try_from(line.checked_sub(1)?).ok()?;
@@ -185,7 +181,6 @@ impl Record {
         writeln!(out, "end_of_record").unwrap_or_default();
     }
 
-    /// Adds this generated file's counts to the targets its markers name.
     fn remap_into(
         &self,
         map: &LineMap,
@@ -260,9 +255,6 @@ fn is_total(line: &str) -> bool {
         .any(|prefix| line.starts_with(prefix))
 }
 
-/// Re-files every `SF:` record of an nvcc host file (`*.cudafe1.cpp`, `*.cudafe1.stub.c`) under the
-/// sources its linemarkers name, merging into existing records by taking the higher count. `locate`
-/// finds the kept file for an `SF:` path; a record whose file it cannot find is left as is.
 #[must_use]
 pub fn remap(report: &str, locate: &dyn Fn(&str) -> Option<PathBuf>) -> String {
     let mut out = String::new();

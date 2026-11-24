@@ -2,7 +2,6 @@ use std::io::BufRead;
 
 use serde_json::Value;
 
-/// Action counts from one `buildMetrics.actionSummary`; `executed` excludes cache hits.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ActionSummary {
     pub created: u64,
@@ -15,7 +14,6 @@ pub struct ActionSummary {
 const DISK_RUNNER: &str = "disk cache hit";
 const REMOTE_RUNNER: &str = "remote cache hit";
 
-/// Returns the last `buildMetrics` action summary, or `None` when absent.
 pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
     let mut found = None;
     for line in crate::readable_lines(reader) {
@@ -35,7 +33,6 @@ pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
     found
 }
 
-/// Returns the last `buildMetrics` system network bytes received, or `None` when Bazel reported none.
 pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
     let mut found = None;
     for line in crate::readable_lines(reader) {
@@ -54,7 +51,6 @@ pub fn collect_bytes_received(reader: impl BufRead) -> Option<u64> {
     found
 }
 
-/// Executed actions and CPU time for one mnemonic, from `actionSummary.actionData`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MnemonicTime {
     pub mnemonic: String,
@@ -62,18 +58,14 @@ pub struct MnemonicTime {
     pub cpu_ms: u64,
 }
 
-/// Timing and memory figures from the last `buildMetrics` event.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BuildTotals {
     pub wall_ms: Option<u64>,
     pub peak_heap_bytes: Option<u64>,
     pub critical_path_ms: Option<u64>,
-    /// Sorted by CPU time, longest first.
     pub mnemonics: Vec<MnemonicTime>,
 }
 
-/// Returns wall time, peak heap and per-mnemonic action time from the last `buildMetrics`
-/// event, or `None` when the stream has none.
 pub fn collect_build_totals(reader: impl BufRead) -> Option<BuildTotals> {
     let mut found = None;
     for line in crate::readable_lines(reader) {
@@ -149,7 +141,6 @@ fn parse_summary(summary: &Value) -> ActionSummary {
     }
 }
 
-/// Reads a proto3 Duration in its JSON form such as `"1.250s"`; anything else is 0.
 fn duration_ms(value: Option<&Value>) -> u64 {
     let Some(Value::String(text)) = value else {
         return 0;

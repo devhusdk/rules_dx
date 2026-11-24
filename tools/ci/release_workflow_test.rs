@@ -5,7 +5,6 @@ use dx_testing::resolve_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
 
-/// Returns every gate env var name of one `OwnerGate` field (`approved`) in deploy/private/src.
 fn gate_names(field: &str) -> Vec<String> {
     let run = resolve_runfiles("deploy/private/src/run.rs");
     let dir = run.parent().expect("run.rs has a directory");
@@ -21,9 +20,9 @@ fn gate_names(field: &str) -> Vec<String> {
     names
 }
 
-/// Returns the names one gate field declares in one source file.
 fn declared(path: &Path, field: &str) -> Vec<String> {
-    let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let text =
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let mut names = Vec::new();
     for line in text.lines() {
         let Some(rest) = line.trim().strip_prefix(&format!("{field}: ")) else {
@@ -209,8 +208,14 @@ fn summary_trap_runs_on_exit() {
 #[test]
 fn resume_command_names_the_calling_workflow() {
     let script = publish_script();
-    assert!(script.contains(r#"caller="${GITHUB_WORKFLOW_REF%@*}""#), "{script}");
-    assert!(script.contains("gh workflow run ${caller##*/} --ref"), "{script}");
+    assert!(
+        script.contains(r#"caller="${GITHUB_WORKFLOW_REF%@*}""#),
+        "{script}"
+    );
+    assert!(
+        script.contains("gh workflow run ${caller##*/} --ref"),
+        "{script}"
+    );
     assert!(!script.contains("gh workflow run release.yml"), "{script}");
 }
 
@@ -237,8 +242,14 @@ fn release_e2e_calls_the_local_reusable_release_without_secrets() {
     assert_eq!(job["uses"], "./.github/workflows/reusable-release.yml");
     assert!(job.get("secrets").is_none(), "{job}");
     let deployables = job["with"]["deployables"].as_str().unwrap_or_default();
-    assert!(deployables.contains("//tools/testing/release_e2e:a_github"), "{deployables}");
-    assert!(deployables.contains("//tools/testing/release_e2e:b_refuses"), "{deployables}");
+    assert!(
+        deployables.contains("//tools/testing/release_e2e:a_github"),
+        "{deployables}"
+    );
+    assert!(
+        deployables.contains("//tools/testing/release_e2e:b_refuses"),
+        "{deployables}"
+    );
     for scope in ["contents", "id-token", "attestations", "packages"] {
         assert_eq!(job["permissions"][scope], "write", "{scope}");
     }

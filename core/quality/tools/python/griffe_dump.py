@@ -1,9 +1,4 @@
-"""Loads one Python package statically with griffe and dumps its API as JSON.
-
-Nothing under the root is imported or run: inspection is off, no extensions
-load and the only search path is the staged source root. Any failure exits 1
-and leaves no output file.
-"""
+"""Loads one Python package statically with griffe and dumps its API as JSON."""
 
 import argparse
 import ast
@@ -95,11 +90,7 @@ def _repo_relative_path(short_path):
 
 
 def stage(rows, imports, workspace, package, root, label, library):
-    """Copies the package sources under root and returns the sorted srcs manifest lines.
-
-    rows are (exec path, short path, generated flag) of the candidate sources in
-    depset order; imports are the rlocation import roots.
-    """
+    """Copies the package sources under root and returns the sorted srcs manifest lines."""
     imports = sorted(imports, key=lambda imp: -len(imp))
     originals = {}
     lines = []
@@ -137,11 +128,7 @@ def _version():
 
 
 def _check_sources(root, package):
-    """Parses every source of the package without running it.
-
-    griffe logs syntax errors and compiled modules at debug level only, so the
-    check is done here and does not depend on log levels.
-    """
+    """Parses every source of the package without running it."""
     base = pathlib.Path(root)
     paths = [base / package]
     paths += [base / f"{package}{suffix}" for suffix in (".py", ".pyi")]
@@ -199,8 +186,6 @@ def dump(root, package, docstyle):
 def _is_under(path, root):
     """Compares lexically, as staged inputs are symlinks that must not be followed."""
     path = pathlib.PurePath(os.path.abspath(path))
-    # griffe resolves the search path itself but not the files inside it, so
-    # the root is accepted both as given and with its own symlinks resolved.
     roots = {os.path.abspath(root), os.path.realpath(root)}
     return any(path.is_relative_to(pathlib.PurePath(r)) for r in roots)
 

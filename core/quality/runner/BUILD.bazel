@@ -61,7 +61,6 @@ rust_library(
         "//cli/cli:__pkg__",
         "//cli/exec_quality:__pkg__",
     ],
-    # tempfile is a Cargo dependency for the tests only, so the library names its crates.
     deps = [
         "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -102,7 +101,6 @@ rust_binary(
     ),
     crate_name = "matrix_harness",
     crate_root = "src/matrix_harness.rs",
-    # Only the tests call into quality_runner_lib; matrix_harness_test adds it.
     deps = [
         "//cli/path:dx_path",
         "//cli/process:dx_process",

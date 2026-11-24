@@ -1,5 +1,3 @@
-//! No `rust_test` takes `all_crate_deps(normal = True)` without `normal_dev = True`.
-
 use std::collections::BTreeMap;
 
 use dx_guard::snapshot::read_input;
@@ -7,10 +5,8 @@ use dx_guard::starlark::{callee_name, exprs, is_true, parse, string};
 use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, ExprP};
 use yaml_serde as _;
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
-/// What a failure tells the author to do.
 const FIX: &str = "pass normal_dev = True to all_crate_deps or list the crates the test uses";
 
 fn named<'a>(args: &'a [AstArgument], key: &str) -> Option<&'a AstExpr> {
@@ -27,7 +23,6 @@ fn flag(args: &[AstArgument], key: &str) -> bool {
     named(args, key).is_some_and(is_true)
 }
 
-/// Whether `expr` holds an `all_crate_deps` call with normal deps and without dev deps.
 fn normal_only(expr: &AstExpr) -> bool {
     let mut found = false;
     let mut pending = vec![expr];

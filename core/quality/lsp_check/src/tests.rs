@@ -53,8 +53,6 @@ fn options() -> Options {
     }
 }
 
-/// Fake server: answers initialize, then publishes `publish(uri)` for each
-/// didOpen. Returns the methods it saw.
 fn fake_server(
     publish: fn(&str) -> Option<Value>,
     crash_after_initialize: bool,

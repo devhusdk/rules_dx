@@ -16,7 +16,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# The shard rule runs the driver itself with the pinned YARD on its load path.
 # gazelle:exclude yard_dump.rb
 
 ruby_doc_runtime(

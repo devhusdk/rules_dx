@@ -239,9 +239,6 @@ def _dx_env_plan_aspect_impl(target, ctx):
         _ENV_PLAN_ASPECT_ATTRS,
     )
 
-    # Conflicts are checked once on the whole plan, by env_plan_subject and by
-    # dx sync on the collected shards; checking here would flatten the closure
-    # at every node.
     return [
         DxEnvPlanCollectedInfo(records = inputs.merged_records),
         OutputGroupInfo(dx_env_plans = depset(transitive = inputs.transitive_files)),

@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Starts a pinned .NET driver from the root of its runfiles, where the dotnet host finds the dependencies.
-# The driver changes back to DX_DRIVER_CWD once it is running.
 set -euo pipefail
 set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
 # shellcheck disable=SC1090

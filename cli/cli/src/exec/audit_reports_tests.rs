@@ -489,7 +489,6 @@ fn audit_stdout_reports_are_single_machine_documents() {
 const CLEAN_SARIF: &str =
     r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks"}},"results":[]}]}"#;
 
-/// Runs the secrets family against a fake gitleaks and returns its argv and diagnostics.
 fn scan_secrets(harness: &Harness) -> (Vec<String>, Vec<dx_output::DiagnosticEvent>) {
     let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
     let bazel = dx_exec_reports::pinned_tool::QueryBazel {

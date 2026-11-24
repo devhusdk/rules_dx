@@ -341,7 +341,6 @@ fn a_tight_budget_bounds_a_blocked_child() {
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    // Hang guard only.
     assert!(
         started.elapsed() < Duration::from_secs(10),
         "the run hung far past a tight budget"
@@ -370,7 +369,6 @@ fn a_tight_budget_bounds_a_descendant_holding_stdout_after_exit() {
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    // Hang guard only.
     assert!(
         started.elapsed() < Duration::from_secs(10),
         "the run hung far past a tight budget"
@@ -831,8 +829,6 @@ fn streamed_signal_exit_is_reported() {
     );
 }
 
-/// Runs a sentinel probe to completion so a wrongly launched sibling, which
-/// finishes in the same instant, has written its marker; no fixed sleep.
 fn settle_after_skipped_launch(scratch: &std::path::Path) {
     let done = scratch.join("sentinel.finished");
     let sink = Sink::default();
@@ -1103,7 +1099,6 @@ fn streamed_terminal_stop_during_drain_returns_without_waiting() {
     );
 }
 
-/// A probe child that is killed and reaped on drop.
 #[cfg(unix)]
 struct Probe(std::process::Child);
 
@@ -1636,8 +1631,6 @@ fn streamed_without_held_is_unchanged() {
         StreamOutcome::Exited(Exit::Code(0))
     );
     drop(parent_lock);
-    // A test that forks without the guard copies the lease fd until it execs,
-    // so wait for it; the descendant outlives the wait unless it holds the lease.
     wait_lease_free(&lease);
     assert!(
         dx_testing::alive_lock_held(&alive),
@@ -1647,7 +1640,6 @@ fn streamed_without_held_is_unchanged() {
 
 const HELD_PARENT_ENV: &str = "DX_STREAM_HELD_PARENT_DIR";
 
-/// Runs as the parent process for the crash tests; a no-op otherwise.
 #[test]
 fn streamed_held_parent_main() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
@@ -1684,8 +1676,6 @@ fn streamed_held_parent_main() {
     // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 }
 
-/// The returned guard keeps the scratch dir alive while the orphaned
-/// descendant still holds the lease.
 fn crash_held_parent(
     prefix: &str,
 ) -> (

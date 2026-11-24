@@ -262,7 +262,6 @@ rust_library(
         "@crates//:serde",
         "@rules_rust//rust/runfiles",
     ] + select({
-        # stage.rs searches PATH with dx_path's executable suffixes on Windows only.
         "@platforms//os:windows": ["//cli/path:dx_path"],
         "//conditions:default": [],
     }),
@@ -841,7 +840,6 @@ deploy_analysis_test(
     subject = "release_demo_debug",
 )
 
-# Every deploy_verify_test runs this test's binary in its own mode, so verify_test.rs compiles once.
 rust_test(
     name = "helm_demo_verify",
     srcs = ["//deploy:verify_test.rs"],
@@ -1472,7 +1470,6 @@ pypi_deploy(
     wheel = ":native_probe_msvc_wheel",
 )
 
-# Run with --//cc:compiler=msvc and the dx_msvc license accepted.
 deploy_verify_test(
     name = "pypi_native_msvc_verify",
     data = [

@@ -1,5 +1,3 @@
-//! Lists Go modules whose newest release on the module proxy is newer than the manifest requirement.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
@@ -7,7 +5,6 @@ use semver::Version;
 
 pub const DEFAULT_BASE: &str = "https://proxy.golang.org";
 
-/// Checks each direct requirement of the manifest files against the proxy at `base`.
 pub fn outdated(
     set: &str,
     go_mods: &[String],
@@ -83,7 +80,6 @@ pub fn outdated(
     found
 }
 
-/// The GitHub repository of a module and its old and new tags.
 fn tags(module: &str, current: &str, latest: &str) -> Option<(String, (String, String))> {
     let rest = module.strip_prefix("github.com/")?;
     let repo = github_repo(module)?;
@@ -110,7 +106,6 @@ fn is_major_suffix(part: &str) -> bool {
     })
 }
 
-/// The commit hash of a pseudo-version such as `0.0.0-20240101120000-abcdef123456`.
 fn pseudo_hash(version: &str) -> Option<&str> {
     let (rest, hash) = version.rsplit_once('-')?;
     let (_, stamp) = rest.rsplit_once('-')?;

@@ -1,18 +1,14 @@
-//! Reads the platform facts the support matrix needs from GitHub Actions workflows.
-
 use std::collections::BTreeMap;
 use std::fmt;
 
 use serde_json::Value;
 
-/// A workflow the support matrix cannot read, with the problem found in it.
 #[derive(Debug)]
 pub struct WorkflowError {
     pub path: String,
     pub problem: Problem,
 }
 
-/// What is wrong with a workflow.
 #[derive(Debug)]
 pub enum Problem {
     Yaml(yaml_serde::Error),
@@ -124,11 +120,6 @@ fn document(path: &str, text: &str) -> Result<Value, WorkflowError> {
     yaml_serde::from_str(text).map_err(|source| error(path, Problem::Yaml(source)))
 }
 
-/// Returns the platforms the `dogfood` job of `ci.yml` passes to the reusable workflow.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, WorkflowError> {
     let document = document(path, text)?;
     let Some(platforms) = field(
@@ -144,11 +135,6 @@ pub fn dogfood_platforms(path: &str, text: &str) -> Result<Vec<String>, Workflow
     serde_json::from_str(platforms).map_err(|source| error(path, Problem::DogfoodList(source)))
 }
 
-/// Returns the runner label of each platform in the `preflight` matrix of `ci.yml`.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, String>, WorkflowError> {
     let document = document(path, text)?;
     let Some(include) = field(
@@ -177,11 +163,6 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
     Ok(runners)
 }
 
-/// Returns the `quality` labels of each platform's `quality-matrix` lane in `ci.yml`.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn quality_matrix_lanes(
     path: &str,
     text: &str,
@@ -219,12 +200,6 @@ pub fn quality_matrix_lanes(
     Ok(lanes)
 }
 
-/// Checks that each non-default platform's quality-matrix lane runs its own evidence suite
-/// `//core/quality/testdata:runner_matrix_<platform>` and lists no label twice.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn check_evidence_lanes(
     path: &str,
     lanes: &BTreeMap<String, Vec<String>>,
@@ -282,11 +257,6 @@ fn runner_label(runs_on: &str) -> &str {
     fallback.trim().trim_matches('\'')
 }
 
-/// Returns the platforms the jobs of one extra workflow run on.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn workflow_platforms(
     path: &str,
     text: &str,
@@ -329,14 +299,6 @@ pub fn workflow_platforms(
     Ok(platforms)
 }
 
-/// Returns, for each tag a job selects with `attr(tags, <tag>, ...)`, the platforms that job runs on.
-///
-/// Bazel matches `attr` patterns as unanchored regular expressions, so a tag with
-/// any regex metacharacter is rejected rather than guessed at.
-///
-/// # Errors
-///
-/// Returns a [`WorkflowError`] naming the workflow and the problem in it.
 pub fn tag_job_platforms(
     path: &str,
     text: &str,
@@ -359,8 +321,6 @@ pub fn tag_job_platforms(
                 let Some((tag, _)) = rest.split_once(',') else {
                     return Err(error(path, Problem::UnterminatedTag { job: id.clone() }));
                 };
-                // `except attr(tags, ...)` removes targets from a query; it selects
-                // no tests for this job, so its pattern says nothing about platforms.
                 if before.trim_end().ends_with("except") {
                     continue;
                 }

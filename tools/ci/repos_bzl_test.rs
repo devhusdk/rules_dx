@@ -1,10 +1,7 @@
-//! No repos.bzl calls `module_extension()`: module extensions live in the sibling extensions.bzl.
-
 use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
 
-/// True when a line that is not a comment calls `module_extension`(.
 fn calls_module_extension(source: &str) -> bool {
     source
         .lines()
@@ -12,7 +9,6 @@ fn calls_module_extension(source: &str) -> bool {
         .any(|line| !line.starts_with('#') && line.contains("module_extension("))
 }
 
-/// Every repos.bzl under `dir`, sorted.
 fn repos_files(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut pending = vec![dir.to_path_buf()];
@@ -49,7 +45,12 @@ fn repos_bzl_defines_no_module_extension() {
             let source = std::fs::read_to_string(path).expect("read repos.bzl");
             calls_module_extension(&source)
         })
-        .map(|path| path.strip_prefix(&root).unwrap_or(path).display().to_string())
+        .map(|path| {
+            path.strip_prefix(&root)
+                .unwrap_or(path)
+                .display()
+                .to_string()
+        })
         .collect();
     assert!(
         offenders.is_empty(),

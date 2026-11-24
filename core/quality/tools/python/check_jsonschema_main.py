@@ -1,10 +1,4 @@
-"""check-jsonschema entry point.
-
-dx runs the tool offline. `--dx-ref-map FILE` names a JSON object that maps every
-http(s) URI a schema may reference to the checked-in copy that stands in for it. The
-tool's reference retrieval is replaced so mapped URIs are read from disk and every
-other http(s) URI fails, and `requests` refuses to connect at all.
-"""
+"""check-jsonschema entry point."""
 
 import importlib
 import json

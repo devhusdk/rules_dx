@@ -4,7 +4,6 @@ use dx_error::DxError;
 
 pub const COMPOSER_SET: &str = "packagist";
 
-/// Reads the `packages` and `packages-dev` of a lock, skipping branch versions.
 pub fn parse_composer_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let root: serde_json::Value = serde_json::from_str(text)

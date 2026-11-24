@@ -442,7 +442,6 @@ fn elf_reads_needed_without_section_headers() {
 #[test]
 fn elf_rejects_dynamic_segment_without_string_table() {
     let mut image = elf_with(elf::EM_X86_64, None, &["libc.so.6"], false);
-    // Turn DT_STRTAB (second entry after the one DT_NEEDED) into DT_DEBUG.
     let at = 512 + "\0libc.so.6\0".len();
     let dynamic_at = at.div_ceil(8) * 8;
     put(&mut image, dynamic_at + 16, &elf::DT_DEBUG.to_le_bytes());
@@ -466,7 +465,6 @@ fn macho_names_other_apple_platforms() {
 #[test]
 fn macho_reads_version_min_macosx() {
     let mut image = macho(macho::CPU_TYPE_X86_64, macho::PLATFORM_MACOS, 0, &[]);
-    // Replace the 24-byte LC_BUILD_VERSION with a 16-byte LC_VERSION_MIN_MACOSX.
     let mut commands = Vec::new();
     commands.extend_from_slice(&macho::LC_VERSION_MIN_MACOSX.to_le_bytes());
     commands.extend_from_slice(&16u32.to_le_bytes());

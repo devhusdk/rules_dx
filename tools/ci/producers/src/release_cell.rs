@@ -1,5 +1,3 @@
-//! Builds the dx release archive, the pure-Go dx gazelle, the native launcher, the dx runtime and the native build tools twice and qualifies them as one release cell.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
@@ -13,7 +11,6 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
-/// The native build tools and the dx runtime a cell ships, by asset stem.
 const NATIVE_TOOLS: [Tool; 5] = [
     Tool {
         tool: "capnp",
@@ -44,22 +41,18 @@ const NATIVE_TOOLS: [Tool; 5] = [
         licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
     },
 ];
-/// The first-party linker wrapper the Windows cells ship for Rust MSVC opt builds.
 const WINDOWS_TOOLS: [Tool; 1] = [Tool {
     tool: "msvc-link",
     label: "//rust/private/tools/msvc_paths:msvc_link",
     licenses: &[],
 }];
-/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools, pcov and julia-internal.
 const LICENSE_CELL: &str = "dx-linux-x86_64";
-/// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
 struct Tool {
     tool: &'static str,
     label: &'static str,
     licenses: &'static [&'static str],
 }
 
-/// The tree-sitter libraries pkl-lsp loads on windows-arm64.
 const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
     Tool {
         tool: "tree-sitter",
@@ -75,15 +68,12 @@ const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
         ],
     },
 ];
-/// The PHP PCOV extension the linux and macOS cells ship for the PHP toolchains.
 const PCOV_LIBRARY: Tool = Tool {
     tool: "pcov",
     label: "@dx_php_pcov//:pcov.so",
     licenses: &["@dx_php_pcov//:pcov-1.0.12/LICENSE"],
 };
 const PCOV: [Tool; 1] = [PCOV_LIBRARY];
-/// PCOV and the source-built libjulia-internal the linux-x86_64 Julia toolchain loads, with
-/// the licences of the libuv, utf8proc and LLVM code it links statically.
 const LINUX_X86_64_LIBRARIES: [Tool; 2] = [
     PCOV_LIBRARY,
     Tool {
@@ -107,7 +97,6 @@ struct Env {
     run_id: String,
     job: String,
     sha: String,
-    /// Comma-separated licence ids the consumer accepts at `dx init`; the workflow sets them.
     accept_licenses: String,
     temp: PathBuf,
     workspace: PathBuf,
@@ -137,7 +126,6 @@ impl Env {
     }
 }
 
-/// A bazel server, the default one or one with its own output base.
 struct Bazel {
     base: Option<PathBuf>,
 }
@@ -197,18 +185,15 @@ impl Bazel {
         self.output(&args)
     }
 
-    /// The one file `target` builds, under `root`.
     fn file(&self, root: &Path, flags: &[&str], target: &str) -> Result<PathBuf, String> {
         Ok(root.join(self.exec_path(flags, target)?))
     }
 
-    /// The source file `label`, under `output_base` for an external repository and under `workspace` for the main one.
     fn source(&self, output_base: &Path, workspace: &Path, label: &str) -> Result<PathBuf, String> {
         source_file(output_base, workspace, &self.exec_path(&[], label)?)
     }
 }
 
-/// Maps the exec path of a source file to its path under `output_base` or `workspace`.
 fn source_file(output_base: &Path, workspace: &Path, exec_path: &str) -> Result<PathBuf, String> {
     if exec_path.starts_with("external/") {
         Ok(output_base.join(exec_path))
@@ -225,7 +210,6 @@ fn copy(from: &Path, to: &Path) -> Result<(), String> {
         .map_err(|error| format!("copy {} to {}: {error}", from.display(), to.display()))
 }
 
-/// Copies a built tool to `to`; on a macOS cell the copy is ad-hoc signed unless the linker signed it.
 fn release_copy(cell: &str, from: &Path, to: &Path) -> Result<(), String> {
     copy(from, to)?;
     if !is_macos(cell) || codesign(&["--verify", "--strict"], to)? {
@@ -258,7 +242,6 @@ fn make_writable(_path: &Path) -> Result<(), String> {
     Err("ad-hoc signing runs only on a macOS cell".to_owned())
 }
 
-/// Runs `codesign` with `args` on `path` and returns whether it succeeded.
 fn codesign(args: &[&str], path: &Path) -> Result<bool, String> {
     Command::new(CODESIGN)
         .args(args)
@@ -282,18 +265,15 @@ fn name_of(path: &Path) -> Result<String, String> {
         .ok_or_else(|| format!("{} has no file name", path.display()))
 }
 
-/// The symbols archive name of a cell, empty when the cell ships none.
 fn symbols_name(cell: &str) -> Option<String> {
     cell.starts_with("dx-windows-")
         .then(|| format!("{cell}-pdb.zip"))
 }
 
-/// The asset name of `tool` in a cell, such as `dx-gazelle-linux-x86_64`.
 fn tool_asset_name(tool: &str, cell: &str) -> String {
     format!("dx-{tool}-{}", cell.strip_prefix("dx-").unwrap_or(cell))
 }
 
-/// The native tools a cell ships: NATIVE_TOOLS, plus WINDOWS_TOOLS on a Windows cell.
 fn cell_tools(cell: &str) -> Vec<&'static Tool> {
     let windows: &'static [Tool] = if cell.starts_with("dx-windows-") {
         &WINDOWS_TOOLS
@@ -303,7 +283,6 @@ fn cell_tools(cell: &str) -> Vec<&'static Tool> {
     NATIVE_TOOLS.iter().chain(windows).collect()
 }
 
-/// The shared libraries a cell ships.
 fn libraries(cell: &str) -> &'static [Tool] {
     match cell {
         "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
@@ -313,8 +292,6 @@ fn libraries(cell: &str) -> &'static [Tool] {
     }
 }
 
-/// The shared libraries whose licence assets a cell writes: each library's licence comes
-/// from one cell, `LICENSE_CELL` for a library several cells ship.
 fn library_licenses(cell: &str) -> &'static [Tool] {
     match cell {
         "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
@@ -323,7 +300,6 @@ fn library_licenses(cell: &str) -> &'static [Tool] {
     }
 }
 
-/// The native tools whose licence assets a cell writes.
 fn native_licenses(cell: &str) -> Vec<&'static Tool> {
     if cell == LICENSE_CELL {
         NATIVE_TOOLS
@@ -335,8 +311,6 @@ fn native_licenses(cell: &str) -> Vec<&'static Tool> {
     }
 }
 
-/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`
-/// or `dx-julia-internal-linux-x86_64.so`.
 fn library_asset_name(tool: &str, cell: &str) -> String {
     let ext = if cell.starts_with("dx-windows-") {
         "dll"
@@ -346,7 +320,6 @@ fn library_asset_name(tool: &str, cell: &str) -> String {
     format!("{}.{ext}", tool_asset_name(tool, cell))
 }
 
-/// Writes the licence files of `tool`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
 fn write_license(
     bazel: &Bazel,
     output_base: &Path,
@@ -377,7 +350,6 @@ fn same_bytes(left: &Path, right: &Path) -> Result<bool, String> {
     Ok(read(left)? == read(right)?)
 }
 
-/// Builds the cell again from an empty output base and returns the rebuilt archive and the `qualify` symbol arguments.
 fn rebuild_cell(
     env: &Env,
     out: &Path,
@@ -387,7 +359,6 @@ fn rebuild_cell(
     launcher_asset: &str,
     archive_name: &str,
 ) -> Result<(PathBuf, Vec<String>), String> {
-    // The determinism input is a second, independent build: its own output base, no caches.
     let rebuild_base = env.temp.join("rebuild-base");
     std::fs::remove_dir_all(&rebuild_base).unwrap_or_default();
     let rebuild = Bazel {
@@ -619,7 +590,6 @@ fn run_output(command: &mut Command, timeout: Duration) -> Result<String, String
     Ok(out.stdout_text().trim().to_string())
 }
 
-/// Builds and qualifies the release cell named by the environment into the directory `OUT`.
 pub fn cell(args: &[String]) -> Result<(), String> {
     let [out] = args else {
         return Err("usage: producers_bin --release-cell OUT".to_string());

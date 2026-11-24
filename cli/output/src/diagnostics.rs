@@ -100,14 +100,12 @@ pub fn color_enabled() -> bool {
     color_enabled_for(color_override())
 }
 
-/// Whether dx's stdout is a terminal, so a person and not a pipe or file reads it.
 #[must_use]
 pub fn stdout_is_terminal() -> bool {
     use std::io::IsTerminal as _;
     std::io::stdout().is_terminal()
 }
 
-/// Shortens a tool's diagnostic line to at most `limit` bytes plus `...`.
 #[must_use]
 pub fn truncate_line(line: &str, limit: usize) -> String {
     if line.len() <= limit {
@@ -120,7 +118,6 @@ pub fn truncate_line(line: &str, limit: usize) -> String {
     format!("{head}...")
 }
 
-/// Picks the first line of a tool's output that says something, shortened to `limit` bytes plus `...`.
 pub fn first_diagnostic_line(bytes: &[u8], limit: usize, fallback: &str) -> String {
     let text = String::from_utf8_lossy(bytes);
     match text.lines().map(str::trim).find(|line| !line.is_empty()) {
@@ -129,14 +126,12 @@ pub fn first_diagnostic_line(bytes: &[u8], limit: usize, fallback: &str) -> Stri
     }
 }
 
-/// A bounded tail of a child's diagnostic output.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Excerpt {
     pub text: String,
     pub truncated: bool,
 }
 
-/// Keeps the first `ERROR:` line with a few lines after it and the last lines, within `max_lines` and `max_bytes`; `None` when it printed nothing.
 pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> Option<Excerpt> {
     const HEAD_AFTER: usize = 5;
     let text = String::from_utf8_lossy(bytes);
@@ -204,8 +199,6 @@ pub fn init_diagnostics_with_color(verbose: bool, color: ColorMode) {
     init_diagnostics(verbose);
 }
 
-/// Writes `text` to the diagnostic stream. A failed write is logged, not returned: a closed or
-/// broken stderr must not change the command's result.
 pub fn write_stderr(err: &mut dyn std::io::Write, text: std::fmt::Arguments<'_>) {
     if let Err(error) = err.write_fmt(text) {
         tracing::info!(%error, "stderr write failed");
@@ -443,7 +436,6 @@ mod tests {
             let verbose = verbose == "true";
             let mode = ColorMode::parse(mode).expect("mode");
             init_diagnostics_with_color(verbose, mode);
-            // The first init wins; a second one must not change anything.
             init_diagnostics(!verbose);
             tracing::debug!("dx-probe-debug");
             tracing::info!("dx-probe-info");
@@ -539,7 +531,6 @@ mod tests {
             assert!(!stdout_is_terminal(), "the parent pipes this stdout");
             return;
         }
-        // A child with a piped stdout, so the answer does not depend on how the runner started us.
         let child = std::process::Command::new(std::env::current_exe().expect("test binary"))
             .args([
                 "diagnostics::tests::a_piped_stdout_is_no_terminal",

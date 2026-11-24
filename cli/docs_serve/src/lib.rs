@@ -1,5 +1,3 @@
-//! Serves a built docs site over HTTP with nothing but the standard library.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -15,14 +13,12 @@ const ACCEPT_POLL: Duration = Duration::from_millis(50);
 const MAX_LINE: u64 = 8192;
 const MAX_HEADERS: usize = 100;
 
-/// A bound listener that serves one site directory under a base path.
 pub struct Site {
     listener: TcpListener,
     root: PathBuf,
     prefix: String,
 }
 
-/// Keeps a spawned server running; dropping it stops the server.
 pub struct Handle {
     addr: SocketAddr,
     stop: Arc<AtomicBool>,
@@ -30,7 +26,6 @@ pub struct Handle {
 }
 
 impl Site {
-    /// Binds `host:port` and serves `root` under `base` (`""` serves at `/`).
     pub fn bind(host: &str, port: u16, root: PathBuf, base: &str) -> io::Result<Site> {
         let listener = TcpListener::bind((host, port))?;
         let trimmed = base.trim_matches('/');
@@ -50,7 +45,6 @@ impl Site {
         self.listener.local_addr()
     }
 
-    /// Serves until `stop` returns true, checked between accepts.
     pub fn serve_until(self, stop: &dyn Fn() -> bool) -> io::Result<()> {
         let root: Arc<Path> = Arc::from(self.root);
         let prefix: Arc<str> = Arc::from(self.prefix);
@@ -67,7 +61,6 @@ impl Site {
         Ok(())
     }
 
-    /// Serves on a background thread until the returned handle is dropped.
     pub fn spawn(self) -> io::Result<Handle> {
         let addr = self.listener.local_addr()?;
         let stop = Arc::new(AtomicBool::new(false));
@@ -175,7 +168,6 @@ fn serve(mut stream: TcpStream, root: &Path, prefix: &str) -> io::Result<()> {
     reply(&mut stream, 200, content_type(&candidate), &body, with_body)
 }
 
-/// Reads one line of at most `MAX_LINE` bytes; `None` means it was longer.
 fn read_head_line(reader: &mut impl BufRead) -> io::Result<Option<Vec<u8>>> {
     let mut line = Vec::new();
     let read = reader
@@ -188,7 +180,6 @@ fn read_head_line(reader: &mut impl BufRead) -> io::Result<Option<Vec<u8>>> {
     Ok(Some(line))
 }
 
-/// Maps a request path to a file under `root`, or `None` when it must be refused.
 fn resolve(root: &Path, prefix: &str, path: &str) -> Option<PathBuf> {
     let decoded = percent_decode(path)?;
     let relative = decoded.strip_prefix(prefix)?;
@@ -225,10 +216,6 @@ fn percent_decode(text: &str) -> Option<String> {
     String::from_utf8(out).ok()
 }
 
-/// Returns the media type one served file needs, or the binary default.
-///
-/// Firefox refuses a stylesheet or a font whose media type is wrong, so the
-/// preview serves the same types a static host does.
 fn content_type(path: &Path) -> &'static str {
     let extension = path
         .extension()

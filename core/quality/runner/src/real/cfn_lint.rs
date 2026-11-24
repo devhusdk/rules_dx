@@ -9,7 +9,6 @@ use super::{RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed
 
 const EMPTY_CONFIG_REL: &str = "dx-cfn-lint/empty.yaml";
 
-/// One preflight problem as an error finding on the owned file.
 fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
     FileFinding {
         file: file.to_string_lossy().into_owned(),
@@ -36,7 +35,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Preflights the config and each owned file, then lints the templates left in one cfn-lint run.
     pub(super) fn check_cfn_lint(
         &self,
         tool_id: &str,

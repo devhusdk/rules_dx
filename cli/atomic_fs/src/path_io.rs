@@ -1,9 +1,6 @@
-//! File reads and writes whose errors keep the path they touched.
-
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// A failed file operation, with the path and the OS error.
 #[derive(Debug, thiserror::Error)]
 pub enum PathIoError {
     #[error("cannot read {}: {source}", path.display())]
@@ -17,7 +14,6 @@ pub enum PathIoError {
 }
 
 impl PathIoError {
-    /// The path the failed operation touched.
     #[must_use]
     pub fn path(&self) -> &Path {
         match self {
@@ -29,11 +25,6 @@ impl PathIoError {
     }
 }
 
-/// Reads a whole file.
-///
-/// # Errors
-///
-/// Returns [`PathIoError::Read`] when the file cannot be read.
 pub fn read(path: &Path) -> Result<Vec<u8>, PathIoError> {
     std::fs::read(path).map_err(|source| PathIoError::Read {
         path: path.to_path_buf(),
@@ -41,11 +32,6 @@ pub fn read(path: &Path) -> Result<Vec<u8>, PathIoError> {
     })
 }
 
-/// Reads a whole UTF-8 file.
-///
-/// # Errors
-///
-/// Returns [`PathIoError::Read`] when the file cannot be read or is not UTF-8.
 pub fn read_to_string(path: &Path) -> Result<String, PathIoError> {
     std::fs::read_to_string(path).map_err(|source| PathIoError::Read {
         path: path.to_path_buf(),
@@ -53,11 +39,6 @@ pub fn read_to_string(path: &Path) -> Result<String, PathIoError> {
     })
 }
 
-/// Writes a Bazel action output or other file a crash may lose, via [`crate::write_scratch`].
-///
-/// # Errors
-///
-/// Returns [`PathIoError::Write`] when the file cannot be written.
 pub fn write_scratch(path: &Path, content: &[u8]) -> Result<(), PathIoError> {
     crate::write_scratch(path, content).map_err(|source| PathIoError::Write {
         path: path.to_path_buf(),
@@ -65,11 +46,6 @@ pub fn write_scratch(path: &Path, content: &[u8]) -> Result<(), PathIoError> {
     })
 }
 
-/// Creates a directory and its missing parents.
-///
-/// # Errors
-///
-/// Returns [`PathIoError::Create`] when the directory cannot be created.
 pub fn create_dir_all(path: &Path) -> Result<(), PathIoError> {
     std::fs::create_dir_all(path).map_err(|source| PathIoError::Create {
         path: path.to_path_buf(),
@@ -77,11 +53,6 @@ pub fn create_dir_all(path: &Path) -> Result<(), PathIoError> {
     })
 }
 
-/// Lists the paths in a directory, sorted.
-///
-/// # Errors
-///
-/// Returns [`PathIoError::List`] when the directory or one of its entries cannot be read.
 pub fn read_dir(path: &Path) -> Result<Vec<PathBuf>, PathIoError> {
     let list = |source| PathIoError::List {
         path: path.to_path_buf(),

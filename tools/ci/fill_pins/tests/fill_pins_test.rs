@@ -3,7 +3,6 @@ use dx_test_scratch::scratch;
 use std::path::Path;
 use tempfile::TempDir;
 
-/// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
 const PLATFORM_TOOLS: [&str; 8] = [
     "capnp",
     "flatc",
@@ -15,19 +14,13 @@ const PLATFORM_TOOLS: [&str; 8] = [
     "thrift",
 ];
 
-/// The tools release.yml adds to the dx manifest from the Windows cells only.
 const WINDOWS_TOOLS: [&str; 1] = ["msvc_link"];
 
-/// The shared libraries release.yml adds to the dx manifest, with their licences: tree-sitter
-/// from the windows-arm64 cell, pcov from the linux and macOS cells and julia-internal from
-/// the linux-x86_64 cell.
 const LIBRARY_TOOLS: [&str; 4] = ["julia_internal", "pcov", "tree_sitter", "tree_sitter_pkl"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
-/// The Haskell tools release.yml adds to the haskell manifest.
 const HASKELL_TOOLS: [&str; 4] = ["hpc_lcov", "weeder", "hlint", "ormolu"];
-/// The tools release-tools.yml builds into the tool manifest, beside the Python bundles.
 const RELEASE_TOOLS: [&str; 4] = ["deadnix", "kcov", "nixfmt", "selene"];
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nSCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nPINS = {}\n";
 
@@ -51,8 +44,6 @@ fn assets(tool: &str) -> Vec<String> {
         .collect()
 }
 
-/// The dx manifest as release.yml writes it: each binary plus its launcher archive,
-/// Windows symbols and SBOMs, the native launcher assets, the native build tools, the dx runtime, the shared libraries and the licences.
 fn manifest() -> String {
     let mut lines = vec![
         format!("{}  dx-capnp-LICENSE\n", hash(9)),
@@ -142,8 +133,6 @@ fn haskell_manifest() -> String {
         .concat()
 }
 
-/// The tool manifest as release.yml writes it: the release tools, their licences
-/// and sources, and the Python bundles.
 fn tool_manifest() -> String {
     let mut lines: Vec<String> = RELEASE_TOOLS
         .iter()

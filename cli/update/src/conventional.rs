@@ -1,5 +1,3 @@
-//! Conventional-commit parsing over `git log --format=%H%x00%s%x00%b%x1e`.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Feat,
@@ -44,10 +42,8 @@ pub struct Commit {
     pub subject: String,
 }
 
-/// The `git log` arguments every read uses: merge commits are never read.
 pub const LOG_ARGS: [&str; 3] = ["log", "--no-merges", "--format=%H%x00%s%x00%b%x1e"];
 
-/// Kinds in the order `notes` lists them, with their headings.
 pub const DEFAULT_GROUPS: &[(Kind, &str)] = &[
     (Kind::Feat, "Features"),
     (Kind::Fix, "Fixes"),
@@ -125,7 +121,6 @@ fn parse_subject(subject: &str) -> Option<(Kind, Option<String>, bool, &str)> {
     Some((Kind::from_word(word), scope, bang, rest.trim()))
 }
 
-/// The commits in `log` whose subject is not a conventional commit, as `(hash, subject)`.
 #[must_use]
 pub fn lint(log: &str) -> Vec<(String, String)> {
     parse(log)

@@ -3,6 +3,7 @@
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
 NESTED_BAZEL_TAGS = [
+    "no-coverage",
     "resources:cpu:2",
     "resources:memory:2560",
     "resources:nested_bazel:1",

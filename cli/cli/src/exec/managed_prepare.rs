@@ -20,7 +20,6 @@ pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> dx_error::DxErro
     }
 }
 
-/// The stable code for a [`prepare_managed_sides`] error.
 pub(crate) fn prepare_error_code(error: &dx_error::DxError) -> &'static str {
     let message = error.message();
     if message.starts_with("failed to read build events: ") {
@@ -37,7 +36,6 @@ pub(crate) fn prepare_error_code(error: &dx_error::DxError) -> &'static str {
     }
 }
 
-/// The staged sides of one sync, the leases that keep them, and the artifacts the codegen side links.
 pub(crate) struct PreparedSync {
     pub(crate) sides: dx_setup::PreparedSides,
     pub(crate) leases: Vec<dx_atomic_fs::lease::SharedLease>,

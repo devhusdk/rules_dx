@@ -49,12 +49,14 @@ upstream_ownership_subject = rule(
 )
 
 def _no_context_cc_impl(_ctx):
-    """Provides native compilation info without declared sources."""
+    """Provides native compilation info without srcs, hdrs or non_arc_srcs."""
     return [CcInfo(compilation_context = cc_common.create_compilation_context())]
 
 no_context_cc = rule(
     implementation = _no_context_cc_impl,
-    attrs = {},
+    attrs = {
+        "sources": attr.label_list(allow_files = True, doc = "Sources under an attribute the cc recognizer does not read."),
+    },
 )
 
 UPSTREAM_OWNERSHIP_OBSERVATIONS = """subject //core/quality/testdata:upstream_cc_configured_subject
@@ -83,6 +85,15 @@ aspect_field aspect_seen=True
 aspect_field field_count=3
 aspect_field has_subject=True
 aspect_field subject_label=//core/quality/testdata:upstream_cc_generated_subject
+aspect_field transitive_count=0
+subject //core/quality/testdata:upstream_cc_sourceless_subject
+field error=(none)
+field ownership=(empty)
+field recognized=True
+aspect_field aspect_seen=True
+aspect_field field_count=3
+aspect_field has_subject=True
+aspect_field subject_label=//core/quality/testdata:upstream_cc_sourceless_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:upstream_cc_subject
 field error=(none)

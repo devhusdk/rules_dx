@@ -1,5 +1,3 @@
-//! Checks result files for strings: `FILE... [+WANTED|-UNWANTED]...`.
-
 use std::process::ExitCode;
 
 use dx_testing::{contains_bytes, resolve_runfiles};

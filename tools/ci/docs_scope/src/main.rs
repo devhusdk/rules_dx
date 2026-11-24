@@ -1,5 +1,3 @@
-//! `docs_scope_bin` runs dx lint over the patterns in `DX_DOCS_SCOPE`.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,

@@ -114,6 +114,27 @@ constructor, not as an `object`. scalac runs no Java annotation processors,
 so the rule runs the JMH bytecode generator over the compiled classes and
 compiles the Java it writes.
 
+## Toolchain
+
+### Scala versions
+
+rules_dx builds with Scala 2.13.18 by default, and with 3.3.9 for targets that
+ask for it. To choose your own versions, add this to your `MODULE.bazel`:
+
+```starlark
+scala_config = use_extension("@rules_dx//scala:extensions.bzl", "scala_config")
+scala_config.settings(
+    scala_version = "2.13.18",
+    scala_versions = ["3.3.9", "2.12.21"],
+)
+```
+
+`scala_version` is the default. `scala_versions` lists the others. rules_dx
+sets up a compiler and a test toolchain for each one. A target picks a version
+with the `@rules_scala_config//:scala_version` build setting, for example
+`--@rules_scala_config//:scala_version=2.12.21`. Only your root module's
+`settings` count, and it may appear once.
+
 ## Rules
 
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//scala:defs.bzl`:

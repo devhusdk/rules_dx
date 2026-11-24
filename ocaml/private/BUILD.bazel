@@ -35,6 +35,8 @@ real_source_target(
         "dune.bzl",
         "kwargs.bzl",
         "providers.bzl",
+        "dune.BUILD.bazel",
+        "opam_repository.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

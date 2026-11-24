@@ -1,5 +1,3 @@
-//! Steps a spawned child takes between fork and exec.
-
 #![expect(unsafe_code, reason = "Command::pre_exec is unsafe")]
 
 use std::ffi::CString;
@@ -7,7 +5,6 @@ use std::os::fd::{IntoRawFd, OwnedFd};
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 
-/// Makes the child get `signo` when this process dies, and fail to spawn if it already has.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn die_with_parent(command: &mut Command, signo: i32) {
     let parent = std::process::id();
@@ -23,9 +20,6 @@ pub fn die_with_parent(command: &mut Command, signo: i32) {
     };
 }
 
-/// Clears close-on-exec on `fds` in the child only, so concurrent spawns from
-/// other threads never inherit them. Each fd shares its open file description
-/// with the descriptor it was duplicated from, so a `flock` lock stays held.
 pub fn inherit(command: &mut Command, fds: Vec<OwnedFd>) {
     if fds.is_empty() {
         return;
@@ -41,7 +35,6 @@ pub fn inherit(command: &mut Command, fds: Vec<OwnedFd>) {
     };
 }
 
-/// Makes the child lead a new session whose controlling terminal is `tty`.
 pub fn in_terminal(command: &mut Command, tty: CString) {
     // SAFETY: the hook calls only setsid, open and ioctl, which are async-signal-safe,
     // and opens `tty` through its existing C string without allocating.
@@ -60,15 +53,11 @@ pub fn in_terminal(command: &mut Command, tty: CString) {
     };
 }
 
-/// Makes the child start with `signo` ignored.
 pub fn ignore_signal(command: &mut Command, signo: i32) {
     // SAFETY: the hook calls only signal, which is async-signal-safe.
     unsafe { command.pre_exec(move || crate::signals::ignore(signo)) };
 }
 
-/// Makes the child replace the text of `file` with `<pid> <namespace> <start> <boot>` before
-/// it execs, where `<start>` is its own start time in [`crate::process::start_time`] form.
-/// The child writes nothing when it cannot read its start time.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn record_start(command: &mut Command, file: std::fs::File, namespace: String, boot: String) {
     // SAFETY: the hook reads and writes only through stack buffers and raw descriptor calls,
@@ -81,7 +70,6 @@ pub fn record_start(command: &mut Command, file: std::fs::File, namespace: Strin
     };
 }
 
-/// Runs between fork and exec, so it never allocates: std opens short paths from a stack buffer.
 #[cfg(target_os = "linux")]
 fn write_start_line(file: &std::fs::File, namespace: &str, boot: &str) {
     use std::io::Read;
@@ -102,7 +90,6 @@ fn write_start_line(file: &std::fs::File, namespace: &str, boot: &str) {
     write_line(file, format_args!("{start}"), namespace, boot);
 }
 
-/// Runs between fork and exec, so it never allocates.
 #[cfg(target_os = "macos")]
 fn write_start_line(file: &std::fs::File, namespace: &str, boot: &str) {
     let Ok(pid) = i32::try_from(std::process::id()) else {
@@ -114,7 +101,6 @@ fn write_start_line(file: &std::fs::File, namespace: &str, boot: &str) {
     write_line(file, format_args!("{secs}.{micros:06}"), namespace, boot);
 }
 
-/// Replaces the text of `file` with the calling process's line, using only a stack buffer.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn write_line(file: &std::fs::File, start: std::fmt::Arguments<'_>, namespace: &str, boot: &str) {
     use std::io::Write;
@@ -131,7 +117,6 @@ fn write_line(file: &std::fs::File, start: std::fmt::Arguments<'_>, namespace: &
     else {
         return;
     };
-    // The parent rewrites the lease after spawn if this best-effort write fails.
     if file.set_len(0).is_ok() {
         drop(file.write_all_at(text, 0));
     }

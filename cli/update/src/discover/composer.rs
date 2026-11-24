@@ -1,5 +1,3 @@
-//! Lists Composer packages whose newest stable release on Packagist is newer than the lock.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, release_cmp, wanted};
@@ -8,9 +6,6 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://repo.packagist.org";
 
-/// Checks each direct require of the manifest files against its locked version.
-///
-/// `locks` are the lock texts of the same set; a package that is not locked is skipped.
 pub fn outdated(
     set: &str,
     manifests: &[String],
@@ -63,7 +58,6 @@ pub fn outdated(
     found
 }
 
-/// The packages in `require` and `require-dev`, without the platform pseudo-packages.
 fn requires(text: &str) -> Vec<String> {
     let Ok(json) = serde_json::from_str::<serde_json::Value>(text) else {
         return Vec::new();

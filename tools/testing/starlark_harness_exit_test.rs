@@ -2,7 +2,6 @@ use std::path::Path;
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::{Mutex, PoisonError};
 
-/// Serializes copying the harness and spawning it across this test binary's threads.
 static SPAWN_LOCK: Mutex<()> = Mutex::new(());
 
 fn write(path: &Path, bytes: &[u8]) {
@@ -14,11 +13,7 @@ fn write(path: &Path, bytes: &[u8]) {
         .unwrap_or_else(|err| panic!("cannot write {}: {err}", path.display()));
 }
 
-/// Copies the harness to `exe` and spawns `cmd` as that copy.
-///
-/// `copy` keeps `exe` open for write until it returns. A fork from another test thread in
-/// that window inherits the write fd, and exec of `exe` then fails with ETXTBSY. Holding
-/// one lock across the copy and the spawn keeps every fork in this binary out of that window.
+/// A fork during the copy inherits the write fd and exec of `exe` fails with ETXTBSY.
 fn spawn_copy(exe: &Path, cmd: &mut Command) -> Child {
     let _guard = SPAWN_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
     std::fs::copy(dx_testing::env_file("STARLARK_HARNESS_BIN"), exe)

@@ -25,21 +25,21 @@ package(
 
 dart_library(
     name = "conformance",
-    package = ":conformance-metadata",
     srcs = ["lib/greet.dart"],
+    package = ":conformance-metadata",
 )
 
 dart_library(
     name = "lint_dirty",
-    package = ":conformance_lint_dirty-metadata",
     srcs = ["lib/lint_dirty.dart"],
+    package = ":conformance_lint_dirty-metadata",
     tags = ["manual"],
 )
 
 dart_library(
     name = "format_dirty",
-    package = ":conformance_format_dirty-metadata",
     srcs = ["lib/format_dirty.dart"],
+    package = ":conformance_format_dirty-metadata",
     tags = ["manual"],
 )
 

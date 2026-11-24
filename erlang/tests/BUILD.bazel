@@ -77,6 +77,7 @@ test_suite(
         "//erlang/tests/fixtures/runtime:diagnostics_SUITE_coverage_test",
         "//erlang/tests/fixtures/runtime:eunit",
         "//erlang/tests/fixtures/runtime:eunit_coverage_test",
+        "//erlang/tests/fixtures/runtime:export_all_SUITE",
         "//erlang/tests/fixtures/runtime:nif_coverage_test",
         "//erlang/tests/fixtures/runtime:nif_cpp_coverage_test",
         "//erlang/tests/fixtures/tags:tags_test",

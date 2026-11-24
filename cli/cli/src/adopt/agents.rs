@@ -7,7 +7,6 @@ pub(crate) const FILE: &str = "AGENTS.md";
 const BEGIN: &str = "<!-- dx:begin -->";
 const END: &str = "<!-- dx:end -->";
 
-/// The marked block that tells agents which dx commands to run.
 pub(crate) fn block() -> String {
     let dx = "tools/dx";
     let worktree = Command::Worktree.name();
@@ -28,7 +27,6 @@ pub(crate) fn block() -> String {
     )
 }
 
-/// How an AGENTS.md text relates to the current block.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum State {
     Missing,
@@ -42,7 +40,6 @@ fn span(text: &str) -> Option<(usize, usize)> {
     dx_merge::block::span(text, BEGIN, END)
 }
 
-/// Whether the text holds the current block, an old one, or none.
 pub(crate) fn state(text: &str) -> State {
     match span(text) {
         None => State::Missing,
@@ -57,7 +54,6 @@ pub(crate) fn state(text: &str) -> State {
     }
 }
 
-/// The text with the block added or replaced and every other byte kept.
 pub(crate) fn render(text: &str) -> io::Result<String> {
     dx_merge::block::merge(text, BEGIN, END, &block())
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error.to_string()))
@@ -71,13 +67,11 @@ fn read(workspace: &Path) -> io::Result<Option<String>> {
     }
 }
 
-/// The block state of the workspace AGENTS.md.
 #[cfg(test)]
 pub(crate) fn workspace_state(workspace: &Path) -> io::Result<State> {
     Ok(read(workspace)?.map_or(State::Missing, |text| state(&text)))
 }
 
-/// The AGENTS.md text a write would produce, or `None` when nothing would change.
 pub(crate) fn planned(workspace: &Path, create: bool) -> io::Result<Option<String>> {
     let current = read(workspace)?;
     if current.is_none() && !create {
@@ -98,7 +92,6 @@ pub(crate) fn planned(workspace: &Path, create: bool) -> io::Result<Option<Strin
     render(&text).map(Some)
 }
 
-/// Writes the block, creating AGENTS.md when `create` is set. True when the file changed.
 pub(crate) fn write(workspace: &Path, create: bool) -> io::Result<bool> {
     let Some(text) = planned(workspace, create)? else {
         return Ok(false);

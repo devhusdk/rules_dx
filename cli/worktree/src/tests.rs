@@ -87,7 +87,6 @@ impl FakeHost {
         });
     }
 
-    /// Scripts a reapable-looking server: its lock state, last use, and footprint.
     fn script_server(&self, pid: u32, idle: Option<bool>, used: Option<u64>, bytes: u64) {
         self.idle.lock().expect("idle").insert(pid, idle);
         self.used.lock().expect("used").insert(pid, used);
@@ -106,12 +105,10 @@ impl FakeHost {
         self.shutdowns.lock().expect("shutdowns").clone()
     }
 
-    /// Makes `remove_tree` leave `path` on disk and report failure.
     fn stick(&self, path: &Path) {
         self.stuck.lock().expect("stuck").insert(path.to_path_buf());
     }
 
-    /// Lets `remove_tree` delete every path again.
     fn unstick(&self) {
         self.stuck.lock().expect("stuck").clear();
     }
@@ -120,7 +117,6 @@ impl FakeHost {
         *self.stop_after.lock().expect("stop") = Some((count, signo));
     }
 
-    /// Fires once `count` Bazel shutdowns have run.
     fn stop_after_shutdowns(&self, count: usize, signo: i32) {
         *self.stop_after_shutdowns.lock().expect("stop") = Some((count, signo));
     }
@@ -129,7 +125,6 @@ impl FakeHost {
         self.clock.fetch_add(seconds, Ordering::SeqCst);
     }
 
-    /// Makes `process_in` report a process working in `dir`.
     fn occupy(&self, dir: &Path) {
         self.occupied
             .lock()
@@ -313,7 +308,6 @@ impl Host for FakeHost {
 
     fn remove_tree(&self, path: &Path) -> bool {
         if self.stuck.lock().expect("stuck").contains(path) {
-            // `git worktree remove` may already have deleted it; a stuck tree is still on disk.
             std::fs::create_dir_all(path).expect("stuck path");
             return false;
         }
@@ -811,7 +805,6 @@ fn another_session_cannot_renew() {
         .into_iter()
         .find(|r| r.slot == first.slot)
         .expect("record");
-    // The dead holder is taken over outright, never re-pinned under the old session.
     assert_ne!(record.session.as_deref(), Some("s1"));
 }
 
@@ -1036,7 +1029,6 @@ fn release_of_a_record_less_slot_keeps_the_holder_check() {
         &["commit", "--quiet", "-m", "local"],
     )
     .unwrap();
-    // The holder is unknown and the work is unpushed, so nobody releases it without --force.
     let err = ops::release(&pool, &host, &other, &added.path, false).expect_err("refused");
     assert_eq!(err.code, "slot_leased");
     assert_eq!(
@@ -1245,7 +1237,6 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     assert!(entry.contains("locked"), "{entry}");
 }
 
-/// Three released slots, oldest first, with room for two.
 fn three_free_slots(pool: &Pool, host: &FakeHost, me: &Who) -> Vec<ops::Added> {
     let mut slots = Vec::new();
     for name in ["feature/a", "feature/b", "feature/c"] {
@@ -1261,7 +1252,6 @@ fn three_free_slots(pool: &Pool, host: &FakeHost, me: &Who) -> Vec<ops::Added> {
     slots
 }
 
-/// Adds a branch and returns the slots that are gone afterwards.
 fn gone_after_add(pool: &Pool, host: &FakeHost, me: &Who, slots: &[ops::Added]) -> (u32, Vec<u32>) {
     let added = ops::add(pool, host, me, &create("feature/d")).expect("d");
     let gone = slots
@@ -1294,7 +1284,6 @@ fn add_deletes_the_oldest_pushed_free_slot_above_the_limit() {
     assert_eq!(pool.records().len(), 2);
 }
 
-/// Runs `add` with `refuse` applied to every slot but the newest and asserts the refused ones stay.
 fn assert_refused(refuse: impl Fn(&FakeHost, &ops::Added)) {
     let fixture = Fixture::new();
     let pool = fixture.pool();
@@ -1523,7 +1512,6 @@ fn reuse_cleans_read_only_untracked_trees() {
     );
 }
 
-/// Releases one slot that holds a read-only `.cache/ob` tree the repository ignores, next to a `bazel-bin` link.
 #[cfg(unix)]
 fn free_slot_with_read_only_ignored_tree(
     fixture: &Fixture,
@@ -1583,7 +1571,6 @@ fn reuse_skips_a_free_slot_it_cannot_clean() {
     let path = free_slot_with_read_only_ignored_tree(&fixture, &pool, &host, &me);
     host.stick(&path.join(".cache"));
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("next slot");
-    // Root's `git clean` deletes the read-only tree, so root reuses the slot.
     if dx_test_scratch::running_as_root() {
         assert_eq!(second.path, path);
         assert!(!path.join(".cache").exists(), "read-only tree cleaned");
@@ -2578,7 +2565,6 @@ fn tagged_cache(slot: &Path, name: &str) -> PathBuf {
     dir
 }
 
-/// A free slot with a tagged cache and a held slot with one.
 fn cache_fixture(fixture: &Fixture, host: &FakeHost, pool: &Pool) -> (PathBuf, PathBuf, PathBuf) {
     host.script_disk(&fixture.cache, OK);
     let me = who("s1", 10);
@@ -3464,7 +3450,6 @@ fn worktreeinclude_files_are_copied_into_the_slot() {
     );
 }
 
-/// Commits a `.worktreeinclude` that names the git-ignored `user.bazelrc`.
 fn include_user_bazelrc(fixture: &Fixture) {
     std::fs::write(fixture.main.join(".gitignore"), "user.bazelrc\n").expect("ignore");
     std::fs::write(fixture.main.join(".worktreeinclude"), "user.bazelrc\n").expect("include");
@@ -3637,7 +3622,6 @@ mod hooks {
         .expect("record")
     }
 
-    /// Runs `command` in `cwd` as agent `caller`, where every slot is held by agent a1.
     fn in_foreign_slot(command: &str, cwd: &str, caller: &str, calls: &Cell<u32>) -> hook::Guard {
         let input = serde_json::json!({
             "cwd": cwd, "agent_id": caller, "session_id": "s1",
@@ -3715,7 +3699,6 @@ mod hooks {
         }
     }
 
-    /// Runs `command` in `cwd` as agent a1, who holds /pool/1, with /primary as the primary checkout.
     fn in_primary(command: &str, cwd: &str, holds: bool) -> Option<String> {
         let input = serde_json::json!({
             "cwd": cwd, "agent_id": "a1", "session_id": "s1",
@@ -3973,7 +3956,6 @@ mod hooks {
         );
     }
 
-    /// A shell-tool payload in the shape each agent documents.
     fn payload(agent: &str, command: &str) -> serde_json::Value {
         match agent {
             "claude" => serde_json::json!({
@@ -5026,7 +5008,6 @@ fn detached_checkout(fixture: &Fixture, name: &str, rev: &str) -> PathBuf {
     hand
 }
 
-/// Sets the times of the files git updates for `checkout` to `secs`.
 fn age_checkout(checkout: &Path, secs: u64) {
     let admin = PathBuf::from(
         dx_test_scratch::git(checkout, checkout, &["rev-parse", "--absolute-git-dir"]).unwrap(),
@@ -5562,7 +5543,6 @@ fn prune_apply_removes_external_worktree_still_clean_at_apply() {
     assert!(!hand.exists());
 }
 
-/// A free slot idle for 31 days with a base of its own, ready for `prune --apply`.
 fn idle_slot_with_base(
     fixture: &Fixture,
     host: &FakeHost,
@@ -6195,7 +6175,6 @@ fn download(roots: &Path, key: &str, files: &[(&str, u64)]) -> PathBuf {
     dir
 }
 
-/// A host whose clock is 40 days past the time `STALE` files carry.
 fn download_host(fixture: &Fixture) -> (FakeHost, PathBuf) {
     let host = FakeHost::new();
     let roots = fixture.cache.join("bazel-root");
@@ -6366,7 +6345,6 @@ fn a_hostile_global_git_config_does_not_break_add_or_release() {
         ),
     )
     .expect("config");
-    // Only this process-wide-free check: the isolated command ignores the hostile file.
     let mut command = dx_process::capture::git(&fixture.main);
     command.args(["config", "--get", "commit.gpgsign"]);
     command.env("GIT_CONFIG_GLOBAL", &config);
@@ -6693,10 +6671,8 @@ fn a_slot_may_build_but_not_bazel_clean() {
     );
 }
 
-/// Set when the main checkout's fake `tools/dx` runs [`git_hook_child`].
 const GIT_HOOK_CHILD: &str = "DX_WORKTREE_TEST_GIT_HOOK";
 
-/// Answers as `tools/dx worktree hook git` when the git hook of a test repository runs it.
 #[test]
 fn git_hook_child() {
     if std::env::var_os(GIT_HOOK_CHILD).is_none() {
@@ -6715,7 +6691,6 @@ fn git_hook_child() {
     std::process::exit(code);
 }
 
-/// Gives the main checkout a `tools/dx` that runs [`git_hook_child`].
 #[cfg(unix)]
 fn fake_main_dx(main: &Path) {
     let exe = std::env::current_exe().expect("test binary");
@@ -6734,7 +6709,6 @@ fn git_hook_path(main: &Path) -> PathBuf {
     main.join(".git/hooks/reference-transaction")
 }
 
-/// The warning dx gave when it wrote no git hook.
 #[cfg(unix)]
 fn skipped_hook(added: &ops::Added) -> Option<&str> {
     added
@@ -6876,7 +6850,6 @@ fn the_git_hook_goes_only_into_the_hooks_dir_of_its_own_repository() {
     assert_eq!(skipped_hook(&added), None, "{:?}", added.warnings);
     let hook = std::fs::read(own.join("reference-transaction")).expect("hook");
 
-    // A copy of the hook in another repository must not run that repository's tools/dx.
     let other = root.join("other");
     git(
         &root,

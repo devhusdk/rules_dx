@@ -4,16 +4,6 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "nixfmt";
 
-/// `nixfmt --check` exits 0 with no output when every file is formatted. It exits 1 for unformatted
-/// files, syntax errors, I/O errors and usage errors alike, so exit 1 is read by classifying
-/// stderr into records: `<path>: not formatted`, or `<path>:<line>:<col>:` followed by its
-/// megaparsec continuation lines. Anything else (stray text, an unowned path, a colour-coded
-/// warning, an uncaught exception) is a shape error and never reads as clean. Exit 2 is SIGINT
-/// and any other exit, or no exit, is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_nixfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -108,7 +98,6 @@ fn close(open: &mut Option<(&str, u64, u64, Vec<&str>)>, findings: &mut Vec<File
     ));
 }
 
-/// A quoted source line of the error excerpt: `<line> | <text>`.
 fn is_source_line(line: &str) -> bool {
     let digits = line.chars().take_while(char::is_ascii_digit).count();
     digits > 0
@@ -117,7 +106,6 @@ fn is_source_line(line: &str) -> bool {
             .is_some_and(|rest| rest.starts_with(" |"))
 }
 
-/// A record header, `None` for a continuation line, or an error for a header naming an unowned path.
 fn header<'a>(line: &str, files: &[&'a str]) -> Result<Option<Header<'a>>, ParseError> {
     if let Some(path) = line.strip_suffix(": not formatted") {
         return Ok(Some(Header::Unformatted(known_native(TOOL, files, path)?)));

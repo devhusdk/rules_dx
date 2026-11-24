@@ -1,5 +1,3 @@
-//! File system space.
-
 #![cfg_attr(
     windows,
     expect(unsafe_code, reason = "GetDiskFreeSpaceExW has no safe std API")
@@ -10,15 +8,12 @@ use std::io;
 use std::os::fd::{AsFd, AsRawFd};
 use std::path::Path;
 
-/// Bytes on the file system holding `dir`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Space {
-    /// What an unprivileged user may still write, the figure `df` reports.
     pub free: u64,
     pub total: u64,
 }
 
-/// The space of the file system holding `dir`, from `statvfs(3)`.
 #[cfg(unix)]
 pub fn space(dir: &Path) -> io::Result<Space> {
     let stat = rustix::fs::statvfs(dir)?;
@@ -35,7 +30,6 @@ pub fn space(dir: &Path) -> io::Result<Space> {
     })
 }
 
-/// The space of the volume holding `dir`, from `GetDiskFreeSpaceExW`.
 #[cfg(windows)]
 pub fn space(dir: &Path) -> io::Result<Space> {
     use std::os::windows::ffi::OsStrExt;
@@ -56,9 +50,6 @@ pub fn space(dir: &Path) -> io::Result<Space> {
     Ok(Space { free, total })
 }
 
-/// Whether another process holds a write-conflicting fcntl lock on `file`; tests without taking it.
-///
-/// Sees OFD and POSIX record locks, not `flock` locks on Linux.
 #[cfg(unix)]
 #[expect(
     unsafe_code,

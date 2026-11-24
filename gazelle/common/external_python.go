@@ -9,23 +9,18 @@ import (
 
 var pyNameRun = regexp.MustCompile(`[-_.]+`)
 
-// pythonNormalize is the PEP 503 normal form of a distribution name.
 func pythonNormalize(name string) string {
 	return strings.ToLower(pyNameRun.ReplaceAllString(name, "-"))
 }
 
-// pythonHubName is the target name of a distribution in a rules_python pip hub.
 func pythonHubName(name string) string {
 	return strings.ToLower(pyNameRun.ReplaceAllString(name, "_"))
 }
 
-// pythonManifest holds the registry distributions the uv lock pins.
 type pythonManifest struct {
 	names map[string]bool
 }
 
-// parseUVLockManifest reads the [[package]] tables of the uv lock. Packages
-// whose source is the workspace itself (virtual or editable) are skipped.
 func parseUVLockManifest(content []byte, _ string) (externalManifest, error) {
 	m := &pythonManifest{names: map[string]bool{}}
 	var name string
@@ -56,9 +51,6 @@ func parseUVLockManifest(content []byte, _ string) (externalManifest, error) {
 	return m, nil
 }
 
-// Lookup resolves the top-level module of name to the distribution of the
-// same normalized name. Distributions whose import name differs from their
-// name need a resolve mapping.
 func (m *pythonManifest) Lookup(repo, name string) ([]label.Label, string) {
 	top, _, _ := strings.Cut(name, ".")
 	dist := pythonNormalize(top)

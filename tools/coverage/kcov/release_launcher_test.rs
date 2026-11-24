@@ -2,8 +2,6 @@
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
 )]
-//! Runs the kcov launcher as a consumer does: rules_dx is `rules_dx+`, kcov is the
-//! static binary the release ships and `to_lcov` is the dx-runtime helper.
 use std::path::PathBuf;
 
 const REPO: &str = "rules_dx+";

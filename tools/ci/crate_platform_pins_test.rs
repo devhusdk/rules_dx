@@ -7,7 +7,6 @@ const MODULE: &str = "MODULE.bazel";
 const WINDOWS_ARM: &str = "aarch64-pc-windows-msvc";
 const WINDOWS_X86: &str = "x86_64-pc-windows-msvc";
 
-/// The Rust triple behind each Bazel host platform dx qualifies.
 const QUALIFIED_TRIPLES: [&str; 5] = [
     "aarch64-apple-darwin",
     WINDOWS_ARM,
@@ -16,7 +15,6 @@ const QUALIFIED_TRIPLES: [&str; 5] = [
     "x86_64-unknown-linux-gnu",
 ];
 
-/// The triples `crate_universe` covered before dx qualified Windows ARM64.
 const PRESERVED_TRIPLES: [&str; 7] = [
     "aarch64-apple-darwin",
     "aarch64-unknown-linux-gnu",
@@ -27,7 +25,6 @@ const PRESERVED_TRIPLES: [&str; 7] = [
     "x86_64-unknown-nixos-gnu",
 ];
 
-/// Conditions whose resolved triples keep every qualified platform on its own mapping.
 const PLATFORM_CONDITIONS: [(&str, &[&str]); 12] = [
     ("aarch64-apple-darwin", &["aarch64-apple-darwin"]),
     (WINDOWS_ARM, &[WINDOWS_ARM]),
@@ -71,7 +68,6 @@ const PLATFORM_CONDITIONS: [(&str, &[&str]); 12] = [
     ("cfg(windows)", &[WINDOWS_ARM, WINDOWS_X86]),
 ];
 
-/// Dependency groups `crate_universe` renders as a select when a cfg gates a dependency.
 const DEP_GROUPS: [&str; 4] = ["deps", "dev_deps", "proc_macro_deps", "proc_macro_dev_deps"];
 
 fn declared_triples() -> BTreeSet<String> {
@@ -247,7 +243,6 @@ fn cfg_selected_dependencies_keep_both_windows_architectures() {
         "{LOCKFILE} records no cfg-selected dependency group"
     );
     for (name, keys) in selects {
-        // A crate reached only by an x86_64 cfg has no aarch64 key.
         let reaches_aarch64 = keys.iter().any(|key| key.starts_with("aarch64-"));
         if keys.contains(WINDOWS_X86) && reaches_aarch64 {
             assert!(
@@ -258,7 +253,6 @@ fn cfg_selected_dependencies_keep_both_windows_architectures() {
     }
 }
 
-/// The workspace crates whose normal or dev dependencies include crate `name`.
 fn workspace_dependents(name: &str) -> BTreeSet<String> {
     let lock = lock();
     let prefix = format!("{name} ");
@@ -266,7 +260,6 @@ fn workspace_dependents(name: &str) -> BTreeSet<String> {
     let mut dependents = BTreeSet::new();
     for member in lock["workspace_members"].as_object().into_iter().flatten() {
         let attrs = &lock["crates"][member.0]["common_attrs"];
-        // A dependency list is a plain array, or `common` plus per-platform `selects`.
         let lists = |deps: &Value| -> Vec<Value> {
             if deps.is_array() {
                 return vec![deps.clone()];

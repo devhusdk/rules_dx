@@ -4589,7 +4589,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "hadolint",
       "severity": {
         "categories": {
-          "DL1": "error"
+          "DL1": "error",
+          "guard/": "error"
         },
         "default": "warning",
         "floor": null
@@ -5600,7 +5601,9 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "hlint",
       "severity": {
-        "categories": {},
+        "categories": {
+          "Avoid restricted": "error"
+        },
         "default": null,
         "floor": null
       },

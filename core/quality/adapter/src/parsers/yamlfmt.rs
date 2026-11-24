@@ -6,12 +6,6 @@ const TOOL: &str = "yamlfmt";
 const HEADER: &str = "The following files had formatting differences:";
 const ERRORS: &str = "encountered the following formatting errors:";
 
-/// `yamlfmt -lint -q` lists unformatted files after a header and parse failures as
-/// `<path>: <message>` lines after another, both on stderr.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_yamlfmt(
     stderr: &[u8],
     code: Option<i32>,
@@ -90,7 +84,6 @@ fn failure(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
 mod tests {
     use super::*;
 
-    /// `yamlfmt -lint -q` output, verbatim from yamlfmt 0.21.0 on stderr.
     const DIRTY: &str =
         "The following files had formatting differences:\n\nSample.yaml\nOther.yaml\n";
     const BROKEN: &str = "encountered the following formatting errors:\nbroken.yaml: yaml: line 3: did not find expected ',' or ']'\n";
@@ -135,7 +128,6 @@ mod tests {
         assert_eq!(findings.len(), 3);
     }
 
-    /// `yamlfmt -lint -q` writes the long side-by-side report to stderr, never a unified diff.
     #[test]
     fn yamlfmt_writes_its_report_to_stderr() {
         let report = b"The following formatting differences were found:\n\nSample.yaml:\n- key:    value  key: value\n                 \n\n";

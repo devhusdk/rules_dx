@@ -1,6 +1,3 @@
-//! The `dx update` verb: dependency set refreshes, version edits, outdated
-//! reports, update pull requests and advisory pin moves.
-
 mod dep_edit;
 mod staged;
 #[cfg(test)]
@@ -21,7 +18,6 @@ use dx_plan::args::{Command, Invocation};
 pub use update_outdated::registry_fetch;
 pub use update_version::COMMIT_JSON_ENV;
 
-/// Runs one `dx update` invocation; `dispatch` runs the inner verbs a pull request or advisory step needs.
 pub fn execute_update(invocation: &Invocation, env: Env<'_>, dispatch: Dispatch<'_>) -> i32 {
     debug_assert!(
         invocation.command == Command::Update,

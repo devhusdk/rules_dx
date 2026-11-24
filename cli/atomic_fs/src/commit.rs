@@ -1,5 +1,3 @@
-//! One managed-root commit lock plus staged pointer publication.
-
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -7,13 +5,10 @@ use std::time::Duration;
 
 use super::managed::{EntryKind, PointerKind, classify, create_pointer, remove_managed};
 
-/// Lock file inside a managed root that serializes generation commits.
 pub const COMMIT_LOCK_FILE_NAME: &str = dx_path::state::COMMIT_LOCK;
 
-/// File beside the lock naming the command that last took it.
 pub const COMMIT_HOLDER_FILE_NAME: &str = dx_path::state::COMMIT_LOCK_HOLDER;
 
-/// Text for a busy workspace; names the holder when known.
 #[must_use]
 pub fn busy_message(path: &Path, holder: Option<&str>) -> String {
     format!(
@@ -23,10 +18,8 @@ pub fn busy_message(path: &Path, holder: Option<&str>) -> String {
     )
 }
 
-/// Deadline every domain waits for the commit lock before reporting busy.
 pub const DEFAULT_COMMIT_LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Lock acquisition failure, without any domain policy attached.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LockError {
     #[error("{}", busy_message(path, holder.as_deref()))]
@@ -38,7 +31,6 @@ pub enum LockError {
     LockFailed { path: PathBuf, reason: String },
 }
 
-/// Staged commit failure, without any domain policy attached.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CommitError {
     #[error("refusing foreign state at {path:?}: {reason}", path = path.display())]
@@ -47,32 +39,27 @@ pub enum CommitError {
     Install { reason: String },
 }
 
-/// A managed root directory plus the lock file it owns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedRoot {
     dir: PathBuf,
 }
 
 impl ManagedRoot {
-    /// Names a managed root; use [`ManagedRoot::ensure_dir`] before locking.
     #[must_use]
     pub fn new(dir: PathBuf) -> Self {
         ManagedRoot { dir }
     }
 
-    /// The root directory itself.
     #[must_use]
     pub fn dir(&self) -> &Path {
         &self.dir
     }
 
-    /// The lock file serializing this root.
     #[must_use]
     pub fn lock_path(&self) -> PathBuf {
         self.dir.join(COMMIT_LOCK_FILE_NAME)
     }
 
-    /// Creates the root when missing; a blocking file fails the commit.
     pub fn ensure_dir(&self) -> Result<(), CommitError> {
         std::fs::create_dir_all(&self.dir).map_err(|e| CommitError::Install {
             reason: format!("cannot create {}: {e}", self.dir.display()),
@@ -80,21 +67,18 @@ impl ManagedRoot {
     }
 }
 
-/// An acquired commit lock; dropping releases it.
 #[derive(Debug)]
 pub struct CommitLock {
     file: File,
 }
 
 impl CommitLock {
-    /// Hands the locked file to a caller that keeps the raw handle.
     #[must_use]
     pub fn into_file(self) -> File {
         self.file
     }
 }
 
-/// Opens the root lock file and waits up to `timeout` for exclusivity.
 pub fn acquire_commit_lock(root: &ManagedRoot, timeout: Duration) -> Result<CommitLock, LockError> {
     let path = root.lock_path();
     let file = OpenOptions::new()
@@ -146,7 +130,6 @@ fn read_holder(root: &ManagedRoot) -> Option<String> {
     (!line.is_empty()).then(|| line.to_string())
 }
 
-/// One staged pointer publication: `stage` names `target`, then replaces `current`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PointerSwap {
     pub current: PathBuf,
@@ -155,7 +138,6 @@ pub struct PointerSwap {
     pub kind: PointerKind,
 }
 
-/// Removes a leftover staged entry without following it into its target.
 pub fn clear_stale_stage(stage: &Path) -> Result<(), CommitError> {
     match std::fs::symlink_metadata(stage) {
         Err(e) if e.kind() == io::ErrorKind::NotFound && !under_a_file(stage) => Ok(()),
@@ -183,7 +165,6 @@ fn under_a_file(path: &Path) -> bool {
     path.ancestors().skip(1).any(Path::is_file)
 }
 
-/// Stages `target` and atomically publishes it; a failed rename keeps the prior pointer.
 pub fn publish_pointer_swap(swap: &PointerSwap) -> Result<(), CommitError> {
     clear_stale_stage(&swap.stage)?;
     create_pointer(&swap.target, &swap.stage, swap.kind).map_err(|e| CommitError::Install {
@@ -200,7 +181,6 @@ pub fn publish_pointer_swap(swap: &PointerSwap) -> Result<(), CommitError> {
     })
 }
 
-/// One directory swap: `stage` replaces `current`, which moves to `retired` meanwhile.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TreeSwap {
     pub current: PathBuf,
@@ -208,7 +188,6 @@ pub struct TreeSwap {
     pub stage: PathBuf,
 }
 
-/// Puts `retired` back at `current` when a crash fell between the two renames.
 pub fn recover_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
     let present = |path: &Path| classify(path).is_ok_and(|kind| kind != EntryKind::Missing);
     if !present(&swap.retired) || present(&swap.current) {
@@ -219,7 +198,6 @@ pub fn recover_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
     })
 }
 
-/// Moves `current` aside, renames `stage` in and restores `current` when that fails.
 pub fn publish_tree_swap(swap: &TreeSwap) -> Result<(), CommitError> {
     publish_tree_swap_with(swap, &|from, to| std::fs::rename(from, to))?;
     crate::discard_dir(&swap.retired);
@@ -440,7 +418,6 @@ mod tests {
         let result = clear_stale_stage(&stage);
         std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o755))
             .expect("chmod back");
-        // Root may delete from a read-only directory, so for root the stage is cleared.
         if dx_test_scratch::running_as_root() {
             result.expect("root clears the stage");
             assert!(!stage.exists(), "stage cleared");

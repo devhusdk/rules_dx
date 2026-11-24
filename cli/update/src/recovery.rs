@@ -42,8 +42,6 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
     sets.into_iter().collect()
 }
 
-/// Lock paths to restore for every Updated outcome, looked up by set name in
-/// `locks`; sets missing from the map contribute nothing.
 #[must_use]
 pub fn restore_paths(report: &UpdateReport, locks: &BTreeMap<String, Vec<String>>) -> Vec<String> {
     let mut paths = BTreeSet::new();
@@ -345,8 +343,8 @@ mod tests {
     #[test]
     fn commands_quote_words_the_shell_would_split() {
         assert_eq!(
-            restore_command(&["my dir/Cargo.lock".to_owned(), "a;b/it's.lock".to_owned()]),
-            Some("git checkout -- 'my dir/Cargo.lock' 'a;b/it'\\''s.lock'".to_owned())
+            restore_command(&["my dir/app.lock".to_owned(), "a;b/it's.lock".to_owned()]),
+            Some("git checkout -- 'my dir/app.lock' 'a;b/it'\\''s.lock'".to_owned())
         );
         assert_eq!(
             retry_command(

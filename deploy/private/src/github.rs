@@ -1,6 +1,4 @@
-//! GitHub release publisher: asset staging and the gh release upload.
-
-use crate::api_compat::{ApiCompatMode, Baseline, Outcome, conclude};
+use crate::api_compat::{ApiCheckMode, Baseline, Outcome, conclude};
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal,
@@ -14,10 +12,8 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a release tag, release body or previous release could not be read.
 #[derive(Debug)]
 pub enum GithubError {
-    /// A runfiles location did not resolve.
     Unresolved(String),
     CrateVersion(crate::crates::CratesError),
     NoFileName(PathBuf),
@@ -25,7 +21,6 @@ pub enum GithubError {
     Git(RunError),
     NoTagAtHead,
     Gh(RunError),
-    /// `gh release view` exited non-zero; the text names the exit.
     GhFailed(String),
     AssetSize {
         name: String,
@@ -75,20 +70,14 @@ impl std::error::Error for GithubError {
     }
 }
 
-/// Where the release body comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Notes {
-    /// No body.
     None,
-    /// The grouped conventional-commit list since the previous tag, then the diff of these
-    /// workspace paths since that tag.
     Commits(Vec<String>),
-    /// A markdown file from the runfiles.
     File(String),
 }
 
 impl Notes {
-    /// Reads the `notes`, `notes_rloc` and `notes_diff` config fields.
     pub fn from_config(mode: &str, rloc: &str, diff: &[String]) -> Notes {
         match mode {
             "commits" => Notes::Commits(diff.to_vec()),
@@ -98,31 +87,25 @@ impl Notes {
     }
 }
 
-/// One registry deploy whose artifacts get attestation lines in the release body.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Attestation {
-    /// `crates` or `maven`.
     pub registry: String,
-    /// The maven files, or the crate source files.
     pub rlocs: Vec<String>,
     #[serde(default)]
     pub crate_name: String,
     #[serde(default)]
     pub version: String,
-    /// Attach the published `.crate` from crates.io as a release asset.
     #[serde(default)]
     pub attach: bool,
 }
 
-/// One `.crate` that the live run downloads from crates.io and attaches.
 struct AttachedCrate {
     name: String,
     version: String,
     files: Vec<std::path::PathBuf>,
 }
 
-/// Formats one dry-run asset line per attached `.crate`.
 fn attached_crate_lines(crates: &[AttachedCrate]) -> Vec<String> {
     crates
         .iter()
@@ -135,7 +118,6 @@ fn attached_crate_lines(crates: &[AttachedCrate]) -> Vec<String> {
         .collect()
 }
 
-/// Returns the crates marked `attach`, with their versions resolved from the pinned manifest.
 fn attached_crates(
     attestations: &[Attestation],
     resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
@@ -161,7 +143,6 @@ fn attached_crates(
     Ok(crates)
 }
 
-/// Returns the file names of the registry artifacts, in config order.
 fn attested_names(
     attestations: &[Attestation],
     resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
@@ -197,10 +178,8 @@ fn attested_names(
     Ok(names)
 }
 
-/// The workflow that runs `actions/attest`, which `gh attestation verify` checks as the signer.
 const SIGNER_WORKFLOW: &str = "devhusdk/rules_dx/.github/workflows/reusable-release.yml";
 
-/// Formats the `## Attestations` section of the release body.
 pub fn attestation_section(repo: &str, names: &[String]) -> String {
     let mut text = String::from("## Attestations\n\n```sh\n");
     for name in names {
@@ -212,7 +191,6 @@ pub fn attestation_section(repo: &str, names: &[String]) -> String {
     text
 }
 
-/// Appends the attestation section to a release body.
 fn with_attestations(notes: Option<String>, section: Option<&str>) -> Option<String> {
     match (notes, section) {
         (notes, None) => notes,
@@ -228,13 +206,11 @@ fn with_attestations(notes: Option<String>, section: Option<&str>) -> Option<Str
     }
 }
 
-/// The release body settings of one github_deploy.
 pub struct ReleaseBody<'a> {
     pub notes: &'a Notes,
     pub attestations: &'a [Attestation],
 }
 
-/// Formats one GitHub release command.
 pub fn github_release_command(tag: &str, asset_bases: &[String]) -> String {
     release_command(tag, asset_bases, false)
 }
@@ -265,7 +241,6 @@ fn git_output(
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
-/// Resolves `current` to the tag that points at HEAD; other tags pass through.
 pub(crate) fn resolve_tag(
     tag: &str,
     workspace: Option<&std::ffi::OsString>,
@@ -284,8 +259,6 @@ pub(crate) fn resolve_tag(
         .ok_or(GithubError::NoTagAtHead)
 }
 
-/// Renders the grouped commit list between the tag before `tag` and `tag`, then the diff of
-/// `diff_paths` over the same range.
 pub(crate) fn commit_notes(
     tag: &str,
     diff_paths: &[String],
@@ -314,9 +287,6 @@ pub(crate) fn commit_notes(
     let mut notes =
         dx_update::conventional::notes(&commits, dx_update::conventional::DEFAULT_GROUPS);
     if !diff_paths.is_empty() {
-        // The first release has no previous tag, so it diffs against the empty tree: the
-        // section then holds the full content. Hashing empty stdin gives the empty tree for
-        // either object format.
         let base = match previous.as_deref() {
             Some(previous) => previous.to_owned(),
             None => git_output(workspace, &["hash-object", "-t", "tree", "--stdin"])?
@@ -331,7 +301,6 @@ pub(crate) fn commit_notes(
     Ok(notes)
 }
 
-/// Renders the release-notes section for the diff of `paths` since `previous`.
 fn diff_section(paths: &[String], previous: Option<&str>, diff: &str) -> String {
     let names = paths
         .iter()
@@ -348,7 +317,6 @@ fn diff_section(paths: &[String], previous: Option<&str>, diff: &str) -> String 
         Some(previous) => section.push_str(&format!("Diff since {previous}:\n\n")),
         None => section.push_str("First release: the full content.\n\n"),
     }
-    // A fence longer than any backtick run in the diff keeps the block closed.
     let longest = diff.split(|c| c != '`').map(str::len).max().unwrap_or(0);
     let fence = "`".repeat(longest.max(2) + 1);
     section.push_str(&format!("{fence}diff\n{}", diff.trim_end()));
@@ -356,7 +324,6 @@ fn diff_section(paths: &[String], previous: Option<&str>, diff: &str) -> String 
     section
 }
 
-/// Returns the asset names, rejecting two assets that share one.
 fn github_asset_bases(srcs: &[&std::path::PathBuf]) -> io::Result<Vec<String>> {
     let mut seen: std::collections::HashMap<String, &Path> = std::collections::HashMap::new();
     let mut bases = Vec::new();
@@ -378,7 +345,6 @@ fn github_asset_bases(srcs: &[&std::path::PathBuf]) -> io::Result<Vec<String>> {
     Ok(bases)
 }
 
-/// Formats one `basename sha256` line per asset.
 fn github_asset_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> io::Result<Vec<String>> {
     let mut lines = Vec::new();
     for (src, base) in sorted.iter().zip(bases) {
@@ -390,7 +356,6 @@ fn github_asset_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> io::R
     Ok(lines)
 }
 
-/// Builds one GitHub release staging dir.
 pub fn github_build_staging(
     asset_srcs: &[std::path::PathBuf],
     outdir: &Path,
@@ -400,7 +365,6 @@ pub fn github_build_staging(
     github_build_staging_with_notes(asset_srcs, outdir, deploy_name, tag, None)
 }
 
-/// Builds one GitHub release staging dir that also holds the release body.
 pub fn github_build_staging_with_notes(
     asset_srcs: &[std::path::PathBuf],
     outdir: &Path,
@@ -427,7 +391,6 @@ pub fn github_build_staging_with_notes(
     Ok(staging)
 }
 
-/// Owner approval gate for github_deploy.
 pub(crate) const GITHUB_GATE: OwnerGate = OwnerGate {
     tool: "github_deploy",
     action: "publish",
@@ -435,7 +398,6 @@ pub(crate) const GITHUB_GATE: OwnerGate = OwnerGate {
     approved: "GITHUB_PUBLISH_APPROVED",
 };
 
-/// Extra env names `gh` keeps: its auth, host, config and session bus.
 const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "GH_TOKEN",
     "GITHUB_TOKEN",
@@ -450,11 +412,9 @@ const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "DBUS_SESSION_BUS_ADDRESS",
 ];
 
-/// The jq program for `gh release view`: the tag, then each asset's name and size, tab-separated.
 const PREVIOUS_RELEASE_JQ: &str =
     r#""tag\t\(.tagName)", (.assets[] | "asset\t\(.name)\t\(.size)")"#;
 
-/// Reads the latest published release with `gh release view`: its tag and each asset's size.
 fn previous_release(
     workspace: Option<std::ffi::OsString>,
 ) -> Result<(String, Vec<(String, u64)>), GithubError> {
@@ -497,9 +457,6 @@ fn previous_release(
     Ok((tag, assets))
 }
 
-/// Describes each asset's size in the latest published release, for a dry run.
-///
-/// Says why the release is unavailable instead of failing, so a dry run works offline.
 fn previous_release_lines(bases: &[String]) -> Vec<String> {
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty());
     let (tag, assets) = match previous_release(workspace) {
@@ -518,7 +475,6 @@ fn previous_release_lines(bases: &[String]) -> Vec<String> {
     lines
 }
 
-/// Describes each `.spdx.json` asset with its package count, for a dry run.
 fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
     let mut lines = Vec::new();
     for (src, base) in sorted.iter().zip(bases) {
@@ -534,12 +490,10 @@ fn sbom_lines(sorted: &[&std::path::PathBuf], bases: &[String]) -> Vec<String> {
     lines
 }
 
-/// Runs the GitHub deploy tool.
 pub fn github_main(asset_rlocs: &[String], deploy_name: &str, tag: &str, argv: &[String]) -> i32 {
     github_main_with_notes(asset_rlocs, deploy_name, tag, &Notes::None, argv)
 }
 
-/// Runs the GitHub deploy tool with a release body.
 pub fn github_main_with_notes(
     asset_rlocs: &[String],
     deploy_name: &str,
@@ -574,7 +528,6 @@ pub fn github_main_with_notes(
     )
 }
 
-/// The Go API compatibility settings of one github_deploy.
 pub struct GoApi<'a> {
     pub mode: &'a str,
     pub baseline: &'a str,
@@ -583,7 +536,6 @@ pub struct GoApi<'a> {
     pub modules: &'a [String],
 }
 
-/// The signing settings of one github_deploy.
 pub struct Signing<'a> {
     pub mode: &'a str,
     pub cosign_rloc: &'a str,
@@ -591,7 +543,6 @@ pub struct Signing<'a> {
     pub cosign_sha256: &'a str,
 }
 
-/// Runs the GitHub deploy tool with a release body and a Go API compatibility check.
 pub fn github_main_checked(
     asset_rlocs: &[String],
     deploy_name: &str,
@@ -697,7 +648,7 @@ pub fn github_main_checked(
             None
         }
     };
-    let mode = ApiCompatMode::parse(go_api.mode);
+    let mode = ApiCheckMode::parse(go_api.mode);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
         eprintln!(
             "github_deploy: invalid api_compat '{}' or api_baseline '{}'",
@@ -705,7 +656,7 @@ pub fn github_main_checked(
         );
         return 1;
     };
-    if mode != ApiCompatMode::Off {
+    if mode != ApiCheckMode::Off {
         let root = workspace
             .clone()
             .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
@@ -1368,7 +1319,6 @@ esac
 #[cfg(test)]
 mod attestation_tests {
     use super::*;
-    // Only the unix-gated dry-run test below needs the helpers.
     #[cfg(unix)]
     use crate::test_support::*;
 

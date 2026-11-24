@@ -4,9 +4,6 @@ use std::num::NonZeroU32;
 use crate::LcovError;
 use crate::xml::{attribute, tags};
 
-/// Converts a Clover XML report (`PHPUnit`, Xdebug, pcov) to LCOV text.
-///
-/// Only `stmt` lines count. Files appear in path order, lines in line order.
 pub fn clover_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut files: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
     let mut current: Option<String> = None;

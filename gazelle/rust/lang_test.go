@@ -159,23 +159,23 @@ func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
 		{
 			name: "Cargo package",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
-				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
+				"crates/demo/src/lib.rs":               "mod real;\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 		},
 		{
 			name: "source-only crate",
 			files: map[string]string{
-				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/lib.rs":               "mod real;\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 		},
 		{
 			name: "BUILD file between",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
-				"crates/demo/src/BUILD.bazel":         "",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
+				"crates/demo/src/BUILD.bazel":          "",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 			want: []string{"common_test"},
@@ -183,7 +183,7 @@ func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
 		{
 			name: "existing package",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 			existing: true,
@@ -326,8 +326,6 @@ func TestEffectiveCrateRoot(t *testing.T) {
 	}
 }
 
-// generateExisting runs the generator over files with existing as the BUILD
-// file of crates/demo, or without a BUILD file when existing is nil.
 func generateExisting(t *testing.T, files map[string]string, existing []*rule.Rule) language.GenerateResult {
 	t.Helper()
 	root := t.TempDir()
@@ -1505,6 +1503,56 @@ func TestCorpusLeavesFilesALanguageCorpusListsByLabel(t *testing.T) {
 	}, true)
 	if len(plan.errs) != 0 || len(plan.gen) != 0 {
 		t.Errorf("generated %v with errors %v, want nothing", plan.gen, plan.errs)
+	}
+}
+
+func TestCorpusLeavesFilesAnotherPackagesCorpusTargetLists(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "lang/BUILD.bazel", "")
+	writeFixture(t, root, "lang/README.md", "")
+	writeFixture(t, root, "lang/defs.bzl", "")
+	writeFixture(t, root, "lang/private/quality/BUILD.bazel", "real_source_target(\n    name = \"corpus_markdown\",\n    markdown_srcs = [\"//lang:README.md\"],\n)\n\nreal_source_target(\n    name = \"corpus_starlark\",\n    starlark_srcs = [\n        \"//lang:BUILD.bazel\",\n        \"//lang:defs.bzl\",\n    ],\n)\n")
+	file, err := rule.LoadData(filepath.Join(root, "lang", "BUILD.bazel"), "lang", []byte("exports_files([\"README.md\"])\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "lang"),
+		Rel:          "lang",
+		File:         file,
+		RegularFiles: []string{"BUILD.bazel", "README.md", "defs.bzl"},
+	}, true)
+	if len(plan.errs) != 0 || len(plan.gen) != 0 {
+		t.Errorf("generated %v with errors %v, want nothing", plan.gen, plan.errs)
+	}
+}
+
+func TestCorpusKeepsTheLabelsOfOtherPackagesItLists(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "lang/private/quality/BUILD.bazel", "")
+	writeFixture(t, root, "lang/private/quality/lang.bzl", "")
+	file, err := rule.LoadData(filepath.Join(root, "lang", "private", "quality", "BUILD.bazel"), "lang/private/quality", []byte("real_source_target(\n    name = \"corpus_markdown\",\n    markdown_srcs = [\"//lang:README.md\"],\n)\n\nreal_source_target(\n    name = \"corpus_starlark\",\n    starlark_srcs = [\"//lang:defs.bzl\"],\n)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "lang", "private", "quality"),
+		Rel:          "lang/private/quality",
+		File:         file,
+		RegularFiles: []string{"BUILD.bazel", "lang.bzl"},
+	}, true)
+	got := map[string][]string{}
+	for _, r := range plan.gen {
+		got[r.Name()] = append(r.AttrStrings("markdown_srcs"), r.AttrStrings("starlark_srcs")...)
+	}
+	want := map[string][]string{
+		"corpus_markdown": {"//lang:README.md"},
+		"corpus_starlark": {"//lang:defs.bzl", "BUILD.bazel", "lang.bzl"},
+	}
+	if len(plan.errs) != 0 || !reflect.DeepEqual(got, want) {
+		t.Errorf("generated %v with errors %v, want %v", got, plan.errs, want)
 	}
 }
 

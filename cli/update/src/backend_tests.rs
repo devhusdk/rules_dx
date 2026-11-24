@@ -2263,7 +2263,6 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
         plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure),
         Ok(BackendPlan::Staged(expected.clone()))
     );
-    // Frozen check passes through; frozen apply would write go.sum.
     for frozen in [false, true] {
         assert_eq!(
             check_configured(ws(), &set, &Selection::Full, false, frozen, &head, &closure),

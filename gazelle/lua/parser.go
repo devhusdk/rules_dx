@@ -12,10 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return lua.Language() })
 
-// ParseImports returns the sorted, deduplicated module names content loads
-// with a plain require call whose only argument is a string literal. Optional
-// loads under pcall or xpcall, dynamic names, aliased require and text inside
-// comments or strings are skipped. Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -48,8 +44,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// literalArg returns the module name of an arguments node holding exactly one
-// escape-free string literal.
 func literalArg(tree *treesitter.Tree, args *treesitter.Node) (string, bool) {
 	if tree.Type(args) != "arguments" {
 		return "", false

@@ -2,7 +2,6 @@
 mod closure;
 use closure::{Bzl, in_runfiles, loads, missing_from_runfiles, resolve};
 
-/// Top-level statements of `module`, comments dropped.
 fn statements(module: &str) -> Vec<String> {
     let mut statements = Vec::new();
     let mut current = String::new();
@@ -51,7 +50,6 @@ fn statements(module: &str) -> Vec<String> {
     statements
 }
 
-/// Statements a consumer evaluates: no dev dependencies, no overrides, no tags of dev extensions.
 fn non_dev_statements(module: &str) -> Vec<String> {
     let mut dev_proxies = std::collections::BTreeSet::new();
     let mut kept = Vec::new();
@@ -80,7 +78,6 @@ fn non_dev_statements(module: &str) -> Vec<String> {
     kept
 }
 
-/// Every `//` string literal in `statement`.
 fn root_labels(statement: &str) -> Vec<String> {
     statement
         .split('"')
@@ -91,7 +88,6 @@ fn root_labels(statement: &str) -> Vec<String> {
         .collect()
 }
 
-/// Labels of every `use_extension` call in `module` that is not a dev dependency.
 fn non_dev_labels(module: &str) -> Vec<String> {
     non_dev_statements(module)
         .iter()
@@ -102,7 +98,6 @@ fn non_dev_labels(module: &str) -> Vec<String> {
         .collect()
 }
 
-/// The package and, for a file label, the file that a non-dev MODULE.bazel label needs.
 fn module_label_entry(label: &str) -> Option<Bzl> {
     if label.contains('%') || label.contains('{') {
         return None;
@@ -260,7 +255,6 @@ fn module_srcs_carry_every_package_a_consumer_module_bazel_names() {
     );
 }
 
-/// Quoted strings of `text` that look like a file name of the package, directory parts allowed.
 fn quoted_file_names(text: &str) -> std::collections::BTreeSet<String> {
     let mut names = std::collections::BTreeSet::new();
     for line in text
@@ -285,7 +279,6 @@ fn quoted_file_names(text: &str) -> std::collections::BTreeSet<String> {
     names
 }
 
-/// Collects the packages named `private`, or below one, that hold a BUILD file.
 fn private_packages(
     root: &std::path::Path,
     dir: &std::path::Path,

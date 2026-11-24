@@ -1,5 +1,3 @@
-//! Prunes setup records and generations that are neither current nor held.
-
 use std::path::PathBuf;
 
 pub mod apply;

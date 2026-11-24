@@ -1,5 +1,3 @@
-//! Hex publisher: package staging and the mix or rebar3 build and publish.
-
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
@@ -12,7 +10,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a hex deployment failed.
 #[derive(Debug)]
 pub enum HexError {
     UnknownTool {
@@ -21,12 +18,10 @@ pub enum HexError {
     Paths(io::Error),
     Stage(StageError),
     NoAppSrc,
-    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
     Refused(String),
     Io(PathIoError),
     TempDir(io::Error),
     Run(RunError),
-    /// A mix or rebar3 command failed; `lines` are key-redacted.
     ToolFailed {
         command: String,
         status: String,
@@ -76,7 +71,6 @@ impl std::error::Error for HexError {
     }
 }
 
-/// Owner approval gate for hex_deploy.
 pub(crate) const HEX_GATE: OwnerGate = OwnerGate {
     tool: "hex_deploy",
     action: "publish",
@@ -84,13 +78,10 @@ pub(crate) const HEX_GATE: OwnerGate = OwnerGate {
     approved: "HEX_PUBLISH_APPROVED",
 };
 
-/// Extra env names mix and rebar3 keep beyond the publish base list.
 const HEX_CHILD_ENV_EXTRA: &[&str] = &["ERL_LIBS", "ERL_ROOTDIR", "HEX_HOME", "MIX_HOME"];
 
-/// Most tool output lines shown when a build or publish fails.
 const HEX_FAILURE_LINES: usize = 40;
 
-/// Returns the manifest file name that marks the package root for one tool.
 fn hex_manifest(tool: &str) -> Result<&'static str, HexError> {
     match tool {
         "mix" => Ok(Ecosystem::Hex.manifest_name()),
@@ -101,7 +92,6 @@ fn hex_manifest(tool: &str) -> Result<&'static str, HexError> {
     }
 }
 
-/// Maps package input files to package-relative paths under the manifest directory.
 pub fn hex_package_paths(
     package_files: &[PathBuf],
     tool: &str,
@@ -111,13 +101,11 @@ pub fn hex_package_paths(
     package_relative_paths(package_files, manifest, "hex_deploy")
 }
 
-/// Returns the first double-quoted string in `text`.
 fn first_quoted(text: &str) -> Option<&str> {
     let (_, rest) = text.split_once('"')?;
     Some(rest.split_once('"')?.0)
 }
 
-/// Returns the version declared in a Hex manifest, `@version "x"` first, then `version: "x"`.
 pub fn mix_version(text: &str) -> Option<String> {
     let line_with = |prefix: &str| {
         text.lines()
@@ -129,7 +117,6 @@ pub fn mix_version(text: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// Returns the version declared by `{vsn, "x"}` in an .app.src.
 pub fn app_src_version(text: &str) -> Option<String> {
     let (_, rest) = text.split_once("{vsn")?;
     let (inner, _) = rest.split_once('}')?;
@@ -137,7 +124,6 @@ pub fn app_src_version(text: &str) -> Option<String> {
     first_quoted(rest).map(str::to_owned)
 }
 
-/// Returns the version the staged package declares, which must match the BUILD version when set.
 fn hex_version_refusal(
     staging: &Path,
     mapped: &[(PathBuf, String)],
@@ -158,7 +144,6 @@ fn hex_version_refusal(
     resolve_version("hex_deploy", &file, found.as_deref(), version).map_err(HexError::Refused)
 }
 
-/// Returns the last output lines of a failed child with the key removed.
 fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> Vec<String> {
     let text = crate::run::pages_redact(
         &format!(
@@ -176,7 +161,6 @@ fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> Vec<Stri
         .collect()
 }
 
-/// Runs one mix or rebar3 command in the staged package with an empty HOME.
 fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), HexError> {
     let home = tempfile_stage_dir("hex-home-").map_err(HexError::TempDir)?;
     let home_text = home.to_string_lossy().into_owned();
@@ -203,7 +187,6 @@ fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), H
     })
 }
 
-/// Returns the tool arguments that build the package, writing a mix tarball to `tarball`.
 fn hex_build_args<'a>(tool: &str, tarball: &'a str) -> Vec<&'a str> {
     if tool == "mix" {
         vec!["hex.build", "-o", tarball]
@@ -212,7 +195,6 @@ fn hex_build_args<'a>(tool: &str, tarball: &'a str) -> Vec<&'a str> {
     }
 }
 
-/// Returns the tool arguments that publish the package.
 fn hex_publish_args(tool: &str) -> Vec<&'static str> {
     if tool == "mix" {
         vec!["hex.publish", "--yes"]
@@ -221,7 +203,6 @@ fn hex_publish_args(tool: &str) -> Vec<&'static str> {
     }
 }
 
-/// Stages the package under `dir`, checks its version and returns the resolved version.
 fn hex_stage_checked(
     files: &[PathBuf],
     dir: &Path,
@@ -233,7 +214,6 @@ fn hex_stage_checked(
     hex_version_refusal(dir, &mapped, tool, version)
 }
 
-/// Runs the Hex deploy tool.
 pub fn hex_main(
     package_rlocs: &[String],
     package_name: &str,

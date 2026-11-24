@@ -41,10 +41,7 @@ def tsc_stdout_test(name, report, expected, diagnostics = "", size = "small"):
     )
 
 def tsc_framework_cases(library_rule, lib, srcs, exit_expected, stdout_expected = {}, deps = [], diagnostics = {}):
-    """Declares a lib library and one library per case of a framework with their tsc reports and tests.
-
-    srcs maps each case to its source file and names the cases. exit_expected maps each case to its expected exit status file. Each case has either a stdout_expected file or diagnostics, its expected diagnostic lines.
-    """
+    """Declares a lib library and one library per case of a framework with their tsc reports and tests."""
     for case in srcs:
         if case not in exit_expected:
             fail("tsc_framework_cases case %r has no exit_expected file" % case)

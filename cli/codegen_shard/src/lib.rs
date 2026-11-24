@@ -150,11 +150,6 @@ fn check_replaces(
     Ok(())
 }
 
-/// Checks one codegen shard: producer label, group and every entry's paths.
-///
-/// # Errors
-///
-/// Returns `Err` naming the first field that is empty or malformed.
 pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
     if shard.producer.is_empty() {
         return Err(Error::EmptyProducer);
@@ -213,20 +208,10 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
     Ok(())
 }
 
-/// Encodes one shard after [`validate`] accepts it.
-///
-/// # Errors
-///
-/// Returns `Err` when [`validate`] rejects the shard.
 pub fn encode_validated(shard: &DxCodegenShard) -> Result<Vec<u8>, Error> {
     dx_path::proto_validate::encode_with_validation(shard, validate)
 }
 
-/// Decodes one shard and checks it with [`validate`].
-///
-/// # Errors
-///
-/// Returns `Err` when the bytes are not a shard or [`validate`] rejects it.
 pub fn decode_validated(bytes: &[u8]) -> Result<DxCodegenShard, Error> {
     dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }

@@ -4,7 +4,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 const TOOL: &str = "helm";
 const SOURCE: &str = "# Source: ";
 
-/// One rendered template: the chart-relative path `helm template` named and its YAML text.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedFile {
     pub path: String,
@@ -19,9 +18,6 @@ fn join(chart_dir: &str, rel: &str) -> String {
     }
 }
 
-/// The `(path, line, column)` of the first `<chart>/<path>:<line>[:<column>]` token in a message.
-///
-/// The leading segment is the chart name from Chart.yaml, so it is dropped, not matched.
 fn location(message: &str) -> Option<(String, u64, u64)> {
     let delimiters = |c: char| c.is_whitespace() || matches!(c, '(' | ')' | '"' | ',');
     for token in message.split(delimiters) {
@@ -111,13 +107,6 @@ fn one(
     Ok(finding(file, rule, message.to_owned(), severity, at))
 }
 
-/// Parses `helm lint --quiet`: `[ERROR] <path>: <message>` blocks with indented continuations.
-///
-/// `[INFO]` is dropped. Exit 1 needs an `[ERROR]` and exit 0 must not have one.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helm_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -202,13 +191,6 @@ pub fn parse_helm_lint(
     Ok(findings)
 }
 
-/// Turns a `helm template` render failure on stderr into one finding on the owning template.
-///
-/// Stderr without any `Error:` line is outside the grammar and fails closed.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helm_template_error(
     stderr: &[u8],
     chart_dir: &str,
@@ -252,13 +234,6 @@ pub fn parse_helm_template_error(
     )?])
 }
 
-/// Splits `helm template` output at its `# Source: <chart>/<path>` markers.
-///
-/// The first path segment is the chart name from Chart.yaml, not the directory, so it is cut.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn split_rendered(stdout: &[u8]) -> Result<Vec<RenderedFile>, ParseError> {
     let text = as_text(TOOL, stdout)?;
     let mut groups: Vec<RenderedFile> = Vec::new();

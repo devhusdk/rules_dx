@@ -19,9 +19,6 @@ const (
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-// ModuleName returns the module a source is loaded as. The source is joined
-// to its package path and everything up to the nearest lib segment is dropped;
-// without a lib segment the path is taken relative to the package root.
 func ModuleName(pkg, src string) string {
 	full := strings.Split(path.Join(pkg, src), "/")
 	start := -1
@@ -39,7 +36,6 @@ func ModuleName(pkg, src string) string {
 	return strings.ReplaceAll(rel, "/", "::")
 }
 
-// TestTargetName names the perl_test of a t/*.t source.
 func TestTargetName(src string) (string, error) {
 	return common.Normalize(strings.TrimSuffix(path.Base(src), testExt) + "_test")
 }

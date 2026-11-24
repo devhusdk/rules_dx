@@ -32,7 +32,6 @@ const EXPECTED_FIXTURE_FINDINGS: [&str; 5] = [
     "shellcheck reported issue in this script: SC2086:",
 ];
 
-/// Returns the pinned tool one env var names.
 fn tool(variable: &str) -> PathBuf {
     let path = dx_testing::env_file(variable);
     assert!(
@@ -43,7 +42,6 @@ fn tool(variable: &str) -> PathBuf {
     path
 }
 
-/// Returns one staged project root holding every named file at its own path.
 fn stage(files: &[(String, String)]) -> dx_test_scratch::TempDir {
     let staged = dx_test_scratch::scratch("actionlint").unwrap();
     let root = staged.path();
@@ -56,7 +54,6 @@ fn stage(files: &[(String, String)]) -> dx_test_scratch::TempDir {
     staged
 }
 
-/// Returns one actionlint run over the named workflows of one staged project.
 fn lint(root: &Path, workflows: &[String]) -> Output {
     let mut command = Command::new(tool("DX_ACTIONLINT"));
     command.current_dir(root);
@@ -71,7 +68,6 @@ fn lint(root: &Path, workflows: &[String]) -> Output {
     command.output().expect("actionlint runs")
 }
 
-/// Returns the findings one actionlint run printed, one per line.
 fn findings(run: &Output) -> Vec<String> {
     String::from_utf8_lossy(&run.stdout)
         .lines()
@@ -80,7 +76,6 @@ fn findings(run: &Output) -> Vec<String> {
         .collect()
 }
 
-/// Returns the shipped workflows and consumer starters as runfiles to staged paths.
 fn shipped() -> Vec<(String, String)> {
     let mut files = vec![(CONFIG.to_owned(), CONFIG.to_owned())];
     for workflow in dx_testing::workflow_files() {
@@ -92,7 +87,6 @@ fn shipped() -> Vec<(String, String)> {
     files
 }
 
-/// Returns the invalid fixture as runfiles to staged paths.
 fn fixture() -> Vec<(String, String)> {
     let mut files = vec![(CONFIG.to_owned(), CONFIG.to_owned())];
     for name in FIXTURE_WORKFLOWS {
@@ -104,7 +98,6 @@ fn fixture() -> Vec<(String, String)> {
     files
 }
 
-/// Returns the staged paths every file list names, without the config.
 fn workflows(files: &[(String, String)]) -> Vec<String> {
     files
         .iter()
@@ -162,7 +155,6 @@ fn the_invalid_fixture_reports_every_semantic_failure() {
     }
 }
 
-/// Returns the runner labels the actionlint config declares, sorted.
 fn configured_runners() -> Vec<String> {
     let text = read_runfiles(CONFIG);
     let document: serde_json::Value = yaml_serde::from_str(&text)
@@ -183,7 +175,6 @@ fn configured_runners() -> Vec<String> {
     runners
 }
 
-/// Returns the platform table, platform to runner label, that `input_validation/src/lib.rs` declares.
 fn platform_table() -> BTreeMap<String, String> {
     let text = read_runfiles(PLATFORM_RUNNERS);
     let start = text
@@ -204,15 +195,12 @@ fn platform_table() -> BTreeMap<String, String> {
         .collect()
 }
 
-/// Returns the runner labels the platform table maps every supported platform to.
 fn platform_runners() -> Vec<String> {
     let mut runners: Vec<String> = platform_table().into_values().collect();
     runners.sort();
     runners
 }
 
-/// Returns one problem per literal matrix runner in `document` that disagrees with `table`,
-/// and how many literal matrix runners it checked.
 fn matrix_runner_problems(
     name: &str,
     document: &serde_json::Value,

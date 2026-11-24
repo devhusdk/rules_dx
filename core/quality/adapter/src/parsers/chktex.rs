@@ -7,16 +7,6 @@ const TOOL: &str = "chktex";
 const UNREADABLE: &str = "Unable to open the TeX file";
 const FIELDS: usize = 6;
 
-/// Findings from one `chktex` run on a single file in the fixed colon-separated format.
-///
-/// chktex raises its exit to the worst level it printed: 2 for a warning, 3 for an error, and
-/// `Message` lines never raise it. The exit must therefore equal the worst printed level, so a
-/// crash or a mismatch is never read as a clean run. Any stderr text is an error, and an
-/// unreadable file is an incomplete run. The column is chktex's 1-based byte offset.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_chktex(
     stdout: &[u8],
     stderr: &[u8],

@@ -7,7 +7,6 @@ load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
@@ -53,8 +52,6 @@ def dx_private_dep_rule(dep, providers, doc):
     def _impl(ctx):
         upstream = ctx.attr._dep
 
-        # Bazel rejects a DefaultInfo whose executable another rule created, so an
-        # executable dep is forwarded as its files and runfiles.
         return [
             DefaultInfo(files = upstream[DefaultInfo].files, runfiles = upstream[DefaultInfo].default_runfiles) if p == DefaultInfo else upstream[p]
             for p in providers
@@ -94,8 +91,6 @@ def _dx_test_exec_properties(props):
     }
     return kept if kept else None
 
-# The run environment attributes. A wrapper keeps them on exactly one of the upstream
-# target and its forwarder, so the environment is applied once.
 _RUN_ENV_KEYS = ("env", "env_inherit")
 
 def _drop_run_env(out):

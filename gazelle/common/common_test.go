@@ -73,7 +73,6 @@ func TestCheckClaims(t *testing.T) {
 		if err != nil {
 			got = err.Error()
 		}
-		// The want is a prefix; the remedy suffix is checked in remedy_test.go.
 		if got != tc.want && !(tc.want != "" && strings.HasPrefix(got, tc.want)) {
 			t.Errorf("%s: CheckClaims = %q, want %q", tc.name, got, tc.want)
 		}
@@ -658,7 +657,6 @@ func TestExtractScriptsScopes(t *testing.T) {
 			[][]byte{one("y")}, [][]byte{one("x"), one("y")}},
 		{"svelteIfAutoClosedP", "{#if a}<p>x{/if}<script>y</script>",
 			[][]byte{one("y")}, [][]byte{one("y")}},
-		// Vue/Svelte treat <div/> as self-closing, so it must not deepen the root block.
 		{"selfClosingSameNameThenStrayEnd", "<div><div/></div>\n<script>y</script>\n<div></div></div>",
 			[][]byte{one("y")}, [][]byte{one("y")}},
 	}

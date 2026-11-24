@@ -129,9 +129,6 @@ fn check_exit(code: Option<i32>, failed: bool, no_findings: bool) -> Result<(), 
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fantomas(
     stdout: &[u8],
     code: Option<i32>,

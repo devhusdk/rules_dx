@@ -3,7 +3,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "xmllint";
 
-/// How many lines after a finding belong to it: the source line and the caret line.
 const CONTEXT_LINES: usize = 2;
 
 struct Header {
@@ -14,9 +13,6 @@ struct Header {
     message: String,
 }
 
-/// `<file>:<line>: <domain> error|warning : <message>`. The file is found by prefix against the
-/// names that were passed, never by splitting on `:`, so a Windows drive letter is safe. Only the
-/// line structure is read, never the wording of the message.
 fn header(files: &[&str], line: &str) -> Option<Header> {
     let (file, rest) = files
         .iter()
@@ -49,7 +45,6 @@ fn header(files: &[&str], line: &str) -> Option<Header> {
     })
 }
 
-/// `I/O warning : failed to load "<file>": <reason>` names a passed file xmllint could not read.
 fn unreadable(files: &[&str], line: &str) -> Option<(String, String)> {
     let rest = line.strip_prefix("I/O warning : failed to load \"")?;
     let (file, tail) = files
@@ -90,16 +85,6 @@ fn finding(
     }
 }
 
-/// `xmllint --noout` prints nothing and exits 0 for a well-formed file. Problems go to stderr as
-/// a header line followed by the source line and a caret line. The exit code is not a reliable
-/// verdict (a parse error exits 4 and a namespace error exits 0), so the findings decide; the
-/// exit may only be 0, 1 or 4, a non-zero exit needs a finding, and a clean exit needs empty
-/// stderr. Any line that is not a header, an unreadable-file notice or the context of a header
-/// is an error here and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_xmllint(
     stderr: &[u8],
     code: Option<i32>,
@@ -189,7 +174,6 @@ mod tests {
             let found = parse_xmllint(text.as_bytes(), Some(4), &FILES).expect("parsed");
             assert_eq!(found.len(), 1);
         }
-        // A namespace error exits 0 and is still a finding.
         let namespace = "/s/xml/a.xml:1: namespace error : Namespace prefix r for z on a is not defined\n<a r:z=\"2\"/>\n            ^\n";
         let found = parse_xmllint(namespace.as_bytes(), Some(0), &FILES).expect("parsed");
         assert_eq!(found[0].finding.rule_id, "namespace");
@@ -220,24 +204,20 @@ mod tests {
 
     #[test]
     fn xmllint_fails_closed() {
-        // Exit and output disagree.
         assert!(parse_xmllint(b"", Some(4), &FILES).is_err());
         assert!(parse_xmllint(b"", Some(1), &FILES).is_err());
         assert!(parse_xmllint(MISMATCH.as_bytes(), None, &FILES).is_err());
-        // Tool errors are never a clean result.
         for code in [2, 3, 5, 6, 7, 8, 9, 10, 11, 127] {
             assert!(parse_xmllint(b"", Some(code), &FILES).is_err());
             assert!(parse_xmllint(MISMATCH.as_bytes(), Some(code), &FILES).is_err());
         }
         assert!(parse_xmllint(b"", None, &FILES).is_err());
-        // Unknown text, a finding for a file that was not passed, and non UTF-8.
         assert!(parse_xmllint(b"Usage : xmllint\n", Some(0), &FILES).is_err());
         assert!(
             parse_xmllint(b"/s/other.xml:1: parser error : x\na\n^\n", Some(4), &FILES).is_err()
         );
         assert!(parse_xmllint(&[0xff, 0xfe], Some(4), &FILES).is_err());
         assert!(parse_xmllint(MISMATCH.as_bytes(), Some(4), &["/s/other.xml"]).is_err());
-        // Clean exit with stderr noise.
         assert!(parse_xmllint(b"warning\n", Some(0), &FILES).is_err());
     }
 }

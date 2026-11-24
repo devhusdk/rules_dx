@@ -468,9 +468,13 @@ fn release_writes_and_checks_the_tool_manifest() {
     assert!(text.contains(
         "for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do"
     ));
-    assert!(text.contains("for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do"));
+    assert!(text.contains(
+        "for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do"
+    ));
     assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-gopackagesdriver-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
-    assert!(text.contains(" dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-msvc-link-* dx-oapi-codegen-* "));
+    assert!(text.contains(
+        " dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-msvc-link-* dx-oapi-codegen-* "
+    ));
     assert!(text.contains("msvc_link=\"dx-msvc-link-${asset#dx-}\""));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));

@@ -1,10 +1,3 @@
-//! Converts the JSON of `zig_doc_dump` into one validated `DocIr` shard.
-//!
-//! The dump (schema 1) carries, per source file, the `//!` file doc and every declaration with
-//! its `///` doc, `pub` flag, kind, line and exact signature text. Only what the main file (the
-//! first dumped file) exposes is documented: its `pub` declarations, and the library's own
-//! files it re-exports with `pub const X = @import("own.zig")`, which become modules.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{
@@ -22,7 +15,6 @@ const LANGUAGE: &str = "zig";
 const KEY_CONFIG: &str = "zig.config";
 const SCHEMA: u64 = 1;
 
-/// Why one Zig dump could not become a shard.
 #[derive(Debug)]
 pub enum ZigExtractError {
     Read(PathIoError),
@@ -67,7 +59,6 @@ impl std::error::Error for ZigExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub dump: String,
@@ -77,23 +68,16 @@ pub struct Options {
     pub config: String,
 }
 
-/// Runs `zig_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("zig_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: zig_extract --dump FILE --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -108,11 +92,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard. Nothing is written on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), ZigExtractError> {
     let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(ZigExtractError::Read);
     let json = read(&options.dump)?;
@@ -128,11 +107,6 @@ struct Context<'a> {
     files: &'a [Value],
 }
 
-/// Converts the dump JSON into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     sources: &[Source],
@@ -190,7 +164,6 @@ fn list<'a>(value: &'a Value, key: &str) -> &'a [Value] {
         .map_or(&[], Vec::as_slice)
 }
 
-/// Resolves `target` against the directory of `from`, folding `.` and `..` segments.
 #[must_use]
 pub fn resolve(from: &str, target: &str) -> String {
     let mut parts: Vec<&str> = from.split('/').collect();
@@ -211,7 +184,6 @@ fn normalized(path: &str) -> String {
     resolve("x/", path)
 }
 
-/// Emits the module symbol of `file` under `id`, then its public members and re-exported modules.
 fn module(
     context: &Context<'_>,
     file: &Value,
@@ -259,7 +231,6 @@ fn module(
     Ok(())
 }
 
-/// The module name of an `@import` that names another `zig_library` rather than a file or builtin.
 fn dependency(import: &str) -> Option<&str> {
     let builtin = matches!(import, "std" | "builtin" | "root");
     (!import.is_empty()
@@ -270,7 +241,6 @@ fn dependency(import: &str) -> Option<&str> {
     .then_some(import)
 }
 
-/// Emits a re-exported dependency as a module whose doc links to the dependency's own shard.
 fn dependency_module(
     context: &Context<'_>,
     decl: &Value,
@@ -431,7 +401,6 @@ fn declaration(
     }
 }
 
-/// True when the first parameter is the container itself, by the `self` naming convention.
 fn first_param_is_self(decl: &Value) -> bool {
     list(decl, "params")
         .first()

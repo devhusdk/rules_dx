@@ -21,7 +21,6 @@ fn text<'a>(value: &'a serde_json::Value, key: &str, what: &str) -> Result<&'a s
         .ok_or_else(|| ParseError::shape(TOOL, format!("{what} {key} is not text")))
 }
 
-/// A 1-based position; a missing or null number (Credo omits columns for some checks) is 1.
 fn number(value: &serde_json::Value, key: &str) -> u64 {
     value
         .get(key)
@@ -53,7 +52,6 @@ fn finding(
     }
 }
 
-/// The one `dx-credo: {...}` line the driver writes to stderr, as its `invalid` list.
 fn invalid_files(stderr: &[u8]) -> Result<Vec<serde_json::Value>, ParseError> {
     let stderr = as_text(TOOL, stderr)?;
     let mut summaries = stderr
@@ -78,16 +76,6 @@ fn invalid_files(stderr: &[u8]) -> Result<Vec<serde_json::Value>, ParseError> {
         .ok_or_else(|| ParseError::shape(TOOL, "dx-credo summary without invalid list"))
 }
 
-/// Parses `credo --format json` run through the dx driver.
-///
-/// `files` are the checked paths in the spelling the run was given. The driver exits 0 for
-/// no issues and no unparsable files, 1 for at least one of either, and 2 when the run
-/// halted or crashed. Anything else, a missing or malformed summary line, or an exit code
-/// that disagrees with the report is an error, so a file Credo dropped is never read as clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_credo(
     stdout: &[u8],
     stderr: &[u8],

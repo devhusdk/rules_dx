@@ -23,10 +23,8 @@ struct Diagnostics {
 }
 
 fn read_stderr(path: &Path) -> Option<Vec<u8>> {
-    // A missing or unreadable stderr file leaves the failure without an excerpt.
     let file = std::fs::File::open(path).ok()?;
     let mut bytes = Vec::new();
-    // A read cut short also leaves the failure without an excerpt.
     file.take(STDERR_LIMIT + 1).read_to_end(&mut bytes).ok()?;
     if bytes.len() as u64 > STDERR_LIMIT {
         return None;
@@ -165,7 +163,6 @@ pub(crate) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
 
 const TARGETS_LISTED: usize = 20;
 
-/// The facts that make two failures the same problem across targets and configurations.
 fn identity(event: &BuildFailureEvent) -> String {
     let items: Vec<String> = event
         .diagnostics
@@ -197,7 +194,6 @@ fn identity(event: &BuildFailureEvent) -> String {
     )
 }
 
-/// Merges identical failures into one event with a count and the other targets that hit it.
 fn dedupe(events: Vec<BuildFailureEvent>) -> Vec<BuildFailureEvent> {
     let mut merged: Vec<BuildFailureEvent> = Vec::new();
     let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -316,16 +312,13 @@ fn unavailable(
     }
 }
 
-/// What `report_build_failures` found in one event file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ReportedFailures {
     pub count: usize,
     pub compile_only: bool,
-    /// A non-analysis failure (compile, link, ...) was recorded and no analysis failure was.
     pub build_stage: bool,
 }
 
-/// Reports the failures Bazel recorded in the event file and summarizes them.
 pub fn report_build_failures(
     bep: &Path,
     output: OutputMode,

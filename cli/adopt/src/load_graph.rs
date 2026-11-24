@@ -27,8 +27,6 @@ fn main_repo(repo: &str, names: &[String]) -> bool {
     repo.is_empty() || names.iter().any(|name| name == repo)
 }
 
-/// The workspace path a main-repository file label names, and its package. A
-/// label without `//` or `@` is relative to `package`.
 fn label_path(label: &str, package: &str, names: &[String]) -> Option<(String, String)> {
     let (package, target) = match Label::parse(label) {
         Some(parsed) if parsed.relative => (package, parsed.name),
@@ -67,7 +65,6 @@ fn own_names(file: &ModuleFile) -> Vec<String> {
         .collect()
 }
 
-/// One main-repository file that MODULE.bazel or an included segment names.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModuleInput {
     pub path: String,
@@ -76,7 +73,6 @@ pub struct ModuleInput {
     pub hub: Option<String>,
 }
 
-/// The files MODULE.bazel names, and whether every scanned value was literal.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModuleInputs {
     pub files: Vec<ModuleInput>,
@@ -280,7 +276,6 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, DxError> {
     Ok(roots)
 }
 
-/// The main-repository files that MODULE.bazel and its included segments name.
 pub fn module_inputs(workspace: &Path) -> Result<ModuleInputs, DxError> {
     module_roots(workspace).map(|roots| roots.inputs)
 }
@@ -296,11 +291,9 @@ struct BazelrcRoots {
     aspects: Vec<String>,
     toolchains: Vec<String>,
     repos: BTreeSet<String>,
-    /// Absolute labels given as flag values, such as a `label_flag` setting.
     flag_labels: Vec<String>,
 }
 
-/// Whether `name` is the repository `repo`, or one it owns when `repo` is canonical.
 fn repo_matches(name: &str, repo: &str) -> bool {
     name == repo || (repo.ends_with('+') && name.starts_with(repo))
 }
@@ -451,7 +444,6 @@ fn pattern_builds(
         .collect()
 }
 
-/// The `.bazelignore` prefixes of the workspace, without `./` or trailing slashes.
 pub fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, DxError> {
     let Some(text) = read(workspace, ".bazelignore")? else {
         return Ok(Vec::new());
@@ -481,8 +473,6 @@ fn is_ignored(rel: &str, ignores: &[String]) -> bool {
     })
 }
 
-/// Walks the workspace like Bazel would: honours `.bazelignore`, skips `skip` directory names
-/// and never follows symlinks. `visit(name, rel, dir)` returns true to stop early.
 pub fn walk_workspace(
     workspace: &Path,
     skip: &[&str],
@@ -582,8 +572,6 @@ impl LoadGraph<'_> {
     }
 }
 
-/// The external repositories each file reachable from `roots` loads from directly. `roots` are
-/// paths from the workspace root; the result leaves out files that load from no external repository.
 pub fn external_repos(
     workspace: &Path,
     roots: &[String],
@@ -606,7 +594,6 @@ pub fn external_repos(
         .collect())
 }
 
-/// The external repositories the workspace's BUILD files load from directly.
 pub fn build_file_repos(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
     Ok(build_file_labels(workspace)?
         .iter()
@@ -614,7 +601,6 @@ pub fn build_file_repos(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
         .collect())
 }
 
-/// The external labels the workspace's BUILD files load directly.
 pub fn build_file_labels(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
     let names = module_roots(workspace)?.names;
     let mut out = BTreeSet::new();
@@ -633,7 +619,6 @@ pub fn build_file_labels(workspace: &Path) -> Result<BTreeSet<String>, DxError> 
     Ok(out)
 }
 
-/// How a changed .bzl file reaches the build.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BzlImpact {
     Global(String),
@@ -721,7 +706,6 @@ fn impact_graph<'a>(
     })
 }
 
-/// Double-quoted string literals of `source`.
 fn string_literals(source: &str) -> Vec<&str> {
     let mut found = Vec::new();
     let mut rest = source;
@@ -735,7 +719,6 @@ fn string_literals(source: &str) -> Vec<&str> {
     found
 }
 
-/// Labels given as `toolchain = "..."` in `source`.
 fn toolchain_attr_labels(source: &str) -> Vec<&str> {
     let mut found = Vec::new();
     for (at, _) in source.match_indices("toolchain") {
@@ -763,10 +746,6 @@ fn toolchain_attr_labels(source: &str) -> Vec<&str> {
     found
 }
 
-/// Extra roots for the rule implementations behind `toolchain()` targets: the
-/// package of each workspace `toolchain =` label, and for each external one the
-/// loaded .bzl files that name the repository, with the .bzl files they reference
-/// through `Label(...)` (a repository rule can generate a BUILD that loads them).
 fn implementation_roots(
     graph: &mut LoadGraph<'_>,
     toolchain_builds: &[String],
@@ -868,7 +847,6 @@ impl ImpactGraph<'_> {
     }
 }
 
-/// The packages that load each changed .bzl file, or why it affects the whole workspace.
 pub fn bzl_impact(
     workspace: &Path,
     changed_bzl: &[String],
@@ -891,13 +869,6 @@ pub fn bzl_impact(
     Ok(impact)
 }
 
-/// Main-repository targets that dx's aspects or the workspace bazelrc files name without a
-/// rule edge in the query graph: the absolute labels in the aspects' `.bzl` closure, such as
-/// implicit attribute defaults, and the labels given as flag values.
-///
-/// # Errors
-///
-/// Returns an error when a `.bzl` file or bazelrc file cannot be read.
 pub fn implicit_dependencies(
     workspace: &Path,
     aspect_labels: &[String],
@@ -924,11 +895,6 @@ pub fn implicit_dependencies(
     Ok(labels)
 }
 
-/// Main-repository targets the workspace bazelrc files give as flag values, as `//package:name`.
-///
-/// # Errors
-///
-/// Returns an error when `MODULE.bazel` or a bazelrc file cannot be read.
 pub fn bazelrc_flag_targets(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
     let names = module_roots(workspace)?.names;
     Ok(bazelrc_roots(workspace)?
@@ -938,12 +904,10 @@ pub fn bazelrc_flag_targets(workspace: &Path) -> Result<BTreeSet<String>, DxErro
         .collect())
 }
 
-/// Whether `label` names a `.bzl` or `.scl` file, which `bzl_impact` covers.
 fn is_starlark_file(label: &str) -> bool {
     label.ends_with(".bzl") || label.ends_with(".scl")
 }
 
-/// `label` as the `//package:name` form the query graph uses, when it names the main repository.
 fn main_repo_label(label: &str, names: &[String]) -> Option<String> {
     let parsed = Label::parse(label)?;
     if parsed.relative
@@ -956,7 +920,6 @@ fn main_repo_label(label: &str, names: &[String]) -> Option<String> {
     Some(format!("//{}:{}", parsed.package, parsed.name))
 }
 
-/// The packages that load from each external repository, or why it affects the whole workspace.
 pub fn repo_impact(
     workspace: &Path,
     repos: &[String],

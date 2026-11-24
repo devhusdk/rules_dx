@@ -43,7 +43,6 @@ fn json_pin(
     emit_event(out, &command_finished(0, &FinishedCounts::default()))
 }
 
-/// Reports one failure; JSON output opens the stream first so the envelope stays whole.
 fn fail(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -71,9 +70,7 @@ fn module_lines(edit: &dx_adopt::ModuleEdit, to: &str) -> Vec<String> {
 
 const REFRESH: &str = "bazel mod deps --lockfile_mode=update";
 
-/// Finds the version in the old text of the `rules_dx` `bazel_dep` file.
 fn current_version(text: &str) -> String {
-    // An unparsable file has no version to report; the caller shows `?`.
     dx_module_bazel::ModuleFile::parse(text)
         .ok()
         .and_then(|file| {
@@ -85,8 +82,6 @@ fn current_version(text: &str) -> String {
         .unwrap_or_else(|| "?".to_owned())
 }
 
-/// Writes the edit, then resolves the module graph (refreshing the lockfile when there is one);
-/// puts the files back if that fails.
 fn write_module(
     invocation: &Invocation,
     workspace: &Path,
@@ -148,7 +143,6 @@ fn write_module(
     ))
 }
 
-/// Runs the `--to` binary through Bazel so it writes its own pin, launchers and AGENTS block.
 fn hand_off(
     invocation: &Invocation,
     workspace: &Path,
@@ -193,7 +187,6 @@ fn hand_off(
     }
 }
 
-/// Looks up the newest stable `rules_dx` in the Bazel registry.
 fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, DxError> {
     dx_update::discover::bcr::latest_stable(
         "rules_dx",
@@ -203,8 +196,6 @@ fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, DxEr
     .map_err(|error| DxError::infra(error.to_string()))
 }
 
-/// Moves the `.dx/pins` pin to `--to` (or the newest release), newer or older, then refreshes existing
-/// launchers and an existing AGENTS.md block. Every refusal runs before the first write.
 pub(crate) fn execute_upgrade(
     invocation: &Invocation,
     workspace: &Path,
@@ -587,7 +578,6 @@ fn warn_swaps(workspace: &Path, swaps: Vec<dx_adopt::ToolSwap>, err: &mut dyn Wr
 
 const DX_BUILD: &str = ".dx/BUILD.bazel";
 
-/// The `.dx` files an upgrade compares: `.dx/BUILD.bazel` and every `.dx/config/*/base.*`.
 fn dx_snapshot(workspace: &Path) -> BTreeMap<String, Vec<u8>> {
     let mut files = BTreeMap::new();
     if let Ok(bytes) = std::fs::read(workspace.join(DX_BUILD)) {
@@ -629,8 +619,6 @@ fn git(workspace: &Path, args: &[&str], input: Option<&[u8]>) -> Option<Vec<u8>>
     }
 }
 
-/// The old base an override copy was taken from: the pre-upgrade base when its blob sha
-/// matches, else the blob from git history.
 fn old_base(workspace: &Path, base: &str, before: Option<&Vec<u8>>, sha: &str) -> Option<String> {
     let snapshot = before.filter(|bytes| {
         git(
@@ -647,12 +635,9 @@ fn old_base(workspace: &Path, base: &str, before: Option<&Vec<u8>>, sha: &str) -
         }
         None => return None,
     };
-    // A base that is not UTF-8 cannot be merged as text; the caller reports it as missing.
     String::from_utf8(bytes).ok()
 }
 
-/// Three-way merges base changes into every `dx config override` copy and returns how many
-/// were left with conflict markers.
 fn merge_overrides(
     workspace: &Path,
     before: &BTreeMap<String, Vec<u8>>,
@@ -717,14 +702,12 @@ fn merge_overrides(
     conflicts
 }
 
-/// The tracked text files of the workspace, as `(path, text)`.
 fn tracked_texts(workspace: &Path) -> Vec<(String, String)> {
     let Some(listing) = git(workspace, &["ls-files", "-z"], None) else {
         return Vec::new();
     };
     listing
         .split(|byte| *byte == 0)
-        // Non-UTF-8 paths and unreadable or binary files hold no suppression text to scan.
         .filter_map(|path| {
             let path = String::from_utf8(path.to_vec()).ok()?;
             let text = std::fs::read_to_string(workspace.join(&path)).ok()?;
@@ -733,7 +716,6 @@ fn tracked_texts(workspace: &Path) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The base lines and tool swaps between two `.dx` snapshots.
 fn dx_changes(
     before: &BTreeMap<String, Vec<u8>>,
     after: &BTreeMap<String, Vec<u8>>,
@@ -980,8 +962,6 @@ mod tests {
         out.stdout_text().trim().to_owned()
     }
 
-    /// A synced workspace whose typos base gained a line after the override was
-    /// taken; returns the fresh base text and the stale one.
     fn stale_typos(prefix: &str) -> (impl Sized, PathBuf, String, String) {
         let (scratch, root) = synced(prefix, "b.hs");
         let fresh = std::fs::read_to_string(root.join(TYPOS_BASE)).expect("base");
@@ -1340,7 +1320,6 @@ mod tests {
         assert!(runner.calls.borrow().is_empty());
     }
 
-    /// Fails the refresh after turning `MODULE.bazel` into a directory, so the restore fails.
     struct BlockRestore;
 
     impl Runner for BlockRestore {

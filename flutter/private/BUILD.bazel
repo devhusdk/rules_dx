@@ -10,7 +10,6 @@ package(default_visibility = [
 exports_files([
     "defs.bzl",
     "platforms.bzl",
-    "pub.bzl",
 ])
 
 real_source_target(

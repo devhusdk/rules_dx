@@ -17,7 +17,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-// UnresolvedHint tells users how to settle a dependency no rule defines.
 const UnresolvedHint = "add a julia_library named after the package, or an exact # gazelle:resolve julia <Name> <label> (for example @julia_deps//:<Name>)"
 
 var juliaKinds = map[string]rule.KindInfo{
@@ -58,8 +57,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes a julia_library under its rule name: rules_julia finds the
-// entry point and precompiles only when the name matches src/<name>.jl.
 func (l *juliaLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind || r.Name() == "" {
 		return nil
@@ -67,9 +64,6 @@ func (l *juliaLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []reso
 	return []resolve.ImportSpec{{Lang: languageName, Imp: r.Name()}}
 }
 
-// listSources returns the .jl files under root/dir, sorted. A directory with
-// its own project file is another package and is skipped; a directory with a
-// BUILD file is an error because a label cannot cross into it.
 func listSources(root, dir string) ([]string, error) {
 	base := filepath.Join(root, dir)
 	if _, err := os.Stat(base); err != nil {
@@ -108,8 +102,6 @@ func listSources(root, dir string) ([]string, error) {
 	return out, err
 }
 
-// checkUUIDs rejects a dependency that has a standard library name but not
-// its UUID: it is a registered package, which a stdlib skip would drop.
 func checkUUIDs(path string, deps map[string]string) error {
 	for _, name := range sortedKeys(deps) {
 		if want, ok := StdlibUUID(name); ok && strings.ToLower(deps[name]) != want {

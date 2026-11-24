@@ -1,5 +1,3 @@
-//! Offline checks of a bound Regal config before regal runs.
-
 use saphyr_parser::{Event, Parser};
 
 use crate::commands::plain_relative;
@@ -8,12 +6,6 @@ use crate::pointer_index::scan_yaml;
 const URL: &str = "/capabilities/from/url";
 const FILE: &str = "/capabilities/from/file";
 
-/// Refuses a Regal config that loads capabilities from a URL or from a file outside the
-/// working directory, and any alias, merge key or tag that could hide either.
-///
-/// # Errors
-///
-/// Returns a message naming the refused setting.
 pub fn check_config(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     for item in Parser::new_from_str(text) {

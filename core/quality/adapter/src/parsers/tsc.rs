@@ -13,7 +13,6 @@ fn malformed(tool: &'static str, line: &str) -> ParseError {
     ParseError::shape(tool, format!("malformed diagnostic: {line:?}"))
 }
 
-/// One `path(line,col): error TSnnnn: message` line of `tsc --pretty false`.
 fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, ParseError> {
     let (head, tail) = line
         .split_once("): ")
@@ -68,21 +67,11 @@ fn diagnostic<'a>(tool: &'static str, line: &'a str) -> Result<Diagnostic<'a>, P
     })
 }
 
-/// Whether a line is the trailing `Found N errors` summary some tsc modes print.
 fn is_summary(line: &str) -> bool {
     line.strip_prefix("Found ")
         .is_some_and(|rest| rest.contains(" error"))
 }
 
-/// Parses `tsc --pretty false` output for the files in `files`.
-///
-/// Diagnostics in other files (dependencies, generated sources) are dropped. Location-less
-/// diagnostics (`error TS5083: ...`) and a failing exit with no diagnostic in `files` are errors,
-/// so a project that does not typecheck is never reported clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tsc_format(
     tool: &'static str,
     stdout: &[u8],
@@ -126,9 +115,6 @@ pub fn parse_tsc_format(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tsc(
     stdout: &[u8],
     code: Option<i32>,
@@ -141,7 +127,6 @@ pub fn parse_tsc(
 mod tests {
     use super::*;
 
-    // Captured from `tsc 5.9.3 --project tsconfig.json --noEmit --pretty false`.
     const REAL: &str = "sub/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\nsub/a.ts(3,3): error TS2352: Conversion of type '{ a: number; b: { c: string; }; }' to type '{ a: number; b: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.\n  Types of property 'b' are incompatible.\n    Type '{ c: string; }' is not comparable to type 'string'.\nsub/b.ts(2,7): error TS2322: Type 'number' is not assignable to type 'string'.\nsub/b.ts(4,26): error TS2322: Type 'string' is not assignable to type 'number'.\n";
     const FILES: [&str; 2] = ["sub/a.ts", "sub/b.ts"];
 

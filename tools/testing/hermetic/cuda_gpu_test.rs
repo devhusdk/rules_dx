@@ -1,8 +1,5 @@
-//! Reads and judges the facts line a GPU `cuda_test` binary logs.
-
 use dx_testing::serde_json::Value;
 
-/// Returns the facts JSON a GPU `cuda_test` binary logs on its `dx-gpu-facts:` line.
 fn parse_facts(log: &str) -> Result<Value, String> {
     let line = log
         .lines()
@@ -11,7 +8,6 @@ fn parse_facts(log: &str) -> Result<Value, String> {
     serde_json::from_str(line).map_err(|error| format!("facts are not JSON: {error}"))
 }
 
-/// Checks the facts report a passing run on a real device with every check ok.
 fn verdict(facts: &Value) -> Result<(), String> {
     if facts["schema"] != "dx.cuda.gpu_facts.v1" {
         return Err(format!("unexpected facts schema: {facts}"));

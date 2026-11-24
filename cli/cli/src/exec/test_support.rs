@@ -47,44 +47,31 @@ pub(crate) struct Harness {
     pub(crate) failed_labels: Vec<String>,
     pub(crate) io_error: bool,
     pub(crate) signalled: bool,
-    /// The signal a `bazel run` app dies by; the build still exits `bazel_code`.
     pub(crate) app_signal: Option<i32>,
-    /// The exit code of a `bazel run` app; the build still exits `bazel_code`.
     pub(crate) app_code: Option<i32>,
     pub(crate) skip_bep: bool,
     pub(crate) raw_bep: Option<Vec<String>>,
     pub(crate) unterminated_bep: bool,
-    /// A `buildMetrics` line that ends the stream in place of `LAST_EVENT`.
     pub(crate) build_metrics: Option<String>,
     pub(crate) query: ScriptQuery,
     pub(crate) intended: Option<Vec<u8>>,
     pub(crate) patch: Option<Vec<u8>>,
     #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
-    /// The working directory of each launch `FakeRunner` records in `build_argv`.
     pub(crate) seen_cwd: Rc<RefCell<Vec<PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) audit_today: Option<String>,
     pub(crate) actions: ActionTally,
-    /// Process table root `dx clean` observes; point at a missing dir to make observation unknown.
     pub(crate) proc_root: PathBuf,
-    /// Commit JSON path injected for update GitHub tag resolution.
     pub(crate) edit_commit_json: Option<String>,
-    /// The shards the fake shard probe names; `None` makes the probe exit 1 so dx passes every shard.
     pub(crate) probe_shards: Option<Vec<String>>,
-    /// An exit code the fake shard probe returns instead of answering.
     pub(crate) probe_code: Option<i32>,
-    /// Every shard probe argv the fake runner saw.
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
-    /// The buildMetrics line the fake shard probe ends its event file with.
     pub(crate) probe_metrics: Option<String>,
-    /// Every other argv the fake runner saw.
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
-    /// The exit code of each launch in order, the last one repeating; empty means `bazel_code`.
     pub(crate) launch_codes: Vec<i32>,
 }
 
-/// The audit date every test harness pins.
 pub(crate) const TEST_AUDIT_TODAY: &str = "2026-01-15";
 
 #[derive(Default)]
@@ -95,15 +82,9 @@ pub(crate) struct ScriptQuery {
     pub(crate) info_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) info: RefCell<Option<QueryResult>>,
     pub(crate) free_disk_bytes: Cell<Option<u64>>,
-    /// Answers for `git` queries, kept apart from the Bazel queue so git calls
-    /// never consume scripted cquery answers. Empty means git fails to launch.
     pub(crate) git_outputs: RefCell<Vec<QueryResult>>,
     pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
-    /// Answers for the checkout and tracked-file queries of `dx coverage`, kept apart so
-    /// they never consume the answers scripted for other git queries. Empty means not a work tree.
     pub(crate) checkout_git_outputs: RefCell<Vec<QueryResult>>,
-    /// Answers for the `dx security` image queries, kept apart so the other audit
-    /// queries keep their answers. Empty means no `oci_deploy` in scope.
     pub(crate) images_outputs: RefCell<Vec<QueryResult>>,
 }
 
@@ -303,7 +284,6 @@ impl Harness {
         quality::valid_result(&self.workspace, initial, replacements)
     }
 
-    /// A result with one fixable warning and snapshot per path, changes in the order given.
     pub(crate) fn paths_result(&self, paths: &[&str], changes: Vec<proto::FileEdits>) -> Vec<u8> {
         quality::paths_result(&self.workspace, paths, changes)
     }
@@ -337,7 +317,6 @@ impl Harness {
         quality::replacement_in(&self.workspace, "src/a.py", replacement)
     }
 
-    /// A 0..1 edit of `path` against its current digest.
     pub(crate) fn replacement_in(&self, path: &str, replacement: &[u8]) -> proto::FileEdits {
         quality::replacement_in(&self.workspace, path, replacement)
     }
@@ -352,7 +331,6 @@ impl Harness {
         quality::replacement_at(path, original_digest, edits)
     }
 
-    /// Pairs every canned result label with its BEP artifact path and bytes.
     pub(crate) fn staged_artifacts(&self) -> Vec<(PathBuf, Vec<u8>)> {
         let mut staged = Vec::new();
         for (label, bytes) in &self.results {
@@ -471,7 +449,6 @@ impl Harness {
             .map_err(|detail| format!("dx: {detail}\n"))
     }
 
-    /// Runs one quality command whose apply writes go through `fs`.
     pub(crate) fn run_with_fs(
         &self,
         words: &[&str],
@@ -549,7 +526,6 @@ impl Harness {
         }
     }
 
-    /// Runs one invocation against arbitrary streams and returns its exit code.
     pub(crate) fn run_streams<R: Runner, O: io::Write, E: io::Write>(
         &self,
         inv: &Invocation,
@@ -575,7 +551,6 @@ impl Harness {
         )
     }
 
-    /// Runs one invocation through a recording runner and returns what it saw.
     pub(crate) fn probe_with(&self, inv: &Invocation, codes: &[Option<i32>]) -> ProbeRun {
         let mut out = Vec::new();
         let mut run = self.probe_streams(inv, codes, &mut out, &mut Vec::new());
@@ -583,7 +558,6 @@ impl Harness {
         run
     }
 
-    /// Like `probe_with`, writing to the given streams; `out` in the result stays empty.
     pub(crate) fn probe_streams<O: io::Write, E: io::Write>(
         &self,
         inv: &Invocation,
@@ -608,7 +582,6 @@ impl Harness {
     }
 }
 
-/// What one probe run saw: the exit code, its stdout and every argv it launched.
 #[derive(Debug)]
 pub(crate) struct ProbeRun {
     pub(crate) code: i32,
@@ -616,8 +589,6 @@ pub(crate) struct ProbeRun {
     pub(crate) argv: Vec<Vec<String>>,
 }
 
-/// A runner that records each argv and environment and answers each launch with the next code.
-/// Shard probe launches go to `probe_argv` and exit 1, so `seen` and `codes` count only the real runs.
 struct ArgvProbe {
     codes: Vec<Option<i32>>,
     seen: Rc<RefCell<Vec<Vec<String>>>>,
@@ -627,7 +598,6 @@ struct ArgvProbe {
     probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
 }
 
-/// Whether one argv is the quality shard probe.
 pub(crate) fn is_shard_probe(argv: &[String]) -> bool {
     argv.iter().any(|arg| arg == "--output_groups=dx_shards")
 }
@@ -672,20 +642,17 @@ pub(crate) struct FakeRunner {
     pub(crate) patch: Option<Vec<u8>>,
     #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
     pub(crate) seen_env: Rc<RefCell<Vec<Vec<(String, String)>>>>,
-    /// The working directory of each launch `FakeRunner` records in `build_argv`.
     pub(crate) seen_cwd: Rc<RefCell<Vec<PathBuf>>>,
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
-    /// The buildMetrics line the fake shard probe ends its event file with.
     pub(crate) probe_metrics: Option<String>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
     pub(crate) launch_codes: Vec<i32>,
 }
 
 impl FakeRunner {
-    /// Answers one shard probe: a `dx_shards` file naming `probe_shards`, or exit 1 when unset.
     fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
         self.probe_argv.borrow_mut().push(argv.to_vec());
         if let Some(code) = self.probe_code {
@@ -799,7 +766,6 @@ impl Runner for FakeRunner {
     }
 }
 
-/// The Bazel subcommand in `argv`: the first word after the binary that is not a startup option.
 fn bazel_subcommand(argv: &[String]) -> Option<&str> {
     argv.iter()
         .skip(1)
@@ -816,8 +782,6 @@ pub(crate) fn intended_witness(mode: &str, complete: bool, files: &str, ignored:
     intended_witness_with_result(mode, result, complete, files, ignored)
 }
 
-/// A failed-run witness: no files, an incomplete scope, and the given error
-/// objects (comma-separated JSON).
 pub(crate) fn intended_witness_failed(mode: &str, errors: &str) -> Vec<u8> {
     let errors_value: Vec<serde_json::Value> =
         serde_json::from_str(&format!("[{errors}]")).expect("errors JSON");
@@ -896,7 +860,6 @@ pub(crate) fn write_bep_artifact(harness: &Harness, name: &str, bytes: &[u8]) ->
     format!("file://{}", path.display())
 }
 
-/// Writes a few lines for every source a coverage manifest names, so `LCOV_EXCL` scanning can read it.
 pub(crate) fn write_manifest_sources(harness: &Harness, manifest: &str) {
     for path in manifest.lines().filter_map(|line| {
         line.strip_prefix("prod source ")
@@ -911,7 +874,6 @@ pub(crate) fn write_manifest_sources(harness: &Harness, manifest: &str) {
     }
 }
 
-/// A final `buildMetrics` event with one action summary, int64 values written as strings.
 pub(crate) fn build_metrics_line(
     created: u64,
     executed_raw: u64,
@@ -936,7 +898,6 @@ pub(crate) fn build_metrics_line(
     .to_string()
 }
 
-/// The `actions` object of the last `command_finished` event on `out`.
 pub(crate) fn finished_actions(out: &str) -> Option<serde_json::Value> {
     out.lines()
         .rev()
@@ -967,7 +928,6 @@ pub(crate) fn test_result_identity_line(
     .to_string()
 }
 
-/// A BEP `testResult` line carrying the status, cache, and timing facts dx reports.
 #[expect(
     clippy::too_many_arguments,
     reason = "each argument is a distinct input"
@@ -1169,7 +1129,6 @@ pub(crate) fn umbrella_findings(name: &str) -> Harness {
     harness
 }
 
-/// Two sources, src/a.py and src/b.py, each with a fixable finding and a one-byte edit.
 pub(crate) fn two_file_replacements(name: &str) -> Harness {
     let mut harness = Harness::new(name);
     harness.write_source("src/a.py", "x = 1\n");
@@ -1183,7 +1142,6 @@ pub(crate) fn two_file_replacements(name: &str) -> Harness {
     harness
 }
 
-/// A BUILD file whose `:used` and `:clean` deps are both listed, with an unused-dependency finding for `:clean`.
 pub(crate) fn unused_build_dep(name: &str) -> Harness {
     let mut harness = Harness::new(name);
     harness.write_source(
@@ -1205,7 +1163,6 @@ pub(crate) fn unused_build_dep(name: &str) -> Harness {
     harness
 }
 
-/// Rendered rustc E0308 output with ANSI colour codes.
 pub(crate) const RENDERED_E0308: &str =
     "\u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror[E0308]\u{1b}[0m\u{1b}[1m: mismatched types\u{1b}[0m
 \u{1b}[0m \u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m--> \u{1b}[0mapp/src/main.rs:4:26
@@ -1216,7 +1173,6 @@ pub(crate) const RENDERED_E0308: &str =
 \u{1b}[0m\u{1b}[1m\u{1b}[38;5;9merror\u{1b}[0m\u{1b}[1m: aborting due to 1 previous error\u{1b}[0m
 ";
 
-/// Writes action stderr into the harness and returns its file URI.
 pub(crate) fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
     let dir = harness.temp.join("stderr");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -1225,7 +1181,6 @@ pub(crate) fn stderr_file(harness: &Harness, name: &str, text: &str) -> String {
     format!("file://{}", path.to_string_lossy())
 }
 
-/// A failed actionCompleted event whose stderr is at `uri`.
 pub(crate) fn failed_action(
     label: &str,
     config: &str,
@@ -1255,15 +1210,12 @@ pub(crate) fn failed_action(
     .to_string()
 }
 
-// Pipe helpers.
 #[cfg(unix)]
-/// Reports whether the pipe behind `writer` has no reader left in any process.
 #[cfg(unix)]
 pub(crate) fn reader_gone(writer: &io::PipeWriter, wait: Duration) -> bool {
     dx_os_sys::fd::wait_readable(writer, wait).expect("poll")
 }
 
-/// Drops `reader` and waits until no process holds a copy of the read end.
 #[cfg(unix)]
 pub(crate) fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
     drop(reader);
@@ -1273,7 +1225,6 @@ pub(crate) fn hang_up(reader: io::PipeReader, writer: &io::PipeWriter) {
     }
 }
 
-/// Returns the write end of a pipe whose read end is closed everywhere.
 #[cfg(unix)]
 pub(crate) fn closed_pipe() -> io::PipeWriter {
     let (reader, writer) = io::pipe().expect("pipe");
@@ -1281,7 +1232,6 @@ pub(crate) fn closed_pipe() -> io::PipeWriter {
     writer
 }
 
-/// Windows has no poll on pipes, so dropping the only reader is the best available.
 #[cfg(windows)]
 pub(crate) fn closed_pipe() -> io::PipeWriter {
     let (reader, writer) = io::pipe().expect("pipe");
@@ -1289,14 +1239,12 @@ pub(crate) fn closed_pipe() -> io::PipeWriter {
     writer
 }
 
-/// An empty process table, so live observation succeeds and sees no readers.
 pub(crate) fn quiet_proc(harness: &Harness) -> PathBuf {
     let proc_root = harness.workspace.join("quiet-proc");
     std::fs::create_dir_all(&proc_root).expect("empty process table");
     proc_root
 }
 
-// Spelled as Bazel names them in build events, parameter values included.
 pub(crate) const FORMAT_ASPECT: &str =
     r#"@@rules_dx+//core/quality:families/core.bzl%real_format_aspect[unsafe_fixes="false"]"#;
 pub(crate) const LINT_ASPECT: &str =
@@ -1304,12 +1252,8 @@ pub(crate) const LINT_ASPECT: &str =
 pub(crate) const TYPECHECK_ASPECT: &str =
     r#"@@rules_dx+//core/quality:families/core.bzl%real_typecheck_aspect[unsafe_fixes="false"]"#;
 
-/// Plays Bazel for aspect builds: the event file holds the events of the aspects the argv
-/// passes and the events of no aspect, and the build fails when one of them failed. Other
-/// launches, such as generate, go to `inner`.
 pub(crate) struct AspectRunner<R> {
     pub(crate) inner: R,
-    /// Each event with the aspect that owns it, `None` for events of every build.
     pub(crate) events: Vec<(Option<&'static str>, String)>,
     pub(crate) builds: RefCell<Vec<Vec<String>>>,
 }
@@ -1345,7 +1289,6 @@ impl<R: Runner> Runner for AspectRunner<R> {
     }
 }
 
-/// The events of one aspect over `//test:corpus`: its result and a skip note.
 pub(crate) fn aspect_events(
     harness: &Harness,
     aspect: &'static str,
@@ -1397,7 +1340,6 @@ pub(crate) fn aspect_events(
         .collect()
 }
 
-/// The event of `label` failing under `aspect`, as Bazel reports a failed tool or compile.
 pub(crate) fn failed_target(label: &str, aspect: &str) -> String {
     serde_json::json!({
         "id": {"targetCompleted": {"label": label, "aspect": aspect}},

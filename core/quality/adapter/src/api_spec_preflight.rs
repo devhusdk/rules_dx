@@ -1,22 +1,12 @@
-//! Offline checks dx runs on `OpenAPI` and `AsyncAPI` documents before Redocly sees them.
-//!
-//! Redocly follows `$ref` over the network and lets a config turn `no-unresolved-refs`
-//! off, so dx owns the version gate, the remote-ref ban and the missing-ref check.
-
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use saphyr_parser::{Event, Parser};
 
-/// A document that does not parse as YAML or JSON.
 pub const RULE_SYNTAX: &str = "dx/api-spec-syntax";
-/// A root without a supported `openapi` or `asyncapi` version key.
 pub const RULE_ROOT: &str = "dx/api-spec-root";
-/// A `$ref` that names a URL instead of a staged file.
 pub const RULE_REMOTE_REF: &str = "dx/api-spec-remote-ref";
-/// A `$ref` that names no staged root or fragment.
 pub const RULE_UNRESOLVED_REF: &str = "dx/api-spec-unresolved-ref";
 
-/// The Redocly rulesets a config may extend; anything else loads from disk or the network.
 pub const BUILTIN_RULESETS: &[&str] = &[
     "all",
     "minimal",
@@ -25,10 +15,8 @@ pub const BUILTIN_RULESETS: &[&str] = &[
     "spec",
 ];
 
-/// Config keys that load code or send credentials, so dx refuses them.
 const FORBIDDEN_CONFIG_KEYS: &[&str] = &["plugins", "resolve"];
 
-/// One problem the preflight found, placed on the root it was checking.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub rule: &'static str,
@@ -53,7 +41,6 @@ enum Frame {
     },
 }
 
-/// The key a mapping value belongs to, consumed as the value arrives.
 fn take_key(stack: &mut [Frame]) -> Option<String> {
     match stack.last_mut() {
         Some(Frame::Map {
@@ -73,7 +60,6 @@ fn take_key(stack: &mut [Frame]) -> Option<String> {
     }
 }
 
-/// Records the scalar key whose value comes next.
 fn set_key(stack: &mut [Frame], key: String) {
     if let Some(Frame::Map {
         expecting_key,
@@ -104,7 +90,6 @@ fn syntax(line: usize, col: usize, detail: &str) -> Problem {
     }
 }
 
-/// The root keys and every scalar `$ref` of one document, or the syntax problem that stopped it.
 fn scan(text: &str) -> Result<Scanned, Problem> {
     let mut out = Scanned::default();
     let mut stack: Vec<Frame> = Vec::new();
@@ -181,7 +166,6 @@ fn version_ok(value: &str, majors: &[&str]) -> bool {
     })
 }
 
-/// The problem with a root's version key, if it has one.
 fn root_problem(keys: &[(String, Option<String>)]) -> Option<String> {
     let find = |name: &str| keys.iter().find(|(key, _)| key == name).map(|(_, v)| v);
     if find("swagger").is_some() {
@@ -209,7 +193,6 @@ fn root_problem(keys: &[(String, Option<String>)]) -> Option<String> {
     }
 }
 
-/// The problem with a root that is not an `OpenAPI` 3.0, 3.1 or 3.2 document, for code generation.
 #[must_use]
 pub fn openapi_root_problem(text: &str) -> Option<Problem> {
     let message = match scan(text) {
@@ -233,7 +216,6 @@ pub fn openapi_root_problem(text: &str) -> Option<Problem> {
     })
 }
 
-/// Whether a `$ref` names a URL (`scheme:` or `//host`) rather than a relative file.
 #[must_use]
 pub fn is_remote(reference: &str) -> bool {
     if reference.starts_with("//") || reference.starts_with("\\\\") {
@@ -249,11 +231,6 @@ pub fn is_remote(reference: &str) -> bool {
         && !scheme.contains('#')
 }
 
-/// The staged workspace path a relative `$ref` in `from` names, or why it names none.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn ref_target(from: &str, reference: &str) -> Result<Option<String>, String> {
     let path = reference.split('#').next().unwrap_or_default();
     if path.is_empty() {
@@ -280,10 +257,6 @@ pub fn ref_target(from: &str, reference: &str) -> Result<Option<String>, String>
     Ok(Some(parts.join("/")))
 }
 
-/// The preflight problems of one root and every file its `$ref` graph reaches.
-///
-/// `docs` maps each staged workspace path (roots, refs and dep files) to its text.
-/// A problem in a fragment is placed on the root at line 1 and names the fragment.
 #[must_use]
 pub fn check_root(root: &str, docs: &BTreeMap<String, String>) -> Vec<Problem> {
     let mut problems = Vec::new();
@@ -364,11 +337,6 @@ pub fn check_root(root: &str, docs: &BTreeMap<String, String>) -> Vec<Problem> {
     problems
 }
 
-/// Rejects a Redocly config that loads plugins, sends resolve headers, or extends a non-builtin ruleset.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     let mut stack: Vec<Frame> = Vec::new();
     let mut documents = 0usize;

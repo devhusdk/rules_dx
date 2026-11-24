@@ -100,8 +100,6 @@ fn helm_tool(tool_id: &str, tool: &RealTool, scratch: &Scratch) -> Result<RealTo
     Ok(helm)
 }
 
-/// Rendered files the chart owns, and those with no source in the chart, keyed by
-/// the rendered path.
 type PreflightEntries = (Vec<RenderedEntry>, Vec<(String, RenderedEntry)>);
 
 fn preflight_rendered(
@@ -219,7 +217,6 @@ fn kubeconform_tool(binary: PathBuf, args: &[String]) -> RealTool {
 }
 
 impl RealBackend {
-    /// Lints the chart, renders it offline, and validates the rendered documents with kubeconform.
     pub(super) fn check_helm(
         &self,
         tool_id: &str,

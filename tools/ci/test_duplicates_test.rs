@@ -1,5 +1,3 @@
-//! No BUILD file holds two test calls with the same callee and the same arguments apart from `name`, `tags` and `flaky`.
-
 use std::collections::BTreeMap;
 
 use dx_guard::snapshot::read_input;
@@ -9,16 +7,12 @@ use starlark_syntax::syntax::AstModule;
 use starlark_syntax::syntax::ast::{ArgumentP, AstArgument, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
-/// The rule that groups tests.
 const SUITE: &str = "test_suite";
 
-/// The arguments that do not make two calls different.
 const IGNORED: [&str; 3] = ["name", "tags", "flaky"];
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
-/// One call that passes a string `name`.
 struct Call {
     callee: String,
     name: String,
@@ -26,14 +20,12 @@ struct Call {
     key: Option<Vec<String>>,
 }
 
-/// What one file contributes.
 #[derive(Default)]
 struct FileScan {
     callees: Callees,
     calls: Vec<Call>,
 }
 
-/// The arguments of a call that decide whether it repeats another, or none when a spread hides them.
 fn key(args: &[AstArgument]) -> Option<Vec<String>> {
     let mut out = Vec::new();
     for arg in args {
@@ -147,7 +139,6 @@ fn scan_sources(sources: &[(&str, &str)]) -> BTreeMap<String, FileScan> {
         .collect()
 }
 
-/// One line per test call that repeats an earlier call of the same BUILD file.
 fn duplicates(files: &BTreeMap<String, FileScan>) -> Vec<String> {
     let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let mut out = Vec::new();

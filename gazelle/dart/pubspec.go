@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// Pubspec is the part of a pub manifest that generation reads.
 type Pubspec struct {
 	Name         string
 	Deps         map[string]bool
@@ -27,7 +26,6 @@ func init() {
 	}
 }
 
-// ValidPackageName reports whether name is a legal pub package name.
 func ValidPackageName(name string) error {
 	switch {
 	case !packageNameRE.MatchString(name):
@@ -86,7 +84,6 @@ func unquote(s string) string {
 	return s
 }
 
-// splitKey cuts "key: value" into its parts.
 func splitKey(text string) (key, value string, ok bool) {
 	i := strings.Index(text, ":")
 	for i >= 0 && i+1 < len(text) && text[i+1] != ' ' {
@@ -102,7 +99,6 @@ func splitKey(text string) (key, value string, ok bool) {
 	return unquote(text[:i]), strings.TrimSpace(text[i+1:]), true
 }
 
-// isFlutterSDK reports whether the flutter dependency is taken from the SDK.
 func isFlutterSDK(children []yamlLine) bool {
 	for i, c := range children {
 		if name, _, ok := splitKey(c.text); !ok || name != "flutter" || i+1 >= len(children) {
@@ -120,7 +116,6 @@ func isFlutterSDK(children []yamlLine) bool {
 	return false
 }
 
-// ParsePubspec reads the fields of a pub manifest that generation needs.
 func ParsePubspec(content []byte) (*Pubspec, error) {
 	lines, err := yamlLines(content)
 	if err != nil {
@@ -136,7 +131,6 @@ func ParsePubspec(content []byte) (*Pubspec, error) {
 		if !ok {
 			return nil, fmt.Errorf("line %d: expected a top-level key", l.num)
 		}
-		// Child lines are those indented deeper than the key.
 		j := i + 1
 		for j < len(lines) && lines[j].indent > 0 {
 			j++

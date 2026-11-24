@@ -1,8 +1,3 @@
-//! The Bazel preset in a consumer workspace: the root `.bazelrc` imports of the
-//! `.dx/bazelrc/*.bazelrc` layers `dx generate` writes, and the `.gitignore` lines.
-//!
-//! One reader ([`inspect_preset`]) feeds init, status and upgrade, so they agree.
-
 use std::path::{Path, PathBuf};
 
 use crate::Ownership;
@@ -14,29 +9,21 @@ use crate::preset_fragment::{
 };
 use crate::scaffold::{Applied, scaffold_dest_within_root, with_header};
 
-/// The root `.bazelrc` file.
 pub const BAZELRC: &str = ".bazelrc";
 
-/// The root `.gitignore` file.
 pub const GITIGNORE: &str = ".gitignore";
 
-/// A workspace's preset: the root `.bazelrc` imports and the layer files.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PresetState {
-    /// The root `.bazelrc` text, empty when missing.
     pub rc_text: String,
     pub rc_exists: bool,
     pub rc_symlink: bool,
-    /// The `.gitignore` text with each `IGNORE_LINES` entry it lacks added; the whole set when the
-    /// file is missing. None when nothing is missing.
     pub ignore_text: Option<String>,
-    /// Owned preset lines the root `.bazelrc` repeats.
     pub collisions: Vec<String>,
     pub layers: [(Layer, ImportState); 3],
 }
 
 impl PresetState {
-    /// True when no line, active or commented, names a `.dx/bazelrc` layer.
     #[must_use]
     pub fn unwired(&self) -> bool {
         self.layers
@@ -44,13 +31,11 @@ impl PresetState {
             .all(|(_, import)| *import == ImportState::Absent)
     }
 
-    /// Whether apply would add the import block.
     #[must_use]
     pub fn will_import(&self) -> bool {
         self.unwired() && !self.rc_symlink && self.collisions.is_empty()
     }
 
-    /// Some layers are named in the `.bazelrc` and some are not.
     #[must_use]
     pub fn partial(&self) -> bool {
         !self.unwired()
@@ -60,7 +45,6 @@ impl PresetState {
                 .any(|(_, import)| *import == ImportState::Absent)
     }
 
-    /// Advisories for what apply leaves alone.
     #[must_use]
     pub fn notes(&self) -> Vec<String> {
         let mut notes = Vec::new();
@@ -102,13 +86,11 @@ impl PresetState {
     }
 }
 
-/// The workspace-relative path of one layer file.
 #[must_use]
 pub fn layer_rel(layer: Layer) -> String {
     format!("{CONSUMER_DIR}/{}", layer.file_name())
 }
 
-/// Every workspace-relative path the preset owns.
 #[must_use]
 pub fn preset_paths() -> Vec<String> {
     let mut paths = vec![BAZELRC.to_owned(), GITIGNORE.to_owned()];
@@ -116,7 +98,6 @@ pub fn preset_paths() -> Vec<String> {
     paths
 }
 
-/// Every file the preset owns with the content a fresh workspace gets.
 #[must_use]
 pub fn preset_files() -> Vec<(String, String)> {
     let imports: Vec<String> = Layer::ALL
@@ -154,7 +135,6 @@ fn read_text(path: &Path, rel: &str) -> Result<Option<String>, AdoptError> {
     }
 }
 
-/// Reads the preset state of `root` once.
 pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     let rc_path = root.join(BAZELRC);
     let rc_symlink = std::fs::symlink_metadata(&rc_path).is_ok_and(|m| m.file_type().is_symlink());
@@ -174,8 +154,6 @@ pub fn inspect_preset(root: &Path) -> Result<PresetState, AdoptError> {
     })
 }
 
-/// Whether `lines` already ignore `entry`: a line equal to it, or a listed ancestor directory.
-/// A leading or trailing slash does not count.
 fn ignores(lines: &[&str], entry: &str) -> bool {
     let entry = entry.trim_matches('/');
     lines.iter().any(|line| {
@@ -213,7 +191,6 @@ fn ignore_with_missing(text: Option<String>) -> Option<String> {
     Some(text)
 }
 
-/// Whether git lists files under `.dx/bazelrc`; false when git is missing or this is no repository.
 fn layers_tracked(root: &Path) -> bool {
     dx_process::capture::run_checked(
         dx_process::capture::git(root).args(["ls-files", "--", CONSUMER_DIR]),
@@ -243,7 +220,6 @@ fn write(root: &Path, rel: &str, content: &str) -> Result<PathBuf, AdoptError> {
     Ok(dest)
 }
 
-/// Fails before any write when a preset destination escapes the workspace.
 pub fn preflight_preset(root: &Path) -> Result<(), AdoptError> {
     inspect_preset(root)?;
     scaffold_dest_within_root(root, BAZELRC)?;
@@ -251,9 +227,6 @@ pub fn preflight_preset(root: &Path) -> Result<(), AdoptError> {
     Ok(())
 }
 
-/// Adds the import block when that is safe and the missing `.gitignore` lines.
-///
-/// Paths written land in `applied`; advisories land in `notes`.
 pub fn write_preset(
     root: &Path,
     applied: &mut Applied,
@@ -281,7 +254,6 @@ pub fn write_preset(
     Ok(())
 }
 
-/// What a workspace lacks against what [`write_preset`] writes.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct PresetDrift {
     pub missing: Vec<String>,
@@ -289,7 +261,6 @@ pub struct PresetDrift {
     pub other: Vec<String>,
 }
 
-/// The preset drift under `root`, without writing.
 #[must_use]
 pub fn preset_drift(root: &Path) -> PresetDrift {
     let mut drift = PresetDrift::default();

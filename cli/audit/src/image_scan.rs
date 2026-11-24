@@ -1,6 +1,3 @@
-//! The trivy image scan `oci_deploy` and `dx security` share: arguments, the
-//! pinned database cache, the JSON report and the exception match.
-
 use dx_error::DxError;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -13,7 +10,6 @@ use crate::exception::RiskException;
 
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 const LOCK_NAME: &str = "trivy.lock";
-/// The trivy database runs to gigabytes; its sha256 pin is the real guard.
 const TRIVY_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: 4096,
     max_entry_bytes: 8 << 30,
@@ -22,7 +18,6 @@ const TRIVY_LIMITS: dx_archive::Limits = dx_archive::Limits {
 
 pub const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
-/// The exception set that covers every image.
 pub const IMAGE_SET: &str = "oci";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -34,7 +29,6 @@ pub struct ImageFinding {
     pub severity: String,
 }
 
-/// Reads a JSON list where `null` counts as empty.
 fn null_as_empty<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -73,7 +67,6 @@ struct ReportVulnerability {
     severity: String,
 }
 
-/// The floor and every severity above it, as trivy wants them.
 pub fn severity_list(floor: &str) -> Result<String, DxError> {
     let at = SEVERITIES
         .iter()
@@ -147,9 +140,6 @@ pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, DxError> {
         .collect())
 }
 
-/// Whether `exception` covers `found` in the image built by `label`: set `oci`
-/// covers every image, a label pattern covers the images it matches. The
-/// advisory and package must match, and `versions` is `*` or the installed one.
 #[must_use]
 pub fn covers(exception: &RiskException, label: Option<&str>, found: &ImageFinding) -> bool {
     let set_matches = exception.set == IMAGE_SET
@@ -161,8 +151,6 @@ pub fn covers(exception: &RiskException, label: Option<&str>, found: &ImageFindi
             || crate::vuln::version_affected(IMAGE_SET, &exception.versions, &found.installed))
 }
 
-/// The trivy cache to scan with: `DX_TRIVY_CACHE`, else the one `.dx/pins` pins.
-/// A pinned cache that is missing is fetched, unless `offline`.
 pub fn trivy_cache(
     workspace: Option<&Path>,
     today: &str,
@@ -200,7 +188,6 @@ fn cache_override(value: Option<OsString>) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// The text of `.dx/pins`, empty when the file does not exist.
 fn read_pins(root: &Path) -> Result<String, DxError> {
     let path = root.join(".dx/pins");
     match std::fs::read_to_string(&path) {
@@ -214,7 +201,6 @@ fn installed(cache: &Path) -> bool {
     cache.join("db").join("metadata.json").is_file()
 }
 
-/// Installs the pinned archive into `cache` under the lock next to it, unless another run already did.
 fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(), DxError> {
     let local = crate::advisory::file_url_path(&pin.url);
     if offline && local.is_none() {
@@ -247,7 +233,6 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
     result
 }
 
-/// Downloads the pinned archive, checks its sha256, unpacks it into the stage and swaps that in.
 fn install_trivy_pin(
     pin: &AdvisoryPin,
     local: Option<&Path>,

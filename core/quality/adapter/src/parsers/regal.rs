@@ -36,12 +36,6 @@ struct Location {
     col: u64,
 }
 
-/// `regal lint --format json --fail-level warning` exits 0 clean, 2 on warnings only and 3 on any error.
-/// Any other exit, non-JSON output, a count mismatch or an exit that disagrees with the levels is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_regal(
     stdout: &[u8],
     stderr: &[u8],

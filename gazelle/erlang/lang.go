@@ -17,7 +17,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-// UnresolvedHint tells users how to settle a module no rule defines.
 const UnresolvedHint = "add an erlang_app that defines that module, a # gazelle:resolve erlang mapping on the module (for example # gazelle:resolve erlang thoas @erlang_app_thoas//:erlang_app) or a dx_ignore_import"
 
 const unnamedHint = "name the handwritten erlang_app, for example name = \"erlang_app\", so dx generate can merge into it"
@@ -63,8 +62,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports skips unnamed rules: the macro names them erlang_app, which the
-// rule index cannot see.
 func (l *erlangLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Name() == "" {
 		return nil
@@ -72,9 +69,6 @@ func (l *erlangLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []res
 	return l.SingleLang.Imports(c, r, f)
 }
 
-// listSources returns the files under dir that keep accepts, relative to root.
-// Directories that are another Erlang project are skipped. A symlinked dir is
-// walked through its target, because WalkDir does not descend into a link.
 func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	base := filepath.Join(root, dir)
 	if _, err := os.Stat(base); err != nil {
@@ -94,7 +88,6 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 				if _, err := os.Stat(filepath.Join(p, RebarConfig)); err == nil {
 					return filepath.SkipDir
 				}
-				// A subdirectory with its own BUILD file is a separate package.
 				if hasBuildFile(p) {
 					return filepath.SkipDir
 				}
@@ -124,7 +117,6 @@ func hasBuildFile(dir string) bool {
 	return false
 }
 
-// buildOutputDirs are the directories rebar3 fills next to a rebar.config.
 var buildOutputDirs = []string{"deps", "_build"}
 
 func inBuildOutput(root, rel string) bool {
@@ -187,8 +179,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if err != nil {
 		return fail("%v", err)
 	}
-	// rebar3 compiles src/*.xrl and src/*.yrl into modules, so their names are
-	// defined even though this generator does not list the files yet.
 	generated, err := listSources(args.Dir, SrcDir, func(s string) bool {
 		return isLocal(s) && (strings.HasSuffix(s, ".xrl") || strings.HasSuffix(s, ".yrl"))
 	})
@@ -313,8 +303,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 
 var testErlcOpts = []string{"+deterministic", "+debug_info", "+warn_export_vars", "+warn_shadow_vars", "+warn_obsolete_guard", "-DTEST=1"}
 
-// eunitRules returns the rules that compile test/*_tests.erl and run them
-// against a test build of the app.
 func eunitRules(meta AppSrc, app string, tests []string) []*rule.Rule {
 	testApp := rule.NewRule(TestAppKind, TestAppTarget)
 	testApp.SetAttr("app_name", meta.Name)
@@ -340,7 +328,6 @@ func eunitRules(meta AppSrc, app string, tests []string) []*rule.Rule {
 	return []*rule.Rule{testApp, opts, code, run}
 }
 
-// scan merges the references of every file.
 func scan(root string, files []string) (Refs, error) {
 	var out Refs
 	for _, file := range files {
@@ -359,6 +346,5 @@ func scan(root string, files []string) (Refs, error) {
 	}
 	return out, nil
 }
-
 
 func init() { common.RegisterLanguage(NewLanguage) }

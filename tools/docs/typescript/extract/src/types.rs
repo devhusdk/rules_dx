@@ -1,5 +1,3 @@
-//! Renders `TypeDoc` type and signature JSON as TypeScript source text.
-
 use serde_json::Value;
 use std::fmt::Write as _;
 
@@ -9,12 +7,10 @@ const FLAG_READONLY: &str = "isReadonly";
 const FLAG_STATIC: &str = "isStatic";
 const FLAG_ABSTRACT: &str = "isAbstract";
 
-/// Returns the string field `key` of `node`, or "".
 pub fn text<'a>(node: &'a Value, key: &str) -> &'a str {
     node.get(key).and_then(Value::as_str).unwrap_or("")
 }
 
-/// Returns the array field `key` of `node`, or an empty slice.
 pub fn list<'a>(node: &'a Value, key: &str) -> &'a [Value] {
     node.get(key)
         .and_then(Value::as_array)
@@ -22,7 +18,6 @@ pub fn list<'a>(node: &'a Value, key: &str) -> &'a [Value] {
         .unwrap_or(&[])
 }
 
-/// Reports whether `node.flags[flag]` is true.
 pub fn flag(node: &Value, flag: &str) -> bool {
     node.get("flags")
         .and_then(|flags| flags.get(flag))
@@ -30,7 +25,6 @@ pub fn flag(node: &Value, flag: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Renders one `TypeDoc` type object.
 pub fn render_type(node: &Value) -> Result<String, String> {
     let kind = text(node, "type");
     match kind {
@@ -272,7 +266,6 @@ fn reflection(declaration: &Value) -> Result<String, String> {
     object_literal(declaration)
 }
 
-/// Renders the members of a declaration as an object literal type.
 pub fn object_literal(declaration: &Value) -> Result<String, String> {
     let mut members = Vec::new();
     for child in list(declaration, "children") {
@@ -327,7 +320,6 @@ fn member_prefix(child: &Value) -> &'static str {
     }
 }
 
-/// Renders the type parameter list of a declaration or signature.
 pub fn type_parameters(node: &Value) -> Result<String, String> {
     let items = list(node, "typeParameters");
     if items.is_empty() {
@@ -347,7 +339,6 @@ pub fn type_parameters(node: &Value) -> Result<String, String> {
     Ok(format!("<{}>", parts.join(", ")))
 }
 
-/// Renders the parameter list of one signature, with parentheses.
 pub fn parameters(signature: &Value) -> Result<String, String> {
     let mut parts = Vec::new();
     for parameter in list(signature, "parameters") {
@@ -373,7 +364,6 @@ pub fn parameters(signature: &Value) -> Result<String, String> {
     Ok(format!("({})", parts.join(", ")))
 }
 
-/// Renders `name<T>(a: A): R` for one signature.
 pub fn call_signature(signature: &Value) -> Result<String, String> {
     let generics = type_parameters(signature)?;
     let params = parameters(signature)?;
@@ -397,7 +387,6 @@ fn function_type(signature: &Value) -> Result<String, String> {
     Ok(format!("{generics}{params} => {returns}"))
 }
 
-/// Renders the modifier words that precede a class member name.
 pub fn modifiers(node: &Value) -> String {
     let mut out = String::new();
     if flag(node, FLAG_STATIC) {
@@ -412,7 +401,6 @@ pub fn modifiers(node: &Value) -> String {
     out
 }
 
-/// Renders a comment summary or block content as Markdown.
 pub fn comment_text(parts: &[Value]) -> String {
     let mut out = String::new();
     for part in parts {

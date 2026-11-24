@@ -226,7 +226,6 @@ fn cpan_registry() -> &'static dx_families::Hub {
     dx_families::hub("cpan").expect("setup.hubs entry cpan")
 }
 
-/// The manifest and the state and lock files of a cpan set in `dir`.
 fn cpan_paths(dir: &str) -> (String, [String; 2]) {
     let hub = cpan_registry();
     let state = hub.state.as_ref().expect("cpan state");

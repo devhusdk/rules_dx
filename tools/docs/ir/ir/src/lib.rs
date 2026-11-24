@@ -12,7 +12,6 @@ use dx_path::proto_validate::{
 };
 use dx_path::reject_reason;
 
-/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
 #[must_use]
 pub fn escape_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
@@ -63,8 +62,6 @@ pub enum Error {
         id: String,
         alias: String,
     },
-    /// An alias equals another symbol's id or another symbol's alias, so two
-    /// pages would claim one path.
     AliasCollision {
         id: String,
         alias: String,
@@ -84,7 +81,6 @@ pub fn source_path_reason(file: &str) -> Option<&'static str> {
     reject_reason(file)
 }
 
-/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
 #[must_use]
 pub fn escape_id_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
@@ -98,9 +94,6 @@ pub fn escape_id_segment(segment: &str) -> String {
     out
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn validate_shard(shard: &DocIr) -> Result<(), Error> {
     if shard.language.is_empty() {
         return Err(Error::EmptyLanguage);
@@ -268,16 +261,10 @@ fn validate_aliases(symbol: &Symbol, prefix: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn encode_shard(shard: &DocIr) -> Result<Vec<u8>, Error> {
     encode_with_validation(shard, validate_shard)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn decode_shard(bytes: &[u8]) -> Result<DocIr, Error> {
     decode_with_validation(bytes, validate_shard, Error::Decode)
 }

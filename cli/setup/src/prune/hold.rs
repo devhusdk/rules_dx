@@ -1,12 +1,3 @@
-//! Reader side of the generation-lease protocol.
-//!
-//! [`hold_current`] takes shared leases on both sides of the current
-//! selection under the managed-root commit lock, the same lock cleanup holds
-//! while it prunes (see [`crate::prune::apply`]). A generation it returns therefore
-//! exists in full and cannot be pruned until every holder of the leases is
-//! gone. Pass [`HeldSelection::into_files`] to a launcher (for example
-//! `dx_process` `StreamSpec::held`) to keep the leases for a child tree.
-
 use std::fs::{self, File};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -19,7 +10,6 @@ use dx_atomic_fs::lease::{self, GenerationUse, SharedLease};
 use crate::prune::PruneError;
 use crate::prune::apply::map_lock_error;
 
-/// Why the current selection could not be held.
 #[derive(Debug, thiserror::Error)]
 pub enum HoldError {
     #[error(transparent)]
@@ -36,7 +26,6 @@ pub enum HoldError {
     Generation { path: PathBuf, reason: String },
 }
 
-/// Shared leases on both generations of one selection; dropping releases them.
 #[derive(Debug)]
 pub struct HeldSelection {
     pair: SetupPair,
@@ -44,13 +33,11 @@ pub struct HeldSelection {
 }
 
 impl HeldSelection {
-    /// The selection the leases protect.
     #[must_use]
     pub fn pair(&self) -> &SetupPair {
         &self.pair
     }
 
-    /// The locked lease files, for a launcher that keeps them for a child tree.
     pub fn into_files(self) -> Vec<File> {
         self.leases
             .into_iter()
@@ -59,12 +46,6 @@ impl HeldSelection {
     }
 }
 
-/// Holds shared leases on the current selection; `None` means nothing is selected.
-///
-/// Waits up to `timeout` for the commit lock. Lease contention under the
-/// lock means cleanup holds the generation exclusively, which fails closed
-/// with [`HoldError::Removing`] instead of waiting while holding the lock.
-/// Never creates or repairs a generation directory.
 pub fn hold_current(
     workspace_root: &Path,
     timeout: Duration,

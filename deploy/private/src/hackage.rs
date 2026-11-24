@@ -1,5 +1,3 @@
-//! Hackage publisher: sdist identity checks, local staging and the cabal upload.
-
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
@@ -10,7 +8,6 @@ use std::fmt;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
-/// Owner approval gate for hackage_deploy.
 pub(crate) const HACKAGE_GATE: OwnerGate = OwnerGate {
     tool: "hackage_deploy",
     action: "upload",
@@ -18,10 +15,8 @@ pub(crate) const HACKAGE_GATE: OwnerGate = OwnerGate {
     approved: "HACKAGE_PUBLISH_APPROVED",
 };
 
-/// Extra env names `cabal` needs to find its config and package caches.
 const CABAL_CHILD_ENV_EXTRA: &[&str] = &["CABAL_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"];
 
-/// Returns the value of one top-level field in a .cabal file.
 fn cabal_field<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     text.lines()
         .filter(|line| !line.starts_with(char::is_whitespace))
@@ -31,7 +26,6 @@ fn cabal_field<'a>(text: &'a str, key: &str) -> Option<&'a str> {
         })
 }
 
-/// Why an sdist does not carry the declared package and version.
 #[derive(Debug)]
 pub enum HackageError {
     NotTarGz {
@@ -124,10 +118,6 @@ impl std::error::Error for HackageError {
     }
 }
 
-/// Reads the package name and version the sdist's .cabal file declares.
-///
-/// The sdist must be named `<package>-<version>.tar.gz` and hold
-/// `<package>-<version>/<package>.cabal`, which must agree with the file name.
 pub fn hackage_read_identity(sdist: &Path) -> Result<(String, String), HackageError> {
     let file_name = sdist
         .file_name()
@@ -191,7 +181,6 @@ pub fn hackage_read_identity(sdist: &Path) -> Result<(String, String), HackageEr
     Ok((name.to_owned(), declared.to_owned()))
 }
 
-/// Checks the sdist identity against the declared package and version.
 pub fn hackage_check_identity(
     actual: &(String, String),
     expected_package: &str,
@@ -212,7 +201,6 @@ pub fn hackage_check_identity(
     Ok(())
 }
 
-/// Builds the `cabal upload --publish` launch reading its token from `config`.
 fn hackage_upload_command(cabal: &Path, sdist: &Path, config: &Path) -> std::process::Command {
     let config = config.to_string_lossy();
     let mut cmd = scrubbed_command(
@@ -224,7 +212,6 @@ fn hackage_upload_command(cabal: &Path, sdist: &Path, config: &Path) -> std::pro
     cmd
 }
 
-/// Writes the private cabal config that carries the token.
 fn write_cabal_config(dir: &PrivateConfigDir, token: &str) -> io::Result<std::path::PathBuf> {
     dir.write(
         "config",
@@ -234,7 +221,6 @@ fn write_cabal_config(dir: &PrivateConfigDir, token: &str) -> io::Result<std::pa
     )
 }
 
-/// Uploads the sdist and publishes it with `cabal upload --publish`.
 fn hackage_live_upload(
     cabal: &Path,
     sdist: &Path,
@@ -282,7 +268,6 @@ fn hackage_live_upload(
     }
 }
 
-/// Runs the Hackage deploy tool.
 pub fn hackage_main(
     sdist_rloc: &str,
     target_name: &str,

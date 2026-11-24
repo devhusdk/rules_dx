@@ -5,7 +5,6 @@ use crate::{ColumnEncoding, TextPosition};
 const TOOL: &str = "fsc";
 
 struct Diagnostic<'a> {
-    /// Empty when the compiler named no file.
     file: &'a str,
     line: u64,
     column: u64,
@@ -14,7 +13,6 @@ struct Diagnostic<'a> {
     message: &'a str,
 }
 
-/// `error FS0001: message`, `warning FS3370: message` or `info FS3370: message`.
 fn head(text: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
     let (word, rest) = text.split_once(' ')?;
     let severity = match word {
@@ -31,7 +29,6 @@ fn head(text: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
     numbered.then_some((severity, code, message.trim()))
 }
 
-/// The line and column of a `(l,c)` position, also when it spans a range.
 fn position(text: &str) -> Option<(u64, u64)> {
     let inner = text.strip_prefix('(')?;
     let (inner, _) = inner.split_once(')')?;
@@ -54,14 +51,12 @@ fn diagnostic(line: &str) -> Option<Diagnostic<'_>> {
             message,
         });
     }
-    // The location ends at the first `): ` that is followed by a diagnostic head.
     let mut from = 0;
     while let Some(at) = line.get(from..).and_then(|tail| tail.find("): ")) {
         let end = from + at + 1;
         let location = line.get(..end)?;
         if let Some((severity, code, message)) = head(line.get(end + 1..)?.trim_start()) {
             let open = location.rfind('(')?;
-            // A range may repeat the pair as `(l,c)-(l2,c2)`.
             let open = location
                 .get(..open)?
                 .strip_suffix('-')
@@ -82,7 +77,6 @@ fn diagnostic(line: &str) -> Option<Diagnostic<'_>> {
     None
 }
 
-/// fsc separates the parts of a type with control characters; join them with one space.
 fn tidy(message: &str) -> String {
     message
         .split(|ch: char| ch.is_control() || ch.is_whitespace())
@@ -91,8 +85,6 @@ fn tidy(message: &str) -> String {
         .join(" ")
 }
 
-/// The checked file a diagnostic path names, compared by its trailing components so
-/// absolute and execution-root paths match.
 fn owned<'a>(path: &str, files: &[&'a str]) -> Option<&'a str> {
     let path = path.replace('\\', "/");
     files
@@ -107,13 +99,6 @@ fn owned<'a>(path: &str, files: &[&'a str]) -> Option<&'a str> {
         .copied()
 }
 
-/// Parses `fsc --flaterrors` diagnostics. A located error in a file the target does
-/// not own, an error that names no file, and a failing exit without a kept error are
-/// all errors, never a pass.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fsc(
     output: &[u8],
     code: Option<i32>,

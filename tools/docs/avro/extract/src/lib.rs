@@ -1,6 +1,3 @@
-//! Converts Avro schemas (.avsc, .avpr, or the schemas avro-tools writes for .avdl) into one
-//! validated `DocIr` shard, reading the `doc` attribute of every named type, field and message.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -16,7 +13,6 @@ use serde_json::Value;
 const LANGUAGE: &str = "avro";
 const KEY_INCOMPLETE: &str = "avro.incomplete";
 
-/// Why the `avro_extract` arguments were rejected.
 #[derive(Debug)]
 pub enum ArgsError {
     Flag(FlagError),
@@ -49,7 +45,6 @@ impl From<FlagError> for ArgsError {
     }
 }
 
-/// Why a set of Avro schemas could not become a shard.
 #[derive(Debug)]
 pub enum AvroExtractError {
     Read(PathIoError),
@@ -94,26 +89,20 @@ impl std::error::Error for AvroExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub package: String,
     pub out: String,
-    /// Schema file to workspace-relative path of the source it documents.
     pub schemas: Vec<(String, String)>,
-    /// Directory of schemas avro-tools wrote, to workspace-relative path of the .avdl.
     pub schema_dirs: Vec<(String, String)>,
-    /// Workspace-relative paths of sources that are build output.
     pub generated: Vec<String>,
 }
 
-/// Runs `avro_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("avro_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: avro_extract --package NAME --out FILE (--schema FILE=SRC | --schema-dir DIR=SRC)... [--generated SRC]..."
@@ -131,11 +120,6 @@ fn pair(flag: &str, value: &str) -> Result<(String, String), ArgsError> {
     }
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for a bad flag, a value that is not INPUT=SRC, or no schema input.
 pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -168,11 +152,6 @@ pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     Ok(options)
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when an input cannot be read or converted or the shard cannot be written.
 pub fn run(options: &Options) -> Result<(), AvroExtractError> {
     let mut inputs: Vec<(String, String, String)> = Vec::new();
     for (file, source) in &options.schemas {
@@ -197,7 +176,6 @@ fn str_of<'a>(value: &'a Value, key: &str) -> &'a str {
     value.get(key).and_then(Value::as_str).unwrap_or("")
 }
 
-/// Splits a name into its namespace and simple name, inheriting `enclosing` when it has none.
 fn split_name(value: &Value, enclosing: &str) -> (String, String) {
     let name = str_of(value, "name");
     if let Some((namespace, simple)) = name.rsplit_once('.') {
@@ -217,7 +195,6 @@ fn full_name(namespace: &str, simple: &str) -> String {
     }
 }
 
-/// How a type reads in a signature.
 fn type_text(value: &Value, enclosing: &str) -> String {
     match value {
         Value::String(name) => name.clone(),
@@ -252,7 +229,6 @@ struct Builder<'a> {
     package: &'a str,
     source: String,
     generated: bool,
-    /// The lines of the schema text when they map to the source, else empty.
     lines: Vec<String>,
     symbols: BTreeMap<String, Symbol>,
 }
@@ -275,7 +251,6 @@ impl Builder<'_> {
         )
     }
 
-    /// The 1-based line of the first `"name": "<name>"` at or after `from`, or 0.
     fn find_line(&self, name: &str, from: u64) -> u64 {
         let quoted = format!("\"{name}\"");
         let start = usize::try_from(from.saturating_sub(1)).unwrap_or(usize::MAX);
@@ -333,7 +308,6 @@ impl Builder<'_> {
             display_name: display,
             ..Symbol::default()
         };
-        // A type imported by several files appears in each; keep the copy that has docs.
         match self.symbols.get(&id) {
             Some(existing)
                 if !existing.doc_markdown.is_empty() || symbol.doc_markdown.is_empty() => {}
@@ -443,7 +417,6 @@ impl Builder<'_> {
         );
         let symbols = value.get("symbols").and_then(Value::as_array);
         for symbol in symbols.into_iter().flatten().filter_map(Value::as_str) {
-            // Avro has no per-symbol doc attribute, so a symbol is documented by its enum.
             self.push(
                 self.id_of(&namespace, &simple, Some(symbol)),
                 format!("{}.{symbol}", full_name(&namespace, &simple)),
@@ -573,12 +546,6 @@ impl Builder<'_> {
     }
 }
 
-/// Converts schema texts, each with the source it documents and its file name, into one shard.
-///
-/// # Errors
-///
-/// Returns an error for an invalid package, a schema that is not JSON, no named type, or an
-/// invalid shard.
 pub fn convert(
     inputs: &[(String, String, String)],
     options: &Options,
@@ -596,7 +563,6 @@ pub fn convert(
                 file: file.clone(),
                 source,
             })?;
-        // Line numbers only mean something when the schema text is the source itself.
         let own_text = file == source
             || Path::new(source)
                 .extension()

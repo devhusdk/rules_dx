@@ -14,10 +14,8 @@ const LibraryKind = "scala_library"
 
 var SupportedExts = []string{".scala"}
 
-// TestKind is the rule generated for each test source.
 const TestKind = "scala_test"
 
-// TestTargetName names the test rule for a test source: DemoTest gives demo_test.
 func TestTargetName(src string) (string, error) { return common.SnakeName(src, SupportedExts) }
 
 func NewLanguage() language.Language {
@@ -37,12 +35,10 @@ func NewLanguage() language.Language {
 		IsStdLib:       IsStdLib,
 		Candidates:     common.JVMCandidates,
 		External:       "maven",
-		Tests: &common.TestSpec{Kind: TestKind, Name: TestTargetName, IsImplicit: isTestImplicit},
+		Tests:          &common.TestSpec{Kind: TestKind, Name: TestTargetName, IsImplicit: isTestImplicit},
 	})
 }
 
-// isTestImplicit reports ScalaTest imports, which scala_test targets get
-// from their own framework deps rather than from generation.
 func isTestImplicit(imp string) bool {
 	return imp == "org.scalatest" || strings.HasPrefix(imp, "org.scalatest.")
 }

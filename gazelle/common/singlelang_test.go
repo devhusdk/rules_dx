@@ -680,7 +680,6 @@ func TestResolveJVMCandidates(t *testing.T) {
 	if len(l.errors) != 0 {
 		t.Fatalf("errors = %v", l.errors)
 	}
-	// A candidate walk never climbs into a parent package.
 	for _, imp := range []string{"com.acme.lib.Client", "org.y.sub.Thing"} {
 		l.Resolve(cfg, index, nil, rule.NewRule(dotKind, "app"), WrapImportSet([]string{imp}), label.New("", "app", "app"))
 	}
@@ -1192,8 +1191,6 @@ func bareRefs(names []string) []ImportRef {
 	return refs
 }
 
-// fakeIndexLang indexes rules of its kind under the "imp" attribute, standing
-// in for the typescript and javascript languages in fallback tests.
 type fakeIndexLang struct {
 	name, kind string
 }
@@ -1228,8 +1225,6 @@ func newWebDotLang() *SingleLang {
 
 type indexEntry struct{ kind, pkg, name, imp string }
 
-// fallbackIndex indexes dot rules (srcs <name>.dot) and fake typescript and
-// javascript rules (indexed under imp).
 func fallbackIndex(lang *SingleLang, entries ...indexEntry) *resolve.RuleIndex {
 	index := resolve.NewRuleIndex(func(r *rule.Rule, _ string) resolve.Resolver {
 		switch r.Kind() {
@@ -1517,8 +1512,6 @@ func TestResolveSpecForWantKind(t *testing.T) {
 	}
 }
 
-// findLang is a dot language whose lookups go through a counting Find hook, so
-// Lookups and Candidates must never run.
 func findLang(t *testing.T, find func(ref ImportRef) JSLookup) (*SingleLang, *int) {
 	t.Helper()
 	calls := 0

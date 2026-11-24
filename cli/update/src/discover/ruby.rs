@@ -1,5 +1,3 @@
-//! Lists gems whose newest release on rubygems.org is newer than the version in the manifest.
-
 use dx_error::DxError;
 
 use super::{
@@ -10,7 +8,6 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://rubygems.org";
 
-/// Checks each versioned `gem` line of the manifests against the API at `base`.
 pub fn outdated(
     set: &str,
     gemfiles: &[String],
@@ -45,7 +42,6 @@ pub fn outdated(
     found
 }
 
-/// The newest stable release of gem `name` on the API at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/api/v1/versions/{name}.json"))?;
     newest(&body, false).map(|(version, _, _)| version)

@@ -1,5 +1,3 @@
-//! Explicit launch descriptions for quality tools.
-
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -58,9 +56,6 @@ impl ResolvedTool {
         }
     }
 
-    /// # Errors
-    ///
-    /// Returns [`LaunchError`] when the tool cannot be launched.
     pub fn resolve(&self, args: &[OsString], files: &[&Path]) -> Result<Invocation, LaunchError> {
         if self.program.as_os_str().is_empty() {
             return Err(LaunchError::MissingProgram {

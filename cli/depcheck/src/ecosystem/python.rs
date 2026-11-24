@@ -12,7 +12,6 @@ use super::put;
 const PLATFORM_MARKERS: [&str; 4] = ["sys_platform", "sys-platform", "platform_system", "os_name"];
 
 #[must_use]
-/// A Python dependency key: PEP 503 form with `_` as the separator, as pip hub labels spell it.
 pub fn normalize_py(name: &str) -> String {
     dx_ecosystems::pep503_name(name).replace('-', "_")
 }
@@ -70,11 +69,6 @@ pub fn satisfies_py(spec: &str, locked: &str) -> Option<bool> {
     Some(specifiers.contains(&version))
 }
 
-/// Reads the dependencies of a Python project manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = parse_toml_file(path)?;
     let mut deps: BTreeMap<String, DepInfo> = BTreeMap::new();
@@ -159,11 +153,6 @@ pub fn parse_python_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
     Ok(deps)
 }
 
-/// Maps every package of a Python lock to its version.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_python_lock(path: &Path) -> Result<crate::LockVersions, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;

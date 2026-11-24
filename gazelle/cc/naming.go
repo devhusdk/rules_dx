@@ -24,7 +24,6 @@ const QtTestKind = "qt_cc_test"
 
 const CudaKind = "cuda_library"
 
-// TestKind is the rule generated for each *_test C/C++ source.
 const TestKind = "cc_test"
 
 func IsTestSource(name string) bool {
@@ -44,10 +43,8 @@ func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir
 
 func HeaderIdentity(name string) string { return path.Clean(name) }
 
-// HeaderBasename returns the bare file name a header is also indexed under.
 func HeaderBasename(p string) []string { return []string{filepath.Base(p)} }
 
-// IncludeKeys returns the index keys for a quoted include, package-relative first, then workspace root.
 func IncludeKeys(pkg, name string) []string {
 	var keys []string
 	for _, k := range []string{path.Join(pkg, name), path.Clean(name)} {

@@ -28,16 +28,11 @@ fn invalid_module_code(
     report_dx_error(invocation.output, out, err, CODE_INIT_FAILED, &error)
 }
 
-/// The directory one `dx init` run works in.
 struct Target {
-    /// The directory as given, `/`-separated, or empty for the current directory.
     dir: String,
-    /// Where the files go.
     root: std::path::PathBuf,
-    /// What reported paths start with: `<dir>/`, or nothing.
     prefix: String,
     module: String,
-    /// The entry that makes the directory an existing tree; `None` when it is fresh.
     blocker: Option<String>,
     agents: Vec<Agent>,
     ci: Option<dx_plan::args::Ci>,
@@ -79,7 +74,6 @@ impl Target {
         })
     }
 
-    /// The files this run plans, relative to `root`.
     fn plan(&self) -> Result<Vec<super::init_files::InitFile>, dx_adopt::AdoptError> {
         super::init_files::plan_for(
             &self.root,
@@ -90,7 +84,6 @@ impl Target {
         )
     }
 
-    /// The command that fixes drift in this directory.
     fn apply_command(&self) -> String {
         let mut command = "dx init".to_owned();
         if !self.dir.is_empty() {
@@ -119,9 +112,6 @@ fn ci_name(ci: dx_plan::args::Ci) -> &'static str {
     }
 }
 
-/// The ids `--accept-license` adds to `MODULE.bazel`: the given ids it does not accept yet.
-/// Fails with the message that names each id a language under `root` needs on `platform` and
-/// neither the flag nor `MODULE.bazel` accepts.
 fn license_ids(
     given: &[String],
     root: &std::path::Path,
@@ -148,7 +138,6 @@ fn license_ids(
     Ok(given.difference(&accepted).cloned().collect())
 }
 
-/// Appends the `dx_licenses.accept` tag of `ids` to `MODULE.bazel` under `root`.
 fn write_license_accept(
     root: &std::path::Path,
     ids: &std::collections::BTreeSet<String>,
@@ -352,7 +341,6 @@ pub(crate) fn execute_init(
     code
 }
 
-/// Whether `path`, a `PATH` value, holds a `dx` this host runs, such as `dx.exe` on Windows.
 fn dx_on_path(path: Option<OsString>) -> bool {
     path.is_some_and(|path| dx_path::lookup::find_command_in(&path, "dx").is_some())
 }
@@ -361,7 +349,6 @@ fn dx_runner(on_path: bool) -> &'static str {
     if on_path { "dx" } else { "tools/dx" }
 }
 
-/// The dx command the next steps name on this host's `PATH`.
 fn host_runner() -> &'static str {
     dx_runner(dx_on_path(std::env::var_os("PATH")))
 }
@@ -400,7 +387,6 @@ fn next_steps(runner: &str, adopting: bool) -> String {
     }
 }
 
-/// Lists the files a first `dx init` would create, one per line under their top directory.
 fn render_creation_plan(prefix: &str, paths: &[&String], apply: &str) -> String {
     let mut groups: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
     for path in paths {
@@ -1280,7 +1266,6 @@ mod tests {
         let (code, _out, err) = run(&invocation(&["init", "--apply", "demo"]), &root);
         assert_eq!(code, 0, "{err}");
         let module = root.join("demo/MODULE.bazel");
-        // Not a C file: on Windows cc needs a licence, and this test is about edits surviving.
         let source = root.join("demo/notes.txt");
         let edited_module = format!(
             "{}# edited\n",
@@ -1364,7 +1349,6 @@ mod tests {
         let path = Some(std::env::join_paths([&empty, &bin]).expect("PATH"));
         assert!(!dx_on_path(None));
         assert!(!dx_on_path(path.clone()));
-        // Windows runs `dx.exe` for `dx`, so that alone counts there.
         let dx = bin.join(if cfg!(windows) { "dx.exe" } else { "dx" });
         std::fs::write(&dx, "").expect("dx");
         assert!(dx_on_path(path));

@@ -9,13 +9,11 @@ exports_files([
     "src/lib.rs",
 ])
 
-# dx_sbom reads the CycloneDX SPDX license id enum from this file.
 exports_files(
     ["spdx.schema.json"],
     visibility = ["//cli/sbom:__pkg__"],
 )
 
-# Test-only checks against schemas vendored verbatim from spdx-spec v2.3 and CycloneDX specification 1.6.
 rust_library(
     name = "dx_sbom_schema",
     testonly = True,

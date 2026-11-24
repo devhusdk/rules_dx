@@ -16,7 +16,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-// UnresolvedHint tells users how to settle a module no rule defines.
 const UnresolvedHint = "add an elixir_app that defines that module, a # gazelle:resolve elixir mapping on the module or a prefix of it (for example # gazelle:resolve elixir Jason @jason//:erlang_app)"
 
 const unnamedHint = "name the handwritten elixir_app, for example name = \"erlang_app\", so dx generate can merge into it"
@@ -67,8 +66,6 @@ func definedModules(path string) []string {
 	return ParseDefinitions(content)
 }
 
-// Imports skips unnamed rules: the macro names them erlang_app, which the
-// rule index cannot see.
 func (l *elixirLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Name() == "" {
 		return nil
@@ -76,7 +73,6 @@ func (l *elixirLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []res
 	return l.SingleLang.Imports(c, r, f)
 }
 
-// WalkDir does not follow a symlinked root, so walk its target.
 func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	target, err := filepath.EvalSymlinks(filepath.Join(root, dir))
 	if err != nil {
@@ -107,13 +103,8 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	return out, err
 }
 
-// mixOutputDirs are the directories Mix fills next to the Mix project file: fetched Hex
-// checkouts and build output. Their project files belong to other projects.
 var mixOutputDirs = []string{"deps", "_build"}
 
-// inMixOutput reports whether rel sits under deps/ or _build/ of an ancestor
-// directory that has a Mix project file. A custom deps_path or build_path is not read;
-// exclude it with # gazelle:exclude.
 func inMixOutput(root, rel string) bool {
 	if rel == "" {
 		return false
@@ -254,7 +245,6 @@ func underTestDir(r *rule.Rule) bool {
 	return true
 }
 
-// external returns the modules files reference that they do not define.
 func external(root string, files []string) ([]string, error) {
 	defs := make(map[string]bool)
 	refs := make(map[string]bool)

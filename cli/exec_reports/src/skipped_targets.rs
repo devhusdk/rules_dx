@@ -1,5 +1,3 @@
-//! The one-line notice for targets Bazel skipped as incompatible with the platform.
-
 use dx_bep::{EventGap, EventLedger};
 use dx_exec_core::common::{CODE_TARGETS_SKIPPED, emit_built};
 use dx_output::{NoticeEvent, OutputMode, notice_event};
@@ -10,7 +8,6 @@ use std::path::Path;
 
 const UNSUPPORTED_JSON: &str = include_str!("unsupported.json");
 
-/// The skipped targets that share one unsupported language, or the rest when `language` is `None`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkipGroup {
     pub count: usize,
@@ -23,7 +20,6 @@ pub struct SkipLanguage {
     pub reason: String,
 }
 
-/// The labels the event file records as skipped, and how many skipped events it holds.
 pub fn read_skipped(bep: &Path) -> Vec<EventGap> {
     let Ok(file) = std::fs::File::open(bep) else {
         return Vec::new();
@@ -41,7 +37,6 @@ pub fn read_skipped(bep: &Path) -> Vec<EventGap> {
         .collect()
 }
 
-/// Entries of `unsupported.json` as (constraint, title, reason).
 fn known_languages(json: &str) -> Vec<(String, String, String)> {
     let Ok(serde_json::Value::Object(map)) = serde_json::from_str(json) else {
         return Vec::new();
@@ -76,7 +71,6 @@ fn known_languages(json: &str) -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// The language named by an explicit-request error, from the unsupported constraint in its dependency chain.
 pub fn language_in_message(message: &str) -> Option<SkipLanguage> {
     if !message.contains("explicitly requested") {
         return None;
@@ -87,8 +81,6 @@ pub fn language_in_message(message: &str) -> Option<SkipLanguage> {
         .map(|(_, title, reason)| SkipLanguage { title, reason })
 }
 
-/// Groups the skipped targets by the language whose unsupported constraint they depend on.
-/// One cquery per language that `unsupported.json` lists; a failed query leaves its targets ungrouped.
 pub fn group_skipped(
     skipped: &[EventGap],
     invocation: &Invocation,
@@ -105,7 +97,6 @@ pub fn group_skipped(
             "allpaths({}, @rules_dx{constraint})",
             dx_plan::resolve::set_expression(labels)
         );
-        // A query that cannot be built or run leaves the skipped targets unknown.
         let argv = selection
             .selection_argv("cquery", &["--output=label".to_owned()], &expr)
             .ok()?;
@@ -166,7 +157,6 @@ fn group_with(
     groups
 }
 
-/// Tells the user how many targets were skipped and why. The exit code is not affected.
 pub fn skipped_notice(
     output: OutputMode,
     out: &mut dyn Write,

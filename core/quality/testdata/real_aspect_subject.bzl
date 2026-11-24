@@ -30,6 +30,7 @@ load(
     "real_core_typecheck_probe_aspect",
     "real_d_typecheck_aspect",
     "real_docs_aspects",
+    "real_docstrfmt_format_aspect",
     "real_dockerfile_lint_aspect",
     "real_oci_image_lint_aspect",
     "real_oci_image_typecheck_aspect",
@@ -230,6 +231,7 @@ _REAL_ASPECTS = [
     real_sql_lint_aspect,
     real_format_aspect,
     real_biome_format_aspect,
+    real_docstrfmt_format_aspect,
     real_go_format_aspect,
     real_go_lint_aspect,
     real_go_typecheck_aspect,
@@ -336,7 +338,7 @@ def real_aspect_subject(target, name = None, **kwargs):
         **kwargs
     )
 
-_CORE_ASPECTS = [real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect, real_format_aspect, real_biome_format_aspect, real_typecheck_aspect]
+_CORE_ASPECTS = [real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect, real_format_aspect, real_biome_format_aspect, real_docstrfmt_format_aspect, real_typecheck_aspect]
 
 real_rust_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_rust_lint_aspect, real_rust_format_aspect])
 

@@ -7,9 +7,6 @@ import (
 	"strings"
 )
 
-// scanLex is the hand-written scanner. It lexes sources the tree-sitter C++
-// grammar cannot parse cleanly (truncated literals, stray directives), where
-// error recovery would misplace includes.
 func scanLex(content []byte) lexed {
 	s := strings.ReplaceAll(string(content), "\\\r\n", " ")
 	s = strings.ReplaceAll(s, "\\\n", " ")
@@ -105,7 +102,6 @@ func scanLex(content []byte) lexed {
 
 var scannedMainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_.:>])main\s*\([^()]*\)\s*\{`)
 
-// trackConditional updates the conditional stack for the directive after a '#'.
 func trackConditional(b []byte, pos int, frames []bool) []bool {
 	p := pos
 	for p < len(b) && (b[p] == ' ' || b[p] == '\t') {

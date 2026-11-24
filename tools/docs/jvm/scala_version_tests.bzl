@@ -31,25 +31,25 @@ _scala3_aspect_test = analysistest.make(
 
 _scala3_shard_failure_test = failure_test_rule(config_settings = _SCALA3)
 
-def scala_version_tests(name, lib, shard):
+def scala_version_tests(name, lib, shard, size = "small"):
     """Checks the docs aspect skips and scala_doc_shard rejects a Scala library on Scala 3."""
     _default_aspect_test(
         name = name + "_default_aspect",
         target_under_test = lib,
         shards = 1,
-        size = "small",
+        size = size,
     )
     _scala3_aspect_test(
         name = name + "_scala3_aspect",
         target_under_test = lib,
         shards = 0,
-        size = "small",
+        size = size,
     )
     _scala3_shard_failure_test(
         name = name + "_scala3_shard",
         target_under_test = shard,
         expected_failure_substring = "only Scala 2.13 is supported; the toolchain is 3.3.9",
-        size = "small",
+        size = size,
     )
     native.test_suite(
         name = name,

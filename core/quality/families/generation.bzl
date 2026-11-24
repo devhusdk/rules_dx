@@ -132,7 +132,6 @@ def _avro_closure(target):
 def _thrift_closure(target):
     return [(i.path, i.file) for i in target[ThriftInfo].transitive_includes.to_list()]
 
-# tool -> (provider, closure(target) -> [(staged path, File)], strict).
 _CLOSURE_STAGING = {
     "capnp": (CapnprotoInfo, _capnp_closure, True),
     "thrift": (ThriftInfo, _thrift_closure, True),

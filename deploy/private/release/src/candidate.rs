@@ -1,5 +1,3 @@
-//! Release candidate identity, source archive, local registry and tag checks.
-
 use std::collections::BTreeMap;
 use std::fmt;
 use std::io::{self, BufRead};
@@ -21,7 +19,6 @@ use crate::{
     pretty_json, render_bcr_source_for_digest, write_bcr_source_for_archive,
 };
 
-/// One release candidate: a `SemVer` version at one full commit.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Candidate {
     version: String,
@@ -29,11 +26,6 @@ pub struct Candidate {
 }
 
 impl Candidate {
-    /// Returns a candidate for a publishable version and a full lowercase commit.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn new(version: &str, commit: &str) -> Result<Self, CandidateError> {
         bcr_candidate_version_error(version)?;
         if !dx_digest::is_lower_hex(commit, 20) {
@@ -47,31 +39,26 @@ impl Candidate {
         })
     }
 
-    /// Returns the `SemVer` version.
     #[must_use]
     pub fn version(&self) -> &str {
         &self.version
     }
 
-    /// Returns the full commit SHA.
     #[must_use]
     pub fn commit(&self) -> &str {
         &self.commit
     }
 
-    /// Returns the release tag.
     #[must_use]
     pub fn tag(&self) -> String {
         format!("v{}", self.version)
     }
 
-    /// Returns the full tag ref.
     #[must_use]
     pub fn reference(&self) -> String {
         format!("refs/tags/{}", self.tag())
     }
 
-    /// Returns the ls-remote patterns for the tag and its peeled commit.
     #[must_use]
     pub fn ls_remote_patterns(&self) -> [String; 2] {
         let reference = self.reference();
@@ -79,40 +66,38 @@ impl Candidate {
         [reference, peeled]
     }
 
-    /// Returns the archive strip prefix.
     #[must_use]
     pub fn strip_prefix(&self) -> String {
         bcr_strip_prefix(BCR_WANT_MODULE, &self.version)
     }
 
-    /// Returns the release asset URL.
     #[must_use]
     pub fn url(&self) -> String {
         bcr_source_url(BCR_WANT_MODULE, &self.version)
     }
 
-    /// Returns the canonical release remote.
     #[must_use]
     pub fn remote(&self) -> &'static str {
         RELEASE_REMOTE
     }
 }
 
-/// Digest and SRI integrity of one built source archive.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceArchive {
     pub digest: String,
     pub integrity: String,
 }
 
-/// A failed git command.
 #[derive(Debug)]
 pub enum GitError {
-    /// git could not be run to completion.
-    Run { command: String, source: RunError },
-    /// git exited with a failure.
-    Exit { command: String, detail: String },
-    /// git printed output that is not UTF-8.
+    Run {
+        command: String,
+        source: RunError,
+    },
+    Exit {
+        command: String,
+        detail: String,
+    },
     NotUtf8 {
         command: String,
         source: FromUtf8Error,
@@ -139,25 +124,17 @@ impl std::error::Error for GitError {
     }
 }
 
-/// A failed candidate identity, archive, registry or tag check.
 #[derive(Debug)]
 pub enum CandidateError {
-    /// A file operation failed.
     Io(PathIoError),
-    /// A git command failed.
     Git(GitError),
-    /// A git command reading the local release state failed.
     GitState(GitError),
-    /// A file could not be hashed.
     Hash {
         path: PathBuf,
         source: io::Error,
     },
-    /// A BCR source metadata check failed.
     Bcr(BcrError),
-    /// A `MODULE.bazel` release check failed.
     Module(ModuleError),
-    /// A registry document could not be rendered.
     Render(FingerprintError),
     InvalidCommit {
         commit: String,
@@ -521,11 +498,6 @@ fn hash_file(path: &Path) -> Result<String, CandidateError> {
     })
 }
 
-/// Returns stdout of a git command, or its failure as an error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn git_output_of(
     args: &[&str],
     output: Result<Captured, RunError>,
@@ -551,20 +523,12 @@ pub fn git_output_of(
     }
 }
 
-/// Runs git in a directory and returns its stdout.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, GitError> {
     let mut cmd = capture::git(dir.unwrap_or(Path::new(".")));
     cmd.args(args);
     git_output_of(args, run_captured(&mut cmd, DEFAULT_TIMEOUT))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn ls_remote_output(
     dir: Option<&Path>,
     remote: &str,
@@ -861,16 +825,8 @@ fn read_batch(
     Ok(blobs)
 }
 
-/// The one archive member a release may fill in.
 pub const PINS_PATH: &str = "cli/prebuilt/pins.bzl";
 
-/// Builds the source archive of a candidate commit from git blobs.
-///
-/// With `pins`, the archive holds those bytes for [`PINS_PATH`] instead of the commit's blob.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn build_source_archive(
     repo: &Path,
     candidate: &Candidate,
@@ -904,13 +860,6 @@ pub fn build_source_archive(
     Ok(SourceArchive { digest, integrity })
 }
 
-/// Checks that an archive holds exactly the candidate commit's files.
-///
-/// With `pins`, [`PINS_PATH`] must hold those bytes instead of the commit's blob.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn source_archive_error(
     archive: &Path,
     repo: &Path,
@@ -966,7 +915,6 @@ pub fn source_archive_error(
     }
 }
 
-/// Returns the release source archive file name of a candidate.
 #[must_use]
 pub fn release_source_name(candidate: &Candidate) -> String {
     format!("{BCR_WANT_MODULE}-{}.tar.gz", candidate.version())
@@ -987,15 +935,6 @@ fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), CandidateEr
     }
 }
 
-/// Builds, verifies and describes the release source archive in `out_dir`.
-///
-/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar, and `source.json`.
-/// Refuses an `out_dir` that already holds different bytes under those names.
-/// `pins` replaces [`PINS_PATH`] as in [`build_source_archive`].
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_release_source(
     repo: &Path,
     candidate: &Candidate,
@@ -1063,7 +1002,6 @@ fn stage_release_source(
     Ok((built, outputs))
 }
 
-/// Reads the commit's root MODULE.bazel.
 fn commit_module_file(repo: &Path, candidate: &Candidate) -> Result<String, CandidateError> {
     git_read(
         repo,
@@ -1154,20 +1092,10 @@ pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usi
     fields
 }
 
-/// Rewrites the version of the single `rules_dx` `module()` call and keeps the rest.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn candidate_module_file(text: &str, version: &str) -> Result<String, CandidateError> {
     candidate_named_module_file(text, version, BCR_WANT_MODULE)
 }
 
-/// Like [`candidate_module_file`] for the module called `name`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn candidate_named_module_file(
     text: &str,
     version: &str,
@@ -1217,7 +1145,6 @@ pub fn candidate_named_module_file(
     Ok(format!("{head}{version}{tail}"))
 }
 
-/// Returns one absolute path as a `file://` URL with forward slashes.
 #[must_use]
 pub fn file_url(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
@@ -1241,11 +1168,6 @@ fn write_file(path: &Path, bytes: &[u8]) -> Result<(), CandidateError> {
     })
 }
 
-/// Stages a local Bazel registry that serves exactly one candidate archive.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn stage_local_registry(
     dir: &Path,
     candidate: &Candidate,
@@ -1330,11 +1252,6 @@ pub fn stage_local_registry(
     Ok(dir.to_path_buf())
 }
 
-/// Returns the peeled commit of one tag from git ls-remote output.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, CandidateError> {
     let want = format!("refs/tags/{tag}");
     let peeled = format!("{want}^{{}}");
@@ -1371,14 +1288,8 @@ pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, CandidateErr
         })
 }
 
-/// The git for-each-ref format that `local_tag_commit` parses.
 pub const LOCAL_TAG_FORMAT: &str = "--format=%(refname) %(objectname) %(*objectname)";
 
-/// Returns the peeled commit of one local tag from git for-each-ref output.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, CandidateError> {
     let want = format!("refs/tags/{tag}");
     let mut found: Option<String> = None;
@@ -1407,11 +1318,6 @@ pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, Candi
     Ok(found)
 }
 
-/// Combines git status, HEAD and tag output into the local release state.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn git_state_of(
     status: Result<String, GitError>,
     head: Result<String, GitError>,
@@ -1434,11 +1340,6 @@ pub fn git_state_of(
     })
 }
 
-/// Reads the local release state of a repository with git.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn read_git_state(repo: Option<&Path>, tag: &str) -> Result<GitState, CandidateError> {
     let read = |args: &[&str]| git_in(repo, args);
     let reference = format!("refs/tags/{tag}");

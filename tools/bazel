@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+real=${BAZEL_REAL:?tools/bazel runs under Bazelisk, which sets BAZEL_REAL}
+if [ -z "${DX_BAZEL_CHILD:-}" ]; then
+  case $0 in
+  */*) dx=${0%/*}/dx ;;
+  *) dx=./dx ;;
+  esac
+  code=0
+  if [ -x "$dx" ]; then
+    DX_BAZEL_CHILD=1 "$dx" worktree hook bazel -- "$@" >&2 || code=$?
+  else
+    code=127
+  fi
+  case $code in
+  0) ;;
+  77 | 130 | 143) exit "$code" ;;
+  *) echo "tools/bazel: tools/dx worktree hook bazel failed (exit $code); running Bazel without it" >&2 ;;
+  esac
+fi
+exec "$real" "$@"

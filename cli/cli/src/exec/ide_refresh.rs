@@ -1,5 +1,3 @@
-//! Refreshes `.dx/local/ide/` after `dx sync` and `dx upgrade`. Never changes the exit code.
-
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -99,7 +97,6 @@ impl dx_ide::Runner for BazelBuild<'_> {
     }
 }
 
-/// Refreshes `.dx/local/ide/` and returns the warning line when it fails.
 pub(crate) fn refresh(
     workspace: &Path,
     query_runner: &dyn QueryRunner,
@@ -119,12 +116,10 @@ pub(crate) fn refresh(
     }
 }
 
-/// The JSON warning notice for a failed refresh.
 pub(crate) fn warning_event(message: &str) -> Result<serde_json::Value, dx_output::OutputError> {
     notice_event(&NoticeEvent::warning(CODE_IDE_REFRESH_FAILED, message))
 }
 
-/// Refreshes and reports a failure: a notice in JSON mode, one stderr line otherwise.
 pub(crate) fn refresh_and_warn(
     workspace: &Path,
     query_runner: &dyn QueryRunner,

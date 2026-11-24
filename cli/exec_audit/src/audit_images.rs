@@ -1,6 +1,3 @@
-//! The images section of `dx security`: every `oci_deploy` image in scope is
-//! built and scanned with the pinned trivy, one row per image.
-
 use super::audit_accept::VulnCandidate;
 use dx_audit::exception::{RiskException, SecurityPolicy};
 use dx_audit::image_scan::{
@@ -17,7 +14,6 @@ const TRIVY: PinnedTool<'static> = PinnedTool {
     label: dx_families::TRIVY,
 };
 
-/// The private rule `oci_deploy` wraps; its targets carry the image output group.
 const CONFIG_KIND: &str = "_oci_config";
 const IMAGE_GROUP: &str = "--output_groups=dx_oci_image";
 

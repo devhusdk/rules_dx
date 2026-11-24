@@ -136,6 +136,15 @@ pub struct LanguageMarks {
     pub marks: Vec<String>,
 }
 
+/// The files that mark one core file family present, from `core/quality/core_aspects.json`.
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct FamilyMarks {
+    /// The `dx.toml` family id.
+    pub family: String,
+    /// File extensions with their dot, and exact file names.
+    pub marks: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct Setup {
@@ -149,16 +158,49 @@ const LANGUAGES: &str = include_str!("../languages.json");
 #[derive(Deserialize)]
 struct Languages {
     #[serde(default)]
-    core: Core,
+    core: CoreTable,
     languages: Vec<Manifest>,
 }
 
-/// The aspect files of the core families, from `core/quality/core_aspects.json`.
+/// The rows of `core/quality/core_aspects.json`.
 #[derive(Default, Deserialize)]
 #[serde(default)]
+struct CoreTable {
+    quality: Vec<ManifestQuality>,
+    docs: Vec<DocsFiles>,
+}
+
+/// The aspect files and file families of the core.
+#[derive(Default)]
 struct Core {
     quality: Vec<QualityFiles>,
+    families: Vec<FamilyMarks>,
     docs: Vec<DocsFiles>,
+}
+
+impl From<CoreTable> for Core {
+    fn from(table: CoreTable) -> Self {
+        let mut families = Vec::new();
+        let mut quality = Vec::new();
+        for row in table.quality {
+            if let Some(family) = row.family {
+                families.push(FamilyMarks {
+                    family,
+                    marks: [
+                        row.files.file_extensions.clone(),
+                        row.files.file_names.clone(),
+                    ]
+                    .concat(),
+                });
+            }
+            quality.push(row.files);
+        }
+        Self {
+            quality,
+            families,
+            docs: table.docs,
+        }
+    }
 }
 
 fn shipped_table() -> Option<Languages> {
@@ -173,13 +215,23 @@ fn shipped() -> Vec<Manifest> {
 
 fn shipped_core() -> &'static Core {
     static CORE: OnceLock<Core> = OnceLock::new();
-    CORE.get_or_init(|| shipped_table().map(|table| table.core).unwrap_or_default())
+    CORE.get_or_init(|| {
+        shipped_table()
+            .map(|table| Core::from(table.core))
+            .unwrap_or_default()
+    })
 }
 
 /// The quality aspect files of the core families, which run in every workspace, in file order.
 #[must_use]
 pub fn core_quality() -> &'static [QualityFiles] {
     &shipped_core().quality
+}
+
+/// The core file families, like `json` or `shell`, with the files that mark each one, in file order.
+#[must_use]
+pub fn core_families() -> &'static [FamilyMarks] {
+    &shipped_core().families
 }
 
 /// The docs aspect files of the core, which run in every workspace, in file order.

@@ -1,10 +1,3 @@
-//! Offline selection, gating and positioning for JSON Schema validation.
-//!
-//! `check-jsonschema` runs once per (schema, filetype) group. Everything that decides what
-//! it may read lives here: which files a schema covers, which drafts are supported, and
-//! which `$ref` targets have a checked-in copy. Findings are placed on source lines with
-//! the shared pointer index.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
@@ -15,7 +8,6 @@ use url::Url;
 
 use crate::pointer_index::{self, Index, SyntaxAt, escape};
 
-/// The `$schema` spellings dx accepts, without a trailing `#`. A missing `$schema` means 2020-12.
 pub const DRAFTS: [&str; 5] = [
     "http://json-schema.org/draft-04/schema",
     "http://json-schema.org/draft-06/schema",
@@ -24,7 +16,6 @@ pub const DRAFTS: [&str; 5] = [
     "https://json-schema.org/draft/2020-12/schema",
 ];
 
-/// The file formats `check-jsonschema` is told to read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Filetype {
     Json,
@@ -33,7 +24,6 @@ pub enum Filetype {
 }
 
 impl Filetype {
-    /// The value of `--force-filetype`.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -43,7 +33,6 @@ impl Filetype {
         }
     }
 
-    /// The filetype a workspace path is read as, from its extension.
     #[must_use]
     pub fn from_path(path: &str) -> Option<Self> {
         let ext = path.rsplit_once('.')?.1.to_ascii_lowercase();
@@ -80,7 +69,6 @@ struct RawResource {
     url: Option<String>,
 }
 
-/// One schema and the files it validates.
 #[derive(Debug, Clone)]
 pub struct Schema {
     pub path: PathBuf,
@@ -89,14 +77,12 @@ pub struct Schema {
     matcher: GlobSet,
 }
 
-/// One staged schema document, with the URL it stands in for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resource {
     pub path: PathBuf,
     pub url: Option<String>,
 }
 
-/// A parsed `*.schemas.json`; schema paths are joined onto the config's directory.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub schemas: Vec<Schema>,
@@ -122,11 +108,6 @@ fn check_url(url: &str) -> Result<(), String> {
     }
 }
 
-/// Reads the config. Every schema path is relative to the config's own directory.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn parse_config(path: &Path, bytes: &[u8]) -> Result<Config, String> {
     let shown = path.display();
     let raw: RawConfig = serde_json::from_slice(bytes)
@@ -210,7 +191,6 @@ pub fn parse_config(path: &Path, bytes: &[u8]) -> Result<Config, String> {
     Ok(Config { schemas, resources })
 }
 
-/// One file the lint run offers: workspace path with `/` separators, filetype and bytes.
 #[derive(Debug, Clone, Copy)]
 pub struct Candidate<'a> {
     pub path: &'a str,
@@ -218,7 +198,6 @@ pub struct Candidate<'a> {
     pub bytes: &'a [u8],
 }
 
-/// The files one `check-jsonschema` run validates against one schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Group {
     pub schema: usize,
@@ -235,7 +214,6 @@ fn unquote(text: &str) -> &str {
     text.trim().trim_matches(|c| c == '"' || c == '\'')
 }
 
-/// The `$schema` URL a file declares itself: a top-level key or an editor comment.
 pub fn declared_schema(bytes: &[u8], filetype: Filetype) -> Option<String> {
     let text = std::str::from_utf8(bytes).ok()?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
@@ -292,9 +270,6 @@ pub fn declared_schema(bytes: &[u8], filetype: Filetype) -> Option<String> {
     }
 }
 
-/// Groups files by (schema, filetype). A file is picked by a glob, or by declaring a
-/// `$schema` URL equal to a declared `url`. Undeclared or relative `$schema` values are
-/// ignored. Each (file, schema) pair is validated once.
 #[must_use]
 pub fn select(config: &Config, candidates: &[Candidate<'_>]) -> Vec<Group> {
     let mut groups: BTreeMap<(usize, Filetype), BTreeSet<String>> = BTreeMap::new();
@@ -324,11 +299,6 @@ pub fn select(config: &Config, candidates: &[Candidate<'_>]) -> Vec<Group> {
         .collect()
 }
 
-/// Fails unless the schema's `$schema` is a supported draft. A missing `$schema` is 2020-12.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn draft_gate(path: &str, schema: &Value) -> Result<(), String> {
     let Some(object) = schema.as_object() else {
         return Ok(());
@@ -354,14 +324,12 @@ pub fn draft_gate(path: &str, schema: &Value) -> Result<(), String> {
     }
 }
 
-/// Every http(s) URI a schema closure may reference, mapped to its checked-in copy.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RefMap {
     pub map: BTreeMap<String, PathBuf>,
 }
 
 impl RefMap {
-    /// The JSON object the `--dx-ref-map` wrapper reads.
     #[must_use]
     pub fn to_json(&self) -> String {
         let map: BTreeMap<&str, String> = self
@@ -439,14 +407,6 @@ impl Walk {
     }
 }
 
-/// Gates every resource's draft and maps every pinned URI to its staged copy.
-///
-/// Any http(s) `$ref`, `$dynamicRef` or `$recursiveRef` target, resolved against the nearest
-/// `$id`, that has no checked-in copy fails here, before the tool could download it.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn prepare(
     config: &Config,
     read: &dyn Fn(&Path) -> std::io::Result<Vec<u8>>,
@@ -526,9 +486,6 @@ pub fn prepare(
     Ok(RefMap { map })
 }
 
-/// A JSON path in the grammar `jsonschema` prints, as a JSON pointer.
-///
-/// Accepts `$`, `.name` for `[a-zA-Z][a-zA-Z0-9_]*`, `[N]` and `['esc\'aped']`.
 #[must_use]
 pub fn pointer_of(json_path: &str) -> Option<String> {
     let mut rest = json_path.strip_prefix('$')?;
@@ -588,9 +545,6 @@ fn strip_bom(bytes: &[u8]) -> Result<&str, SyntaxAt> {
     Ok(text.strip_prefix('\u{feff}').unwrap_or(text))
 }
 
-/// The syntax problem a file has as `filetype`, with its position, or `None` when it parses.
-///
-/// Multi-document YAML is reported as a dx message: `check-jsonschema` reads one document.
 #[must_use]
 pub fn syntax_problem(bytes: &[u8], filetype: Filetype) -> Option<(u64, u64, String)> {
     let text = match strip_bom(bytes) {
@@ -619,11 +573,6 @@ pub fn syntax_problem(bytes: &[u8], filetype: Filetype) -> Option<(u64, u64, Str
     }
 }
 
-/// The pointer index of a file read as `filetype`.
-///
-/// # Errors
-///
-/// Returns the position of the first syntax error.
 pub fn index_for(bytes: &[u8], filetype: Filetype) -> Result<Index, SyntaxAt> {
     let text = strip_bom(bytes)?;
     match filetype {
@@ -636,9 +585,6 @@ pub fn index_for(bytes: &[u8], filetype: Filetype) -> Result<Index, SyntaxAt> {
     }
 }
 
-/// The one-based line and char-based column of a `jsonschema` JSON path in a file.
-///
-/// A path that cannot be read, or a file that does not parse, lands on line 1.
 #[must_use]
 pub fn locate(bytes: &[u8], filetype: Filetype, json_path: &str) -> (u64, u64) {
     let Some(pointer) = pointer_of(json_path) else {

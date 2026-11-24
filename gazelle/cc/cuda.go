@@ -11,9 +11,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
-// generateCuda emits the single Gazelle-owned cuda_library, <dir>_cuda, for
-// .cu and .cuh files that no hand-written cuda_* rule lists. Hand-written
-// targets are never matched, merged or deleted.
 func generateCuda(args language.GenerateArgs, rep common.Reporter) language.GenerateResult {
 	base, err := common.PackageTargetName(args)
 	if err != nil {

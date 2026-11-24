@@ -1,6 +1,3 @@
-//! Native process probes: liveness, the process table and command lines.
-
-/// Whether `pid` names a running process.
 #[must_use]
 pub fn pid_alive(pid: u32) -> bool {
     let Ok(pid) = i32::try_from(pid) else {
@@ -12,13 +9,11 @@ pub fn pid_alive(pid: u32) -> bool {
     )
 }
 
-/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn start_time(pid: u32) -> Option<String> {
     dx_os_sys::process::start_time(pid)
 }
 
-/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub fn start_time(pid: u32) -> Option<String> {
     let output = start_time_command(pid).output().ok()?;
@@ -30,7 +25,6 @@ pub fn start_time(pid: u32) -> Option<String> {
     (!text.is_empty()).then_some(text)
 }
 
-/// The `ps` call behind `start_time`; the C locale keeps its text the same for every caller.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 pub(crate) fn start_time_command(pid: u32) -> std::process::Command {
     let mut command = std::process::Command::new("ps");
@@ -43,7 +37,6 @@ pub(crate) fn start_time_command(pid: u32) -> std::process::Command {
     command
 }
 
-/// The id of the current boot, or `None` when the OS does not give one.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn boot_id() -> Option<String> {
@@ -53,13 +46,11 @@ pub fn boot_id() -> Option<String> {
         .filter(|text| !text.is_empty())
 }
 
-/// The id of the current boot, or `None` when the OS does not give one.
 #[cfg(not(target_os = "linux"))]
 pub fn boot_id() -> Option<String> {
     None
 }
 
-/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn zombie(pid: u32) -> bool {
@@ -69,21 +60,18 @@ pub fn zombie(pid: u32) -> bool {
     })
 }
 
-/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn zombie(pid: u32) -> bool {
     dx_os_sys::macos::zombie(pid)
 }
 
-/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 #[must_use]
 pub fn zombie(_pid: u32) -> bool {
     false
 }
 
-/// Every readable process as `(pid, arguments joined by NUL)`.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn command_line_table() -> Vec<(u32, String)> {
@@ -100,7 +88,6 @@ pub fn command_line_table() -> Vec<(u32, String)> {
         .collect()
 }
 
-/// Every readable process as `(pid, arguments joined by NUL)`.
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn command_line_table() -> Vec<(u32, String)> {
@@ -113,14 +100,12 @@ pub fn command_line_table() -> Vec<(u32, String)> {
         .collect()
 }
 
-/// Every readable process as `(pid, arguments joined by NUL)`.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 #[must_use]
 pub fn command_line_table() -> Vec<(u32, String)> {
     Vec::new()
 }
 
-/// Parses a `KERN_PROCARGS2` buffer: `argc`, the executable path, NUL padding, then `argc` arguments.
 #[must_use]
 pub fn parse_procargs(buffer: &[u8]) -> Option<String> {
     let (argc, rest) = buffer.split_first_chunk::<4>()?;

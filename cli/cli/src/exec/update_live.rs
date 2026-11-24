@@ -13,9 +13,7 @@ pub(super) struct ScriptRunner {
     pub(super) pinned: bool,
     pub(super) version: Option<String>,
     pub(super) launches: RefCell<Vec<Launch>>,
-    /// Files the next launch writes, as a backend that changes the tree would.
     pub(super) writes: RefCell<Vec<(std::path::PathBuf, Vec<u8>)>>,
-    /// Files the next launch writes into its `--output-folder`, as a staged generator would.
     pub(super) staged_outputs: RefCell<Vec<(String, Vec<u8>)>>,
 }
 
@@ -27,7 +25,6 @@ pub(super) struct Launch {
     pub(super) hermetic: bool,
 }
 
-/// `@<maven hub>//:pin`, the label `dx update` runs to pin the root maven lock.
 fn maven_pin() -> String {
     let hub = dx_families::hub("maven").expect("setup.hubs entry maven");
     format!("@{}//:pin", hub.hub)

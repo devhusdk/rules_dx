@@ -45,10 +45,7 @@ def _classpath_line(jar):
     return json.encode({"jar": jar.path, "label": str(jar.owner)})
 
 def unused_deps_map(target, ctx, attrs, known, known_infos = []):
-    """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath.
-
-    The known jars are the depsets in `known` plus the compile classpath of each JavaInfo in `known_infos`.
-    """
+    """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath."""
     known = known + [info.transitive_compile_time_jars for info in known_infos]
     name = target.label.name.removesuffix("_upstream")
     header = {"package": target.label.package, "target": name, "label": str(target.label)}

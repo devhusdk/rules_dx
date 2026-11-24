@@ -701,12 +701,14 @@ def qt_rules_tests(name):
     )
     _crt_static_test(
         name = name + "_rust_dynamic_crt",
+        size = "small",
         crt_static = False,
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_crate",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
     _crt_static_test(
         name = name + "_rust_static_crt",
+        size = "small",
         crt_static = True,
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_rust",
         target_compatible_with = QT_COMPATIBLE_WITH,
@@ -718,6 +720,7 @@ def qt_rules_tests(name):
     )
     _bridge_generator_test(
         name = name + "_bridge_generator",
+        size = "small",
         target_under_test = "//qt/tests/fixtures/other:custom_generator_bridge",
     )
     failures = {

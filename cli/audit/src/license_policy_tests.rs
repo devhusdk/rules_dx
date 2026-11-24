@@ -1,7 +1,6 @@
 use super::*;
 use crate::license_expr::{IdClass, LicenseExpr, TierOutcome, evaluate};
 
-/// Loads `body` as a standard-tier license.toml whose line 1 is `schema_version = 1`.
 fn load(body: &str) -> Result<LicensePolicy, PolicyProblem> {
     load_licenses(
         Some(&format!("schema_version = 1\n{body}")),

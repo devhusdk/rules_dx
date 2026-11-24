@@ -1,6 +1,4 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
-//! Stands in for `bazel`, `uv` and `python` in `dx generate` tests; the name it
-//! runs as picks the behaviour.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -13,7 +11,6 @@ fn write(path: &str, text: &str) -> Result<(), String> {
     std::fs::write(path, text).map_err(|error| format!("write {path}: {error}"))
 }
 
-/// Runs the gazelle binary named by `DX_FAKE_GAZELLE` for a `dx:generate` or `dx:generate_check` argument and returns its exit code; none when it does not apply.
 fn gazelle(args: &[String]) -> Result<Option<i32>, String> {
     let Some(bin) = std::env::var("DX_FAKE_GAZELLE")
         .ok()

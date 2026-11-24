@@ -35,13 +35,13 @@ fn repo(name: &str) -> Repo {
     Repo { path, a, b, c, x }
 }
 
-fn run(repo: &Repo, event: &str, before: &str, group: &str) -> (Output, String) {
-    let env = repo.path.join("github_env");
+fn run(repo: &Path, event: &str, before: &str, group: &str) -> (Output, String) {
+    let env = repo.join("github_env");
     std::fs::write(&env, "").expect("env file");
     let binary =
         dx_testing::runfiles_root().join(std::env::var("DX_GATE_BASE").expect("DX_GATE_BASE"));
     let done = Command::new(binary)
-        .current_dir(&repo.path)
+        .current_dir(repo)
         .env("GITHUB_ENV", &env)
         .env("EVENT_NAME", event)
         .env("PUSH_BEFORE", before)
@@ -70,7 +70,7 @@ fn pull_request_uses_the_first_parent() {
         &["merge", "-q", "--no-ff", "-m", "m", "other"],
     )
     .unwrap();
-    let (done, base) = run(&r, "pull_request", "", "");
+    let (done, base) = run(&r.path, "pull_request", "", "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.c);
     assert_eq!(
@@ -82,7 +82,7 @@ fn pull_request_uses_the_first_parent() {
 #[test]
 fn push_uses_before() {
     let r = repo("gate-base-push");
-    let (done, base) = run(&r, "push", &r.a, "");
+    let (done, base) = run(&r.path, "push", &r.a, "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.a);
 }
@@ -90,7 +90,7 @@ fn push_uses_before() {
 #[test]
 fn push_with_zero_before_uses_the_first_parent() {
     let r = repo("gate-base-zero");
-    let (done, base) = run(&r, "push", ZEROS, "");
+    let (done, base) = run(&r.path, "push", ZEROS, "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.b);
 }
@@ -98,7 +98,7 @@ fn push_with_zero_before_uses_the_first_parent() {
 #[test]
 fn force_push_resolves_through_the_merge_base() {
     let r = repo("gate-base-force");
-    let (done, base) = run(&r, "push", &r.x, "");
+    let (done, base) = run(&r.path, "push", &r.x, "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.a);
 }
@@ -106,7 +106,30 @@ fn force_push_resolves_through_the_merge_base() {
 #[test]
 fn merge_group_uses_base_sha() {
     let r = repo("gate-base-group");
-    let (done, base) = run(&r, "merge_group", "", &r.a);
+    let (done, base) = run(&r.path, "merge_group", "", &r.a);
+    assert!(done.status.success(), "{}", stderr(&done));
+    assert_eq!(base, r.a);
+}
+
+#[test]
+fn merge_group_deepens_a_shallow_clone_until_it_holds_base_sha() {
+    let r = repo("gate-base-shallow");
+    for name in ["d", "e", "f"] {
+        commit(&r.path, name);
+    }
+    let head = dx_test_scratch::git(&r.path, &r.path, &["rev-parse", "HEAD"]).unwrap();
+    let clone = r.path.with_file_name("clone");
+    std::fs::create_dir_all(&clone).expect("clone directory");
+    let source = r.path.to_string_lossy().into_owned();
+    for args in [
+        &["init", "-q"][..],
+        &["remote", "add", "origin", &source],
+        &["fetch", "-q", "--depth=2", "--no-tags", "origin", &head],
+        &["checkout", "-q", "FETCH_HEAD"],
+    ] {
+        dx_test_scratch::git(&clone, &clone, args).unwrap();
+    }
+    let (done, base) = run(&clone, "merge_group", "", &r.a);
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.a);
 }
@@ -114,7 +137,7 @@ fn merge_group_uses_base_sha() {
 #[test]
 fn base_equal_to_head_fails() {
     let r = repo("gate-base-head");
-    let (done, _) = run(&r, "push", &r.c, "");
+    let (done, _) = run(&r.path, "push", &r.c, "");
     assert!(!done.status.success());
     assert!(stderr(&done).contains("equals HEAD"), "{}", stderr(&done));
 }
@@ -122,7 +145,7 @@ fn base_equal_to_head_fails() {
 #[test]
 fn missing_merge_group_value_fails() {
     let r = repo("gate-base-missing");
-    let (done, _) = run(&r, "merge_group", "", "");
+    let (done, _) = run(&r.path, "merge_group", "", "");
     assert!(!done.status.success());
     assert!(stderr(&done).contains("base_sha"), "{}", stderr(&done));
 }

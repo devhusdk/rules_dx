@@ -1,5 +1,3 @@
-//! Lists `PyPI` dependencies whose latest release is outside the declared specifier.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
@@ -11,7 +9,6 @@ use toml_edit::{DocumentMut, Item};
 
 pub const DEFAULT_BASE: &str = "https://pypi.org/pypi";
 
-/// Checks each registry requirement of the manifest files against `PyPI` at `base`.
 pub fn outdated(
     set: &str,
     manifests: &[String],
@@ -91,7 +88,6 @@ pub fn outdated(
     found
 }
 
-/// The newest stable release of `name` on `PyPI` at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{name}/json"))?;
     newest(&body, false).map(|(version, _)| version.to_string())
@@ -139,7 +135,6 @@ fn repo(body: &str) -> Option<String> {
         .find_map(super::github_repo)
 }
 
-/// The release versions whose every file is yanked (PEP 592).
 pub fn yanked_releases(body: &str) -> Result<Vec<String>, DxError> {
     let doc: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;

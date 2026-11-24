@@ -111,8 +111,6 @@ func providerRelOf(rel, depPath string) string {
 	return providerRel
 }
 
-// resolveRenamedProviders records, for each renamed local path dep, the extern
-// crate name of the crate it points at. Only the consumer's maps are written.
 func (l *rustLang) resolveRenamedProviders(args language.GenerateArgs, m *cargoManifest) {
 	for _, depMap := range []map[string]cargoDependency{m.normalDeps, m.devDeps, m.buildDeps} {
 		for key, dep := range depMap {
@@ -322,8 +320,6 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) lan
 	return l.finish(args, result)
 }
 
-// loadCratesHub points the aliases and all_crate_deps calls at hub. Gazelle
-// then treats both symbols as loaded and adds no @crates load for them.
 func loadCratesHub(f *rule.File, hub string, crateDeps bool) {
 	name := "@" + hub + "//:crates.bzl"
 	var load *rule.Load
@@ -442,7 +438,6 @@ func claimSources(owners map[string]sourceOwner, owner string, shared bool, tree
 	return nil
 }
 
-// generatedClaims turns the generated rules of package rel into claimants for common.CheckClaims.
 func generatedClaims(c *config.Config, rel string, gen []*rule.Rule) []common.Claimant {
 	claimants := make([]common.Claimant, 0, len(gen))
 	for _, r := range gen {
@@ -458,8 +453,7 @@ func generatedClaims(c *config.Config, rel string, gen []*rule.Rule) []common.Cl
 type crateDepsCall struct {
 	call     cargoCallExpr
 	external bool
-	// unused marks a target that imports none of the external crates.
-	unused bool
+	unused   bool
 }
 
 func (c crateDepsCall) BzlExpr() bzl.Expr {
@@ -492,8 +486,6 @@ func (c crateDepsCall) Merge(other bzl.Expr) bzl.Expr {
 	return base
 }
 
-// multiLineList reports whether the label list of a handwritten deps
-// expression is written one label per line, so a rewrite keeps that form.
 func multiLineList(e bzl.Expr) bool {
 	switch e := e.(type) {
 	case *bzl.ListExpr:
@@ -504,7 +496,6 @@ func multiLineList(e bzl.Expr) bool {
 	return false
 }
 
-// aliasesUnionExpr renders base | {label: name} for the aliases attribute.
 type aliasesUnionExpr struct {
 	base  bzl.Expr
 	extra map[string]string
@@ -529,14 +520,11 @@ func (c aliasesUnionExpr) BzlExpr() bzl.Expr {
 func (c aliasesUnionExpr) Merge(bzl.Expr) bzl.Expr { return c.BzlExpr() }
 
 type depsConcatExpr struct {
-	base    bzl.Expr
-	extra   []string
-	android []string
-	// platform maps a platform constraint to deps gated behind it.
-	platform map[string][]string
-	// selects are handwritten select() terms kept verbatim after the rest.
-	selects []bzl.Expr
-	// multiLine keeps a handwritten label list on one line per label.
+	base      bzl.Expr
+	extra     []string
+	android   []string
+	platform  map[string][]string
+	selects   []bzl.Expr
 	multiLine bool
 }
 
@@ -551,7 +539,6 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 			gates[k] = v
 		}
 	}
-	// Keys may be comma-joined constraint sets sharing one dep list.
 	if len(c.extra) > 0 || (out == nil && len(gates) == 0 && len(c.selects) == 0) {
 		extra := make([]bzl.Expr, len(c.extra))
 		for i, dep := range c.extra {
@@ -614,9 +601,6 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	return depsConcatExpr{base: base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform, selects: handSelects(other, managed), multiLine: multiLineList(other)}.BzlExpr()
 }
 
-// handSelects returns the select() terms of a handwritten deps expression
-// that name no managed label. The source scan cannot see every cfg-gated
-// dependency, so a select the generator does not own stays.
 func handSelects(other bzl.Expr, managed map[string]bool) []bzl.Expr {
 	var out []bzl.Expr
 	var walk func(e bzl.Expr)
@@ -658,8 +642,6 @@ func selectNamesManaged(sel *bzl.CallExpr, managed map[string]bool) bool {
 	return false
 }
 
-// handCrateDepsCall returns the all_crate_deps(...) call a handwritten deps
-// expression adds to its labels, so merging does not drop it.
 func handCrateDepsCall(e bzl.Expr) bzl.Expr {
 	switch e := e.(type) {
 	case *bzl.CallExpr:
@@ -776,13 +758,8 @@ func hasUnitTests(tree map[string]*FileFacts) bool {
 	return false
 }
 
-// unitTestOfAttr is the private attribute naming the crate target a generated
-// unit test belongs to, whichever shape the test has.
 const unitTestOfAttr = "dx_unit_test_of"
 
-// excludesTestOnly reports whether a Cargo target's production rule leaves
-// out TestOnly files. Proc-macro, cdylib, staticlib and example targets keep
-// their test modules in srcs and a crate= unit test.
 func excludesTestOnly(target cargoTarget) bool {
 	switch target.kind {
 	case libraryKind:
@@ -802,8 +779,6 @@ func hasTestOnly(tree map[string]*FileFacts) bool {
 	return false
 }
 
-// crateRule builds a crate rule over tree. With excludeTestOnly, files that
-// rustc reads only under cfg(test) are left out of srcs.
 func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, pkg string, excludeTestOnly bool) *rule.Rule {
 	r := rule.NewRule(kind, name)
 	srcs := make([]string, 0, len(tree))
@@ -823,9 +798,6 @@ func crateRule(kind, name, crateName, root string, tree map[string]*FileFacts, p
 	return r
 }
 
-// unitTestRule builds the unit test of the crate target of. A self-contained
-// test compiles every file of tree itself (the crate target left the TestOnly
-// files out); otherwise the test wraps the crate target through crate=.
 func unitTestRule(name, of, crateName, root string, tree map[string]*FileFacts, pkg string, selfContained bool) *rule.Rule {
 	var t *rule.Rule
 	if selfContained {
@@ -921,8 +893,6 @@ func importsForEdition(tree map[string]*FileFacts, edition, crateRoot string) ta
 	return result
 }
 
-// fileNames returns the names a file binds itself in any scope: modules,
-// enums, use aliases, extern crate aliases and the last segment of each use.
 func fileNames(facts *FileFacts) map[string]bool {
 	names := make(map[string]bool)
 	for _, module := range facts.Modules {
@@ -943,8 +913,6 @@ func fileNames(facts *FileFacts) map[string]bool {
 	return names
 }
 
-// pathRefCandidate reports whether root, the first segment of a qualified
-// path, may name an external crate.
 func pathRefCandidate(root string, names map[string]bool) bool {
 	if builtinRoot(root) || names[root] || primitiveTypes[root] {
 		return false
@@ -1006,10 +974,6 @@ func mergeStale(file *rule.File, rel string, files []string, result language.Gen
 	return result
 }
 
-// staleRules lists the owned rules generation no longer produces. A rule
-// for which keep reports true names a present source no generated rule
-// claims, so it is handwritten and stays. A crate= rule with no srcs stays
-// with the handwritten crate it wraps.
 func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) bool) language.GenerateResult {
 	var result language.GenerateResult
 	if file == nil {
@@ -1019,8 +983,6 @@ func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) 
 	for _, existing := range file.Rules {
 		byName[existing.Name()] = existing
 	}
-	// stays reports whether existing survives generation without being a
-	// generated rule itself, so it is handwritten.
 	var stays func(existing *rule.Rule, seen map[string]bool) bool
 	stays = func(existing *rule.Rule, seen map[string]bool) bool {
 		if _, owned := rustKinds[existing.Kind()]; !owned {
@@ -1056,8 +1018,6 @@ func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) 
 	return result
 }
 
-// siblingLib returns the library a bin, bench or test of the package links,
-// preferring a plain rlib over a proc-macro or cdylib.
 func siblingLib(manifest *cargoManifest) *cargoTarget {
 	for i, target := range manifest.targets {
 		if target.kind == libraryKind && target.flavor == "" {
@@ -1072,7 +1032,6 @@ func siblingLib(manifest *cargoManifest) *cargoTarget {
 	return nil
 }
 
-// existingDeps returns the deps of the BUILD file rule that builds root.
 func existingDeps(file *rule.File, kind, root string) bzl.Expr {
 	if file == nil {
 		return nil
@@ -1085,9 +1044,6 @@ func existingDeps(file *rule.File, kind, root string) bzl.Expr {
 	return nil
 }
 
-// dropListedCrates removes from used the external crates that deps already
-// names by label, such as @crates//:serde_json. Such a rule picks its crates
-// one by one, so all_crate_deps would only add unused ones.
 func dropListedCrates(used map[string]bool, deps bzl.Expr, manifest *cargoManifest) {
 	listed := make(map[string]bool)
 	for _, dep := range unmanagedDepsLabels(deps, nil) {
@@ -1106,8 +1062,6 @@ func dropListedCrates(used map[string]bool, deps bzl.Expr, manifest *cargoManife
 	}
 }
 
-// importedCrates returns the crate roots a target's sources name. A test
-// target also compiles its cfg(test) code.
 func importedCrates(imports targetImports, test bool) map[string]bool {
 	used := make(map[string]bool)
 	names := [][]string{imports.production, imports.pathRefs}
@@ -1122,8 +1076,6 @@ func importedCrates(imports targetImports, test bool) map[string]bool {
 	return used
 }
 
-// hasHandwrittenAttr reports whether r sets attributes the generator never
-// writes, so the rule is handwritten and must not be removed as stale.
 func hasHandwrittenAttr(r *rule.Rule) bool {
 	for _, attr := range []string{"env", "rustc_env", "data", "compile_data", "rustc_flags", "args"} {
 		if r.Attr(attr) != nil {

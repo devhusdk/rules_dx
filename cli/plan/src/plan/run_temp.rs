@@ -12,8 +12,6 @@ pub fn results_path(workspace: &Path) -> PathBuf {
     dx_path::state::local_dir(workspace).join(dx_path::state::RESULTS)
 }
 
-/// Identifies one run: `{pid}-{nonce}-{suffix}`, the suffix being the random part of the
-/// `dx-run-{pid}-XXXXXX` temp dir name (omitted when the dir has another name).
 #[must_use]
 pub fn run_id(pid: u32, nonce: u64, temp_dir: &Path) -> String {
     let suffix = temp_dir
@@ -48,7 +46,6 @@ pub fn run_nonce() -> u64 {
 
 const OWNER_LOCK: &str = "owner.lock";
 
-/// A run temp dir whose owner holds an exclusive lock on `owner.lock` until it closes.
 pub struct RunTempDir {
     dir: tempfile::TempDir,
     owner: Option<std::fs::File>,
@@ -60,11 +57,6 @@ impl RunTempDir {
         self.dir.path()
     }
 
-    /// Releases the owner lock and removes the directory, tolerating a sweeper that won the race.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn close(self) -> std::io::Result<()> {
         drop(self.owner);
         match self.dir.close() {
@@ -74,9 +66,6 @@ impl RunTempDir {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn create_run_temp_dir(base: &Path, pid: u32) -> std::io::Result<(RunTempDir, u64)> {
     let dir = tempfile::Builder::new()
         .prefix(&format!("dx-run-{pid}-"))
@@ -97,7 +86,6 @@ fn run_dir_pid(name: &str) -> Option<u32> {
     pid.parse().ok()
 }
 
-/// Removes run dirs whose dx owner is gone.
 pub fn remove_stale_run_dirs(base: &Path) {
     let Ok(entries) = std::fs::read_dir(base) else {
         return;
@@ -117,12 +105,10 @@ pub fn remove_stale_run_dirs(base: &Path) {
 
 static STOP_CLEANUP: Mutex<Option<PathBuf>> = Mutex::new(None);
 
-/// Registers a directory to remove when a stop signal ends dx.
 pub fn remove_on_stop(path: &Path) {
     *STOP_CLEANUP.lock().unwrap_or_else(PoisonError::into_inner) = Some(path.to_path_buf());
 }
 
-/// Removes the registered directory and returns the held lock.
 pub fn clean_for_stop() -> MutexGuard<'static, Option<PathBuf>> {
     let mut slot = STOP_CLEANUP.lock().unwrap_or_else(PoisonError::into_inner);
     if let Some(path) = slot.take() {

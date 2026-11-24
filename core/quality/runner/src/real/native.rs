@@ -40,7 +40,6 @@ fn need_config<'a>(call: &CheckCall<'a>) -> Result<&'a Path, RunnerError> {
     })
 }
 
-/// Runs one process per file, parsing each file's output on its own.
 fn per_file(
     backend: &RealBackend,
     call: &CheckCall<'_>,
@@ -56,12 +55,10 @@ fn per_file(
     Ok(merged)
 }
 
-/// `zig ast-check`, plus the banned-pattern guard when the family passes `strict`.
 fn zig_ast_check(
     backend: &RealBackend,
     call: &CheckCall<'_>,
 ) -> Result<Vec<FileFinding>, RunnerError> {
-    // One process per file: `zig ast-check` rejects a second positional file.
     let mut findings = per_file(
         backend,
         call,
@@ -80,7 +77,6 @@ fn zig_ast_check(
     for (name, path) in names.iter().zip(refs) {
         let bytes = std::fs::read(path)
             .map_err(|err| execution(call.tool_id, format!("read {name}: {err}")))?;
-        // Zig rejects source that is not UTF-8, and ast-check above already reported it.
         if let Ok(source) = std::str::from_utf8(&bytes) {
             findings.extend(zig_guard::zig_guard(name, source));
         }
@@ -146,7 +142,6 @@ fn qmlformat(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFind
     Ok(findings)
 }
 
-/// Windows qmlformat writes CRLF to a pipe; the sources are LF.
 fn lf_only(bytes: &[u8]) -> Vec<u8> {
     let mut kept = Vec::with_capacity(bytes.len());
     for (index, byte) in bytes.iter().enumerate() {
@@ -199,7 +194,6 @@ fn dart(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>,
             parsers::parse_dart_format(&out.stdout, &out.stderr, out.code, &strs),
         );
     }
-    // The analyzer prints canonical paths, so check and report the canonical ones.
     let root = std::fs::canonicalize(call.staged.scratch.root())
         .map(|real| dx_path::without_verbatim(&real))
         .map_err(|err| execution(tool_id, format!("canonicalize scratch root: {err}")))?;
@@ -252,7 +246,6 @@ fn dart(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>,
     Ok(owned)
 }
 
-/// Tools for C, C++, Go, Qt, Fortran, D, Typst, Swift, Dart, Julia, Zig, LaTeX, `CMake` and Make.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "buildifier",
@@ -336,7 +329,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "ffmt",
         run: |backend, call| {
-            // Fixed-form `.f` and `.F` and the `.f08` family never reach ffmt.
             let (refs, _) = paths(call);
             let accepted: Vec<&Path> = refs
                 .iter()
@@ -359,7 +351,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "fortitude",
         run: |backend, call| {
-            // fortitude parses free-form source only.
             let (refs, _) = paths(call);
             let free_form: Vec<&Path> = refs
                 .iter()
@@ -396,7 +387,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "tinymist",
         run: |backend, call| {
-            // One process per file: each run compiles one entry file.
             let (refs, names) = paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
             let mut findings = Vec::new();
@@ -418,7 +408,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "swift_format",
         run: |backend, call| {
-            // One process per file: the check prints the formatted text of one file.
             let config = backend.config_abs(call.tool_id, call.tool, &call.staged.scratch)?;
             let mut findings = Vec::new();
             for (workspace, absolute) in &call.staged.pairs {
@@ -496,7 +485,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "chktex",
         run: |backend, call| {
-            // One process per file: chktex checks a single document and never follows `\input`.
             per_file(
                 backend,
                 call,
@@ -513,7 +501,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "latexindent",
         run: |backend, call| {
-            // One process per file.
             let cruft = RealBackend::latexindent_cruft(call.tool_id, &call.staged.scratch)?;
             per_file(
                 backend,
@@ -572,7 +559,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
 ];
 
-/// Buildifier reports an unexpected end of file one line past the last one.
 fn clamp_to_text(found: &mut FileFinding) {
     let Ok(text) = std::fs::read_to_string(&found.file) else {
         return;

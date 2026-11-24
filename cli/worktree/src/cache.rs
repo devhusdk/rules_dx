@@ -1,21 +1,12 @@
-//! Rebuildable caches that tools keep inside a slot's `.dx` directory.
-//!
-//! A directory marked with a standard `CACHEDIR.TAG` (<https://bford.info/cachedir/>) is a cache that its
-//! owner recreates on demand, so `prune` may delete it from a free slot.
-
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use dx_path::state;
 
-/// The file that marks a directory as a cache.
 const TAG_NAME: &str = "CACHEDIR.TAG";
 
-/// The first bytes of a valid tag.
 const TAG_SIGNATURE: &[u8] = b"Signature: 8a477f597d28d172789f06886806bc55";
 
-/// The tagged cache directories directly under `<slot>/.dx` and `<slot>/.dx/local`, never
-/// following a symlink. The managed state under `.dx/local` is never a cache.
 pub(crate) fn slot_caches(slot: &Path) -> Vec<PathBuf> {
     let mut found = tagged_children(&state::dx_dir(slot), &["local"]);
     found.extend(tagged_children(

@@ -1,13 +1,9 @@
-//! Lists packages of an opam.locked file whose newest version in the pinned opam-repository
-//! snapshot is newer than the locked one. It reads the snapshot's `packages/<name>/` directories.
-
 use dx_error::DxError;
 
 use super::{Findings, Latest, compare_declared};
 use std::cmp::Ordering;
 use std::path::Path;
 
-/// Checks each pinned package of the lock files against the snapshot checkout at `snapshot`.
 pub fn outdated(
     set: &str,
     locks: &[String],
@@ -27,7 +23,6 @@ pub fn outdated(
     })
 }
 
-/// Reads the `depends` entries that pin a version with `= "x"`.
 fn locked(text: &str) -> Vec<(String, String)> {
     let Some(start) = text.find("depends:") else {
         return Vec::new();
@@ -122,7 +117,6 @@ fn is_prerelease(version: &str) -> bool {
     version.contains('~') || version.contains("dev")
 }
 
-/// Orders opam versions like Debian: alternating non-digit and digit runs, `~` before all.
 fn version_cmp(a: &str, b: &str) -> Ordering {
     let (mut a, mut b) = (a, b);
     loop {

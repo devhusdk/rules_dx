@@ -1,5 +1,3 @@
-//! `bazel run //tools/api:update` rewrites the API snapshot under `api/` and the page generated from it.
-
 mod page;
 mod snapshot;
 
@@ -52,7 +50,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         snapshot_file("schemas.txt")?,
     )?;
     let schemas = dir.join("schemas.txt");
-    // A missing file is the first run; any other read error is real.
     let checked_in = match std::fs::read_to_string(&schemas) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),

@@ -98,11 +98,13 @@ apple_ios_app_test(
 
 apple_coverage_link_test(
     name = "ledger_app_coverage_link_test",
+    size = "small",
     target_under_test = ":ledger_app_bundle",
 )
 
 apple_coverage_link_test(
     name = "ledger_app_test_coverage_link_test",
+    size = "small",
     target_under_test = ":ledger_app_test.__internal__.__test_bundle",
 )
 

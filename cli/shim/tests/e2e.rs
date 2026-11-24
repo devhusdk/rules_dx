@@ -4,7 +4,6 @@
 )]
 mod support;
 
-// Only the Unix stub_bazel fixture calls dx_testing.
 #[cfg(windows)]
 use dx_testing as _;
 
@@ -22,12 +21,12 @@ fn fake_dx() -> Vec<u8> {
     std::fs::read(std::env::var("DX_FAKE_BIN").expect("DX_FAKE_BIN")).expect("fake dx")
 }
 
-fn shim_bin() -> PathBuf {
+fn launcher_bin() -> PathBuf {
     let raw = std::env::var("DX_SHIM_BIN")
         .ok()
         .or_else(|| option_env!("CARGO_BIN_EXE_dx").map(str::to_owned))
         .expect("DX_SHIM_BIN");
-    std::fs::canonicalize(raw).expect("shim binary")
+    std::fs::canonicalize(raw).expect("launcher binary")
 }
 
 fn module(version: &str) -> String {
@@ -62,7 +61,7 @@ impl Fixture {
     }
 
     fn command(&self, cwd: &Path, args: &[&str]) -> Command {
-        let mut command = Command::new(shim_bin());
+        let mut command = Command::new(launcher_bin());
         command
             .args(args)
             .current_dir(cwd)
@@ -80,7 +79,7 @@ impl Fixture {
     fn run(&self, args: &[&str]) -> Output {
         self.command(self.workspace.path(), args)
             .output()
-            .expect("run shim")
+            .expect("run launcher")
     }
 }
 
@@ -160,7 +159,7 @@ fn signal_exit_passes_through() {
     let shell = Command::new("/bin/sh")
         .arg("-c")
         .arg("\"$0\" kill; echo $?")
-        .arg(shim_bin())
+        .arg(launcher_bin())
         .current_dir(fixture.workspace.path())
         .env_clear()
         .env("DX_CACHE_DIR", fixture.cache.path())
@@ -233,7 +232,7 @@ impl Fixture {
         self.command(self.workspace.path(), args)
             .env("PATH", bin)
             .output()
-            .expect("run shim")
+            .expect("run launcher")
     }
 }
 
@@ -446,7 +445,7 @@ fn where_prints_a_non_utf8_binary_path_byte_for_byte() {
         .command(fixture.workspace.path(), &["shim", "where"])
         .env("DX_CACHE_DIR", &cache)
         .output()
-        .expect("run shim");
+        .expect("run launcher");
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(
         output
@@ -502,7 +501,7 @@ fn sigterm_mid_download_leaves_no_part_file() {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn shim");
+        .expect("spawn launcher");
     let dir = fixture.cache.path().join("bin").join(VERSION);
     let has_part = || {
         std::fs::read_dir(&dir)

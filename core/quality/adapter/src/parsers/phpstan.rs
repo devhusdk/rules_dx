@@ -4,20 +4,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding, require_findin
 
 const TOOL: &str = "phpstan";
 
-/// Findings from `phpstan analyse --error-format=json`, on exit 0 (clean) or 1 (findings).
-///
-/// `PHPStan` keys `files` by the path it analysed, so `files` holds the paths of the owned
-/// sources as `PHPStan` reports them (a trait error's `<file> (in context of ...)` key is read as
-/// the trait file, and when only dependency traits report, the owned sources are clean); an entry for any other file belongs to a dependency and is
-/// dropped. A clean run prints `"files": []`, an empty array rather than an object. The
-/// top-level `errors` array carries errors that are not tied to a file (a bad config, an
-/// unreadable path) and is never clean, whatever the exit code says. Any other exit code (255
-/// for a crash, none for a signal) fails the run. The rule is the error's `identifier`, `error`
-/// when `PHPStan` gave none, and a `tip` joins the message.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_phpstan(
     stdout: &[u8],
     code: Option<i32>,
@@ -52,7 +38,6 @@ pub fn parse_phpstan(
     match report.get("files") {
         Some(serde_json::Value::Object(by_file)) => {
             for (key, entry) in by_file {
-                // A trait error is keyed `<trait file> (in context of class X)`.
                 let (path, in_context) = match key
                     .strip_suffix(')')
                     .and_then(|inner| inner.split_once(" (in context of "))
@@ -83,7 +68,6 @@ pub fn parse_phpstan(
             &b.finding.rule_id,
         ))
     });
-    // Findings only in a dependency's trait are not a failure.
     if findings.is_empty() && dependency_trait {
         return Ok(findings);
     }
@@ -97,14 +81,12 @@ pub fn parse_phpstan(
     Ok(findings)
 }
 
-/// The identifiers of the unused-public extension's rules.
 const UNUSED_PUBLIC: [&str; 3] = [
     "phpstan/public.method.unused",
     "phpstan/public.property.unused",
     "phpstan/public.classConstant.unused",
 ];
 
-/// Under `dx unused` only the unused-public rules count, and they are warnings.
 #[must_use]
 pub fn keep_unused_public(findings: Vec<FileFinding>) -> Vec<FileFinding> {
     findings
@@ -122,7 +104,6 @@ fn one(path: &str, message: &serde_json::Value) -> Result<FileFinding, ParseErro
         .get("message")
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| ParseError::shape(TOOL, format!("{path} message is not text")))?;
-    // A line-less error (a file-level one) is reported at the top of the file.
     let line = message
         .get("line")
         .and_then(serde_json::Value::as_u64)
@@ -158,7 +139,6 @@ fn one(path: &str, message: &serde_json::Value) -> Result<FileFinding, ParseErro
     ))
 }
 
-/// The first lines of output, enough to name why a run crashed.
 fn excerpt(out: &str) -> String {
     let text = out
         .lines()

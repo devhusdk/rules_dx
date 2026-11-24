@@ -2,13 +2,6 @@ use dx_plan::args::{HintScope, QualityRequest};
 
 pub use dx_plan::plan::shell_quote as quote;
 
-/// Returns the options a suggested command can echo as-is, in their original
-/// order, and whether any were left out.
-///
-/// Each option (with its separate value, as in `--copt -DX=1`) is kept only when
-/// the shared redactor passes it through unchanged. Anything it withholds or
-/// rewrites is left out entirely, so the command never carries a bare secret
-/// flag or a `(value)` stand-in; the hint's note asks the user to add those back.
 fn echoed(options: &[String]) -> (Vec<String>, bool) {
     let mut words = Vec::new();
     let mut changed = false;
@@ -133,7 +126,6 @@ pub fn next_action(code: &str) -> Option<&'static str> {
     })
 }
 
-/// The next step when a report cannot render because the run left no coverage evidence.
 pub const EVIDENCE_GAP_NEXT: &str =
     "next: fix the test or coverage problem reported above and run the command again.";
 

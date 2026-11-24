@@ -10,8 +10,6 @@ import (
 
 var npmManifestFile = ManifestName("npm")
 
-// OwningPackageJSON returns the repo-relative path of the manifest nearest
-// to pkg, at or above it, or "" when there is none.
 func OwningPackageJSON(repoRoot, pkg string) string {
 	for dir := pkg; ; dir = path.Dir(dir) {
 		if dir == "." {
@@ -26,8 +24,6 @@ func OwningPackageJSON(repoRoot, pkg string) string {
 	}
 }
 
-// NpmMissingHint tells the user which manifest should declare the
-// package a bare import names.
 func NpmMissingHint(repoRoot, pkg, name string) string {
 	owner := OwningPackageJSON(repoRoot, pkg)
 	if owner == "" {
@@ -51,7 +47,6 @@ func readPackageJSON(repoRoot, rel string) (packageJSON, bool) {
 	return pkg, true
 }
 
-// IsESMPackage reports whether the manifest owning pkg sets "type": "module".
 func IsESMPackage(repoRoot, pkg string) bool {
 	owner := OwningPackageJSON(repoRoot, pkg)
 	if owner == "" {
@@ -61,8 +56,6 @@ func IsESMPackage(repoRoot, pkg string) bool {
 	return p.Type == "module"
 }
 
-// RootDeclares reports whether the root manifest declares every name in
-// dependencies or devDependencies.
 func RootDeclares(repoRoot string, names ...string) bool {
 	p, ok := readPackageJSON(repoRoot, npmManifestFile)
 	if !ok {
@@ -78,11 +71,8 @@ func RootDeclares(repoRoot string, names ...string) bool {
 	return true
 }
 
-// JestConfigs are the jest config file names a package can hold, in the
-// order jest picks them.
 var JestConfigs = []string{"jest.config.js", "jest.config.mjs", "jest.config.cjs", "jest.config.json"}
 
-// JestConfig returns the jest config file in pkg, or "".
 func JestConfig(repoRoot, pkg string) string {
 	for _, name := range JestConfigs {
 		if hasFile(repoRoot, path.Join(pkg, name)) {
@@ -92,8 +82,6 @@ func JestConfig(repoRoot, pkg string) string {
 	return ""
 }
 
-// JestPreflight returns the message for a root manifest that cannot run
-// generated jest tests, or "".
 func JestPreflight(repoRoot string) string {
 	if RootDeclares(repoRoot, "jest-cli", "jest-junit") {
 		return ""
@@ -101,8 +89,6 @@ func JestPreflight(repoRoot string) string {
 	return `add "jest-cli" and "jest-junit" to devDependencies in ` + npmManifestFile
 }
 
-// NearestTSConfig returns the label of the ts_config target in the nearest
-// package at or above rel that holds tsconfig.json, relative to rel, or "".
 func NearestTSConfig(repoRoot, rel string) string {
 	for dir := rel; ; dir = path.Dir(dir) {
 		if dir == "." {
@@ -120,9 +106,6 @@ func NearestTSConfig(repoRoot, rel string) string {
 	}
 }
 
-// TSConfigParents returns the labels of the workspace files rel/tsconfig.json
-// extends by relative path. A parent named tsconfig.json is its package's
-// ts_config target; other files are named directly.
 func TSConfigParents(repoRoot, rel string) ([]string, error) {
 	data, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(rel), "tsconfig.json"))
 	if err != nil {

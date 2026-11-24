@@ -1,9 +1,5 @@
 name: license-terms
 
-# Checks that each license's terms still hash to the terms_sha256 pinned in
-# core/licenses/pins.json. Scheduled only: a vendor editing its terms is news for the
-# maintainers (bump the pin so users re-accept), not a reason to fail a PR.
-
 on:
   schedule:
     - cron: "0 5 * * 1"

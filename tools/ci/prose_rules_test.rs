@@ -1,5 +1,3 @@
-//! Docs and comments outside fixtures, testdata and `third_party` carry no issue number, link chain or history word, user pages name no private label, design pages stay under the word limit, and every page is linted and links to tracked files, outside `tools/ci/prose_rules_allowlist.txt`.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -11,7 +9,6 @@ use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 6] = [
     "dead-link",
     "history-word",
@@ -21,16 +18,12 @@ const KINDS: [&str; 6] = [
     "private-label",
 ];
 
-/// The kind no allowlist line may name.
 const WORD_LIMIT_KIND: &str = "word-limit";
 
-/// A design page with this many words is too long.
 const WORD_LIMIT: usize = 1300;
 
-/// The design pages over the limit, each with the word count it may not pass.
 const OVER_LIMIT: [(&str, usize); 0] = [];
 
-/// Words that tell history instead of a rule.
 const HISTORY_WORDS: [&str; 7] = [
     "previously",
     "used to",
@@ -41,22 +34,16 @@ const HISTORY_WORDS: [&str; 7] = [
     "we decided",
 ];
 
-/// Markers that chain a comment to another document.
 const CHAIN_MARKERS: [&str; 3] = ["See:", "Contract:", "policy:"];
 
-/// Directory names whose files hold test input or vendored text.
 const SKIPPED_DIRS: [&str; 3] = ["fixtures", "testdata", "third_party"];
 
-/// The `README.md` section that may tell history.
 const REPLACES_SECTION: &str = "What rules_dx replaces";
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 3000;
 
-/// The page whose rows may end in a consumer fix issue.
 const CONSUMER_FIX_PAGE: &str = "patches/README.md";
 
-/// `text` without the `Consumer fix: #N` tails.
 fn without_consumer_fixes(text: &str) -> String {
     let marker = "Consumer fix: #";
     let mut out = String::new();
@@ -73,7 +60,6 @@ fn without_consumer_fixes(text: &str) -> String {
     out
 }
 
-/// How often `#` and 3 to 5 digits, or an issue or pull request URL, stands in `text`.
 fn issue_numbers(text: &str) -> usize {
     let bytes = text.as_bytes();
     let mut count = 0;
@@ -102,7 +88,6 @@ fn issue_numbers(text: &str) -> usize {
     count
 }
 
-/// How often a chain marker or `ADR` stands in `text`.
 fn link_chains(text: &str) -> usize {
     let bytes = text.as_bytes();
     let markers: usize = CHAIN_MARKERS
@@ -116,7 +101,6 @@ fn link_chains(text: &str) -> usize {
     markers + count_word(text, "ADR")
 }
 
-/// The comments and docstrings of one source file, without `LCOV_EXCL` lines.
 fn comment_lines(path: &str, source: &str) -> Vec<String> {
     let segments = if is_starlark(path) {
         starlark_segments(source)
@@ -132,7 +116,6 @@ fn comment_lines(path: &str, source: &str) -> Vec<String> {
         .collect()
 }
 
-/// `text` without the section titled `title`.
 fn without_section(text: &str, title: &str) -> String {
     let mut out = String::new();
     let mut skipping: Option<usize> = None;
@@ -152,7 +135,6 @@ fn without_section(text: &str, title: &str) -> String {
     out
 }
 
-/// How often a history word stands in `text`.
 fn history_words(text: &str) -> usize {
     let lower = text.to_lowercase();
     HISTORY_WORDS
@@ -161,7 +143,6 @@ fn history_words(text: &str) -> usize {
         .sum()
 }
 
-/// A page users read: a `docs/` page outside `docs/design/`, or a `README.md`, outside `.github/` and private packages.
 fn user_page(path: &str) -> bool {
     let page = (path.starts_with("docs/") && !path.starts_with("docs/design/"))
         || path == "README.md"
@@ -169,7 +150,6 @@ fn user_page(path: &str) -> bool {
     page && !path.starts_with(".github/") && !path.split('/').any(|segment| segment == "private")
 }
 
-/// The labels in `text` with a `private` package segment; a `//` after `:` starts a URL, not a label.
 fn private_labels(text: &str) -> usize {
     text.match_indices("//")
         .filter(|(at, _)| !text[..*at].ends_with(':'))
@@ -183,7 +163,6 @@ fn private_labels(text: &str) -> usize {
         .count()
 }
 
-/// The directory of `path`, `""` at the root.
 fn parent(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
@@ -196,7 +175,6 @@ fn join(dir: &str, rel: &str) -> String {
     }
 }
 
-/// The string literals of each `attr = ...` value in `source`, with whether a `glob(` holds them.
 fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
     let bytes = source.as_bytes();
     let mut out = Vec::new();
@@ -260,7 +238,6 @@ fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
     out
 }
 
-/// Every Markdown path a `markdown_srcs` or `markdown_siblings` value in a BUILD file names.
 fn linted(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     let pages: Vec<&String> = files
         .keys()
@@ -302,7 +279,6 @@ fn linted(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     out
 }
 
-/// The relative link targets of one Markdown text, outside fenced code.
 fn link_targets(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut fenced = false;
@@ -330,7 +306,6 @@ fn link_targets(text: &str) -> Vec<String> {
     out
 }
 
-/// The path `target` names from the page at `page`, or `None` when it leaves the tree.
 fn resolve(page: &str, target: &str) -> Option<String> {
     let mut parts: Vec<&str> = if target.starts_with('/') {
         Vec::new()
@@ -352,7 +327,6 @@ fn resolve(page: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-/// Counts every hit of every kind in `files`; `paths` lists every tracked path.
 fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
     let mut counts = Counts::new();
     let mut known: BTreeSet<&str> = BTreeSet::new();
@@ -431,7 +405,6 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
     counts
 }
 
-/// Every way the word-limit hits in `found` and `caps` disagree.
 fn long_pages(found: &Counts, caps: &[(&str, usize)]) -> Vec<String> {
     let mut problems = Vec::new();
     let hits: BTreeMap<&str, usize> = found

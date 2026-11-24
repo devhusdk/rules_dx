@@ -1,21 +1,15 @@
-//! Specific next steps for the Bazel failures dx knows how to fix.
-
 use crate::failure::{
     CODE_FETCH_FAILED, CODE_LOCKFILE_DRIFT, CODE_MODULE_NOT_FOUND, CODE_NO_TOOLCHAIN,
     CODE_PATH_TOO_LONG, CODE_STALE_GENERATED,
 };
 
-/// One recognised failure: its stable error code and what to do about it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hint {
     pub code: &'static str,
     pub next: String,
 }
 
-/// Classifies the stderr of a failed Bazel run; `None` means the generic hint applies.
 pub fn classify(stderr: &str) -> Option<Hint> {
-    // Root causes come first: a long path or an untrusted certificate can also show
-    // up as a missing package, module or download further down the same stderr.
     path_too_long(stderr)
         .or_else(|| untrusted_certificate(stderr))
         .or_else(|| module_not_found(stderr))
@@ -25,12 +19,10 @@ pub fn classify(stderr: &str) -> Option<Hint> {
         .or_else(|| fetch_failed(stderr))
 }
 
-/// The hint for the Bazel run that just failed, when its stderr was captured.
 pub fn recorded() -> Option<Hint> {
     classify(&dx_process::last_bazel_stderr())
 }
 
-/// The error code to report for a failed Bazel run whose generic code is `generic`.
 pub fn refine(generic: &'static str) -> &'static str {
     recorded().map_or(generic, |hint| hint.code)
 }
@@ -82,7 +74,6 @@ fn missing_package(stderr: &str) -> Option<Hint> {
     })
 }
 
-/// Errors a new import or #include causes when the BUILD deps were not regenerated.
 fn missing_dependency(stderr: &str) -> Option<Hint> {
     let line = stderr.lines().find(|line| {
         line.contains("no such target")
@@ -142,7 +133,6 @@ fn no_toolchain(stderr: &str) -> Option<Hint> {
     })
 }
 
-/// Windows refuses paths over MAX_PATH; a short output root keeps Bazel's paths under it.
 fn path_too_long(stderr: &str) -> Option<Hint> {
     const SIGNS: &[&str] = &[
         "The filename or extension is too long",
@@ -155,7 +145,6 @@ fn path_too_long(stderr: &str) -> Option<Hint> {
     })
 }
 
-/// Java rejects a server certificate it cannot chain to a trusted CA, as behind a TLS-inspecting proxy.
 fn untrusted_certificate(stderr: &str) -> Option<Hint> {
     const SIGNS: &[&str] = &[
         "PKIX path building failed",

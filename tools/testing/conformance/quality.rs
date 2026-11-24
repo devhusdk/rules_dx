@@ -1,16 +1,9 @@
-//! Assertions of the conformance lint and format tests over quality result files.
-
 struct Finding {
     rule: String,
     path: String,
     start: Option<u64>,
 }
 
-/// Checks the quality results listed in key against mode and text.
-///
-/// # Errors
-///
-/// Returns an error when the results cannot be read or do not match mode.
 pub fn check(mode: &str, key: &str, text: &str) -> Result<(), String> {
     let mut findings = Vec::new();
     let mut changed = Vec::new();

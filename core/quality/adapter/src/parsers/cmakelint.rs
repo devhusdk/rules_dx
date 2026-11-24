@@ -3,13 +3,8 @@ use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "cmakelint";
 
-/// The summary cmakelint writes to stderr unless `quiet` is set.
 const TOTAL: &str = "Total Errors: ";
 
-/// Splits one finding line `path:line: message [category]` against the run's own file set.
-///
-/// The path is matched against the known `files` (longest first) rather than split on the
-/// first `:`, so a path that itself holds a colon cannot be misread.
 fn split_line<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, u64, &'a str, &'a str)> {
     let mut best: Option<(&str, u64, &str, &str)> = None;
     for file in files {
@@ -41,21 +36,6 @@ fn split_line<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, u64, &'a
     best
 }
 
-/// Parses `cmakelint --config=<config> -- <files>`.
-///
-/// Findings are line-only: cmakelint reports no column, so each finding is anchored at column
-/// 1 of its line (line 0 file-level findings clamp to line 1), counted in Unicode scalars as
-/// for checkmake.
-///
-/// cmakelint exits 0 quietly in several broken situations (a file it does not recognise
-/// prints `Ignoring file:` and is skipped, an unreadable `--config` is ignored), so this never
-/// decides from the exit code alone. The run only counts when stderr carries exactly one
-/// `Total Errors: N` summary, N equals the number of parsed findings, the exit code agrees
-/// with that count, and every stdout line is a finding for one of the known files.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cmakelint(
     stdout: &[u8],
     stderr: &[u8],

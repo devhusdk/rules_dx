@@ -13,9 +13,6 @@ pub fn set_expression(labels: &[String]) -> String {
     format!("set({})", quoted.join(" "))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 #[cfg(test)]
 pub fn map_owners_to_tests_with_selection(
     owners: &[String],
@@ -30,11 +27,6 @@ pub fn map_owners_to_tests_with_selection(
     tests_for_owners(owners, &graph, selection)
 }
 
-/// The tests that use the owners, read from the rule graph without another query.
-///
-/// The graph is unconfigured, so a configured selection keeps a test that reaches an owner
-/// only through an inactive `select()` branch. That runs a test more than needed, never fewer,
-/// and test runs skip incompatible targets.
 pub(crate) fn tests_for_owners(
     owners: &[String],
     graph: &RuleGraph,
@@ -45,8 +37,6 @@ pub(crate) fn tests_for_owners(
     }
     let mut tests = graph.tests_of(&graph.test_candidates(owners));
     if selection.configured() {
-        // A suite can name tests that never use the owners; a configured run only wants
-        // the ones that do.
         let users = graph.users_of(owners);
         tests.retain(|test| users.contains(test.as_str()));
     }

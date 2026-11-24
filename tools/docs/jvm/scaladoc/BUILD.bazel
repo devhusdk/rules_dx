@@ -5,7 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-# Only Scala 2.13 has this doc model.
 scala_library(
     name = "scaladoc_extract_lib",
     srcs = [

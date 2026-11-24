@@ -34,8 +34,7 @@ Every test target and test macro follows these rules.
 - Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
 - An Android emulator is declared with `--@rules_dx//android:emulator_serial=<serial>`. A test that needs it reads the serial from `//android:declared_emulator` and is incompatible under `//android:emulator_undeclared`.
 - An iOS simulator runtime is declared with `--@rules_dx//apple:simulator_runtime=<version>`. A test that needs it reads the runtime and the Xcode version from `//apple:declared_simulator`, is incompatible under `//apple:simulator_undeclared`, and installs into the booted host template simulator, then uninstalls.
-- A device test carries a `resources:<device>:1` tag, such as `resources:android_emulator:1`. The root `.bazelrc` sets `--local_resources=<device>=<n>`.
-- A device test starts `adb` and `simctl` from runfiles or a pinned toolchain.
+- A device test carries a `resources:<device>:1` tag. The root `.bazelrc` sets `--local_resources=<device>=<n>`.
 
 ## Test kinds
 
@@ -45,7 +44,7 @@ Kind | What it is | Allowed when
 --- | --- | ---
 Unit | A `rust_test`, or a Starlark unit test over pure functions. | The behaviour is a function of its arguments or of declared files.
 Analysis | A Starlark analysis test over providers, actions and failures. | The behaviour is what a rule declares: providers, action arguments, inputs, outputs or an analysis error.
-In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run: a compiler, a linter, a packager.
+In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run.
 Nested | A test that runs a second Bazel in a consumer workspace. | No other kind can prove the same thing.
 
 - A fixture is a library, binary or file target, or a conformance subject.
@@ -91,7 +90,7 @@ Test | Passes when
 `cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU. For an `.msix` package, the manifest's `ProcessorArchitecture` names that CPU and the packed executable has that format and CPU.
 `runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it. With a `tree_only` reason, the manifest-only run must fail instead of pass.
 
-- A subject test is a fixture declared with the suite's `subject_rule`: a `lang.json` `entry_points` name that declares a test target. Outside the suite's transition it is incompatible, so a pattern skips it.
+- A subject test is a fixture declared with the suite's `subject_rule`: a `lang.json` `entry_points` name that declares a test target. Outside the suite's transition it is incompatible.
 - A language without one lists `pass_test`, `fail_test` and `coverage_test` in `not_applicable`.
 - A suite test is an in-graph fixture test with `size = "small"` that runs a subject from runfiles with Bazel's test environment.
 - `lang.json` `platforms` is never empty. A suite test runs on each of them and is incompatible on any other.
@@ -121,7 +120,6 @@ Test | Passes when
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.
-- Two test calls in one BUILD file with the same callee and the same arguments other than name, tags and flaky are duplicates.
 - A test that cannot fail is deleted.
 
 ## Guard

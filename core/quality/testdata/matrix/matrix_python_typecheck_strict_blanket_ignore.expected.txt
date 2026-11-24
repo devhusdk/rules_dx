@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_python_typecheck_strict_blanket_ignore
+capability TYPECHECK
+stages 1
+stage ty classes=python sources=matrix/blanket_ignore.py
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR ty blanket-ignore-comment matrix/blanket_ignore.py 44 44 fixable=false "Use specific rule codes in `ty: ignore`"
+terminal 1
+terminal ERROR ty blanket-ignore-comment matrix/blanket_ignore.py 44 44 fixable=false "Use specific rule codes in `ty: ignore`"
+replacements 0

@@ -8,12 +8,12 @@ pub const VERSION_FILE: &str = ".dx/pins";
 pub const EXIT_USAGE: i32 = dx_error::EXIT_USAGE;
 pub const EXIT_FAILURE: i32 = dx_error::EXIT_FAILURE;
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ShimError {
+pub struct LaunchError {
     pub code: i32,
     pub message: String,
 }
 
-impl ShimError {
+impl LaunchError {
     pub fn failure(message: impl Into<String>) -> Self {
         Self {
             code: EXIT_FAILURE,
@@ -29,13 +29,13 @@ impl ShimError {
     }
 }
 
-impl std::fmt::Display for ShimError {
+impl std::fmt::Display for LaunchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "dx: {}", self.message)
     }
 }
 
-impl std::error::Error for ShimError {}
+impl std::error::Error for LaunchError {}
 #[must_use]
 pub fn version_is_valid(version: &str) -> bool {
     !version.is_empty() && semver::Version::parse(version).is_ok()
@@ -44,19 +44,17 @@ fn without_bom(text: &str) -> &str {
     text.strip_prefix('\u{feff}').unwrap_or(text)
 }
 
-/// The text of a file, or `None` when it is missing; any other read failure is an error.
-fn read_optional(path: &Path) -> Result<Option<String>, ShimError> {
+fn read_optional(path: &Path) -> Result<Option<String>, LaunchError> {
     match std::fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(ShimError::failure(format!(
+        Err(e) => Err(LaunchError::failure(format!(
             "cannot read {}: {e}",
             path.display()
         ))),
     }
 }
 
-/// The sha256 on the `<version> <sha256> <asset>` line of a `.dx/pins` file.
 #[must_use]
 pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
     without_bom(text).lines().find_map(|line| {
@@ -69,8 +67,6 @@ pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
     })
 }
 
-/// The version of the single root `bazel_dep(name = "rules_dx", ...)` line, by the
-/// same rules as the `tools/dx` launchers. `None` sends the call through Bazel.
 #[must_use]
 pub fn module_version(text: &str) -> Option<String> {
     let text = without_bom(text);
@@ -115,9 +111,7 @@ impl std::fmt::Display for VersionSource {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
-    /// `DX_VERSION` bootstrap: the checksum comes from the release sidecar.
     Env(String),
-    /// Version from MODULE.bazel; `pins` is the raw `.dx/pins` file.
     Module {
         version: String,
         pins: Option<String>,
@@ -127,21 +121,21 @@ pub enum Route {
 
 pub type EnvGet<'a> = &'a dyn Fn(&str) -> Option<OsString>;
 
-fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, ShimError> {
+fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, LaunchError> {
     match env_get(name).filter(|value| !value.is_empty()) {
         None => Ok(None),
         Some(value) => value
             .into_string()
             .ok()
             .map(Some)
-            .ok_or_else(|| ShimError::usage(format!("{name} must be valid UTF-8"))),
+            .ok_or_else(|| LaunchError::usage(format!("{name} must be valid UTF-8"))),
     }
 }
 
-pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<Route, ShimError> {
+pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<Route, LaunchError> {
     if let Some(value) = utf8_env(env_get, "DX_VERSION")? {
         if !version_is_valid(&value) {
-            return Err(ShimError::usage(format!(
+            return Err(LaunchError::usage(format!(
                 "DX_VERSION must be a plain semver such as 1.2.3, got '{value}'"
             )));
         }
@@ -193,12 +187,11 @@ pub fn platform(os: &str, arch: &str) -> Option<Platform> {
 }
 
 #[must_use]
-pub fn unsupported_platform(version: &str, os: &str, arch: &str) -> ShimError {
-    ShimError::failure(format!(
+pub fn unsupported_platform(version: &str, os: &str, arch: &str) -> LaunchError {
+    LaunchError::failure(format!(
         "no dx {version} binary for {os} {arch}; supported: {SUPPORTED}; use bazel run @rules_dx//:dx -- ..."
     ))
 }
-/// An `x86_64` process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
 pub fn effective_arch(
     os: &'static str,
     arch: &'static str,
@@ -241,14 +234,13 @@ pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
 }
-/// The dx cache root; a relative `DX_CACHE_DIR` is an error and a relative `XDG_CACHE_HOME` is skipped.
-pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, ShimError> {
+pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, LaunchError> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     if let Some(dir) = non_empty("DX_CACHE_DIR") {
         let dir = PathBuf::from(dir);
         // has_root, not is_absolute: Windows calls a rooted `\cache` relative, but it does not follow the cwd.
         if !dir.has_root() {
-            return Err(ShimError::usage(format!(
+            return Err(LaunchError::usage(format!(
                 "DX_CACHE_DIR must be an absolute path, got '{}'",
                 dir.display()
             )));
@@ -265,7 +257,7 @@ pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, Shi
         return Ok(None);
     };
     if !home.has_root() {
-        return Err(ShimError::usage(format!(
+        return Err(LaunchError::usage(format!(
             "{name} must be an absolute path, got '{}'; set DX_CACHE_DIR",
             home.display()
         )));
@@ -284,14 +276,14 @@ pub fn bin_path(root: &Path, version: &str, platform: Platform) -> PathBuf {
 pub fn release_url(base: &str, version: &str, asset: &str) -> String {
     format!("{}/v{version}/{asset}", base.trim_end_matches('/'))
 }
-pub fn release_base(env_get: EnvGet) -> Result<String, ShimError> {
+pub fn release_base(env_get: EnvGet) -> Result<String, LaunchError> {
     let Some(base) = utf8_env(env_get, "DX_RELEASE_BASE_URL")? else {
         return Ok(DEFAULT_RELEASE_BASE.to_owned());
     };
     if base_is_allowed(&base) {
         Ok(base)
     } else {
-        Err(ShimError::usage(format!(
+        Err(LaunchError::usage(format!(
             "DX_RELEASE_BASE_URL must use https:// with a host and no credentials (http:// only to 127.0.0.1, [::1] or localhost), got '{}'",
             redact(&base)
         )))

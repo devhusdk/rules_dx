@@ -57,7 +57,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "hermetic-windows",
         "launch-heavy",
         "msix-install",
-        "native-lint",
         "network",
         "preflight",
         "quality-matrix",

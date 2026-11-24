@@ -1,0 +1,33 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_binary(
+    name = "clippy_findings",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    visibility = ["//rust/tests:__pkg__"],
+    deps = [
+        "@crates//:serde_json",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
+rust_test(
+    name = "clippy_findings_test",
+    size = "small",
+    crate = ":clippy_findings",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

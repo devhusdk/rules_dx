@@ -1,4 +1,4 @@
-use crate::api_compat::{ApiCompatMode, Baseline, Outcome, conclude};
+use crate::api_compat::{ApiCheckMode, Baseline, Outcome, conclude};
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal,
@@ -648,7 +648,7 @@ pub fn github_main_checked(
             None
         }
     };
-    let mode = ApiCompatMode::parse(go_api.mode);
+    let mode = ApiCheckMode::parse(go_api.mode);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
         eprintln!(
             "github_deploy: invalid api_compat '{}' or api_baseline '{}'",
@@ -656,7 +656,7 @@ pub fn github_main_checked(
         );
         return 1;
     };
-    if mode != ApiCompatMode::Off {
+    if mode != ApiCheckMode::Off {
         let root = workspace
             .clone()
             .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);

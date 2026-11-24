@@ -38,6 +38,7 @@ nested_bazel_test(
     name = "cold_start_test",
     size = "small",
     srcs = ["cold_start_test.rs"],
+    caches = "private",
     crate_name = "cold_start_test",
     crate_root = "cold_start_test.rs",
     # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.

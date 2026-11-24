@@ -16,11 +16,12 @@ dart_package_metadata(
 
 exports_files(
     glob([
-        "assets/**",
         "lib/**",
         "test/**",
     ]) + [
         "BUILD.bazel",
+        "assets/fonts/DxSquare.ttf",
+        "assets/items.json",
         "tips.txt",
     ],
     visibility = [

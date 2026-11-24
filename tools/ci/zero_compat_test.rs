@@ -33,6 +33,10 @@ const KINDS: [&str; 5] = [
 
 const COMPAT_WORDS: [&str; 5] = ["legacy", "deprecated", "shim", "backward", "compat"];
 
+const FEATURE_WORDS: [(&str, &str); 1] = [("api", "compat")];
+
+const TOOL_FLAG: &str = "-W";
+
 const SKIPPED_DIRS: [&str; 2] = ["third_party", "patches"];
 
 const VERSION_PROBES: [&str; 3] = ["native.bazel_version", "bazel_features.", "hasattr(native,"];
@@ -66,13 +70,15 @@ fn without_names(text: &str) -> String {
 fn compat_words(text: &str) -> usize {
     let mut count = 0;
     let mut word = String::new();
+    let mut previous_word = String::new();
     let mut previous_lower = false;
     for letter in without_names(text).chars().chain(std::iter::once(' ')) {
         let breaks =
             !letter.is_ascii_alphabetic() || (letter.is_ascii_uppercase() && previous_lower);
-        if breaks {
-            count += usize::from(COMPAT_WORDS.contains(&word.as_str()));
-            word.clear();
+        if breaks && !word.is_empty() {
+            let feature = FEATURE_WORDS.contains(&(previous_word.as_str(), word.as_str()));
+            count += usize::from(!feature && COMPAT_WORDS.contains(&word.as_str()));
+            previous_word = std::mem::take(&mut word);
         }
         if letter.is_ascii_alphabetic() {
             word.push(letter.to_ascii_lowercase());
@@ -128,11 +134,47 @@ fn starlark_deprecations(segments: &[Segment]) -> usize {
     set.saturating_sub(on_aliases) + said
 }
 
+fn external_names(segments: &[Segment]) -> Vec<String> {
+    calls(segments, "load")
+        .into_iter()
+        .filter(|load| load.positional.first().is_some_and(|label| !in_module(label)))
+        .flat_map(|load| {
+            let names = load.positional.into_iter().skip(1);
+            names.chain(load.keywords.into_values())
+        })
+        .collect()
+}
+
+fn without_identifiers(text: &str, names: &[String]) -> String {
+    let mut text = text.to_owned();
+    for name in names {
+        let bytes = text.as_bytes();
+        let starts: Vec<usize> = text
+            .match_indices(name.as_str())
+            .map(|(start, _)| start)
+            .filter(|start| {
+                let end = start + name.len();
+                (*start == 0 || !ident_byte(bytes[start - 1]))
+                    && bytes.get(end).is_none_or(|byte| !ident_byte(*byte))
+            })
+            .collect();
+        for start in starts.into_iter().rev() {
+            text.replace_range(start..start + name.len(), "");
+        }
+    }
+    text
+}
+
 fn starlark_compat_words(text: &str, segments: &[Segment]) -> usize {
     let code = skeleton(segments);
     let helper_calls =
         count_from_boundary(&code, "deprecated(") - count_from_boundary(&code, "def deprecated(");
-    compat_words(text)
+    let owned: Vec<&str> = segments
+        .iter()
+        .filter(|segment| !(segment.piece == Piece::Text && segment.text.starts_with(TOOL_FLAG)))
+        .map(|segment| segment.text.as_str())
+        .collect();
+    compat_words(&without_identifiers(&owned.join("\n"), &external_names(segments)))
         .saturating_sub(text.matches(DEPRECATE_LOAD).count())
         .saturating_sub(helper_calls)
 }
@@ -645,15 +687,24 @@ mod tests {
             0
         );
         assert_eq!(compat_words("the shim clippy::x_y deprecated"), 2);
+        assert_eq!(
+            compat_words("api_compat API_COMPAT_ATTRS apiCompat \"api compat\" compat_api"),
+            1
+        );
         let found = hits(&[
             ("a/x.bzl", "X = [\"legacy\"]  # deprecated\n"),
             ("a/x.rs", "fn shim_path() {}\n"),
+            (
+                "a/BUILD.bazel",
+                "load(\"@other//:defs.bzl\", \"shim_rule\", local = \"legacy_rule\")\nload(\"@rules_dx//a:defs.bzl\", \"legacy_macro\")\nshim_rule(name = \"x\", copts = [\"-Wc++-compat\", \"compat\"])\nlocal(name = \"legacy_rule_x\")\n",
+            ),
             ("patches/x.bzl", "LEGACY = 1\n"),
             (SELF, "const X: &str = \"legacy\";\n"),
         ]);
         assert_eq!(
             found,
             [
+                hit("a/BUILD.bazel", "compat-word", 3),
                 hit("a/x.bzl", "compat-word", 2),
                 hit("a/x.rs", "compat-word", 1)
             ]

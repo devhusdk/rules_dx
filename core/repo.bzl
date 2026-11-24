@@ -1,6 +1,6 @@
 """Shared repository rules that write rendered files and fetch pinned archives."""
 
-visibility(["//android/...", "//apple/...", "//cc/...", "//cli/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//gazelle/...", "//haskell/...", "//julia/...", "//msix/...", "//ocaml/...", "//ruby/...", "//terraform/...", "//tools/...", "//typescript/..."])
+visibility(["//android/...", "//apple/...", "//cc/...", "//cli/...", "//core/...", "//cuda/...", "//d/...", "//elixir/...", "//erlang/...", "//gazelle/...", "//haskell/...", "//julia/...", "//msix/...", "//ocaml/...", "//ruby/...", "//terraform/...", "//tools/...", "//typescript/..."])
 
 ARCHIVE_TYPES = ["zip", "war", "aar", "tar", "tar.gz", "tgz", "tar.xz", "txz", "tar.zst", "tzst", "tar.bz2", "tbz", "ar", "deb", "7z"]
 

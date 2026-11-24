@@ -35,7 +35,7 @@ load(
 )
 load("@rules_rust//crate_universe/private:urls.bzl", "CARGO_BAZEL_URLS")
 load(":build_script_features.bzl", "build_scripts_without_coverage")
-load(":generator.bzl", "HOST_ABI", "generator_basename")
+load(":generator.bzl", "HOST_ABI", "generator_basename", _cargo_bazel = "cargo_bazel")
 load(":local_crate_mirror.bzl", "local_crate_mirror")
 load("@rules_rust//rust/platform:triple.bzl", "get_host_triple")
 load("@rules_rust//rust/platform:triple_mappings.bzl", "system_to_binary_ext")
@@ -1339,3 +1339,5 @@ Environment Variables:
     },
     environ = CRATES_REPOSITORY_ENVIRON,
 )
+
+cargo_bazel = _cargo_bazel

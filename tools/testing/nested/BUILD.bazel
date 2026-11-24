@@ -16,6 +16,7 @@ rust_library(
         "src/plain_consumer.rs",
         "src/plain_fixture.rs",
         "src/record.rs",
+        "src/shared.rs",
     ],
     aliases = aliases(
         package_name = "tools/testing/dx_nested",

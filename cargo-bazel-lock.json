@@ -1,5 +1,5 @@
 {
-  "checksum": "50977b6804cb17b44ac053647a6e80b03feb183cdd249fe346a67e386196518d",
+  "checksum": "8e540612f7644d68c21d8e8b795d32e642ade3e25af4dde71d1ea8eac536cec8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8713,6 +8713,27 @@
         {
           "Library": {
             "crate_name": "dx_exec_core",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_deploy 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_deploy",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_deploy",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_deploy",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33593,7 +33614,7 @@
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "core_tests_negative 0.0.0": "core/tests/core_tests_negative",
-    "coverlet_launcher 0.0.0": "dotnet/private/coverlet_launcher",
+    "coverlet_launcher 0.0.0": "dotnet/private/tools/coverlet_launcher",
     "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "cuda_tests 0.0.0": "cuda/cuda_tests",
     "d_coverage_launcher 0.0.0": "d/private/tools/d_coverage_launcher",
@@ -33640,6 +33661,7 @@
     "dx_exec_audit 0.0.0": "cli/dx_exec_audit",
     "dx_exec_bench 0.0.0": "cli/dx_exec_bench",
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
+    "dx_exec_deploy 0.0.0": "cli/dx_exec_deploy",
     "dx_exec_docs 0.0.0": "cli/dx_exec_docs",
     "dx_exec_quality 0.0.0": "cli/dx_exec_quality",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",

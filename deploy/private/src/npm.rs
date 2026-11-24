@@ -1,5 +1,5 @@
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below,
     previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
@@ -26,7 +26,7 @@ pub enum NpmError {
     ReportDir(io::Error),
     NoReport,
     ReadReport(io::Error),
-    ApiCompat(ApiCompatError),
+    ApiCheck(ApiCheckError),
 }
 
 impl fmt::Display for NpmError {
@@ -50,7 +50,7 @@ impl fmt::Display for NpmError {
                 "npm_deploy: api compat: api-extractor wrote no report: {source}"
             ),
             Self::NoReport => f.write_str("npm_deploy: api compat: api-extractor wrote no report"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -66,7 +66,7 @@ impl std::error::Error for NpmError {
             | Self::ReadReport(source) => Some(source),
             Self::ManifestJson(source) => Some(source),
             Self::ApiExtractorRun(source) => Some(source),
-            Self::ApiCompat(source) => Some(source),
+            Self::ApiCheck(source) => Some(source),
             Self::ApiExtractorFailed { .. } | Self::NoReport => None,
         }
     }
@@ -697,7 +697,7 @@ pub fn npm_deploy_main_checked(
         api_baseline,
         api_extractor_rloc,
     } = *api;
-    let mode = ApiCompatMode::parse(api_compat);
+    let mode = ApiCheckMode::parse(api_compat);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(api_baseline)) else {
         eprintln!("npm_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'");
         return 1;
@@ -730,10 +730,10 @@ pub fn npm_deploy_main_checked(
             return 1;
         }
     };
-    if mode != ApiCompatMode::Off {
+    if mode != ApiCheckMode::Off {
         let checked = if api_extractor_rloc.is_empty() {
             let outcome = Outcome::Skipped("api-extractor is not available".to_owned());
-            conclude("npm_deploy", mode, "", outcome).map_err(NpmError::ApiCompat)
+            conclude("npm_deploy", mode, "", outcome).map_err(NpmError::ApiCheck)
         } else {
             let Some(api_extractor) = run.resolve(api_extractor_rloc) else {
                 return 1;
@@ -744,7 +744,7 @@ pub fn npm_deploy_main_checked(
                 api_extractor: &api_extractor,
             };
             npm_api_check(&tgz_path, &name, &check).and_then(|(version, outcome)| {
-                conclude("npm_deploy", mode, &version, outcome).map_err(NpmError::ApiCompat)
+                conclude("npm_deploy", mode, &version, outcome).map_err(NpmError::ApiCheck)
             })
         };
         if let Err(message) = checked {

@@ -5338,6 +5338,10 @@
         ]
       },
       {
+        "name": "dx_launchers",
+        "tag_classes": []
+      },
+      {
         "name": "dx_licenses",
         "tag_classes": [
           {
@@ -13950,6 +13954,10 @@
         ]
       },
       {
+        "name": "julia_runtime",
+        "tag_classes": []
+      },
+      {
         "name": "julia_toolchain",
         "tag_classes": [
           {
@@ -20408,7 +20416,7 @@
               "tool",
               "visibility"
             ],
-            "kind": "windows_js_tool_shim"
+            "kind": "windows_js_tool_launcher"
           }
         ],
         "name": "typescript_binary",
@@ -20678,7 +20686,7 @@
               "tool",
               "visibility"
             ],
-            "kind": "windows_js_tool_shim"
+            "kind": "windows_js_tool_launcher"
           }
         ],
         "name": "typescript_library",

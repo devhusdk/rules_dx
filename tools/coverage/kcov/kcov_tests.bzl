@@ -105,7 +105,7 @@ _unpinned_linux_test = analysistest.make(
     config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/private:kcov_linux_x86_64"))},
 )
 
-def dx_kcov_unpinned_test(name, upstream):
+def dx_kcov_unpinned_test(name, upstream, size = "small"):
     """Asserts a Linux test whose kcov has no executable runs without kcov."""
     _no_kcov_probe(name = name + "_probe", upstream = upstream, testonly = True)
-    _unpinned_linux_test(name = name, size = "small", target_under_test = name + "_probe")
+    _unpinned_linux_test(name = name, size = size, target_under_test = name + "_probe")

@@ -1,6 +1,6 @@
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch,
-    fetch_to, highest_below, previous_git_tag, workspace_dir,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to,
+    highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -104,7 +104,7 @@ pub enum PypiError {
     InvalidBaseline(String),
     TempDir(io::Error),
     Griffe(RunError),
-    ApiCompat(ApiCompatError),
+    ApiCheck(ApiCheckError),
 }
 
 impl fmt::Display for PypiError {
@@ -220,7 +220,7 @@ impl fmt::Display for PypiError {
             Self::InvalidBaseline(baseline) => write!(f, "invalid api_baseline '{baseline}'"),
             Self::TempDir(source) => write!(f, "{source}"),
             Self::Griffe(source) => write!(f, "griffe: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -240,7 +240,7 @@ impl std::error::Error for PypiError {
                 Some(source)
             }
             Self::SignRun(source) | Self::Griffe(source) => Some(source),
-            Self::ApiCompat(source) => Some(source),
+            Self::ApiCheck(source) => Some(source),
             Self::InvalidWheelName(_)
             | Self::InvalidSdistName(_)
             | Self::UnsupportedArtifact(_)
@@ -1017,12 +1017,12 @@ pub fn pypi_main_checked(
     let Some(sdist) = run.resolve_optional(sdist_rloc) else {
         return 1;
     };
-    let Some(mode) = ApiCompatMode::parse(api.mode) else {
+    let Some(mode) = ApiCheckMode::parse(api.mode) else {
         eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };
     let checked = pypi_check_pair(&wheel, sdist.as_deref()).and_then(|(project, version)| {
-        if mode == ApiCompatMode::Off {
+        if mode == ApiCheckMode::Off {
             return Ok(());
         }
         let griffe = if api.griffe_rloc.is_empty() {
@@ -1036,11 +1036,11 @@ pub fn pypi_main_checked(
             }
             None => Outcome::Skipped("griffe is not available".to_owned()),
         };
-        conclude("pypi_deploy", mode, &version, outcome).map_err(PypiError::ApiCompat)
+        conclude("pypi_deploy", mode, &version, outcome).map_err(PypiError::ApiCheck)
     });
     match checked {
         Ok(()) => {}
-        Err(PypiError::ApiCompat(error)) => {
+        Err(PypiError::ApiCheck(error)) => {
             eprintln!("{error}");
             return 1;
         }

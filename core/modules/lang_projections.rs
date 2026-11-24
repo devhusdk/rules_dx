@@ -81,7 +81,61 @@ fn pretty(value: &Value) -> Result<String, String> {
     Ok(text)
 }
 
-fn langs_bzl(manifests: &BTreeMap<String, Value>) -> Result<String, String> {
+/// The keys a core aspect manifest row carries about its file family.
+const CORE_FAMILY_KEYS: [&str; 3] = ["owner", "classes", "defaults"];
+
+/// The file families of the core aspect manifest, keyed by `family`, with each row's owner, classes
+/// and defaults.
+fn core_families(core: &Value) -> Result<Map<String, Value>, String> {
+    let rows = core["quality"]
+        .as_array()
+        .ok_or("core_aspects quality is not a list")?;
+    let mut families = Map::new();
+    for row in rows {
+        let Some(family) = row.get("family") else {
+            let names_aspects = ["aspects", "probes"]
+                .iter()
+                .any(|key| row.get(*key).is_some_and(|value| !value.is_null()));
+            if !names_aspects {
+                return Err(format!(
+                    "core_aspects row {} names no family, aspects or probes",
+                    row["bzl"]
+                ));
+            }
+            continue;
+        };
+        let family = str_at(family, "core_aspects family")?;
+        let mut entry = Map::new();
+        for key in CORE_FAMILY_KEYS {
+            if let Some(value) = row.get(key) {
+                entry.insert(key.to_owned(), value.clone());
+            }
+        }
+        if !entry.contains_key("owner") || !entry.contains_key("classes") {
+            return Err(format!(
+                "core_aspects family {family} needs an owner and classes"
+            ));
+        }
+        if families
+            .insert(family.to_owned(), Value::Object(entry))
+            .is_some()
+        {
+            return Err(format!("core_aspects family {family} is listed twice"));
+        }
+    }
+    Ok(families)
+}
+
+/// `NAME = json.decode("""...""")` for a value with no escapes or triple quotes.
+fn json_decode_line(name: &str, value: Value) -> Result<String, String> {
+    let body = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    if body.contains('\\') || body.contains("\"\"\"") {
+        return Err("langs.bzl cannot embed escapes or triple quotes".to_owned());
+    }
+    Ok(format!("{name} = json.decode(\"\"\"{body}\"\"\")\n"))
+}
+
+fn langs_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result<String, String> {
     let mut langs = Map::new();
     for manifest in manifests.values() {
         let mut manifest = manifest.clone();
@@ -96,12 +150,10 @@ fn langs_bzl(manifests: &BTreeMap<String, Value>) -> Result<String, String> {
             .to_owned();
         langs.insert(name, manifest);
     }
-    let body = serde_json::to_string_pretty(&Value::Object(langs)).map_err(|e| e.to_string())?;
-    if body.contains('\\') || body.contains("\"\"\"") {
-        return Err("langs.bzl cannot embed escapes or triple quotes".to_owned());
-    }
+    let langs = json_decode_line("LANGS", Value::Object(langs))?;
+    let core = json_decode_line("CORE_FAMILIES", Value::Object(core_families(core)?))?;
     Ok(format!(
-        "\"\"\"{REFRESH}\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
+        "\"\"\"{REFRESH}\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\n{langs}\n{core}"
     ))
 }
 
@@ -555,7 +607,7 @@ fn render(
         }
         "ecosystems_languages.json" => ecosystems_languages_json(manifests),
         "families_languages.json" => families_languages_json(manifests, core),
-        "langs.bzl" => langs_bzl(manifests),
+        "langs.bzl" => langs_bzl(manifests, core),
         "lock_registry.bzl" => lock_registry_bzl(&lock_registry_entries(manifests)?),
         "lock_registry.json" => lock_registry_json(&lock_registry_entries(manifests)?),
         _ => Err(format!("{kind}: not an output")),
@@ -634,10 +686,65 @@ mod tests {
 
     #[test]
     fn langs_bzl_drops_the_schema_key() {
-        let text = langs_bzl(&sample()).unwrap();
+        let text = langs_bzl(&sample(), &no_core()).unwrap();
         assert!(text.contains("\"py\": {"), "{text}");
         assert!(!text.contains("$schema"), "{text}");
         assert!(text.contains("bazel run //core/modules:update_lang_projections"));
+    }
+
+    #[test]
+    fn langs_bzl_writes_the_core_families() {
+        let core = serde_json::json!({"quality": [
+            {"bzl": "core/quality:families/core.bzl", "family": "core", "owner": "other",
+             "classes": ["github_workflow"], "file_extensions": [".yml"],
+             "aspects": {"lint": ["real_lint_aspect"]}},
+            {"bzl": "core/quality:families/core.bzl", "family": "toml", "owner": "other",
+             "classes": ["toml"], "defaults": {"lint": ["taplo"]}},
+            {"bzl": "core/quality:families/core_probe.bzl", "probes": {"lint": ["real_core_lint_probe_aspect"]}},
+        ], "docs": []});
+        let families = core_families(&core).unwrap();
+        assert_eq!(
+            Value::Object(families),
+            serde_json::json!({
+                "core": {"owner": "other", "classes": ["github_workflow"]},
+                "toml": {"owner": "other", "classes": ["toml"], "defaults": {"lint": ["taplo"]}},
+            })
+        );
+        let text = langs_bzl(&sample(), &core).unwrap();
+        assert!(
+            text.contains("\nCORE_FAMILIES = json.decode(\"\"\"{\n  \"core\": {"),
+            "{text}"
+        );
+        assert!(!text.contains("file_extensions"), "{text}");
+    }
+
+    #[test]
+    fn core_families_need_an_owner_and_classes_once() {
+        let row = |family: &str, owner: Option<&str>| {
+            let mut row = serde_json::json!({"bzl": "core/quality:families/core.bzl", "family": family, "classes": ["x"]});
+            if let Some(owner) = owner {
+                row["owner"] = Value::from(owner);
+            }
+            row
+        };
+        let core = |rows: Vec<Value>| serde_json::json!({"quality": rows, "docs": []});
+        assert_eq!(
+            core_families(&core(vec![row("x", None)])).unwrap_err(),
+            "core_aspects family x needs an owner and classes"
+        );
+        assert_eq!(
+            core_families(&core(vec![
+                row("x", Some("other")),
+                row("x", Some("other"))
+            ]))
+            .unwrap_err(),
+            "core_aspects family x is listed twice"
+        );
+        let empty = serde_json::json!({"bzl": "core/quality:families/core.bzl"});
+        assert_eq!(
+            core_families(&core(vec![empty])).unwrap_err(),
+            "core_aspects row \"core/quality:families/core.bzl\" names no family, aspects or probes"
+        );
     }
 
     #[test]

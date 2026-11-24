@@ -308,3 +308,15 @@ fn the_workflow_validates_with_the_remote_cache_when_it_has_one() {
         "the release cell must build before user.bazelrc turns on the remote cache"
     );
 }
+
+#[test]
+fn the_android_starter_copies_a_fixture_that_exists() {
+    let fixture = "android/tests/fixtures/rust_starter";
+    let workflow = std::fs::read_to_string(WORKFLOW).unwrap();
+    assert!(
+        workflow.contains(&format!("\"$checkout/{fixture}\"")),
+        "{fixture}"
+    );
+    let module = format!("{fixture}/MODULE.bazel.fixture");
+    assert!(std::path::Path::new(&module).is_file(), "{module}");
+}

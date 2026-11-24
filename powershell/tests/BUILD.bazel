@@ -41,5 +41,6 @@ test_suite(
     tests = [
         "//powershell/tests/fixtures/adopt_powershell/greet:greet_test",
         "//powershell/tests/fixtures/adopt_powershell/solo:pure_test",
+        "//powershell/tests/fixtures/runfiles:runfiles_test",
     ],
 )

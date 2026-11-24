@@ -353,9 +353,9 @@ mod tests {
     #[test]
     fn uri_round_trips_a_path_that_is_not_text() {
         use std::os::unix::ffi::OsStrExt;
-        let path = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.pb"));
+        let path = Path::new(std::ffi::OsStr::from_bytes(b"/srv/\xff.pb"));
         let spelled = uri(path).expect("absolute");
-        assert_eq!(spelled, "file:///tmp/%FF.pb");
+        assert_eq!(spelled, "file:///srv/%FF.pb");
         assert_eq!(uri_to_path(&spelled).expect("local"), path);
     }
 }

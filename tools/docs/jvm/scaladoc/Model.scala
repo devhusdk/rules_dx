@@ -180,7 +180,7 @@ final class Model(files: Map[String, String]) {
       memberOf,
       parents.asJava
     )
-    out.put(
+    out.update(
       qualified + over.fold("")(_.mkString("(", ",", ")")) + "#" + kind,
       symbol
     )

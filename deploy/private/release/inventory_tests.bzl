@@ -64,7 +64,7 @@ _shipped_crates_probe = rule(
     },
 )
 
-def inventory_file_tests(name, app, present, absent, texts_contain = []):
+def inventory_file_tests(name, app, present, absent, texts_contain = [], size = None):
     """Checks the inventory of one binary lists `present` crates and skips `absent` ones."""
     shipped_inventory(name = name + "_inventory", app = app)
     _shipped_crates_probe(
@@ -86,6 +86,7 @@ def inventory_file_tests(name, app, present, absent, texts_contain = []):
         file_checks[":" + name + "_all_texts"] = "\n".join(texts_contain)
     starlark_test(
         name = name,
+        size = size,
         mode = "execution",
         file_checks = file_checks,
     )

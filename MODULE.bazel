@@ -26,8 +26,14 @@ single_version_override(
     version = "0.75.0",
 )
 
-# floor: equals tested
+# floor: equals tested; root-only patches
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
+single_version_override(
+    module_name = "rules_rust_wasm_bindgen",
+    patch_strip = 1,
+    patches = ["//patches/rules_rust_wasm_bindgen:ring_clang_cl_aarch64_windows.patch"],
+    version = "0.75.0",
+)
 
 # floor: equals tested
 bazel_dep(name = "rules_cc", version = "0.2.28")
@@ -399,18 +405,16 @@ single_version_override(
     version = "2.4.21",
 )
 
+# needed: @rules_scala (dx_pins archive) loads @bazel_worker_api
 # floor: equals tested
 bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
 scala_config = use_extension("//scala:extensions.bzl", "scala_config")
-use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
-
-# A third Scala version for //scala/tests:third_version_test; consumers set their own.
-scala_config_dev = use_extension("//scala:extensions.bzl", "scala_config", dev_dependency = True)
-scala_config_dev.settings(scala_versions = [
+scala_config.settings(scala_versions = [
     "3.3.9",
     "2.12.21",
 ])
+use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
 
 scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
 use_repo(
@@ -1504,7 +1508,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "julia_src",
-    build = "//julia/private/runtime:julia_src.BUILD.bazel",
+    build = "//julia/private:julia_src.BUILD.bazel",
     patches = [
         "//patches/julia:deterministic_image_fields.patch",
         "//patches/julia:deterministic_objectid.patch",
@@ -1513,32 +1517,32 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "julia_src_libllvm",
-    build = "//julia/private/runtime:libllvm.BUILD.bazel",
+    build = "//julia/private:libllvm.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libunwind",
-    build = "//julia/private/runtime:libunwind.BUILD.bazel",
+    build = "//julia/private:libunwind.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libuv",
-    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    build = "//julia/private:libuv.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libuv_aarch64",
-    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    build = "//julia/private:libuv.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_utf8proc",
-    build = "//julia/private/runtime:utf8proc.BUILD.bazel",
+    build = "//julia/private:utf8proc.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_zstd",
-    build = "//julia/private/runtime:zstd.BUILD.bazel",
+    build = "//julia/private:zstd.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
@@ -1917,7 +1921,10 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
 
-register_toolchains("//julia/private/runtime:source_toolchain")
+dx_julia_toolchains = use_extension("//julia:extensions.bzl", "julia_runtime")
+use_repo(dx_julia_toolchains, "dx_julia_toolchains")
+
+register_toolchains("@dx_julia_toolchains//:all")
 
 register_toolchains("@julia_toolchains//:all")
 
@@ -2026,9 +2033,9 @@ cpan.lock(
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("//cuda:extensions.bzl", "cuda")
-use_repo(cuda, "cuda", "dx_cuda_toolchain")
+use_repo(cuda, "cuda", "dx_cuda_toolchains")
 
-register_toolchains("//cuda/private/toolchain/hub:all")
+register_toolchains("@dx_cuda_toolchains//:all")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlang_toolchains__windows_arm64", "dx_erlang_toolchains__windows_x86_64", "dx_erlperf")
@@ -2180,7 +2187,7 @@ cabal_dev.lock(
 use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_stack_hackage")
 
 d = use_extension("//d:extensions.bzl", "d")
-use_repo(d, "dx_d_toolchains", "dx_d_toolchains__linux_arm64", "dx_d_toolchains__linux_x86_64", "dx_d_toolchains__macos_arm64", "dx_d_toolchains__windows_x86_64")
+use_repo(d, "dx_d_toolchains", "dx_d_toolchains__linux_arm64", "dx_d_toolchains__linux_x86_64", "dx_d_toolchains__macos_arm64", "dx_d_toolchains__windows_arm64", "dx_d_toolchains__windows_x86_64")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -2224,7 +2231,7 @@ oci.pull(
     image = "gcr.io/distroless/static-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2233,7 +2240,7 @@ oci.pull(
     image = "gcr.io/distroless/cc-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2242,7 +2249,7 @@ oci.pull(
     image = "gcr.io/distroless/python3-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2251,7 +2258,7 @@ oci.pull(
     image = "gcr.io/distroless/java21-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2260,7 +2267,7 @@ oci.pull(
     image = "gcr.io/distroless/nodejs22-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2276,31 +2283,34 @@ use_repo(
     oci,
     "distroless_cc",
     "distroless_cc_linux_amd64",
-    "distroless_cc_linux_arm64",
+    "distroless_cc_linux_arm64_v8",
     "distroless_java",
     "distroless_java_linux_amd64",
-    "distroless_java_linux_arm64",
+    "distroless_java_linux_arm64_v8",
     "distroless_nodejs",
     "distroless_nodejs_linux_amd64",
-    "distroless_nodejs_linux_arm64",
+    "distroless_nodejs_linux_arm64_v8",
     "distroless_python",
     "distroless_python_linux_amd64",
-    "distroless_python_linux_arm64",
+    "distroless_python_linux_arm64_v8",
     "distroless_static",
     "distroless_static_linux_amd64",
-    "distroless_static_linux_arm64",
+    "distroless_static_linux_arm64_v8",
     "dotnet_runtime",
     "dotnet_runtime_linux_amd64",
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; //core/hermetic_launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94
+# floor: equals tested; @dx_launcher_toolchains registers the Windows aarch64 stubs until a release has hermetic-launcher#94
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
 use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_aarch64_macos", "finalize_stub_aarch64_windows", "finalize_stub_s390x_linux", "finalize_stub_x86_64_linux", "finalize_stub_x86_64_macos", "finalize_stub_x86_64_windows", "runfiles_stub_aarch64_linux", "runfiles_stub_aarch64_macos", "runfiles_stub_aarch64_windows", "runfiles_stub_s390x_linux", "runfiles_stub_x86_64_linux", "runfiles_stub_x86_64_macos", "runfiles_stub_x86_64_windows")
 
-register_toolchains("//core/hermetic_launcher:all")
+dx_launchers = use_extension("//core:extensions.bzl", "dx_launchers")
+use_repo(dx_launchers, "dx_launcher_toolchains")
+
+register_toolchains("@dx_launcher_toolchains//:all")
 
 # floor: equals tested; patched
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
@@ -2562,11 +2572,7 @@ use_repo(
     rust_sdist_pypi = "dx_pypi_rust_sdist",
 )
 
-sdist_cargo_vendor = use_extension(
-    "//python/tests:sdist_cargo_vendor.bzl",
-    "sdist_cargo_vendor",
-    dev_dependency = True,
-)
+sdist_cargo_vendor = use_extension("//tools/testing:extensions.bzl", "sdist_cargo_vendor", dev_dependency = True)
 sdist_cargo_vendor.crates(
     name = "dx_rust_sdist_crates",
     lock = "//python/tests/fixtures/rust_sdist:uv.lock",
@@ -2598,53 +2604,18 @@ use_repo(
     "rust_toolchains",
 )
 
-# Musl rustc for the static Linux release tools. Bump these versions with
-# RUST_VERSION in core/modules/versions.bzl.
-rust_dev = use_extension(
-    "@rules_rust//rust:extensions.bzl",
-    "rust",
-    dev_dependency = True,
-)
-rust_dev.repository_set(
-    name = "rust_linux_x86_64_musl",
-    edition = "2024",
-    exec_triple = "x86_64-unknown-linux-gnu",
-    target_compatible_with = [
-        "@llvm//constraints/libc:musl",
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
-    target_settings = ["//config:toolchains_on"],
-    target_triple = "x86_64-unknown-linux-musl",
-    versions = ["1.99.1"],
-)
-rust_dev.repository_set(
-    name = "rust_linux_aarch64_musl",
-    edition = "2024",
-    exec_triple = "aarch64-unknown-linux-gnu",
-    target_compatible_with = [
-        "@llvm//constraints/libc:musl",
-        "@platforms//cpu:arm64",
-        "@platforms//os:linux",
-    ],
-    target_settings = ["//config:toolchains_on"],
-    target_triple = "aarch64-unknown-linux-musl",
-    versions = ["1.99.1"],
-)
+dx_rust_toolchains = use_extension("//rust:extensions.bzl", "rust_toolchains")
+use_repo(dx_rust_toolchains, "dx_rust_toolchains")
 
 # Before :all, whose gnu toolchains also match the musl platforms.
 register_toolchains(
-    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable",
-    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable__cargo",
-    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable",
-    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable__cargo",
-    dev_dependency = True,
+    "@dx_rust_toolchains//:rust_linux_aarch64__aarch64-unknown-linux-musl__stable",
+    "@dx_rust_toolchains//:rust_linux_aarch64__aarch64-unknown-linux-musl__stable__cargo",
+    "@dx_rust_toolchains//:rust_linux_x86_64__x86_64-unknown-linux-musl__stable",
+    "@dx_rust_toolchains//:rust_linux_x86_64__x86_64-unknown-linux-musl__stable__cargo",
 )
 
 register_toolchains("@rust_toolchains//:all")
-
-dx_rust_toolchains = use_extension("//rust:extensions.bzl", "rust_toolchains")
-use_repo(dx_rust_toolchains, "dx_rust_toolchains")
 
 register_toolchains("@dx_rust_toolchains//:all")
 
@@ -2691,7 +2662,7 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
-cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:generator.bzl", "cargo_bazel")
+cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "cargo_bazel")
 use_repo(cargo_bazel, "dx_cargo_bazel")
 
 crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate")
@@ -2860,6 +2831,7 @@ crate.from_cargo(
         "//cli/exec_update:Cargo.toml",
         "//cli/exec_worktree:Cargo.toml",
         "//cli/exec_bench:Cargo.toml",
+        "//cli/exec_deploy:Cargo.toml",
         "//cli/exec_docs:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
@@ -2945,7 +2917,7 @@ crate.from_cargo(
         "//tools/docs/jvm:Cargo.toml",
         "//tools/coverage/collect:Cargo.toml",
         "//d/private/tools/coverage:Cargo.toml",
-        "//dotnet/private/coverage:Cargo.toml",
+        "//dotnet/private/tools/coverage:Cargo.toml",
         "//tools/bazelisk:Cargo.toml",
         "//tools/docs/dotnet:Cargo.toml",
         "//tools/docs/go:Cargo.toml",
@@ -3265,12 +3237,16 @@ _api_fixtures(
 )
 
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
-use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
+use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_arm64", "nested_bazel_windows_x86_64")
 
 nested_repository_cache = use_extension("//tools/testing:extensions.bzl", "nested_repository_cache", dev_dependency = True)
 nested_repository_cache.set(
     name = "nested_cache_adopt_polyglot",
     list = "//tools/testing/nested_cache:adopt_polyglot.txt",
+)
+nested_repository_cache.set(
+    name = "nested_cache_cpp_rust",
+    list = "//tools/testing/nested_cache:cpp_rust.txt",
 )
 nested_repository_cache.set(
     name = "nested_cache_harness",
@@ -3284,7 +3260,7 @@ nested_repository_cache.set(
     name = "nested_cache_release",
     list = "//tools/testing/nested_cache:release.txt",
 )
-use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_harness", "nested_cache_release")
+use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_cpp_rust", "nested_cache_harness", "nested_cache_release")
 
 _fixture_repo(
     name = "shared_consumer",

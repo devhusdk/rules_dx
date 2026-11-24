@@ -2376,20 +2376,28 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         None => String::new(),
     };
     let fragment = without_license_tags(&fragment);
-    let module = compose_module(
+    let mut module = compose_module(
         &snippet,
         &manifest.module,
         &manifest.repo_name,
         &fragment,
         source,
-    )? + &write_root_patch_overrides(workspace, source)?
-        + &write_root_patch_override(
-            workspace,
-            source,
-            "apple_support",
-            &["toolchains_gate.patch", "xcode_absolute_tools.patch"],
-        )?
-        + &write_root_patch_override(workspace, source, "rules_swift", &[])?;
+    )?;
+    module.push_str(&write_root_patch_overrides(workspace, source)?);
+    module.push_str(&write_root_patch_override(
+        workspace,
+        source,
+        "apple_support",
+        &["toolchains_gate.patch", "xcode_absolute_tools.patch"],
+    )?);
+    module.push_str(&write_root_patch_override(
+        workspace,
+        source,
+        "rules_swift",
+        &[],
+    )?);
+    // `msvc_coverage.patch` lets `bazel coverage` configure the clang-cl toolchain.
+    module.push_str(&write_root_patch_override(workspace, source, "llvm", &[])?);
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

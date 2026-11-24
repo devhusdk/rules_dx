@@ -1,5 +1,5 @@
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
     fetch, fetch_to, latest_published, previous_git_tag, workspace_dir,
 };
 use crate::run::{
@@ -33,8 +33,8 @@ pub enum CratesError {
         lines: Vec<String>,
     },
     TempDir(io::Error),
-    BaselineExport(ApiCompatError),
-    ApiCompat(ApiCompatError),
+    BaselineExport(ApiCheckError),
+    ApiCheck(ApiCheckError),
     NotPublished {
         name: String,
         version: String,
@@ -49,7 +49,7 @@ pub enum CratesError {
         member: String,
         reason: &'static str,
     },
-    Fetch(ApiCompatError),
+    Fetch(ApiCheckError),
     InvalidCrate {
         file_name: String,
         source: io::Error,
@@ -92,7 +92,7 @@ impl fmt::Display for CratesError {
                 Ok(())
             }
             Self::BaselineExport(source) => write!(f, "crates_deploy: api compat: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
             Self::NotPublished { name, version } => {
                 write!(f, "crates_deploy: crates.io does not list {name} {version}")
             }
@@ -130,7 +130,7 @@ impl std::error::Error for CratesError {
             Self::Stage(source) => Some(source),
             Self::Io(source) => Some(source),
             Self::Run(source) => Some(source),
-            Self::BaselineExport(source) | Self::ApiCompat(source) | Self::Fetch(source) => {
+            Self::BaselineExport(source) | Self::ApiCheck(source) | Self::Fetch(source) => {
                 Some(source)
             }
             Self::InvalidCrate { source, .. } => Some(source),
@@ -401,7 +401,7 @@ pub(crate) const CRATES_INDEX: &str = "https://index.crates.io";
 pub(crate) const CRATES_DL: &str = "https://static.crates.io/crates";
 const CRATES_FETCH_LIMIT: u64 = 64 << 20;
 
-fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, ApiCompatError> {
+fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, ApiCheckError> {
     let url = format!("{CRATES_INDEX}/{}", index_path(crate_name));
     Ok(fetch(&url, CRATES_FETCH_LIMIT)?
         .and_then(|body| latest_published(&String::from_utf8_lossy(&body), next)))
@@ -465,7 +465,12 @@ pub(crate) fn fetch_published_crate(
     match checked {
         Ok(()) => Ok(dest),
         Err(error) => {
-            drop(std::fs::remove_file(&dest));
+            if let Err(cleanup) = std::fs::remove_file(&dest) {
+                dx_output::write_stderr(
+                    &mut io::stderr(),
+                    format_args!("crates_deploy: remove {}: {cleanup}\n", dest.display()),
+                );
+            }
             Err(error)
         }
     }
@@ -491,7 +496,7 @@ fn check_crate_members(
         };
         pinned.insert(key, digest);
     }
-    let generated = [manifest_name(), "Cargo.lock", ".cargo_vcs_info.json"];
+    let generated = [manifest_name(), Ecosystem::Cargo.lockfile(), ".cargo_vcs_info.json"];
     let open = std::fs::File::open(path).map_err(invalid)?;
     let mut foreign: Option<(String, &'static str)> = None;
     dx_archive::visit(
@@ -639,10 +644,10 @@ fn crates_api_report(
     semver_checks: Option<&Path>,
     mapped: &[(std::path::PathBuf, String)],
     (crate_name, version): (&str, &str),
-    (mode, baseline): (ApiCompatMode, Baseline),
+    (mode, baseline): (ApiCheckMode, Baseline),
     crate_dir: &str,
 ) -> Result<(), CratesError> {
-    if mode == ApiCompatMode::Off {
+    if mode == ApiCheckMode::Off {
         return Ok(());
     }
     let outcome = match semver_checks {
@@ -651,7 +656,7 @@ fn crates_api_report(
         }
         None => Outcome::Skipped("cargo-semver-checks is not available".to_owned()),
     };
-    conclude("crates_deploy", mode, version, outcome).map_err(CratesError::ApiCompat)
+    conclude("crates_deploy", mode, version, outcome).map_err(CratesError::ApiCheck)
 }
 
 pub fn crates_main(
@@ -718,7 +723,7 @@ pub fn crates_main_checked(
     };
     let version = version.as_str();
     let (Some(mode), Some(baseline)) = (
-        ApiCompatMode::parse(api_compat),
+        ApiCheckMode::parse(api_compat),
         Baseline::parse(api_baseline),
     ) else {
         eprintln!(
@@ -1247,7 +1252,7 @@ mod tests {
             ),
         );
         let repo_dir = repo.display().to_string();
-        let run_in = |dir: &str, version: &str, mode: ApiCompatMode| {
+        let run_in = |dir: &str, version: &str, mode: ApiCheckMode| {
             with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {
                 crates_api_report(
                     Some(&fake),
@@ -1258,9 +1263,9 @@ mod tests {
                 )
             })
         };
-        let run = |version: &str, mode: ApiCompatMode| run_in("pkg", version, mode);
-        let refused = run("1.2.1", ApiCompatMode::Fail).expect_err("patch bump refused");
-        assert!(matches!(refused, CratesError::ApiCompat(_)));
+        let run = |version: &str, mode: ApiCheckMode| run_in("pkg", version, mode);
+        let refused = run("1.2.1", ApiCheckMode::Fail).expect_err("patch bump refused");
+        assert!(matches!(refused, CratesError::ApiCheck(_)));
         assert!(refused.to_string().contains("1.2.0 -> 1.2.1"), "{refused}");
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert!(logged.contains("--baseline-root"), "{logged}");
@@ -1269,12 +1274,12 @@ mod tests {
             std::fs::read_to_string(&exported).expect("exported manifest"),
             "[package]\nname = \"pkg\"\n"
         );
-        assert!(run("2.0.0", ApiCompatMode::Fail).is_ok());
-        assert!(run("1.2.1", ApiCompatMode::Warn).is_ok());
+        assert!(run("2.0.0", ApiCheckMode::Fail).is_ok());
+        assert!(run("1.2.1", ApiCheckMode::Warn).is_ok());
         std::fs::remove_file(&args_log).expect("clear log");
-        assert!(run("1.2.1", ApiCompatMode::Off).is_ok());
+        assert!(run("1.2.1", ApiCheckMode::Off).is_ok());
         assert!(!args_log.exists(), "off must not run the tool");
-        assert!(run_in("moved", "2.0.0", ApiCompatMode::Fail).is_ok());
+        assert!(run_in("moved", "2.0.0", ApiCheckMode::Fail).is_ok());
         assert!(
             !args_log.exists(),
             "a crate missing at the tag skips the tool"
@@ -1349,13 +1354,13 @@ mod tests {
                     Some(&tool),
                     &mapped,
                     ("pkg", version),
-                    (ApiCompatMode::Fail, Baseline::Git),
+                    (ApiCheckMode::Fail, Baseline::Git),
                     "pkg",
                 )
             })
         };
         let refused = run("1.2.1").expect_err("patch bump refused");
-        assert!(matches!(refused, CratesError::ApiCompat(_)));
+        assert!(matches!(refused, CratesError::ApiCheck(_)));
         assert!(refused.to_string().contains("1.2.0 -> 1.2.1"), "{refused}");
         assert!(run("2.0.0").is_ok());
     }
@@ -1419,11 +1424,11 @@ mod tests {
     fn pinned_members(manifest: &str) -> Vec<(&str, &str)> {
         vec![
             (
-                "Cargo.toml",
+                manifest_name(),
                 "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n# normalized\n",
             ),
             ("Cargo.toml.orig", manifest),
-            ("Cargo.lock", "version = 4\n"),
+            (Ecosystem::Cargo.lockfile(), "version = 4\n"),
             (".cargo_vcs_info.json", "{}\n"),
             ("src/lib.rs", "pub mod parser;\npub mod lexer;\n"),
             ("src/parser/mod.rs", "pub fn parse() -> u8 { 1 }\n"),

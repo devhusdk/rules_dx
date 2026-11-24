@@ -19,6 +19,11 @@ write_source_files(
 )
 
 exports_files(
+    ["lock_registry.json"],
+    visibility = ["//go/private/tools/gofumpt:__pkg__"],
+)
+
+exports_files(
     [
         "dotnet_namespaces.txt",
         "fsharp_core_namespaces.txt",

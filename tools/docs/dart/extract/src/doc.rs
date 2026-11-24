@@ -6,9 +6,9 @@ use std::process::Command;
 use std::time::Duration;
 
 use documentation_ir::tool::{FlagError, PathIoError, path_io};
+use dx_ecosystems::Ecosystem;
 use dx_process::capture::{RunError, run_captured};
 
-const PUBSPEC: &str = "pubspec.yaml";
 const DART_DOC_TIMEOUT: Duration = Duration::from_secs(3600);
 
 #[derive(Debug)]
@@ -243,7 +243,7 @@ pub fn plan(
         .iter()
         .map(|name| {
             (
-                format!("{name}/{PUBSPEC}"),
+                format!("{name}/{}", Ecosystem::Pub.manifest_name()),
                 format!("name: {name}\nenvironment:\n  sdk: ^3.0.0\n"),
             )
         })

@@ -42,3 +42,15 @@ Upstream: aspect-build/rules_js#3103
      fi
  else
      case "$0" in
+@@ -80,6 +94,11 @@
+             break
+         fi
+ 
++        if [[ "$self" == *.sh ]] && [ -e "${self%.sh}.bat.runfiles" ]; then
++            RUNFILES="${self%.sh}.bat.runfiles"
++            break
++        fi
++
+         if [[ "$self" == *.runfiles/* ]]; then
+             RUNFILES="${self%%.runfiles/*}.runfiles"
+             # don't break; this is a last resort for case 6b

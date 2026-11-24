@@ -86,8 +86,8 @@ rem The main-checkout rule decides whether this checkout may build dx. A built d
 rem refusal runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next
 rem one is asked. With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no
 rem git on PATH, the launcher reads .git itself: slots or a config it cannot read refuse, and so does a config with a
-rem [dx] section that names primary anywhere, which is coarser than tools/dx and refuses more. Keep in sync with
-rem primary_allows_build in tools/dx.
+rem [dx] section that names primary anywhere, which is coarser than tools/dx and refuses more. The check skips memory
+rem admission, which tools\bazel.ps1 does when the build starts. Keep in sync with primary_allows_build in tools/dx.
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 set "DX_ASK=%DX_STATE%\dx.exe"
 call :dxask
@@ -263,11 +263,16 @@ set "DX_VERDICT="
 if not exist "%DX_ASK%" exit /b 0
 set "DX_ERR=%DX_STATE%\hook.%RANDOM%%RANDOM%"
 pushd "%DX_ROOT%"
+set "DX_SLOTS_WAS=%DX_BUILD_SLOTS%"
+set "DX_BUILD_SLOTS=off"
 "%DX_ASK%" worktree hook bazel -- build //cli/cli:dx 2>"%DX_ERR%" >nul
 set "DX_EC=%errorlevel%"
+set "DX_BUILD_SLOTS=%DX_SLOTS_WAS%"
 popd
 if "%DX_EC%"=="0" set "DX_VERDICT=build"
+if "%DX_EC%"=="77" goto dxaskrefused
 if not "%DX_EC%"=="2" goto dxaskdone
+:dxaskrefused
 findstr /c:"refused:" "%DX_ERR%" >nul 2>&1
 if not errorlevel 1 set "DX_VERDICT=refused"
 :dxaskdone

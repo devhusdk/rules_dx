@@ -4,8 +4,20 @@ stages 1
 stage scalafix classes=scala sources=core/quality/testdata/profiles/scala/Strict.scala
 completed_rounds 2
 convergence STABLE
-initial 1
+initial 7
 initial ERROR scalafix Patch core/quality/testdata/profiles/scala/Strict.scala 43 67 fixable=true "scalafix would rewrite this code"
-terminal 0
+initial ERROR scalafix DisableSyntax.var core/quality/testdata/profiles/scala/Strict.scala 144 147 fixable=false "mutable state should be avoided"
+initial ERROR scalafix DisableSyntax.while core/quality/testdata/profiles/scala/Strict.scala 158 163 fixable=false "while loops should be avoided, consider using recursion instead"
+initial ERROR scalafix DisableSyntax.noValPatterns core/quality/testdata/profiles/scala/Strict.scala 195 206 fixable=false "Pattern matching in val assignment can result in match error, use \"_ match { ... }\" with a fallback case instead."
+initial ERROR scalafix DisableSyntax.throw core/quality/testdata/profiles/scala/Strict.scala 239 244 fixable=false "exceptions should be avoided, consider encoding the error in the return type instead"
+initial ERROR scalafix DisableSyntax.asInstanceOf core/quality/testdata/profiles/scala/Strict.scala 292 304 fixable=false "asInstanceOf casts are disabled, use pattern matching instead"
+initial ERROR scalafix DisableSyntax.null core/quality/testdata/profiles/scala/Strict.scala 315 319 fixable=false "null should be avoided, consider using Option instead"
+terminal 6
+terminal ERROR scalafix DisableSyntax.var core/quality/testdata/profiles/scala/Strict.scala 122 125 fixable=false "mutable state should be avoided"
+terminal ERROR scalafix DisableSyntax.while core/quality/testdata/profiles/scala/Strict.scala 136 141 fixable=false "while loops should be avoided, consider using recursion instead"
+terminal ERROR scalafix DisableSyntax.noValPatterns core/quality/testdata/profiles/scala/Strict.scala 173 184 fixable=false "Pattern matching in val assignment can result in match error, use \"_ match { ... }\" with a fallback case instead."
+terminal ERROR scalafix DisableSyntax.throw core/quality/testdata/profiles/scala/Strict.scala 217 222 fixable=false "exceptions should be avoided, consider encoding the error in the return type instead"
+terminal ERROR scalafix DisableSyntax.asInstanceOf core/quality/testdata/profiles/scala/Strict.scala 270 282 fixable=false "asInstanceOf casts are disabled, use pattern matching instead"
+terminal ERROR scalafix DisableSyntax.null core/quality/testdata/profiles/scala/Strict.scala 293 297 fixable=false "null should be avoided, consider using Option instead"
 replacements 1
 replacement core/quality/testdata/profiles/scala/Strict.scala 45 67 ""

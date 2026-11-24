@@ -88,3 +88,9 @@ scala_library(
     unused_dependency_checker_mode = "off",
     deps = [":sc_wrapper"],
 )
+
+scala_library(
+    name = "scala_unused_silenced",
+    srcs = ["ScalaUnusedSilenced.scala"],
+    scalacopts = ["-Wconf:cat=unused:s"],
+)

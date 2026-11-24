@@ -1,8 +1,8 @@
-"""Windows launcher shim for js_binary build tools."""
+"""Windows launcher for js_binary build tools."""
 
 visibility(["//astro/...", "//javascript/...", "//typescript/..."])
 
-_SHIM = "\r\n".join([
+_LAUNCHER = "\r\n".join([
     "@echo off",
     "if defined RUNFILES_MANIFEST_FILE goto run",
     "set \"RUNFILES_MANIFEST_FILE=%~f0.runfiles_manifest\"",
@@ -19,24 +19,24 @@ def _bin_relative(ctx, file):
         fail("{} is not in the output tree".format(file.path))
     return file.path[len(prefix):]
 
-def _windows_js_tool_shim_impl(ctx):
+def _windows_js_tool_launcher_impl(ctx):
     executable = ctx.executable.tool
-    shim = ctx.actions.declare_file(ctx.label.name + ".bat")
-    rel = "../" * _bin_relative(ctx, shim).count("/") + _bin_relative(ctx, executable)
+    launcher = ctx.actions.declare_file(ctx.label.name + ".bat")
+    rel = "../" * _bin_relative(ctx, launcher).count("/") + _bin_relative(ctx, executable)
     ctx.actions.write(
-        output = shim,
-        content = _SHIM.format(tool = rel.replace("/", "\\")),
+        output = launcher,
+        content = _LAUNCHER.format(tool = rel.replace("/", "\\")),
         is_executable = True,
     )
     runfiles = ctx.attr.tool[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [executable]))
     return [
-        DefaultInfo(executable = shim, runfiles = runfiles),
+        DefaultInfo(executable = launcher, runfiles = runfiles),
         OutputGroupInfo(execroot_data_files = ctx.attr.tool[OutputGroupInfo].execroot_data_files),
     ]
 
-windows_js_tool_shim = rule(
-    implementation = _windows_js_tool_shim_impl,
-    doc = "Runs a js_binary tool on Windows with RUNFILES_MANIFEST_FILE set to the shim's runfiles.",
+windows_js_tool_launcher = rule(
+    implementation = _windows_js_tool_launcher_impl,
+    doc = "Runs a js_binary tool on Windows with RUNFILES_MANIFEST_FILE set to the launcher's runfiles.",
     attrs = {
         "tool": attr.label(
             doc = "The js_binary to run.",
@@ -49,17 +49,16 @@ windows_js_tool_shim = rule(
 )
 
 def js_build_tool(name, tool, tags = None, testonly = False, visibility = None):
-    """Defines `name` as `tool`, wrapped in `windows_js_tool_shim` on Windows; the shim also gets `manual`."""
-    extra = {"testonly": True} if testonly else {}
-    shim_tags = list(tags or [])
-    if "manual" not in shim_tags:
-        shim_tags.append("manual")
-    windows_js_tool_shim(
+    """Defines `name` as `tool`, wrapped in `windows_js_tool_launcher` on Windows; the launcher also gets `manual`."""
+    launcher_tags = list(tags or [])
+    if "manual" not in launcher_tags:
+        launcher_tags.append("manual")
+    windows_js_tool_launcher(
         name = name + "_windows",
         tool = tool,
-        tags = shim_tags,
+        tags = launcher_tags,
+        testonly = testonly,
         visibility = visibility,
-        **extra
     )
     native.alias(
         name = name,
@@ -68,6 +67,6 @@ def js_build_tool(name, tool, tags = None, testonly = False, visibility = None):
             "//conditions:default": tool,
         }),
         tags = tags,
+        testonly = testonly,
         visibility = visibility,
-        **extra
     )

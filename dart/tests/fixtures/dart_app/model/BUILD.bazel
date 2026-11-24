@@ -30,12 +30,12 @@ genrule(
 
 dart_library(
     name = "model",
-    package = ":pubspec-metadata",
     srcs = [
         "lib/model.dart",
         ":schema_g_dart",
     ],
     aspect_hints = ["//dart/tests/fixtures/dart_app:dart_config"],
+    package = ":pubspec-metadata",
     visibility = _PUBLIC,
 )
 

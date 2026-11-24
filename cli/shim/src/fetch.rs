@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::protocol::ShimError;
+use crate::protocol::LaunchError;
 
 pub const MAX_BINARY_BYTES: u64 = 512 * 1024 * 1024;
 pub const MAX_SIDECAR_BYTES: u64 = 4 * 1024;
@@ -35,7 +35,7 @@ pub struct Request<'a> {
     pub checksum: &'a ChecksumSource,
 }
 
-pub fn ensure(request: &Request<'_>) -> Result<PathBuf, ShimError> {
+pub fn ensure(request: &Request<'_>) -> Result<PathBuf, LaunchError> {
     if cached(request.dest, Some(request.checksum)) {
         return Ok(request.dest.to_path_buf());
     }
@@ -91,13 +91,13 @@ fn remove_stamp(dest: &Path) -> std::io::Result<()> {
     }
 }
 
-pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
+pub fn install(request: &Request<'_>) -> Result<PathBuf, LaunchError> {
     let dest = request.dest;
     let dir = dest
         .parent()
-        .ok_or_else(|| ShimError::failure(format!("bad cache path {}", dest.display())))?;
+        .ok_or_else(|| LaunchError::failure(format!("bad cache path {}", dest.display())))?;
     let not_writable = |e: &dyn std::fmt::Display| {
-        ShimError::failure(format!(
+        LaunchError::failure(format!(
             "cannot write the dx cache at {}: {e}; set DX_CACHE_DIR to a writable directory",
             dir.display()
         ))
@@ -107,14 +107,14 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     let want = match request.checksum {
         ChecksumSource::Sidecar => sidecar(&client, request)?,
         ChecksumSource::Pinned(hash) => parse_hash(hash).ok_or_else(|| {
-            ShimError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
+            LaunchError::failure(format!("bad pinned sha256 for {}: '{hash}'", request.url))
         })?,
     };
     dx_atomic_fs::remove_stale_staging(dest);
     let mut part = PartFile::create(dest).map_err(|e| not_writable(&e))?;
     let got = download(&client, request, &mut part)?;
     if !dx_digest::verify(&want, &got) {
-        return Err(ShimError::failure(mismatch_message(
+        return Err(LaunchError::failure(mismatch_message(
             request.url,
             &want,
             &got,
@@ -134,13 +134,13 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     Ok(dest.to_path_buf())
 }
 
-fn client(url: &str) -> Result<dx_http::Client, ShimError> {
+fn client(url: &str) -> Result<dx_http::Client, LaunchError> {
     dx_http::Client::new(dx_http::Settings {
         https_only: url.starts_with("https://"),
         user_agent: "rules_dx".to_owned(),
         ..dx_http::Settings::default()
     })
-    .map_err(|e| ShimError::failure(format!("{e}{NEXT_STEP}")))
+    .map_err(|e| LaunchError::failure(format!("{e}{NEXT_STEP}")))
 }
 
 fn fetch_message(request: &Request<'_>, error: dx_http::Error) -> String {
@@ -163,7 +163,7 @@ fn download(
     client: &dx_http::Client,
     request: &Request<'_>,
     part: &mut PartFile,
-) -> Result<String, ShimError> {
+) -> Result<String, LaunchError> {
     let path = part.staged.path().to_path_buf();
     client
         .download_into(request.url, &[], part.staged.file_mut(), MAX_BINARY_BYTES)
@@ -177,16 +177,16 @@ fn download(
             | dx_http::Error::Transport { .. }
             | dx_http::Error::TooLarge { .. }) => fetch_message(request, other),
         })
-        .map_err(ShimError::failure)
+        .map_err(LaunchError::failure)
 }
 
-fn sidecar(client: &dx_http::Client, request: &Request<'_>) -> Result<String, ShimError> {
+fn sidecar(client: &dx_http::Client, request: &Request<'_>) -> Result<String, LaunchError> {
     let url = format!("{}.sha256", request.url);
     let text = client
         .text(&url, &[], MAX_SIDECAR_BYTES)
-        .map_err(|e| ShimError::failure(fetch_message(request, e)))?;
+        .map_err(|e| LaunchError::failure(fetch_message(request, e)))?;
     let first = text.split_whitespace().next().unwrap_or("");
-    parse_hash(first).ok_or_else(|| ShimError::failure(format!("{url} holds no sha256")))
+    parse_hash(first).ok_or_else(|| LaunchError::failure(format!("{url} holds no sha256")))
 }
 
 #[must_use]

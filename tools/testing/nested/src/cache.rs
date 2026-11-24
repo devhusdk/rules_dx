@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const MANIFESTS_ENV: &str = "DX_NESTED_REPOSITORY_CACHE";
 
@@ -52,15 +53,42 @@ pub fn entry(cache: &Path, digest: &str) -> PathBuf {
         .join("file")
 }
 
+/// Links to the resolved file, so the entry outlives the runfiles tree of the test that placed it.
 #[cfg(unix)]
-fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
-    let src = std::path::absolute(src)?;
-    std::os::unix::fs::symlink(src, dst)
+fn link(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(std::fs::canonicalize(src)?, dst)
 }
 
 #[cfg(not(unix))]
+fn link(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::hard_link(src, dst)
+}
+
+/// Puts `src` at `dst` with one rename, so a test reading a shared cache sees no entry or a whole one.
 fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
-    std::fs::copy(src, dst).map(|_| ())
+    static STAGED: AtomicU64 = AtomicU64::new(0);
+    let n = STAGED.fetch_add(1, Ordering::Relaxed);
+    // Sandboxed tests can share a PID across PID namespaces; the clock keeps their staging names apart.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let staging = dst.with_file_name(format!(".file.{}.{nanos}.{n}.tmp", std::process::id()));
+    let placed = match link(src, &staging) {
+        Ok(()) => {
+            std::fs::rename(&staging, dst).inspect_err(|_| dx_atomic_fs::discard_file(&staging))
+        }
+        Err(error) if cfg!(unix) => Err(error),
+        // A hard link cannot cross volumes; the copy is staged and renamed the same way.
+        Err(_) => dx_atomic_fs::copy_scratch(src, dst),
+    };
+    // Another test may have placed the same digest first, and Windows refuses to replace an entry that test has open.
+    placed.or_else(|error| {
+        if std::fs::metadata(dst).is_ok() {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    })
 }
 
 fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
@@ -107,7 +135,8 @@ pub fn install(cache: &Path, files: &[Download<PathBuf>]) -> Result<(), String> 
         let dir = dst.parent().unwrap_or(cache);
         std::fs::create_dir_all(dir)
             .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
-        if std::fs::symlink_metadata(&dst).is_err() {
+        // A dangling link counts as missing: the runfiles it pointed at are gone.
+        if std::fs::metadata(&dst).is_err() {
             place(file, &dst).map_err(|error| {
                 format!(
                     "cannot put {} at {}: {error}",
@@ -343,6 +372,51 @@ mod tests {
             placed.with_file_name(id).is_file(),
             "canonical id of the URL"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_replaces_an_entry_whose_file_is_gone() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cache = dir.path().join("cache");
+        let placed = entry(&cache, A);
+        std::fs::create_dir_all(placed.parent().expect("parent")).expect("mkdir");
+        std::os::unix::fs::symlink(dir.path().join("gone"), &placed).expect("dangling link");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: Vec::new(),
+        }];
+        install(&cache, &files).expect("install");
+        assert_eq!(std::fs::read_to_string(&placed).expect("read"), "bytes");
+    }
+
+    #[test]
+    fn concurrent_installs_leave_one_whole_entry_and_no_staging_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let cache = dir.path().join("cache");
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: vec!["abc".to_owned()],
+        }];
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| install(&cache, &files).expect("install"));
+            }
+        });
+        let placed = entry(&cache, A);
+        assert_eq!(std::fs::read_to_string(&placed).expect("read"), "bytes");
+        let names: Vec<String> = std::fs::read_dir(placed.parent().expect("parent"))
+            .expect("list")
+            .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect();
+        assert!(names.is_empty(), "{names:?}");
     }
 
     #[test]

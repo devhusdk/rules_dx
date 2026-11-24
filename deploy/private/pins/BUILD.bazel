@@ -85,6 +85,7 @@ alias(
 filegroup(
     name = "conan_none",
     srcs = [],
+    target_compatible_with = ["@platforms//:incompatible"],
 )
 
 alias(

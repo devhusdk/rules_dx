@@ -503,6 +503,13 @@ pub fn read_text(path: &Path) -> String {
 }
 
 #[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
+pub fn must<T, E: std::fmt::Debug>(result: Result<T, E>, what: &str) -> T {
+    result.unwrap_or_else(|error| panic!("{what}: {error:?}"))
+}
+
+#[must_use]
 pub fn preset_layer(layer: dx_preset::Layer) -> String {
     dx_preset::render_layer_with(layer, dx_preset::DEFAULT_REPO, Some(true))
 }

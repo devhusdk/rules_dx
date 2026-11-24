@@ -34,8 +34,8 @@ _windows_arm64_test = analysistest.make(
     },
 )
 
-def hermetic_launcher_tests(name):
+def hermetic_launcher_tests(name, size = "small"):
     """Instantiates the Windows arm64 launcher toolchain analysis test."""
     _probe(name = name + "_subject", tags = ["manual"])
-    _windows_arm64_test(name = name + "_test", target_under_test = ":" + name + "_subject")
+    _windows_arm64_test(name = name + "_test", size = size, target_under_test = ":" + name + "_subject")
     native.test_suite(name = name, tests = [":" + name + "_test"])

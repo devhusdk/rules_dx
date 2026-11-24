@@ -1,12 +1,27 @@
 use dx_module_bazel::ModuleFile;
 
-const BASES: [(&str, &str); 6] = [
-    ("distroless_static", "gcr.io/distroless/static-debian12"),
-    ("distroless_cc", "gcr.io/distroless/cc-debian12"),
-    ("distroless_python", "gcr.io/distroless/python3-debian12"),
-    ("distroless_java", "gcr.io/distroless/java21-debian12"),
-    ("distroless_nodejs", "gcr.io/distroless/nodejs22-debian12"),
-    ("dotnet_runtime", "mcr.microsoft.com/dotnet/runtime"),
+// Platform strings must match the image index exactly; distroless publishes arm64 as variant v8.
+const V8: &str = "linux/arm64/v8";
+
+const BASES: [(&str, &str, &str); 6] = [
+    ("distroless_static", "gcr.io/distroless/static-debian12", V8),
+    ("distroless_cc", "gcr.io/distroless/cc-debian12", V8),
+    (
+        "distroless_python",
+        "gcr.io/distroless/python3-debian12",
+        V8,
+    ),
+    ("distroless_java", "gcr.io/distroless/java21-debian12", V8),
+    (
+        "distroless_nodejs",
+        "gcr.io/distroless/nodejs22-debian12",
+        V8,
+    ),
+    (
+        "dotnet_runtime",
+        "mcr.microsoft.com/dotnet/runtime",
+        "linux/arm64",
+    ),
 ];
 
 fn is_digest(text: &str) -> bool {
@@ -20,7 +35,7 @@ fn bases_are_pinned_by_digest_for_amd64_and_arm64() {
         ModuleFile::parse(&dx_testing::read_runfiles("MODULE.bazel")).expect("MODULE.bazel");
     let pulls: Vec<_> = module.calls_named("oci.pull").collect();
     assert_eq!(pulls.len(), BASES.len(), "one oci.pull per base");
-    for (name, image) in BASES {
+    for (name, image, arm64) in BASES {
         let pull = pulls
             .iter()
             .find(|call| call.str("name") == Some(name))
@@ -33,7 +48,7 @@ fn bases_are_pinned_by_digest_for_amd64_and_arm64() {
         );
         assert_eq!(
             pull.str_list("platforms"),
-            ["linux/amd64", "linux/arm64"],
+            ["linux/amd64", arm64],
             "{name} platforms"
         );
     }

@@ -235,6 +235,7 @@ def cc_toolchain_identity_tests(name):
     )
     starlark_test(
         name = name + "_gcc_x86_64_cross",
+        size = "small",
         mode = "analysis",
         subjects = [":identity_under_test_gcc_x86_64_cross"],
         expected_observations = EXPECTED_GCC_X86_64_CROSS_IDENTITY_OBSERVATIONS,

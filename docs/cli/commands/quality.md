@@ -250,6 +250,14 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `zig`, `zig_ast_check` and `zig_fmt` report every finding as an error.
 
+`hadolint` in the strict tier also fails on these patterns, each as an error.
+
+| Rule | Pattern |
+| --- | --- |
+| `guard/reasonless_ignore` | `# hadolint ignore=` or `# hadolint global ignore=` with no reason. Add one after the rule list: `# hadolint ignore=DL3008 # apt pins drift weekly` |
+| `guard/unpinned_image` | `FROM` an image without an `@sha256:` digest. `scratch` and earlier build stages pass, and `ARG` defaults declared before the first `FROM` are expanded first |
+| `guard/tls_off` | A `curl` or `wget` call in `RUN` that turns off certificate checks with curl's insecure option or wget's no-check-certificate option |
+
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
 `perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.
@@ -257,6 +265,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 `shellcheck` reports every finding as a `warning`, style findings included, so they fail the default `--fail-on`. Both tiers set `external-sources=true`, so shellcheck follows `source` lines. Strict also turns on the optional checks `add-default-case`, `check-extra-masked-returns`, `check-set-e-suppressed`, `check-unassigned-uppercase` and `deprecate-which`.
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
+
+`hlint` takes its tier from `core/quality/tiers/hlint/`. Standard ignores the naming, section, lambda-case, tuple-section and bracket hints. Strict turns on the `extra`, `generalise` and `future` groups and bans the functions `head`, `tail`, `init`, `last`, `fromJust`, `!!`, `read`, `error`, `undefined`, `unsafePerformIO`, `unsafeCoerce`, `trace`, `traceShow`, `traceM`, `foldl1`, `foldr1`, `maximum`, `minimum` and `genericIndex`, the modules `Debug.Trace`, `System.IO.Unsafe` and `Unsafe.Coerce`, and every `OPTIONS_GHC` flag; set compiler flags in `ghcopts`. These bans and the hints `Use fromMaybe`, `Unused LANGUAGE pragma`, `Redundant bracket`, `Redundant $`, `Redundant id`, `Use null`, `Use isNothing` and `Use isJust` are errors.
 
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
@@ -269,6 +279,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 With warnings as errors on, `erlc` compiles with `-Werror`, `+warn_untyped_record`, `+warn_unused_import` and `+warn_export_all`. Test apps, `testonly` bytecode and Common Test suites get `+nowarn_export_all` in its place. An `erlang_app` that lists `srcs`, as Gazelle writes them, compiles with the upstream rules_erlang defaults and gets none of these flags. Third-party Hex apps build with `warnings_as_errors = False`. `warnings_as_errors = False` on a target, or `--@rules_dx//config:warnings_as_errors=false`, turns all of them off.
 
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`, plus `bodyclose`, `errorlint`, `exhaustive`, `noctx` and `sqlclosecheck`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
+
+`ty` takes its tier from `core/quality/tiers/ty/`. Standard uses the ty default rule levels. Strict sets every rule to `error` except `division-by-zero`, so a blanket `# ty: ignore`, an unused suppression comment and `disjoint-cast` fail, and `error-on-warning` fails the run on any warning.
 
 ### JVM and .NET
 

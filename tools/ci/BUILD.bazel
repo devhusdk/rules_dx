@@ -2,16 +2,11 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cli/prebuilt:tools.bzl", "JAR_TOOLS", "asset_name", "deploy_jar")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":repos_tests.bzl", "repos_tests")
 
 package(default_visibility = VIS_TOOLS)
-
-filegroup(
-    name = "release_jars",
-    srcs = [deploy_jar(tool) for tool in JAR_TOOLS],
-)
 
 # "<label> <asset>" per jar tool, the pairs the release-tools.yml jars job builds.
 write_file(
@@ -101,7 +96,10 @@ rust_test(
     ),
     crate_name = "evidence_inputs_test",
     crate_root = "evidence_inputs_test.rs",
-    data = ["//.github:workflows/evidence.yml"],
+    data = [
+        "//.github:workflows/evidence.yml",
+        "//android/tests/fixtures/rust_starter:MODULE.bazel.fixture",
+    ],
     deps = [
         "//tools/ci/ci_workflow",
         "//tools/ci/evidence_inputs",
@@ -435,6 +433,7 @@ rust_test(
         "//cli/exec_audit:clippy.toml",
         "//cli/exec_bench:clippy.toml",
         "//cli/exec_core:clippy.toml",
+        "//cli/exec_deploy:clippy.toml",
         "//cli/exec_docs:clippy.toml",
         "//cli/exec_quality:clippy.toml",
         "//cli/exec_reports:clippy.toml",
@@ -1069,6 +1068,68 @@ rust_test(
     ) + [
         ":dx_guard",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_library(
+    name = "comment_budget",
+    testonly = True,
+    srcs = ["comment_budget/lib.rs"],
+    crate_name = "comment_budget",
+    crate_root = "comment_budget/lib.rs",
+    deps = [":dx_guard"],
+)
+
+_COMMENT_BUDGET_INPUTS = [
+    "@dx_test_tags_sources//:all_rust.json",
+    "@dx_test_tags_sources//:other_code.json",
+    "@dx_test_tags_sources//:sources.json",
+]
+
+_COMMENT_BUDGET_ENV = {
+    "DX_OTHER_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:other_code.json)",
+    "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:all_rust.json)",
+    "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+}
+
+rust_binary(
+    name = "comment_budget_update",
+    testonly = True,
+    srcs = ["comment_budget/update.rs"],
+    crate_name = "comment_budget_update",
+    crate_root = "comment_budget/update.rs",
+    data = _COMMENT_BUDGET_INPUTS,
+    env = _COMMENT_BUDGET_ENV,
+    deps = [
+        ":comment_budget",
+        ":dx_guard",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "comment_budget_test",
+    size = "small",
+    srcs = ["comment_budget_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "comment_budget_test",
+    crate_root = "comment_budget_test.rs",
+    data = ["comment_budget.txt"] + _COMMENT_BUDGET_INPUTS,
+    env = _COMMENT_BUDGET_ENV | {"COMMENT_BUDGET": "$(rlocationpath comment_budget.txt)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":comment_budget",
+        ":dx_guard",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],

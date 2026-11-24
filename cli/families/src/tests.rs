@@ -97,12 +97,16 @@ fn core_entries_ship_apart_from_the_languages() {
         core.first().map(|files| files.bzl.as_str()),
         Some("core/quality:families/core.bzl")
     );
+    let families = core_families().len();
+    let aspectless = core
+        .iter()
+        .filter(|files| files.aspects.is_empty() && files.probes.is_empty())
+        .count();
+    assert!(
+        aspectless > 0 && aspectless < families,
+        "{aspectless} of {families}"
+    );
     for files in core {
-        assert!(
-            !files.aspects.is_empty() || !files.probes.is_empty(),
-            "{}",
-            files.bzl
-        );
         // A language may share a core file, as asciidoc shares core.bzl, without naming aspects.
         assert!(
             quality_languages()

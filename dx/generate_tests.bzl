@@ -49,10 +49,11 @@ def _checks():
         ),
     ]
 
-def dx_generate_tests(name):
+def dx_generate_tests(name, size = "small"):
     """Declares the //dx:generate descriptor test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

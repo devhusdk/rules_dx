@@ -702,6 +702,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_hello_c_static_test",
+    size = "small",
     compiler = "gcc",
     target_compatible_with = [
         "@platforms//os:linux",
@@ -712,6 +713,7 @@ cc_toolchain_test(
 
 dx_coverage_test(
     name = "gcc_coverage_test",
+    size = "small",
     covered_source = "hello.c",
     instrumented_packages = ["cc/tests/fixtures/hello"],
     subject = ":gcc_hello_c_static_test",

@@ -652,7 +652,7 @@ mod tests {
             stub_url(Path::new(r"C:/t/_tmp\stubs\go")),
             "file:///C:/t/_tmp/stubs/go"
         );
-        assert_eq!(stub_url(Path::new("/tmp/stubs/go")), "file:///tmp/stubs/go");
+        assert_eq!(stub_url(Path::new("/opt/stubs/go")), "file:///opt/stubs/go");
     }
 
     #[test]

@@ -47,15 +47,13 @@ pub fn run_process(args: &[String]) -> i32 {
 
 #[must_use]
 pub fn run_os_process(args: &[std::ffi::OsString]) -> i32 {
-    use std::io::Write;
     match utf8_args(args) {
         Ok(text) => run_process(&text),
         Err(error) => {
-            drop(writeln!(
-                std::io::stderr(),
-                "{}: {error}",
-                CodegenKind::PROGRAM
-            ));
+            dx_output::write_stderr(
+                &mut std::io::stderr(),
+                format_args!("{}: {error}\n", CodegenKind::PROGRAM),
+            );
             1
         }
     }

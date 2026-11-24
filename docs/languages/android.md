@@ -499,6 +499,8 @@ but not run there. The other tests run on every host:
 bazel test //android/...
 ```
 
+On Linux arm64 this skips the APK, native-library and packaging targets.
+
 ## Rules
 
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//android:defs.bzl`:

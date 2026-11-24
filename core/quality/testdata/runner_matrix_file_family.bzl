@@ -614,6 +614,17 @@ FILE_FAMILY_CASES = [
         config = "//core/quality/tiers/hlint:strict.yaml",
     ),
     matrix_case(
+        name = "matrix_haskell_lint_banned_strict",
+        capability = "lint",
+        tool = "hlint",
+        binary = "//haskell/private/tools/hlint/bin",
+        source_class = "haskell",
+        generated = {
+            "matrix/hlint_banned_strict.hs": "{-# OPTIONS_GHC -w #-}\nmodule Banned (first, unwrap, noisy) where\n\nimport Data.Maybe (fromJust)\nimport Debug.Trace (trace)\n\nfirst :: [Int] -> Int\nfirst = head\n\nunwrap :: Maybe Int -> Int\nunwrap = fromJust\n\nnoisy :: Int -> Int\nnoisy = trace \"noisy\"\n",
+        },
+        config = "//core/quality/tiers/hlint:strict.yaml",
+    ),
+    matrix_case(
         name = "matrix_rego_format_pass",
         capability = "format",
         tool = "opa",

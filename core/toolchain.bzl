@@ -5,7 +5,7 @@ load(":ghcr.bzl", "ghcr_headers")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
-visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
+visibility(["//cc/...", "//core/...", "//cuda/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
 
 _HEX = "0123456789abcdef"
 
@@ -222,13 +222,17 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
             for cell in sorted(cells)
         ])
         aliases = exec_aliases if type(exec_aliases) == "dict" else {target: "//:" + target for target in exec_aliases}
+
+        # An alias without a default is incompatible off the cells, so Bazel skips its dependents there.
+        incompatible = repr({":{}_exec".format(cell): [] for cell in sorted(cells)} | {"//conditions:default": ["@platforms//:incompatible"]})
         parts.extend([
-            'alias(\n    name = "{}",\n    actual = select({}),\n    visibility = ["//visibility:public"],\n)\n'.format(
+            'alias(\n    name = "{}",\n    actual = select({}),\n{}    visibility = ["//visibility:public"],\n)\n'.format(
                 alias,
                 repr(
                     {":{}_exec".format(cell): "@{}{}".format(repository or cell_repo(name, cell), aliases[alias]) for cell in sorted(cells)} |
                     ({"//conditions:default": alias_defaults[alias]} if alias in alias_defaults else {}),
                 ),
+                "" if alias in alias_defaults else "    target_compatible_with = select({}),\n".format(incompatible),
             )
             for alias in aliases
         ])

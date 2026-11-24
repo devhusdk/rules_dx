@@ -21,9 +21,9 @@ exports_files(
 
 dart_library(
     name = "inventory_cli",
-    package = ":pubspec-metadata",
     srcs = ["lib/inventory_cli.dart"],
     aspect_hints = ["//dart/tests/fixtures/dart_app:dart_config"],
+    package = ":pubspec-metadata",
     visibility = _PUBLIC,
     deps = [
         "//dart/tests/fixtures/dart_app/ledger",

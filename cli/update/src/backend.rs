@@ -778,20 +778,13 @@ fn check_backend(
 }
 
 fn backend_of(workspace: &Path, set: &ResolvedSet, column: &'static str) -> &'static str {
-    if set.ecosystem == Ecosystem::Pub && uses_flutter(workspace, set) {
+    if dependency_sets::flutter_pub_set(workspace, set.ecosystem, &set.manifests) {
         "pub_dev"
     } else if dependency_sets::maven_resolver_set(workspace, set) {
         "resolver"
     } else {
         column
     }
-}
-
-fn uses_flutter(workspace: &Path, set: &ResolvedSet) -> bool {
-    set.manifests.first().is_some_and(|manifest| {
-        std::fs::read_to_string(workspace.join(manifest))
-            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
-    })
 }
 
 fn no_backend(set: &ResolvedSet) -> BackendError {

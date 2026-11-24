@@ -171,6 +171,18 @@ impl UmbrellaRequest {
         self.mode == OperationMode::Apply
     }
 
+    #[must_use]
+    pub fn selects_nothing(&self, phase: Command) -> bool {
+        let targets = if phase == Command::Format {
+            &self.format_targets
+        } else if phase == Command::Lint {
+            &self.lint_targets
+        } else {
+            return false;
+        };
+        self.scope == HintScope::Affected && targets.is_empty()
+    }
+
     pub fn phase_quality_request(
         &self,
         phase: Command,
@@ -1019,6 +1031,20 @@ mod tests {
 
         let direct = invocation_for(Command::Lint, &["//a/..."]);
         assert_eq!(direct.quality_request().expect("quality").origin, None);
+    }
+
+    #[test]
+    fn affected_phases_with_no_targets_select_nothing() {
+        let mut affected = invocation_for(Command::Check, &["//svc:bin"]);
+        affected.affected_handoff = Some(AffectedHandoff::default());
+        let request = affected.umbrella_request().expect("umbrella");
+        assert!(request.selects_nothing(Command::Format));
+        assert!(request.selects_nothing(Command::Lint));
+        assert!(!request.selects_nothing(Command::Typecheck));
+        assert!(!request.selects_nothing(Command::Generate));
+        let plain = invocation_for(Command::Check, &[]);
+        let request = plain.umbrella_request().expect("umbrella");
+        assert!(!request.selects_nothing(Command::Lint));
     }
 
     #[test]

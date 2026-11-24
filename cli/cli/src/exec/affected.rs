@@ -119,7 +119,7 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LintScope {
-    OwnSources,
+    DirectUsers,
     Dependents,
 }
 
@@ -131,7 +131,7 @@ fn lint_scope(selection: &AffectedSelection) -> LintScope {
     {
         LintScope::Dependents
     } else {
-        LintScope::OwnSources
+        LintScope::DirectUsers
     }
 }
 
@@ -168,16 +168,21 @@ fn scope_to_graph(
     } else {
         Vec::new()
     };
-    let mut owners = if matches!(command, Command::Format | Command::Lint | Command::Check) {
+    let quality = matches!(command, Command::Format | Command::Lint | Command::Check);
+    let mut owners = if quality {
         graph.own_sources(&selection.targets)
     } else {
         Vec::new()
     };
     owners.retain(|rule| !exclude::covered(&excludes, rule));
-    let lint = match lint_scope(selection) {
-        LintScope::OwnSources => owners.clone(),
-        LintScope::Dependents => rules.clone(),
+    let mut lint = if quality && lint_scope(selection) == LintScope::Dependents {
+        rules.clone()
+    } else if quality {
+        graph.own_sources_and_direct_users(&selection.targets)
+    } else {
+        Vec::new()
     };
+    lint.retain(|rule| !exclude::covered(&excludes, rule));
     plan.targets = if tests_only(command) {
         tests.clone()
     } else if command == Command::Format {
@@ -193,16 +198,8 @@ fn scope_to_graph(
         if plan.generate.is_empty() {
             plan.generate = dx_plan::plan::generate_package_scope(&plan.targets);
         }
-        plan.format = if owners.is_empty() {
-            plan.targets.clone()
-        } else {
-            owners
-        };
-        plan.lint = if lint.is_empty() {
-            plan.targets.clone()
-        } else {
-            lint
-        };
+        plan.format = owners;
+        plan.lint = lint;
     }
     if matches!(command, Command::Security | Command::License) {
         plan.targets.retain(|target| audit_owned(workspace, target));
@@ -399,6 +396,20 @@ impl Write for InjectAffected<'_> {
     }
 }
 
+pub(crate) fn no_affected_targets(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> std::io::Result<()> {
+    if output == OutputMode::Json {
+        Ok(())
+    } else if output == OutputMode::Diff {
+        writeln!(err, "no affected targets")
+    } else {
+        writeln!(out, "no affected targets")
+    }
+}
+
 fn finished_empty(
     invocation: &Invocation,
     plan: &AffectedPlan,
@@ -420,11 +431,7 @@ fn finished_empty(
         if let Err(exit) = emit_built(out, started) {
             return exit;
         }
-    } else if invocation.output == OutputMode::Diff {
-        if writeln!(err, "no affected targets").is_err() {
-            return 1;
-        }
-    } else if writeln!(out, "no affected targets").is_err() {
+    } else if no_affected_targets(invocation.output, out, err).is_err() {
         return 1;
     }
     let mut code = 0;
@@ -1200,7 +1207,7 @@ mod tests {
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
         assert!(plan.widened.is_empty(), "{:?}", plan.widened);
-        assert_eq!(plan.targets, ["//a:lib"]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
     }
 
     #[test]
@@ -1405,13 +1412,13 @@ mod tests {
     }
 
     #[test]
-    fn format_and_lint_select_owners_without_their_users() {
+    fn format_selects_owners_and_lint_adds_their_direct_users() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n").unwrap();
         let (plan, _) = run(dir.path(), Command::Format, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib"]);
         let (plan, _) = run(dir.path(), Command::Lint, &[&graph()]);
-        assert_eq!(plan.targets, ["//a:lib"]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
         let (plan, _) = run(dir.path(), Command::Typecheck, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
     }
@@ -1425,7 +1432,7 @@ mod tests {
     }
 
     #[test]
-    fn check_lints_the_rules_that_read_changed_sources_and_typechecks_their_users() {
+    fn check_lints_a_changed_library_and_its_direct_dependents_and_typechecks_all_users() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n").unwrap();
         let graph = rules_graph(&[
@@ -1439,7 +1446,27 @@ mod tests {
         assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:t", "//a:unit"]);
         assert_eq!(plan.tests, ["//a:t", "//a:unit"]);
         assert_eq!(plan.format, ["//a:lib", "//a:unit"]);
-        assert_eq!(plan.lint, ["//a:lib", "//a:unit"]);
+        assert_eq!(plan.lint, ["//a:bin", "//a:lib", "//a:unit"]);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:unit"]);
+    }
+
+    #[test]
+    fn check_and_lint_select_nothing_to_lint_when_every_owner_is_manual() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let manual = json!([{"name": "tags", "stringListValue": ["manual"]}]);
+        let graph = rules_graph(&[
+            json!({"name": "//a:hand", "ruleInput": ["//a:a.txt"], "attribute": manual}),
+            json!({"name": "//a:mid", "ruleInput": ["//a:hand"], "attribute": manual}),
+            json!({"name": "//a:bin", "ruleInput": ["//a:mid"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin"]);
+        assert!(plan.format.is_empty(), "{:?}", plan.format);
+        assert!(plan.lint.is_empty(), "{:?}", plan.lint);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert!(plan.empty(), "{:?}", plan.targets);
     }
 
     #[test]
@@ -1689,6 +1716,11 @@ mod tests {
         assert_eq!(plan.format, labels(&["//svc/api:lib"]));
         assert_eq!(plan.lint, labels(&["//svc/api:lib", "//svc/api:test"]));
         assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
+        narrow_to_scope(&mut plan, &labels(&["//svc:bin"]));
+        assert_eq!(plan.targets, labels(&["//svc:bin"]));
+        assert!(plan.format.is_empty(), "{:?}", plan.format);
+        assert!(plan.lint.is_empty(), "{:?}", plan.lint);
+        assert!(!plan.empty());
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());
     }

@@ -54,7 +54,7 @@ Args after `--` go to Bazel.
 A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel target), a pattern such as `//pkg/...` (every target in `pkg` and below), or a workspace file or directory. With no scope, dx checks `//...`, every target in the workspace.
 
 - `--here` uses the current directory tree.
-- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. The format and lint phases use only the targets that read a changed file. The lint phase adds the targets that depend on them when a dependency version changes.
+- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. The format phase uses only the targets that read a changed file. The lint phase adds the targets that depend on them directly, or every target that depends on them when a dependency version changes. A format or lint phase with no affected targets prints `no affected targets` and runs nothing.
 - `--here` does not combine with scopes or `--affected`.
 - `--affected` with scopes keeps only the affected targets inside them.
 - With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.

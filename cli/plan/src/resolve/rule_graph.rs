@@ -30,6 +30,8 @@ const SOURCE_EDGES: [&str; 6] = [
     "upstream",
 ];
 
+const FORWARDING_KINDS: [&str; 2] = ["filegroup", "genrule"];
+
 const QUERY_FLAGS: [&str; 9] = [
     "query",
     "--keep_going",
@@ -286,6 +288,11 @@ impl RuleGraph {
                 .cloned()
                 .collect();
             if !consumers.is_empty() {
+                graph
+                    .source_readers
+                    .entry(name.clone())
+                    .or_default()
+                    .extend(consumers.iter().cloned());
                 graph.users.entry(name).or_default().extend(consumers);
             }
         }
@@ -332,6 +339,40 @@ impl RuleGraph {
 
     #[must_use]
     pub fn own_sources(&self, scopes: &[String]) -> Vec<String> {
+        self.keep(self.owned(scopes), |rule| !self.manual.contains(rule))
+    }
+
+    #[must_use]
+    pub fn own_sources_and_direct_users(&self, scopes: &[String]) -> Vec<String> {
+        let owned = self.owned(scopes);
+        let mut pending: Vec<&str> = owned
+            .iter()
+            .filter_map(|rule| self.users.get(*rule))
+            .flatten()
+            .map(String::as_str)
+            .collect();
+        let mut reached = owned;
+        let mut users: HashSet<&str> = HashSet::new();
+        while let Some(user) = pending.pop() {
+            if users.insert(user) && self.is_kind(user, "alias") {
+                pending.extend(
+                    self.users
+                        .get(user)
+                        .into_iter()
+                        .flatten()
+                        .map(String::as_str),
+                );
+            }
+        }
+        reached.extend(users);
+        self.keep(reached, |rule| !self.manual.contains(rule))
+    }
+
+    fn is_kind(&self, rule: &str, kind: &str) -> bool {
+        self.kinds.get(rule).is_some_and(|class| class == kind)
+    }
+
+    fn owned<'a>(&'a self, scopes: &[String]) -> HashSet<&'a str> {
         let mut pending: Vec<&str> = self
             .inputs
             .keys()
@@ -350,8 +391,17 @@ impl RuleGraph {
             if let Some(readers) = self.source_readers.get(rule) {
                 pending.extend(readers.iter().map(String::as_str));
             }
+            let forwards = FORWARDING_KINDS.iter().any(|kind| self.is_kind(rule, kind));
+            pending.extend(
+                self.users
+                    .get(rule)
+                    .into_iter()
+                    .flatten()
+                    .map(String::as_str)
+                    .filter(|user| forwards || self.is_kind(user, "alias")),
+            );
         }
-        self.keep(seen, |rule| !self.manual.contains(rule))
+        seen
     }
 
     #[must_use]
@@ -1114,6 +1164,88 @@ mod tests {
         assert_eq!(
             graph.own_sources(&strings(&["//a:hint"])),
             ["//a:corpus", "//a:hint"]
+        );
+    }
+
+    #[test]
+    fn own_sources_follow_generated_files_filegroups_and_aliases() {
+        let generated = serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//a:gen",
+                "ruleClass": "genrule",
+                "ruleInput": ["//a:schema.json"],
+                "ruleOutput": ["//a:gen.rs"],
+            },
+        })
+        .to_string();
+        let written = serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//a:write",
+                "ruleClass": "write_file",
+                "ruleInput": ["//a:template.txt"],
+                "ruleOutput": ["//a:written.rs"],
+            },
+        })
+        .to_string();
+        let graph = graph(&[
+            generated,
+            written,
+            graph_rule_of_kind("//a:lib", "rust_library", &["//a:gen", "//a:lib.rs"], &[]),
+            graph_rule_of_kind("//a:file_user", "rust_library", &["//a:written.rs"], &[]),
+            graph_rule_of_kind("//a:lib_alias", "alias", &["//a:lib"], &[]),
+            rule_reading(
+                "//a:unit",
+                &["//a:lib_alias"],
+                serde_json::json!({"name": "crate", "stringValue": "//a:lib_alias"}),
+            ),
+            graph_rule_of_kind("//a:bin", "rust_binary", &["//a:lib_alias"], &[]),
+            graph_rule_of_kind("//a:py_files", "filegroup", &["//a:x.py"], &[]),
+            graph_rule_of_kind("//a:py", "py_library", &["//a:py_files"], &[]),
+        ]);
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:gen"])),
+            ["//a:gen", "//a:lib", "//a:lib_alias", "//a:unit"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:write"])),
+            ["//a:file_user", "//a:write"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:py_files"])),
+            ["//a:py", "//a:py_files"]
+        );
+    }
+
+    #[test]
+    fn own_sources_and_direct_users_add_one_hop_of_reverse_dependencies() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:lib.rs"], &[]),
+            rule_reading(
+                "//a:unit",
+                &["//a:lib"],
+                serde_json::json!({"name": "crate", "stringValue": "//a:lib"}),
+            ),
+            rule("//b:bin", &["//a:lib"], &[]),
+            rule("//b:app", &["//b:bin"], &[]),
+            rule("//b:held", &["//a:lib"], &["manual"]),
+            graph_rule_of_kind("//a:lib_alias", "alias", &["//a:lib"], &[]),
+            rule("//c:via_alias", &["//a:lib_alias"], &[]),
+        ]);
+        assert_eq!(
+            graph.own_sources_and_direct_users(&strings(&["//a:lib"])),
+            [
+                "//a:lib",
+                "//a:lib_alias",
+                "//a:unit",
+                "//b:bin",
+                "//c:via_alias"
+            ]
+        );
+        assert_eq!(
+            graph.own_sources_and_direct_users(&strings(&["//b:app"])),
+            ["//b:app"]
         );
     }
 

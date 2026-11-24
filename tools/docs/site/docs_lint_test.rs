@@ -15,6 +15,12 @@ fn findings(result: &QualityResult) -> Vec<String> {
             )
         })
         .collect();
+    if let Some(convergence) = quality_result::unstable(result.convergence) {
+        found.push(format!(
+            "{} did not converge: {convergence} after {} round(s)",
+            result.producer, result.completed_rounds
+        ));
+    }
     found.extend(
         result
             .original_snapshot
@@ -36,8 +42,8 @@ fn the_docs_prose_has_no_lint_finding() {
     let mut found = Vec::new();
     for rel in paths.split_whitespace() {
         let path = dx_testing::resolve_runfiles(rel);
-        let bytes = std::fs::read(&path)
-            .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+        let bytes =
+            std::fs::read(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
         let result = quality_result::decode_validated(&bytes)
             .unwrap_or_else(|error| panic!("decode {}: {error}", path.display()));
         results += 1;
@@ -52,8 +58,8 @@ fn the_docs_prose_has_no_lint_finding() {
 }
 
 #[test]
-fn a_warning_or_a_proposed_fix_is_a_finding() {
-    use quality_result::proto::{Diagnostic, FileSnapshot};
+fn a_warning_a_proposed_fix_or_an_unsettled_result_is_a_finding() {
+    use quality_result::proto::{Convergence, Diagnostic, FileSnapshot};
     let snapshot = |digest: u8| FileSnapshot {
         path: "docs/README.md".to_owned(),
         digest: vec![digest; 32],
@@ -68,9 +74,15 @@ fn a_warning_or_a_proposed_fix_is_a_finding() {
         original_snapshot: vec![snapshot(1)],
         terminal_snapshot: vec![snapshot(1)],
         initial_diagnostics: vec![diagnostic(Severity::Info)],
+        convergence: Convergence::Stable as i32,
         ..QualityResult::default()
     };
     assert!(findings(&clean).is_empty());
+    let unsettled = QualityResult {
+        convergence: Convergence::Oscillation as i32,
+        ..clean.clone()
+    };
+    assert_eq!(findings(&unsettled).len(), 1);
     let warned = QualityResult {
         initial_diagnostics: vec![diagnostic(Severity::Warning)],
         ..clean.clone()

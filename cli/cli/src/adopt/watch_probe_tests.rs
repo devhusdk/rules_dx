@@ -146,25 +146,33 @@ impl Probe {
     }
 
     fn until(&mut self, what: &str, done: impl Fn(&Probe) -> bool) {
-        let deadline = Instant::now() + Duration::from_secs(30);
-        while !done(self) {
-            if let Ok(Some(status)) = self.child.try_wait() {
-                panic!(
-                    "dx exited ({status:?}) before {what}\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
-                    self.log(),
-                    self.stdout(),
-                    self.stderr()
-                );
-            }
-            assert!(
-                Instant::now() < deadline,
-                "timed out waiting for {what}\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
+        let log = self.log.clone();
+        let mut exited = None;
+        let waited = {
+            let this = &mut *self;
+            dx_test_scratch::wait::watch_until(&log, what, Duration::from_secs(30), || {
+                if done(this) {
+                    return true;
+                }
+                exited = this.child.try_wait().ok().flatten();
+                exited.is_some()
+            })
+        };
+        if let Some(status) = exited.filter(|_| !done(self)) {
+            panic!(
+                "dx exited ({status:?}) before {what}\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
                 self.log(),
                 self.stdout(),
                 self.stderr()
             );
-            std::thread::sleep(Duration::from_millis(20));
         }
+        assert!(
+            waited.is_ok(),
+            "{waited:?}\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
+            self.log(),
+            self.stdout(),
+            self.stderr()
+        );
     }
 
     fn idle(&mut self, ends: usize) {
@@ -181,13 +189,12 @@ impl Probe {
     }
 
     fn exit(&mut self) -> ExitStatus {
-        let deadline = Instant::now() + Duration::from_secs(30);
-        loop {
-            if let Some(status) = self.child.try_wait().expect("wait") {
+        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(30)) {
+            Ok(status) => {
                 self.exited = self.signalled.map(|at| at.elapsed());
-                return status;
+                status
             }
-            if Instant::now() >= deadline {
+            Err(error) => {
                 if let Err(e) = self.child.kill() {
                     eprintln!("kill dx: {e}");
                 }
@@ -195,13 +202,12 @@ impl Probe {
                     eprintln!("wait dx: {e}");
                 }
                 panic!(
-                    "dx did not exit\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
+                    "dx did not exit: {error}\nlog:\n{}\nstdout:\n{}\nstderr:\n{}",
                     self.log(),
                     self.stdout(),
                     self.stderr()
                 );
             }
-            std::thread::sleep(Duration::from_millis(20));
         }
     }
 

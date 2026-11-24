@@ -122,6 +122,11 @@ const DIALYZER_ARGS: &[&str] = &[
     "--error_location",
     "column",
     "--fullpath",
+    "-Wunmatched_returns",
+    "-Wmissing_return",
+    "-Wextra_return",
+    "-Werror_handling",
+    "-Wunderspecs",
 ];
 
 const PHPCS_ARGS: &[&str] = &["--report=json", "-q", "--no-colors", "--no-cache"];
@@ -256,14 +261,6 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
 /// `Perl::Critic` expands the `\t` and `\n` escapes itself.
 pub const PERLCRITIC_FORMAT: &str = r"dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
-/// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
-/// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
-/// unused-variable policy, which `--include` loads whatever its severity.
-const PERLCRITIC_DEFAULT_ARGS: &[&str] = &[
-    "--noprofile",
-    "--severity=5",
-    "--include=Variables::ProhibitUnusedVariables",
-];
 const PERLCRITIC_OUTPUT_ARGS: &[&str] = &["--nocolor", "--quiet", "--verbose", PERLCRITIC_FORMAT];
 /// Colon-separated fields: file, line, column, length, kind, number, message (last). `%c` is a
 /// 1-based byte offset.
@@ -1328,18 +1325,17 @@ pub fn luals_check(
     }
 }
 
-/// The generated `LuaLS` config. The consumer's settings (a flat `.luarc.json` object) come
+/// The generated `LuaLS` config. The bound settings (a flat `.luarc.json` object) come
 /// first; the keys below always win: the Lua version, the library directory, no diagnostics
-/// in libraries and the ignored staging directories. Without a consumer config the
-/// diagnostics are `LuaLS`'s defaults.
+/// in libraries and the ignored staging directories.
 #[must_use]
 pub fn luals_luarc(
-    consumer: Option<&serde_json::Value>,
+    consumer: &serde_json::Value,
     library: Option<&Path>,
     ignore_dirs: &[&str],
 ) -> String {
     let mut object = match consumer {
-        Some(serde_json::Value::Object(map)) => map.clone(),
+        serde_json::Value::Object(map) => map.clone(),
         _ => serde_json::Map::new(),
     };
     object.remove("$schema");
@@ -2059,17 +2055,14 @@ fn perltidy(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>
     assemble(binary, head, files, "")
 }
 
-/// One batched check; `Perl::Critic` has no autofix. A bound profile replaces the default
-/// severity and policy selection; the output flags stay.
-pub fn perlcritic_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let mut head = vec![binary.as_os_str().to_owned()];
-    match config {
-        Some(path) => {
-            head.push(OsString::from("--profile"));
-            head.push(path.as_os_str().to_owned());
-        }
-        None => head.extend(PERLCRITIC_DEFAULT_ARGS.iter().map(OsString::from)),
-    }
+/// One batched check under the bound tier profile, which also stops user profiles loading.
+#[must_use]
+pub fn perlcritic_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--profile"),
+        config.as_os_str().to_owned(),
+    ];
     head.extend(PERLCRITIC_OUTPUT_ARGS.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }

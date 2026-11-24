@@ -519,7 +519,6 @@ func TestParseFnBodyUses(t *testing.T) {
 	}
 }
 
-
 func TestParseBrIdentifiersAndLeadingColons(t *testing.T) {
 	facts := mustParse(t, "src/lib.rs", "mod bridge;\nconst X: &[u8] = br\"x\"; use brotli::X;\nuse ::serde::Value;\nextern crate serde_json as json;\n")
 	if len(facts.Modules) != 1 || facts.Modules[0].Name != "bridge" {

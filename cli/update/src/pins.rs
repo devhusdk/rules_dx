@@ -1,5 +1,3 @@
-//! Moves a `pins.json` to the newest release: version, urls and sha256 of every cell, or of one archive.
-
 use crate::discover::{Candidate, Fetch, Findings, LookupError, github, ruby};
 use dx_error::DxError;
 use serde_json::{Map, Value};
@@ -8,7 +6,6 @@ use std::path::Path;
 
 pub const SET: &str = "pins";
 
-/// The `pins.json` files that the `pins` entries of the `<dir>/lang.json` files list, sorted.
 pub fn listed(workspace: &Path) -> Vec<String> {
     let mut found = Vec::new();
     let Ok(entries) = std::fs::read_dir(workspace) else {
@@ -45,10 +42,6 @@ pub fn listed(workspace: &Path) -> Vec<String> {
     found
 }
 
-/// Checks the `pins.json` at `path` against the newest release of its tool.
-///
-/// The `cells` shape is one candidate named `path`. Each `archives` entry whose GitHub url
-/// names a tag holding its version is one candidate named `path#<archive>`.
 pub fn outdated(
     path: &str,
     text: &str,
@@ -113,15 +106,12 @@ fn push_newer(found: &mut Findings, package: &str, current: &str, latest: String
     }
 }
 
-/// An `archives` entry that `dx update` follows: a GitHub url whose tag holds the version.
 struct FollowedArchive<'a> {
     repo: String,
     tag_prefix: String,
     version: &'a str,
 }
 
-/// The GitHub repository and tag prefix of `archive`, or `None` when its first url names
-/// no GitHub tag that holds its version.
 fn followed_archive(archive: &Value) -> Option<FollowedArchive<'_>> {
     let version = archive.get("version").and_then(Value::as_str)?;
     let url = first_url(archive).ok()?;
@@ -148,7 +138,6 @@ fn followed_archive(archive: &Value) -> Option<FollowedArchive<'_>> {
     })
 }
 
-/// Splits a pins package into its `pins.json` path and, for `path#<archive>`, the archive name.
 pub fn split(package: &str) -> (&str, Option<&str>) {
     match package.split_once('#') {
         Some((path, archive)) => (path, Some(archive)),
@@ -156,7 +145,6 @@ pub fn split(package: &str) -> (&str, Option<&str>) {
     }
 }
 
-/// Finds the newest version of the pinned tool, from GitHub releases or rubygems.
 pub fn newest_version(
     pins: &Value,
     github_base: &str,
@@ -176,10 +164,6 @@ pub fn newest_version(
     Ok(tag.strip_prefix('v').unwrap_or(&tag).to_owned())
 }
 
-/// Rewrites `text` to `latest`, downloading each cell, or only `archive`, for its sha256.
-///
-/// `download` returns the sha256 of a url's bytes. Returns `None` when the pins already
-/// hold `latest`. Cells with a `stub` are left alone.
 pub fn rewrite(
     text: &str,
     archive: Option<&str>,
@@ -236,8 +220,6 @@ fn rewrite_cells(
     render(&pins).map(Some)
 }
 
-/// Moves the urls and strip_prefix of one entry from `old` to `latest` and sets the sha256
-/// of its first url; `digests` keeps each downloaded url's sha256 so it is fetched once.
 fn move_entry(
     entry: &mut Map<String, Value>,
     old: &str,
@@ -275,7 +257,6 @@ fn move_entry(
     Ok(())
 }
 
-/// Serializes with sorted keys, 2-space indent and a trailing newline.
 pub fn render(pins: &Value) -> Result<String, DxError> {
     let mut out =
         serde_json::to_string_pretty(&sorted(pins)).map_err(|e| DxError::failure(e.to_string()))?;

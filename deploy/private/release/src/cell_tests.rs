@@ -8,7 +8,6 @@ fn put(image: &mut Vec<u8>, at: usize, bytes: &[u8]) {
     image[at..at + bytes.len()].copy_from_slice(bytes);
 }
 
-/// Builds one minimal 64-bit little-endian ELF executable with `DT_NEEDED` entries.
 fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
     let mut image = vec![0u8; 64];
     put(&mut image, 0, &[0x7f, b'E', b'L', b'F', 2, 1, 1, 0]);
@@ -77,7 +76,6 @@ fn elf(machine: u16, needed: &[&str]) -> Vec<u8> {
     image
 }
 
-/// Builds one thin 64-bit Mach-O executable header with only `LC_BUILD_VERSION`.
 fn macho(cputype: u32) -> Vec<u8> {
     let mut image = Vec::new();
     for word in [
@@ -123,7 +121,6 @@ fn fat(slices: &[Vec<u8>]) -> Vec<u8> {
     image
 }
 
-/// Returns a minimal PE header for `machine`, enough for `dx_binfmt::machine`.
 fn pe_head(machine: u16) -> Vec<u8> {
     let mut image = vec![0u8; 0x80];
     put(&mut image, 0, b"MZ");
@@ -136,7 +133,6 @@ fn pe_head(machine: u16) -> Vec<u8> {
 const EM_X86_64: u16 = 62;
 const EM_AARCH64: u16 = 183;
 
-/// Flips the ELF `e_machine`, PE Machine or thin Mach-O cputype between `x86_64` and aarch64.
 fn patch_machine(bytes: &[u8]) -> Vec<u8> {
     let mut out = bytes.to_vec();
     let to_arm = dx_binfmt::machine(bytes).expect("machine") == "x86_64";
@@ -246,9 +242,10 @@ fn synthetic_exe() -> Vec<u8> {
     elf(EM_X86_64, &["libc.so.6", "libm.so.6", "libextra.so.1"])
 }
 
-/// Picks the host cell from the running test binary, shipping each non-system import as runtime.
 fn host_cell(format: &str) -> (Cell, Vec<u8>) {
-    let bytes = std::fs::read(std::env::current_exe().expect("current_exe")).expect("read exe");
+    let exe =
+        dx_testing::rlocation(&dx_testing::env_text("DX_RELEASE_HOST_EXE")).expect("host exe");
+    let bytes = std::fs::read(exe).expect("read exe");
     let images = dx_binfmt::inspect(&bytes).expect("inspect");
     let image = &images[0];
     let os = [("elf", "linux"), ("macho", "macos"), ("pe", "windows")]
@@ -339,7 +336,6 @@ fn stage(cell: Cell, members: Members) -> Fixture {
     std::fs::write(&sidecar, format!("{sha}  {}\n", cell.archive_name())).expect("sidecar");
     let rebuild = dir.path().join("rebuild").join(cell.archive_name());
     std::fs::write(&rebuild, &bytes).expect("rebuild");
-    // The workflow hands Windows cells their licence ids; the fixture id shows they pass through.
     let accept_licenses = if cell.os == "windows" {
         vec![FIXTURE_LICENSE.to_owned()]
     } else {
@@ -425,7 +421,6 @@ fn qualify_passes_the_host_binary_in_tar_gz_and_zip() {
         assert_eq!(record.archive.name, cell.archive_name());
         assert_eq!(record.members.len(), 4 + cell.runtime.len());
         let exe_name = cell.exe.clone();
-        // A Windows cell accepts the licence ids it was given at init, as stage does.
         let accept = if cell.os == "windows" {
             format!(" --accept-license {FIXTURE_LICENSE}")
         } else {
@@ -852,7 +847,6 @@ impl Release {
     }
 }
 
-/// Qualifies two synthetic cells and stages their records and archives like the aggregate job.
 pub(crate) fn release() -> Release {
     let dir = tempfile::TempDir::new().expect("tempdir");
     std::fs::create_dir_all(dir.path().join("records")).expect("records");
@@ -1562,6 +1556,12 @@ fn rename_with_retry_moves_and_gives_up() {
     std::fs::create_dir_all(&from).expect("mkdir");
     rename_with_retry(&from, &to, 3, none).expect("rename");
     assert!(to.is_dir() && !from.exists());
+    std::fs::create_dir_all(&from).expect("mkdir");
+    std::fs::create_dir_all(to.join("keep")).expect("blocker");
+    let started = std::time::Instant::now();
+    let hour = std::time::Duration::from_secs(3600);
+    assert!(rename_with_retry(&from, &to, 3, hour).is_err());
+    assert!(started.elapsed() < hour);
 }
 
 #[test]

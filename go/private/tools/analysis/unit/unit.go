@@ -2,6 +2,7 @@ package unit
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -438,7 +439,7 @@ func analyze(cfg *Config, p pass, extra []string, dir string) (map[string]json.R
 		return nil, "", err
 	}
 	var errBuf bytes.Buffer
-	cmd := exec.Command(exe, "-json", cfgPath)
+	cmd := exec.CommandContext(context.Background(), exe, "-json", cfgPath)
 	cmd.Args[0] = os.Args[0]
 	cmd.Env = append(os.Environ(), ChildEnv+"="+string(payload))
 	cmd.Stderr = &errBuf

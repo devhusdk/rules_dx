@@ -14,12 +14,10 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-/// The repository name of the `uv` hub.
 fn hub_name() -> &'static str {
     dx_families::hub("uv").map_or_else(Default::default, |hub| hub.hub.as_str())
 }
 
-/// The lock file name of the `uv` hub.
 pub(crate) fn lock_name() -> &'static str {
     dx_families::hub("uv")
         .and_then(|hub| hub.lock.as_deref())
@@ -41,7 +39,6 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     write_site_packages(ctx)
 }
 
-/// Links every top-level entry of the locked wheels into `site-packages`, so the editor can import them.
 fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let target = ctx.dir.join(SITE_PACKAGES);
     dx_atomic_fs::discard_dir(&target);
@@ -95,7 +92,6 @@ fn locked_labels(lock: &Path) -> Vec<String> {
         .collect()
 }
 
-/// The pip hub repository name: PEP 503 form with `_` as the separator.
 fn normalize(name: &str) -> String {
     dx_ecosystems::pep503_name(name).replace('-', "_")
 }

@@ -1,9 +1,6 @@
-//! What every quality run loads, whatever languages the workspace has, reaches no language rule set.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-/// The only external repositories the core load graph may load from.
 const ALLOWED_REPOS: &[&str] = &[
     "bazel_features",
     "bazel_lib",
@@ -15,20 +12,15 @@ const ALLOWED_REPOS: &[&str] = &[
     "rules_dx",
 ];
 
-/// Directories outside `core/quality/` whose `.bzl` files are roots.
 const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
 
-/// Packages of core tool defaults that load a language rule set; this list only shrinks, and
-/// each entry must still be a package a core default points into.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
     "core/quality/tools/nixfmt/bin",
     "rust/private/quality/tools",
 ];
 
-/// Top-level packages `core/` may load from or point labels into.
 const CORE_PACKAGES: &[&str] = &["cli", "config", "core", "tools"];
 
-/// External repositories named by `"@repo//` labels in `actual =` and `select()` values of `text`.
 fn alias_repos(text: &str) -> BTreeSet<String> {
     text.split("\"@")
         .skip(1)
@@ -43,7 +35,6 @@ fn alias_repos(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Quoted `//pkg:name` strings that follow `default = ` or `Label(` in `text`.
 fn default_labels(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     for marker in ["default = \"", "Label(\""] {
@@ -58,7 +49,6 @@ fn default_labels(text: &str) -> Vec<String> {
     found
 }
 
-/// The `BUILD.bazel` paths of the packages the core tool defaults point into.
 fn tool_packages(source: &Path) -> Vec<String> {
     let core = dx_testing::read_json(&dx_testing::resolve_runfiles(
         "core/quality/core_aspects.json",
@@ -123,7 +113,6 @@ fn bzl_files(dir: &Path, prefix: &str) -> Vec<String> {
     found
 }
 
-/// The `BUILD.bazel` paths of the tier packages that do not load a language rule set yet.
 fn tier_packages(source: &Path) -> Vec<String> {
     let mut found: Vec<String> = std::fs::read_dir(source.join("core/quality/tiers"))
         .expect("tiers dir")
@@ -137,7 +126,6 @@ fn tier_packages(source: &Path) -> Vec<String> {
     found
 }
 
-/// Quoted `//pkg:name` labels in `load(` and `Label(` calls of `text`, without any repo prefix.
 fn loaded_labels(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     for marker in ["load(\"", "Label(\""] {
@@ -153,7 +141,6 @@ fn loaded_labels(text: &str) -> Vec<String> {
     found
 }
 
-/// Whether `label` names a language package or any `private/` package outside `core/`.
 fn reaches_language(label: &str) -> bool {
     let package = label
         .trim_start_matches("//")

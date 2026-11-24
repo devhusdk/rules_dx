@@ -15,7 +15,7 @@ fn gplint_error(
         .get("line")
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| shape("missing line"))?
-        .max(1); // empty files report line 0
+        .max(1);
     let column = error
         .get("column")
         .and_then(serde_json::Value::as_u64)
@@ -44,7 +44,6 @@ fn gplint_error(
             });
         }
     };
-    // Parse errors have no column; they cover their whole line.
     let (start, end) = if column == 0 {
         (
             TextPosition { line, column: 1 },
@@ -72,13 +71,6 @@ fn gplint_error(
     })
 }
 
-/// Parses `gplint -f json`. Every requested file must be named exactly once, because gplint
-/// treats arguments as globs and silently drops what does not match, and because it exits 0
-/// with no output when it crashes.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gplint(
     stdout: &[u8],
     code: Option<i32>,
@@ -184,12 +176,10 @@ mod tests {
         assert!(parse_gplint(b"{}", Some(0), FILES).is_err());
         assert!(parse_gplint(b"not json", Some(1), FILES).is_err());
         assert!(parse_gplint(&[0xff], Some(0), FILES).is_err());
-        // A file dropped by globbing or ignoring.
         assert!(parse_gplint(b"[]", Some(0), FILES).is_err());
         assert!(
             parse_gplint(CLEAN.as_bytes(), Some(0), &["/s/a.feature", "/s/b.feature"]).is_err()
         );
-        // An unknown file, a duplicate, and an exit code that disagrees with the report.
         assert!(parse_gplint(DIRTY.as_bytes(), Some(1), &["/s/other.feature"]).is_err());
         let twice =
             r#"[{"filePath":"/s/a.feature","errors":[]},{"filePath":"/s/a.feature","errors":[]}]"#;
@@ -205,7 +195,6 @@ mod tests {
         assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
     }
 
-    /// gplint counts columns in Unicode scalars: `@a` after an astral tag is column 9.
     #[test]
     fn gplint_columns_are_scalars_after_astral_characters() {
         let source = "  @\u{1f600} @a @a\n";

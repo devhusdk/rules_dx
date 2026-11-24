@@ -1,5 +1,3 @@
-//! Upgrades a throwaway consumer from one `rules_dx` version to another and back, running tests after each step.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -9,14 +7,12 @@ use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 const BCR_URL: &str = "https://bcr.bazel.build";
 
-/// The rule-set modules that rules_dx owns, as named in `docs/design/layout.md`.
 const RULE_SETS: [&str; 3] = ["rules_php", "rules_lua", "rules_qt"];
 
 fn bcr_url() -> String {
     std::env::var("BCR_URL").unwrap_or_else(|_| BCR_URL.to_string())
 }
 
-/// The non-dev `bazel_dep` versions a rules_dx `MODULE.bazel` declares on the rule-set modules.
 fn rule_set_floors(module_text: &str) -> Result<BTreeMap<String, String>, String> {
     let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
     Ok(module
@@ -29,7 +25,6 @@ fn rule_set_floors(module_text: &str) -> Result<BTreeMap<String, String>, String
         .collect())
 }
 
-/// Every module of a `bazel mod graph --output=json` with the versions it appears at.
 fn resolved(graph_json: &str) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
     fn walk(node: &serde_json::Value, found: &mut BTreeMap<String, BTreeSet<String>>) {
         if let Some(name) = node.get("name").and_then(serde_json::Value::as_str) {
@@ -65,8 +60,6 @@ fn shown(versions: Option<&BTreeSet<String>>) -> String {
     )
 }
 
-/// Checks that the consumer names no rule set, each rule set resolves to exactly its rules_dx floor,
-/// and rules_dx resolves to `rules_dx` when given.
 fn rule_set_problems(
     consumer_module: &str,
     floors: &BTreeMap<String, String>,
@@ -160,7 +153,6 @@ fn parse(args: &[String]) -> Result<Args, String> {
     Ok(parsed)
 }
 
-/// The unyanked versions of a BCR `metadata.json`, oldest first.
 fn unyanked(metadata: &str) -> Result<Vec<String>, String> {
     let json: serde_json::Value =
         serde_json::from_str(metadata).map_err(|error| format!("metadata.json: {error}"))?;
@@ -179,8 +171,6 @@ fn unyanked(metadata: &str) -> Result<Vec<String>, String> {
         .collect())
 }
 
-/// Fills an empty `from` with the second-latest and an empty `to` with the latest version.
-/// `None` when the versions are too few to fill them.
 fn resolve(from: &str, to: &str, versions: &[String]) -> Option<(String, String)> {
     let count = versions.len();
     let pick = |back: usize| count.checked_sub(back).and_then(|at| versions.get(at));
@@ -226,7 +216,6 @@ fn run(program: &str, args: &[&str], dir: &Path) -> Result<(), String> {
     }
 }
 
-/// The `version = "..."` of the root `module(...)` call.
 fn module_version(module_bazel: &str) -> Option<String> {
     let start = module_bazel.find("module(")?;
     let body = module_bazel.get(start..)?;
@@ -300,8 +289,6 @@ fn expect_version(root: &Path, work: &Path, consumer: &Path, version: &str) -> R
         .map_err(|error| format!("dx upgrade --to {version} still reports stale files: {error}"))
 }
 
-/// Checks the consumer's resolved rule sets against the floors of rules_dx `version`.
-/// `local` reads the floors from the checkout, whose `local_path_override` hides the rules_dx version.
 fn expect_rule_sets(root: &Path, work: &Path, version: &str, local: bool) -> Result<(), String> {
     let floors_text = if local {
         read(&root.join("MODULE.bazel"))?
@@ -360,7 +347,6 @@ fn scenario(root: &Path, work: &Path, from: &str, to: &str, local: bool) -> Resu
     Ok(())
 }
 
-/// Runs the upgrade scenario from the repository root in the current directory.
 pub fn e2e(args: &[String]) -> Result<(), String> {
     let Args {
         mut from,

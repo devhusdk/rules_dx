@@ -82,7 +82,7 @@ def lua_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
     dx_wrap_test(name, _core_lua_test, _lua_forward_test, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-_lua_bench_lib = dx_private_dep_rule(
+_lua_runner_lib = dx_private_dep_rule(
     Label("//lua/private:bench"),
     [_LuaInfo, DefaultInfo, InstrumentedFilesInfo, OutputGroupInfo, QualitySourcesInfo],
     "Provides the dx_bench module lua_bench requires.",
@@ -91,7 +91,7 @@ _lua_bench_lib = dx_private_dep_rule(
 def lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json."""
     main = dx_infer_main("lua_bench", name, main, srcs, dx_main_candidates(name, ".lua"))
-    _lua_bench_lib(
+    _lua_runner_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

@@ -220,6 +220,15 @@ def execution_requirements_unit_tests(name):
                 [{}, {}, {}, {}, {}, {}, {}, {}],
             ),
             expect_equal(
+                "the pkl and scalafmt format stages run remotely; pkl typecheck stays local",
+                [
+                    dx_stage_execution_requirements(["pkl"], "format"),
+                    dx_stage_execution_requirements(["scalafmt"], "format"),
+                    dx_stage_execution_requirements(["pkl"], "typecheck"),
+                ],
+                [{}, {}, {DX_NO_REMOTE_EXEC: "1"}],
+            ),
+            expect_equal(
                 "regal lint runs remotely",
                 dx_stage_execution_requirements(["regal"], "lint"),
                 {},

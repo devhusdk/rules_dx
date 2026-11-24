@@ -1,5 +1,3 @@
-//! Only dx_path spells a Windows verbatim prefix; other Rust code calls `dx_path::without_verbatim` and its siblings.
-
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
 use serde_json as _;
@@ -7,19 +5,10 @@ use starlark_syntax as _;
 use std::path::Path;
 use yaml_serde as _;
 
-/// The string literals a hand-written strip or add of a verbatim prefix spells.
-/// A path that only starts with a prefix, like a test's `r"\\?\C:\a"`, is not one of them.
 const PREFIXES: [&str; 6] = [r"\\?\", r"\\?\UNC\", "//?/", "//?/UNC/", r"UNC\", "UNC/"];
 
-/// The directories that may spell the prefixes.
-const OWNERS: [&str; 2] = [
-    // The one shared helper.
-    "cli/path/",
-    // The MSVC linker wrapper every dx Rust crate links through, so it cannot depend on dx_path.
-    "rust/private/tools/msvc_paths/",
-];
+const OWNERS: [&str; 2] = ["cli/path/", "rust/private/tools/msvc_paths/"];
 
-/// The verbatim-prefix literals in one Rust source.
 fn prefixes_in(source: &str) -> Vec<String> {
     rust_tokens(source)
         .into_iter()

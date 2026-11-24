@@ -4,17 +4,10 @@ use super::{FileFinding, ParseError, as_text, code_name, finding, located, missi
 
 const TOOL: &str = "elvis";
 
-/// What elvis writes to stderr when `rock` finds anything.
 const FAILED: &str = "Elvis: linting failed";
 
-/// The prefix of a line elvis prints when the run itself fails.
 const ERROR: &str = "Error: ";
 
-/// Findings from `elvis --output-format parsable rock`: one `File:Line:Rule:Message` per line, on exit 0 or 1.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_elvis(
     stdout: &[u8],
     stderr: &[u8],
@@ -98,7 +91,6 @@ fn located_finding(line: &str, files: &[&str]) -> Result<FileFinding, ParseError
     ))
 }
 
-/// The column a message spells in its `At line L, column C, ` lead, and the message without it.
 fn positioned(row: u64, message: &str) -> (u64, &str) {
     let lead = format!("At line {row}, ");
     let Some(tail) = message.strip_prefix(lead.as_str()) else {

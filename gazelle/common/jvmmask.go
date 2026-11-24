@@ -30,14 +30,10 @@ func MaskFSharpStyle(content []byte) []byte {
 	return maskCLike(content, fStyleComments, maskCharLiteral)
 }
 
-// maskSingleQuoted masks a single-quoted literal, or an unclosed quote to the
-// end of its line.
 func maskSingleQuoted(s []byte, pos int, mask func(int, int)) (int, bool) {
 	return maskQuoted(s, pos, '\'', mask)
 }
 
-// maskCharLiteral masks only a closed one-line character literal, so type
-// variables ('a) and primed names (x') never open a literal.
 func maskCharLiteral(s []byte, pos int, mask func(int, int)) (int, bool) {
 	if s[pos] != '\'' {
 		return 0, false
@@ -262,11 +258,6 @@ func maskQuoted(s []byte, pos int, quote byte, mask func(int, int)) (int, bool) 
 	return j, true
 }
 
-// JVMCandidates lists the names a qualified JVM import may resolve through when
-// no rule indexes the import itself: its enclosing classes, then its own
-// package. The walk stops at the first prefix whose last segment starts
-// lowercase, so it never climbs into a parent package, and it keeps only dotted
-// prefixes. A wildcard pkg.* has the single candidate pkg.
 func JVMCandidates(name string) []string {
 	if pkg, ok := strings.CutSuffix(name, ".*"); ok {
 		if pkg == "" {
@@ -292,8 +283,6 @@ func JVMCandidates(name string) []string {
 	}
 }
 
-// JVMQualifiedIDs returns the package and the package-qualified class identity
-// of a JVM source, or nothing when the source declares no package.
 func JVMQualifiedIDs(path string, parsePackage func(content []byte) (string, error), identity func(name string) string) []string {
 	content, err := ReadSource(path)
 	if err != nil {

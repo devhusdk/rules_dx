@@ -3,7 +3,6 @@ use dx_exec_docs::{CODE_SERVE_FAILED, PreviewServer, RunningPreview, execute_doc
 use dx_plan::resolve::QueryResult;
 use dx_testing::cli::strings;
 
-/// One target per site, each reporting a manifest that names its tree.
 fn site_bep(harness: &Harness, rels: &[&str]) -> Vec<String> {
     let mut lines = Vec::new();
     for (index, rel) in rels.iter().enumerate() {
@@ -31,7 +30,6 @@ fn site_bep(harness: &Harness, rels: &[&str]) -> Vec<String> {
     lines
 }
 
-/// One target per group, each reporting the given files.
 fn group_bep(harness: &Harness, groups: &[(&str, &[&str])]) -> Vec<String> {
     let mut lines = Vec::new();
     for (index, (group, files)) in groups.iter().enumerate() {

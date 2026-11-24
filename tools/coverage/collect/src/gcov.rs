@@ -11,7 +11,6 @@ pub struct FileCoverage {
 
 pub type Report = BTreeMap<String, FileCoverage>;
 
-/// The part of a path from `bazel-out/` on, without its extension.
 pub fn object_key(path: &str) -> Option<String> {
     let start = if path.starts_with("bazel-out/")
         && path
@@ -30,8 +29,6 @@ pub fn object_key(path: &str) -> Option<String> {
     )
 }
 
-/// Maps each manifest `.gcno` to its key: the `bazel-out/` key of an exec path, or the
-/// extensionless runfiles path of a runfiles path.
 pub fn gcno_by_key(manifest: &str) -> BTreeMap<String, String> {
     manifest
         .lines()
@@ -49,7 +46,6 @@ pub fn gcno_by_key(manifest: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// The runfiles form of a `bazel-out/<config>/bin/` key, for manifests that list runfiles paths.
 pub fn runfiles_key(key: &str, workspace: &str) -> Option<String> {
     let rest = key.strip_prefix("bazel-out/")?;
     let (_, rest) = rest.split_once('/')?;
@@ -70,7 +66,6 @@ pub fn gcov_args(object_dir: &Path, gcda: &Path) -> Vec<String> {
     ]
 }
 
-/// The first gcov diagnostic that means the data is wrong, although gcov exits 0.
 pub fn gcov_problem(stderr: &str) -> Option<String> {
     const MARKERS: [&str; 7] = [
         "version mismatch",

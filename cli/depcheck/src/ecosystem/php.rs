@@ -5,11 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::{normalize_lower, put};
 
-/// Reads the manifest `require` and `require-dev`, skipping `php`, `ext-*` and `lib-*`.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_php_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let data: serde_json::Value =
@@ -48,11 +43,6 @@ pub fn parse_php_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Maps every package in the lock (`packages` and `packages-dev`) to its version.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_php_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;

@@ -1,5 +1,3 @@
-//! Lists direct hosted packages whose newest release on pub.dev is newer than the one locked.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, release_cmp};
@@ -7,7 +5,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://pub.dev";
 
-/// Checks each direct hosted package of the lock files against the API at `base`.
 pub fn outdated(
     set: &str,
     lockfiles: &[String],
@@ -31,7 +28,6 @@ pub fn outdated(
     })
 }
 
-/// Reads `(name, version)` of every direct package with `source: hosted`.
 fn direct_hosted(lock: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     let mut in_packages = false;

@@ -130,7 +130,6 @@ func newLang() *typescriptLang {
 	})}
 }
 
-// Imports adds the modules of plain declaration_srcs to the project's index.
 func (l *typescriptLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	specs := l.SingleLang.Imports(c, r, f)
 	if r.Kind() != libraryKind {
@@ -155,8 +154,6 @@ func (l *typescriptLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) [
 	return specs
 }
 
-// plainDeclarations returns the declaration files named directly in a rule's
-// declaration_srcs. Labels and paths into other packages are skipped.
 func plainDeclarations(r *rule.Rule) []string {
 	var out []string
 	for _, src := range r.AttrStrings("declaration_srcs") {
@@ -169,9 +166,6 @@ func plainDeclarations(r *rule.Rule) []string {
 	return out
 }
 
-// ownedDeclarations returns the declaration files already listed in
-// declaration_srcs by an existing project, test or plain-test rule other than
-// the one a generated declaration rule would be named.
 func ownedDeclarations(file *rule.File, other []*rule.Rule) map[string]bool {
 	owned := make(map[string]bool)
 	add := func(r *rule.Rule) {
@@ -198,8 +192,6 @@ func ownedDeclarations(file *rule.File, other []*rule.Rule) map[string]bool {
 	return owned
 }
 
-// carryDeclarationSrcs copies hand-written declaration_srcs from an existing
-// rule of the same kind and name onto a regenerated source rule.
 func carryDeclarationSrcs(file *rule.File, gen *rule.Rule) {
 	if file == nil {
 		return
@@ -399,8 +391,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	return mergeStale(args.File, result)
 }
 
-// setTSConfig points a generated rule at its tsconfig and turns declaration
-// output on so tests and dependents can import it.
 func setTSConfig(r *rule.Rule, tsconfig string) {
 	if tsconfig != "" {
 		r.SetAttr("tsconfig", tsconfig)
@@ -408,8 +398,6 @@ func setTSConfig(r *rule.Rule, tsconfig string) {
 	r.SetAttr("declaration", true)
 }
 
-// allHaveTSConfig reports whether every planned rule already exists with a
-// hand-set tsconfig.
 func allHaveTSConfig(file *rule.File, plans []plan) bool {
 	set := map[string]bool{}
 	if file != nil {
@@ -427,7 +415,6 @@ func allHaveTSConfig(file *rule.File, plans []plan) bool {
 	return true
 }
 
-// servesEntry reports whether a binary runs entry.
 func servesEntry(entry string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		main := r.AttrString("main")
@@ -440,8 +427,6 @@ func servesEntry(entry string) func(*rule.Rule) bool {
 	}
 }
 
-// importedEntries maps each entry source that another source in the package
-// imports.
 func importedEntries(rel string, plans []plan) map[string]bool {
 	roots := map[string]string{}
 	for _, p := range plans {
@@ -476,8 +461,6 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 	})
 }
 
-// generatedBinary reports whether r is the _bin binary gazelle derives from
-// an entry source.
 func generatedBinary(r *rule.Rule) bool {
 	target, ok := strings.CutSuffix(r.Name(), common.BinaryName(""))
 	if !ok || target == "" {
@@ -487,7 +470,6 @@ func generatedBinary(r *rule.Rule) bool {
 	return len(srcs) == 1 && IsEntryFile(srcs[0]) && ModuleName(srcs[0]) == target
 }
 
-// rootPackageJSONExists reports whether the repo root has a manifest file.
 func rootPackageJSONExists(repoRoot string) bool {
 	return fileExists(filepath.Join(repoRoot, npmManifestFile))
 }

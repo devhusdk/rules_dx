@@ -1,5 +1,3 @@
-//! Notice codes shared across commands.
-
 pub const CODE_UPDATE_WIDENED: &str = "update_widened";
 pub const CODE_UPDATE_NO_CHANGE: &str = "update_no_change";
 pub const CODE_ADD_DECLARED: &str = "add_declared";
@@ -28,7 +26,6 @@ pub const CODE_SECURITY_VERIFIED: &str = "security_verified";
 pub const CODE_DX_CACHED: &str = "dx_cached";
 pub const CODE_DX_NOT_CACHED: &str = "dx_not_cached";
 
-/// The info notice code for an audit family that came back clean.
 pub fn audit_clean_code(family: dx_audit::AuditFamily) -> &'static str {
     match family {
         dx_audit::AuditFamily::Security => CODE_AUDIT_SECURITY_CLEAN,

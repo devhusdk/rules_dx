@@ -110,7 +110,8 @@ the file of Bazel flags at the root of your repository:
 common --@rules_dx//config:warnings_as_errors=false
 ```
 
-GCC and Clang get `-Wall -Werror`. MSVC gets `/W4 /WX`. C sources never get a
+GCC and Clang get `-Wall -Wextra -Werror`. MSVC and clang-cl get `/W4 /WX`.
+With warnings allowed, the same warnings still print. C sources never get a
 C++-only flag.
 
 ## Coverage
@@ -165,8 +166,7 @@ Or pass the flag to one build:
 bazel build --@rules_dx//cc:compiler=gcc //pkg/...
 ```
 
-GCC 16.2.0 builds for Linux x86_64 and Linux arm64 from either Linux host,
-with a glibc 2.26 floor.
+GCC 16.2.0 builds for Linux x86_64 and Linux arm64, with a glibc 2.26 floor.
 Any other target fails at analysis, the step where Bazel reads BUILD files
 before it runs anything. It never falls back to LLVM.
 

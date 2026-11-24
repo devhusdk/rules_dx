@@ -109,7 +109,7 @@ var conformanceRows = map[string]conformanceRow{
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript:defs.bzl",
-		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
+		symbols: []string{"javascript_library", "javascript_test", "javascript_binary"},
 		extraLoads: map[string][]string{
 			"@npm//:defs.bzl":                {"npm_link_all_packages"},
 			"@aspect_rules_js//js:defs.bzl":  {"js_library"},
@@ -238,7 +238,7 @@ var conformanceRows = map[string]conformanceRow{
 		extraLoads: map[string][]string{
 			"@rules_dx//rust:defs.bzl":             {"rust_build_script"},
 			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps"},
-			"@rules_dx//core/quality:fixtures.bzl":      {"real_source_target"},
+			"@rules_dx//core/quality:fixtures.bzl": {"real_source_target"},
 		},
 	},
 	"scala": {
@@ -267,7 +267,7 @@ var conformanceRows = map[string]conformanceRow{
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},
 		kind:  "typescript_library", target: "demo", defs: "typescript:defs.bzl",
-		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "typescript_config"},
+		symbols: []string{"typescript_library", "typescript_test", "typescript_binary", "typescript_config"},
 		extraLoads: map[string][]string{
 			"@aspect_rules_ts//ts:defs.bzl":  {"ts_config"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},

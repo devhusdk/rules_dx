@@ -737,7 +737,7 @@ Declares an explicit launcher that signs one device app into a distributable IPA
 ### `apple_macos_app`
 
 ```python
-apple_macos_app(name, srcs = None, hdrs = [], deps = None, entry = None, library = None, frameworks = [], plugins = [], resources = [], infoplists = [], bundle_id = "", version = "", deployment = "", platform = None, xcode_version = "", entitlements = None, provisioning_profile = None, tags = None, testonly = False, visibility = None)
+apple_macos_app(name, srcs = None, hdrs = [], deps = None, entry = None, library = None, frameworks = [], plugins = [], resources = [], infoplists = [], bundle_id = "", version = "", deployment = "", platform = None, xcode_version = "", entitlements = None, provisioning_profile = None, tags = None, testonly = None, visibility = None)
 ```
 
 Builds one upstream macOS application over a Rust library, checked and ad hoc signed.

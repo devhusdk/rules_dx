@@ -290,7 +290,6 @@ fn evaluate_licenses(
             dx_audit::license_policy::validate_license_exception(exception, today).is_ok()
                 && dx_audit::license_policy::license_exception_covers(exception, &finding)
         });
-        // The exception matches the whole expression, so it approves every leaf.
         let approved = |_: &str| -> bool { approved_hit };
         let outcome =
             dx_audit::license_expr::evaluate_license(&licensed.license, tier, &lookup, &approved);
@@ -486,7 +485,6 @@ pub(super) fn run_license(
     }
 }
 
-/// Licenses a configured cargo set from its declared cargo-bazel `*.json` lock, then the inventory.
 fn configured_cargo_licenses(
     locks: &[(String, String)],
     locked: &[dx_audit::vuln::LockedPackage],

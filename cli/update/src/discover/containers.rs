@@ -1,11 +1,8 @@
-//! Lists `oci.pull` base images whose digest lags the registry's `latest` tag.
-
 use super::{Candidate, Fetch, Findings, LookupError};
 use dx_module_bazel::ModuleFile;
 
 pub const SET: &str = "containers";
 
-/// Checks each `oci.pull` of the module against the digest its image's `latest` tag has now.
 pub fn outdated(module: &ModuleFile, only: &[String], fetch: &dyn Fetch) -> Findings {
     let mut found = Findings::default();
     for call in module.calls_named("oci.pull") {
@@ -42,7 +39,6 @@ pub fn outdated(module: &ModuleFile, only: &[String], fetch: &dyn Fetch) -> Find
     found
 }
 
-/// The registry URL of the `latest` manifest of `host/path`.
 fn manifest_url(image: &str) -> Option<String> {
     let (host, path) = image.split_once('/')?;
     (host.contains('.') && !path.is_empty())

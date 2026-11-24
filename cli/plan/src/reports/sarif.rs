@@ -11,9 +11,6 @@ use serde_sarif::sarif::{
     Result as SarifResult, ResultLevel, Run, Sarif, Tool, ToolComponent,
 };
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn byte_to_line(path: &str, text: &str, offset: u64) -> Result<(u64, u64), ReportError> {
     let bad = || ReportError::BadOffset {
         path: path.to_owned(),
@@ -268,9 +265,6 @@ fn result(
     Ok(built)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_sarif(
     tools: &[String],
     findings: &[DiagnosticEvent],
@@ -280,9 +274,6 @@ pub fn render_sarif(
     render_sarif_with_failures(tools, findings, snapshots, complete, &BTreeMap::new())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_sarif_with_failures(
     tools: &[String],
     findings: &[DiagnosticEvent],

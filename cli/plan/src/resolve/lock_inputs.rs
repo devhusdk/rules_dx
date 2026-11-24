@@ -6,26 +6,18 @@ use dx_path::label::{Label, Repo};
 
 use super::rule_graph::apparent_repo_matches;
 
-/// Changed crate names with every base and head version that changed.
 pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
 
-/// What a lock diff changed: crates plus hub alias names (renames, extra
-/// aliased targets, binaries) that cannot be derived from crate names alone.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct LockChange {
     pub(crate) crates: ChangedCrates,
     pub(crate) aliases: BTreeSet<String>,
-    /// The names are Python packages of a `pip.parse` hub, not crates.
     pub(crate) pip: bool,
-    /// The names are Maven artifacts of a `maven.install` hub.
     pub(crate) maven: bool,
-    /// Gazelle repository names of the changed Go modules.
     pub(crate) go_repos: BTreeSet<String>,
-    /// Whether the names are npm packages of an `npm_translate_lock` hub.
     pub(crate) npm: bool,
 }
 
-/// One `crate.from_cargo` hub with the lock files it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -35,30 +27,21 @@ pub(crate) struct Hub {
     pub(crate) name: String,
     pub(crate) cargo_lockfile: String,
     pub(crate) lockfile: Option<String>,
-    /// A `pip.parse` hub; `cargo_lockfile` then holds a requirements file.
     pub(crate) pip: bool,
-    /// A `maven.install` hub; `cargo_lockfile` then holds `lock_file`.
     pub(crate) maven: bool,
-    /// A `go_deps.from_file` hub: `cargo_lockfile` is its go manifest, `lockfile` its go lock.
     pub(crate) go: bool,
-    /// The `pnpm_lock` of an `npm.npm_translate_lock` hub, which has no Cargo
-    /// lock (`cargo_lockfile` is empty).
     pub(crate) pnpm_lockfile: Option<String>,
-    /// A `ruby.lock` hub; `cargo_lockfile` then holds the Bundler state beside its lock.
     pub(crate) gems: bool,
 }
 
-/// The lock format of one changed path and the hubs it feeds.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum LockKind {
     Cargo(Vec<String>),
     CrateBazelLock(Vec<String>),
     Pip(Vec<String>),
     Maven(Vec<String>),
-    /// A go manifest or go lock named by `go_deps.from_file`.
     Go(Vec<String>),
     Pnpm(Vec<String>),
-    /// The Bundler state beside a lock named by `ruby.lock`.
     Ruby(Vec<String>),
     Unknown,
 }
@@ -117,7 +100,6 @@ const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
 const CARGO_HUB_BZL: &str = "//rust:extensions.bzl";
 const NPM_HUB_BZL: &str = "//javascript:extensions.bzl";
 
-/// Whether `use_extension(bzl, name)` is the `crate_universe` extension or the `rules_dx` `cargo` hub.
 pub(crate) fn is_crate_extension(bzl: &str, name: &str) -> bool {
     (bzl.ends_with(CRATE_EXTENSION_BZL) && name == "crate")
         || (bzl.ends_with(CARGO_HUB_BZL) && name == "cargo")
@@ -167,7 +149,6 @@ fn workspace_path(label: &str) -> Result<String, dx_error::DxError> {
             "label {label} is not in the main repository"
         )));
     };
-    // An explicit `:name` is required, since `//a/b` names the package, not a file.
     if !parsed.relative && !label.contains(':') {
         return Err(dx_error::DxError::failure(format!(
             "label {label} names no file"
@@ -291,8 +272,6 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxErro
     Ok(hubs)
 }
 
-/// `go_deps.from_file` calls with a literal go manifest label; anything computed is
-/// skipped, which leaves its files as workspace inputs.
 fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
     for call in module.calls_named("use_extension") {
@@ -341,7 +320,6 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
     hubs
 }
 
-/// Gazelle's repository name for a Go module path.
 pub(crate) fn go_repo_name(module: &str) -> String {
     let lower = module.to_lowercase();
     let mut parts = lower.split('/');
@@ -351,8 +329,6 @@ pub(crate) fn go_repo_name(module: &str) -> String {
     names.join("_").replace(['-', '.'], "_")
 }
 
-/// The Gazelle repositories of the modules a go manifest or go lock edit changes, or
-/// an error when the edit is more than requirement or checksum lines.
 pub(crate) fn changed_go(
     path: &str,
     base: &str,
@@ -401,7 +377,6 @@ pub(crate) fn changed_go(
     })
 }
 
-/// Labels inside the changed Go module repositories.
 pub(crate) fn go_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     repos: &BTreeSet<String>,
@@ -540,8 +515,6 @@ fn json_object(
     }
 }
 
-/// Top-level keys that only list ids already present under `crates`; a change
-/// there always shows up as a `crates` change too, so it need not widen.
 const ID_LIST_KEYS: [&str; 4] = [
     "direct_deps",
     "direct_dev_deps",
@@ -585,8 +558,6 @@ fn collect_aliases<'a>(value: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a
     }
 }
 
-/// Hub alias names `rules_rust` renders besides the plain crate names, each with
-/// the crates it points at.
 fn hub_aliases(
     lock: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<BTreeMap<String, BTreeSet<Key>>, dx_error::DxError> {
@@ -665,7 +636,6 @@ pub(crate) fn changed_crates_from_bazel_lock(
         })
         .cloned()
         .collect();
-    // Members are never hub aliases or spokes; they only matter as graph nodes.
     for member in id_set(&base, "workspace_members")
         .into_iter()
         .chain(id_set(&head, "workspace_members"))
@@ -739,8 +709,6 @@ const PIP_REQUIREMENT_ARGS: &[&str] = &[
     "requirements_windows",
 ];
 
-/// `pip.parse` hubs and the literal requirements files they read. Calls with
-/// computed arguments are skipped, so their files keep the wide fallback.
 pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
     let Ok(module) = ModuleFile::parse(module_text) else {
         return Vec::new();
@@ -797,16 +765,12 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
     hubs
 }
 
-/// The lines of one requirements file, split by what they install.
 #[derive(Default)]
 struct Requirements {
-    /// Requirement name to its whole logical line (version, markers, hashes).
     named: BTreeMap<String, String>,
-    /// Option lines that name no package, such as `-r`, `--index-url` or a bare `-e <path>`.
     options: BTreeSet<String>,
 }
 
-/// The PEP 503 name at the start of `text`, and the text after it.
 fn leading_name(text: &str) -> (String, &str) {
     let end = text
         .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
@@ -817,7 +781,6 @@ fn leading_name(text: &str) -> (String, &str) {
     )
 }
 
-/// The package an editable target installs: its `#egg=` fragment or a `name @ url` prefix.
 fn editable_name(target: &str) -> Option<String> {
     if let Some((_, fragment)) = target.split_once("#egg=") {
         let (name, _) = leading_name(fragment);
@@ -825,7 +788,6 @@ fn editable_name(target: &str) -> Option<String> {
     }
     let (name, rest) = leading_name(target);
     let rest = rest.trim_start();
-    // Extras sit between the name and the `@`, as in `foo[bar] @ git+https://...`.
     let rest = match rest.strip_prefix('[') {
         Some(extras) => extras.split_once(']').map_or("", |(_, after)| after),
         None => rest,
@@ -833,7 +795,6 @@ fn editable_name(target: &str) -> Option<String> {
     (!name.is_empty() && rest.trim_start().starts_with('@')).then_some(name)
 }
 
-/// The target of an `-e`/`--editable` line, in any of its spellings.
 fn editable_target(line: &str) -> Option<&str> {
     ["--editable", "-e"].iter().find_map(|flag| {
         let rest = line.strip_prefix(flag)?;
@@ -888,8 +849,6 @@ fn requirement_lines(text: &str) -> Requirements {
     out
 }
 
-/// Packages whose requirement lines differ. A changed option line that names
-/// no package can change any package, so it is an error and the run widens.
 pub(crate) fn changed_requirements(
     base: &str,
     head: &str,
@@ -909,8 +868,6 @@ pub(crate) fn changed_requirements(
     Ok(out)
 }
 
-/// Labels of the changed packages in a `pip.parse` hub, and in its per
-/// package spoke repos (`<hub>_<name>` or `<hub>_<python>_<name>`).
 pub(crate) fn pip_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     hub: &str,
@@ -950,8 +907,6 @@ pub(crate) fn pip_seeds<'a>(
 
 const MAVEN_EXTENSION: &str = "extensions.bzl";
 
-/// `maven.install` hubs and their literal `lock_file`. Calls with computed
-/// arguments are skipped, so their files keep the wide fallback.
 pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
     let Ok(module) = ModuleFile::parse(module_text) else {
         return Vec::new();
@@ -1007,7 +962,6 @@ pub(crate) fn maven_hubs(module_text: &str) -> Vec<Hub> {
     hubs
 }
 
-/// Underscore form of a Maven coordinate, as used in repo and target names.
 fn maven_name(coordinate: &str) -> String {
     coordinate.replace(['.', '-', ':'], "_")
 }
@@ -1025,8 +979,6 @@ fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, dx_error::DxE
         .collect())
 }
 
-/// Artifacts added, removed or changed (version or checksum) between two
-/// maven lock files, by underscore name.
 pub(crate) fn changed_maven_artifacts(
     base: &str,
     head: &str,
@@ -1041,8 +993,6 @@ pub(crate) fn changed_maven_artifacts(
     Ok(out)
 }
 
-/// Labels of the changed artifacts in a `maven.install` hub, and in its
-/// per artifact repos (`<hub>_<artifact>`).
 pub(crate) fn maven_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     hub: &str,
@@ -1135,7 +1085,6 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
     LockKind::Unknown
 }
 
-/// The `ruby.lock` hubs with the Bundler state beside each lock.
 pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
     let module = ModuleFile::parse(module_text)
         .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
@@ -1207,7 +1156,6 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
     Ok(hubs)
 }
 
-/// The ruby lock diff as crate-style name/version changes.
 fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError> {
     let gems = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
         Ok(dx_audit::locks::parse_gemfile_lock(text)?
@@ -1239,8 +1187,6 @@ fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError>
     })
 }
 
-/// Labels of a bundle repo; `rules_ruby` names its per-gem targets and repos
-/// differently across versions, so any label in the repo counts as a user.
 pub(crate) fn gem_seeds<'a>(labels: impl Iterator<Item = &'a str>, hub: &str) -> Vec<String> {
     let mut out: Vec<String> = labels
         .filter(|label| {
@@ -1256,8 +1202,6 @@ pub(crate) fn gem_seeds<'a>(labels: impl Iterator<Item = &'a str>, hub: &str) ->
     out
 }
 
-/// Top-level sections of a pnpm lock other than the package tables, which
-/// feed `npm_translate_lock` through settings, overrides and patches.
 fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
     let mut out: BTreeMap<String, String> = BTreeMap::new();
     let mut key: Option<String> = None;
@@ -1280,7 +1224,6 @@ fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
     out
 }
 
-/// The npm packages (name and version) that differ between two pnpm locks.
 pub(crate) fn changed_npm_packages(
     base: &str,
     head: &str,
@@ -1314,7 +1257,6 @@ pub(crate) fn changed_npm_packages(
     })
 }
 
-/// Repo-name form of an npm package: `@scope/name` becomes `at_scope_name`.
 fn npm_repo_name(name: &str) -> String {
     match name.strip_prefix('@') {
         Some(scoped) => format!("at_{}", scoped.replace('/', "_")),
@@ -1322,8 +1264,6 @@ fn npm_repo_name(name: &str) -> String {
     }
 }
 
-/// Labels of changed npm packages: the hub's `@<hub>//name` targets and the
-/// per-version `npm__name__version` spoke repositories.
 pub(crate) fn npm_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     hub: &str,
@@ -1786,11 +1726,9 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             aliases,
             names(&["serde1", "serde1-1.0.1", "serde1-1.0.2", "serde_extra"])
         );
-        // A dropped rename counts even though crates[serde] is unchanged.
         let dropped = bazel_lock_with("1.0.1", &[], None);
         let aliases = change(&base, &dropped).expect("change").aliases;
         assert_eq!(aliases, names(&["serde1", "serde1-1.0.1"]));
-        // A changed binary crate yields its aliases; unchanged ones do not.
         let mut head = base.clone();
         head["crates"]["tool 0.2.0"]["version"] = "x".into();
         let aliases = change(&base, &head).expect("change").aliases;

@@ -5,12 +5,9 @@ use crate::json_schema::{self, Filetype};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "check_jsonschema";
-/// Rule id of a validation error.
 pub const RULE_VALIDATION: &str = "json-schema";
-/// Rule id of a file the tool could not read as its filetype.
 pub const RULE_PARSE: &str = "parse-error";
 
-/// One path `check-jsonschema` was handed, the owned file it stands for and that file's bytes.
 #[derive(Debug, Clone, Copy)]
 pub struct CheckJsonschemaTarget<'a> {
     pub reported: &'a str,
@@ -177,15 +174,6 @@ fn parse_error_findings(
     Ok(())
 }
 
-/// Parses `check-jsonschema --output-format json -vv`.
-///
-/// Fails closed: exit 0 needs `status: ok` over exactly the files handed in, exit 1 needs a
-/// failing report that accounts for every handed-in file, and exit 1 without a JSON report
-/// (an invalid schema or a failed `$ref`) is a process error carrying stderr.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_check_jsonschema(
     stdout: &[u8],
     stderr: &[u8],

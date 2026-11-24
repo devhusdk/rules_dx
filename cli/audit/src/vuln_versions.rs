@@ -1,7 +1,6 @@
 use super::VersionScope;
 use std::cmp::Ordering;
 
-/// The OSV families whose version order is not covered by the older matchers.
 pub const VERSION_FAMILIES: &[&str] = &[
     "hex",
     "pub",
@@ -18,7 +17,6 @@ pub fn is_version_family(set: &str) -> bool {
     VERSION_FAMILIES.contains(&set)
 }
 
-/// Matches one locked version against a scope such as `>=1.0, <1.4` or `=2.0.1`.
 pub fn family_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     match set {
         "hex" | "pub" | "swifturl" | "julia" => assess_with(scope, version, semver_key),
@@ -95,7 +93,6 @@ fn trim_zeros(mut parts: Vec<u64>) -> Vec<u64> {
     parts
 }
 
-/// Dotted integers as in PVP and CRAN, where `1.0` and `1.0.0` are the same version.
 fn dotted_key(text: &str) -> Option<Vec<u64>> {
     let parts = text
         .split(['.', '-'])
@@ -104,7 +101,6 @@ fn dotted_key(text: &str) -> Option<Vec<u64>> {
     Some(trim_zeros(parts))
 }
 
-/// CPAN order: `v1.2.3` is dotted, `1.23` is decimal read as `1.230`.
 fn cpan_key(text: &str) -> Option<Vec<u64>> {
     let text = text.replace('_', "");
     let dotted = text.starts_with(['v', 'V']) || text.matches('.').count() > 1;
@@ -131,7 +127,6 @@ fn cpan_key(text: &str) -> Option<Vec<u64>> {
     Some(trim_zeros(parts))
 }
 
-/// Composer order: numeric parts, then dev < alpha < beta < RC < stable < patch.
 fn composer_key(text: &str) -> Option<(Vec<u64>, u8, u64)> {
     let lowered = text.to_ascii_lowercase();
     let text = strip_v(lowered.split('+').next().unwrap_or(""));
@@ -170,7 +165,6 @@ fn composer_key(text: &str) -> Option<(Vec<u64>, u8, u64)> {
     Some((trim_zeros(parts), rank, number))
 }
 
-/// A version compared the way dpkg compares them, which opam uses.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Debian(String);
 

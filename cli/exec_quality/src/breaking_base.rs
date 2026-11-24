@@ -1,8 +1,3 @@
-//! Builds the base image `buf breaking` compares against. A Bazel action cannot
-//! see `.git`, so the image is built here into a repository directory that is
-//! injected as `@dx_buf_base`; its label replaces the ref in the
-//! `--breaking-against` build setting.
-
 use dx_error::DxError;
 use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_plan::args::BREAKING_AGAINST_OPTION;
@@ -26,9 +21,6 @@ pub(crate) struct Context<'a> {
     pub(crate) temp_dir: &'a Path,
 }
 
-/// Replaces the ref in the breaking option with the label of an image built at
-/// the merge base of `HEAD` and that ref, and injects the repository that holds
-/// it. Other options pass through.
 pub(crate) fn resolve_options(
     options: &[String],
     context: &Context<'_>,

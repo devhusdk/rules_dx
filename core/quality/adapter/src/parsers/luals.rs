@@ -4,19 +4,6 @@ use super::{FileFinding, ParseError, as_text, finding};
 
 const TOOL: &str = "luals";
 
-/// Findings from the `--check_out_path` report of `lua-language-server --check`.
-///
-/// The report is a JSON object that maps the `file://` URI of each file with diagnostics to a
-/// list of LSP diagnostics; a clean run writes an empty array (an empty object is read the
-/// same way). The exit code says nothing about findings (`LuaLS` exits 0 with them), so the
-/// caller must treat a missing report as a failed run. `files` holds the paths of the owned
-/// sources as the run spells them; an entry for any other file (a library or dependency
-/// module) is dropped. The rule is `luals/<code>`, `luals/error` when `LuaLS` gave no code;
-/// severity 1 is an error, 2 a warning and 3 or 4 (information, hint) info.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_luals(stdout: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, stdout)?;
     let report: serde_json::Value = serde_json::from_str(text.trim())
@@ -72,7 +59,6 @@ fn one(path: &str, entry: &serde_json::Value) -> Result<FileFinding, ParseError>
     let line = at("line")
         .ok_or_else(|| ParseError::shape(TOOL, format!("{path} range without a line")))?;
     let column = at("character").unwrap_or(0);
-    // The code is a string, or a number in some LuaLS versions.
     let rule = match entry.get("code") {
         Some(serde_json::Value::String(code)) if !code.is_empty() => format!("luals/{code}"),
         Some(serde_json::Value::Number(code)) => format!("luals/{code}"),
@@ -97,7 +83,6 @@ fn one(path: &str, entry: &serde_json::Value) -> Result<FileFinding, ParseError>
     ))
 }
 
-/// Whether two absolute paths name the same file, ignoring separator style and drive letter case.
 fn same_path(left: &str, right: &str) -> bool {
     fn normal(path: &str) -> String {
         let mut out = path.replace('\\', "/");
@@ -111,8 +96,6 @@ fn same_path(left: &str, right: &str) -> bool {
     normal(left) == normal(right)
 }
 
-/// The file path a `file://` URI names: percent escapes decoded, and a Windows drive URI
-/// (`file:///C:/x`) turned into `C:/x`.
 fn uri_path(uri: &str) -> Option<String> {
     let rest = uri.strip_prefix("file://")?;
     let mut remaining = rest.as_bytes();

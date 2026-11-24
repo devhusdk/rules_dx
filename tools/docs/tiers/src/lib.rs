@@ -1,5 +1,3 @@
-//! Renders the standard and strict tier pages from the tier files.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -18,7 +16,6 @@ pub struct Tier {
     pub strict_path: String,
 }
 
-/// Why the tier manifest or a tier page is bad.
 #[derive(Debug)]
 pub enum TiersError {
     ManifestLine { line: String },
@@ -45,11 +42,6 @@ impl std::error::Error for TiersError {
     }
 }
 
-/// Reads one tab separated line per tool: tool, source, native file, standard path, strict path.
-///
-/// # Errors
-///
-/// Returns [`TiersError::ManifestLine`] for a line without exactly 5 fields.
 pub fn parse_manifest(text: &str) -> Result<Vec<Tier>, TiersError> {
     let mut tiers = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
@@ -111,8 +103,6 @@ fn block(out: &mut String, language: &str, body: &str) {
     out.push_str("\n\n");
 }
 
-// Both pages share the steps for picking a tier; only the opening line, the
-// example `dx.toml` and the line before the per-tool reference differ.
 fn intro(title: &str, purpose: &str, tier: &str, reference: &str) -> String {
     format!(
         "# {title}\n\n{purpose}\n\n\
@@ -128,9 +118,6 @@ fn intro(title: &str, purpose: &str, tier: &str, reference: &str) -> String {
     )
 }
 
-/// # Errors
-///
-/// Returns [`TiersError::MissingFile`] when a standard tier file is not in `files`.
 pub fn standard_page(
     tiers: &[Tier],
     files: &BTreeMap<String, String>,
@@ -149,10 +136,6 @@ pub fn standard_page(
     Ok(trim(out))
 }
 
-/// # Errors
-///
-/// Returns [`TiersError::MissingFile`] when a tier file is not in `files`, and
-/// [`TiersError::Patch`] when the diff cannot be rendered.
 pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, TiersError> {
     let mut out = intro(
         "Strict tiers",

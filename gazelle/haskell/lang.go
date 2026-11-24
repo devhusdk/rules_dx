@@ -25,8 +25,6 @@ type haskellLang struct {
 	*common.SingleLang
 }
 
-// NewLanguage returns the Haskell generator. It emits one haskell_library per
-// directory and resolves imports by module name against sibling libraries.
 func NewLanguage() language.Language {
 	return &haskellLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,

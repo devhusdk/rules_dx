@@ -9,7 +9,6 @@ fn number(text: &str) -> Option<u64> {
     digits.parse().ok()
 }
 
-/// Drops the leading `a.b.ClassName: ` of a Java exception message.
 fn strip_class(mut text: &str) -> &str {
     while let Some((head, rest)) = text.split_once(": ") {
         let class = !head.is_empty()
@@ -25,7 +24,6 @@ fn strip_class(mut text: &str) -> &str {
     text
 }
 
-/// Reads `line: N, column: M` (Jackson) from a location line.
 fn jackson_position(line: &str) -> Option<(u64, u64)> {
     let rest = line.split_once("line: ")?.1;
     let row = number(rest)?;
@@ -35,7 +33,6 @@ fn jackson_position(line: &str) -> Option<(u64, u64)> {
     Some((row, column.unwrap_or(1)))
 }
 
-/// Reads the `line N:M` an IDL syntax error starts with.
 fn idl_position(message: &str) -> Option<(u64, u64)> {
     let rest = message.strip_prefix("line ")?;
     let row = number(rest)?;
@@ -43,15 +40,6 @@ fn idl_position(message: &str) -> Option<(u64, u64)> {
     Some((row, number(tail)?))
 }
 
-/// Parses stderr of one `avro-tools` compile or idl2schemata run over one schema.
-///
-/// A failed run prints a Java exception. Its message becomes one error on the
-/// first checked file. Exit 0 is clean. Exit 1 without an exception line, or
-/// any other exit, is a shape error and never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_avro(
     stdout: &[u8],
     stderr: &[u8],
@@ -121,7 +109,6 @@ pub fn parse_avro(
     }
 }
 
-/// The paths an `.avdl` source imports, as written.
 #[must_use]
 pub fn avdl_imports(source: &str) -> Vec<String> {
     let mut paths = Vec::new();

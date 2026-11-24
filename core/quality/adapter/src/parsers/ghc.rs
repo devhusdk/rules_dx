@@ -7,11 +7,6 @@ use super::{FileFinding, ParseError, as_text, finding, require_findings};
 
 const TOOL: &str = "ghc";
 
-/// `ghc -fno-code -fdiagnostics-as-json` output: one JSON diagnostic per stderr line.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ghc(
     output: &[u8],
     code: Option<i32>,
@@ -106,7 +101,6 @@ pub fn parse_ghc(
     Ok(found)
 }
 
-/// The path with each `\` read as `/` on Windows.
 fn native_slashes(path: &str) -> std::borrow::Cow<'_, str> {
     if cfg!(windows) && path.contains('\\') {
         std::borrow::Cow::Owned(path.replace('\\', "/"))

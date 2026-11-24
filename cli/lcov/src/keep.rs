@@ -1,4 +1,3 @@
-/// Keeps the records whose path is a listed source or ends in `/<source>`, renamed to the longest such source.
 pub fn keep_sources(lcov: &str, sources: &[&str]) -> String {
     let mut out = String::new();
     let mut keep = false;

@@ -22,7 +22,6 @@ julia_binary(
     deps = ["@dx_julia_docs//:Documenter"],
 )
 
-# The driver runs under the Julia version the Documenter Manifest was resolved for.
 dx_julia_tool(
     name = "doc_dump",
     binary = ":doc_dump_bin",

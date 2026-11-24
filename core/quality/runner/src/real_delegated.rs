@@ -1167,13 +1167,19 @@ pub(super) fn perltidy_fix_keeps_a_file_it_could_not_parse() {
     assert_eq!(kept, broken);
 }
 
+const PERLCRITIC_PROFILE: &str = "core/quality/tiers/perlcritic/strict.perlcriticrc";
+
 fn perlcritic_behavior(
     argv: &[OsString],
     _cwd: &Path,
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
-    assert_eq!(argv[1], OsString::from("--noprofile"));
+    assert_eq!(argv[1], OsString::from("--profile"));
+    assert!(
+        Path::new(&argv[2]).ends_with(PERLCRITIC_PROFILE),
+        "{argv:?}"
+    );
     let file = last_file(argv);
     let text = std::fs::read_to_string(&file).expect("read staged file");
     let (code, stdout) = if text.contains("silent") {
@@ -1201,7 +1207,8 @@ fn perlcritic_behavior(
 
 #[test]
 pub(super) fn perlcritic_lints_and_never_trusts_an_exit_that_disagrees_with_its_output() {
-    let backend = backend_for("perlcritic", plain_tool(), perlcritic_behavior);
+    let tool = bound_tool(PERLCRITIC_PROFILE, b"severity = 1\n");
+    let backend = backend_for("perlcritic", tool, perlcritic_behavior);
     let lint = |text: &str| backend.diagnose("perlcritic", "lint", &single("a.pl", text));
     assert_eq!(
         lint("use strict;\n").expect("check"),
@@ -1213,6 +1220,15 @@ pub(super) fn perlcritic_lints_and_never_trusts_an_exit_that_disagrees_with_its_
     assert!(lint("silent\n").is_err());
     assert!(lint("phantom\n").is_err());
     assert!(lint("unreadable\n").is_err());
+}
+
+#[test]
+pub(super) fn perlcritic_without_a_bound_profile_fails() {
+    let backend = backend_for("perlcritic", plain_tool(), perlcritic_behavior);
+    let err = backend
+        .diagnose("perlcritic", "lint", &single("a.pl", "use strict;\n"))
+        .expect_err("no profile");
+    assert!(err.to_string().contains("needs a profile"), "{err}");
 }
 
 fn opa_behavior(

@@ -1,5 +1,3 @@
-//! Runs one program with the arguments a `<name>.launch` descriptor lists.
-
 #![deny(
     clippy::indexing_slicing,
     clippy::print_stderr,

@@ -8,7 +8,6 @@ var stdlib = map[string]struct{}{
 	"AppKit": {}, "SwiftUI": {}, "UIKit": {},
 }
 
-// IsStdLib reports whether name needs no dependency.
 func IsStdLib(name string) bool {
 	_, ok := stdlib[name]
 	return ok

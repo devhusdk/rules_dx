@@ -1,8 +1,3 @@
-/* Runs one Lua script with LuaFileSystem linked in, which LDoc needs and a plain Lua cannot load.
- *
- * usage: ldoc_main LUA_PATH SCRIPT [ARG...]
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 

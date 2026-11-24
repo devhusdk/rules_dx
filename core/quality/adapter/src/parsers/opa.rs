@@ -30,14 +30,6 @@ struct Location {
     col: u64,
 }
 
-/// `opa fmt FILE` prints the formatted source to stdout and exits 0, or exits 2 and writes
-/// `FILE:ROW: rego_parse_error: MESSAGE` lines to stderr when the file does not parse. The first
-/// differing line is reported; a parse error is an error finding. Anything else is an error,
-/// never clean. A CRLF file differs from the LF output on every line, so it is reported.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_opa_fmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -118,14 +110,6 @@ pub fn parse_opa_fmt(
     Ok(findings)
 }
 
-/// `opa check --format json` exits 0 and prints nothing when clean. On errors it exits 1 and
-/// writes `{"errors":[{message, code, location:{file, row, col}}]}` to stderr, not stdout. Columns
-/// count Unicode scalar values from 1. Any other exit, output on a clean run, non-JSON output, an
-/// empty error list or an error without a location is an error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_opa_check(
     stdout: &[u8],
     stderr: &[u8],

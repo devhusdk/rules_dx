@@ -1,18 +1,10 @@
-//! Shared reader for GNU-style compiler diagnostics (`file:line:col: severity: message`).
-//!
-//! Compiler-specific parsers supply the severity table and the encoding of the
-//! columns. Lines that are not diagnostic headers (source excerpts, carets,
-//! notes, flang `because:` lines) are skipped.
-
 use super::{FileFinding, ParseError, as_text, finding, require_findings};
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-/// What a compiler-specific parser does with one severity word.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Disposition {
     Report(ToolSeverity),
-    /// Continuation lines such as `note:` that belong to an earlier header.
     Skip,
 }
 
@@ -20,7 +12,6 @@ pub(super) struct Dialect {
     pub tool: &'static str,
     pub encoding: ColumnEncoding,
     pub severity: fn(&str) -> Option<Disposition>,
-    /// Splits a trailing `[-Wflag]` style rule id off the message.
     pub bracket_rule: bool,
 }
 
@@ -69,10 +60,6 @@ fn header(line: &str) -> Option<Header<'_>> {
     None
 }
 
-/// Reads every diagnostic header. `files` are the checked sources. A warning in
-/// a file outside them is dropped, since a dependency's warnings are not this
-/// target's. An error in such a file is a failure naming the file, so a broken
-/// dependency can never look clean.
 pub(super) fn read(
     dialect: &Dialect,
     output: &[u8],
@@ -128,7 +115,6 @@ pub(super) fn read(
         ));
     }
     require_findings(tool, &findings, code)?;
-    // A failed compile must report an error; warnings alone cannot explain it.
     if code != Some(0)
         && !findings
             .iter()

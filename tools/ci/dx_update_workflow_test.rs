@@ -9,27 +9,22 @@ const GH_SUBCOMMANDS: [&str; 8] = [
     "api", "auth", "issue", "pr", "release", "repo", "run", "workflow",
 ];
 
-/// Returns the raw workflow text.
 fn text() -> String {
     read_runfiles(WORKFLOW)
 }
 
-/// Returns the run script of a step, or an empty string.
 fn run_of(step: &serde_json::Value) -> &str {
     step["run"].as_str().unwrap_or_default()
 }
 
-/// Returns the step name, or an empty string.
 fn name_of(step: &serde_json::Value) -> &str {
     step["name"].as_str().unwrap_or_default()
 }
 
-/// Returns the step-scoped `GH_TOKEN`, or an empty string.
 fn step_token(step: &serde_json::Value) -> &str {
     step["env"]["GH_TOKEN"].as_str().unwrap_or_default()
 }
 
-/// Reports whether a run script calls a gh subcommand.
 fn invokes_gh(run: &str) -> bool {
     run.lines().any(|line| {
         let spaced = line.replace("$(", " ");
@@ -152,9 +147,6 @@ fn every_gh_step_sets_gh_token() {
     assert!(found >= 1, "{WORKFLOW} must carry a step that runs gh");
 }
 
-/// Each update group runs `dx check --affected` and `dx test --affected`, and a
-/// .bazelversion bump affects every target. On one cold runner that outlived the
-/// job timeout, so the dx step must run on remote execution.
 #[test]
 fn updates_are_verified_on_remote_execution() {
     let steps = steps(WORKFLOW, "update").unwrap();

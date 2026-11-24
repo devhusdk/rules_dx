@@ -21,8 +21,6 @@ import (
 
 const languageName = "php"
 
-// runfilesClass is the class the rules_dx PHP runfiles library declares; it
-// resolves to runfilesLabel in every repo, since no local rule indexes it.
 const runfilesClass = `Bazel\Runfiles\Runfiles`
 
 var runfilesLabel = label.New("rules_dx", "php", "runfiles")
@@ -68,8 +66,6 @@ func NewLanguage() language.Language {
 	return l
 }
 
-// Resolve resolves like every single-rule language, with the runfiles class
-// mapped to the rules_dx runfiles library ahead of the Composer packages.
 func (l *phpLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	spec := l.ResolveSpecFor(c, r, from)
 	external := spec.External
@@ -90,8 +86,6 @@ func (l *phpLang) Before(ctx context.Context) {
 	l.SingleLang.Before(ctx)
 }
 
-// qualifiedIDs returns the names a source declares. Classmap autoload goes by
-// what a file declares, not by its path.
 func qualifiedIDs(file string) []string {
 	content, err := common.ReadSource(file)
 	if err != nil {
@@ -101,8 +95,6 @@ func qualifiedIDs(file string) []string {
 	return declares
 }
 
-// Imports indexes a library under the names its srcs and autoload_files
-// declare.
 func (l *phpLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	specs := l.SingleLang.Imports(c, r, f)
 	if r.Kind() != LibraryKind || f == nil {
@@ -128,14 +120,6 @@ func (l *phpLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolv
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// generateRules emits one php_library for the directory's sources and one
-// php_test per *Test.php under tests or test. Sources in src below a directory
-// without its own BUILD file belong to the library, so those directories
-// generate nothing. php_binary targets stay hand-written, and files a
-// hand-written rule lists in srcs or a library lists in autoload_files stay
-// out of its srcs. An existing php_library whose srcs are all directory
-// sources keeps its name and srcs, and the directory library gets only the
-// sources no such library lists.
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter, excludes []string) language.GenerateResult {
 	if ownedByAncestor(args) {
 		return language.GenerateResult{}
@@ -225,9 +209,6 @@ type librarySplit struct {
 	srcs []string
 }
 
-// librarySplits returns the php_library rules of the BUILD file, other than
-// libName, whose srcs are all in candidates and share no file with an earlier
-// split, and the candidates no split lists.
 func librarySplits(args language.GenerateArgs, libName string, candidates []string) ([]librarySplit, []string) {
 	if args.File == nil {
 		return nil, candidates
@@ -277,7 +258,6 @@ func librarySplits(args language.GenerateArgs, libName string, candidates []stri
 	return splits, rest
 }
 
-// autoloadFiles maps each php_library of the BUILD file to its autoload_files.
 func autoloadFiles(args language.GenerateArgs) map[string][]string {
 	out := make(map[string][]string)
 	if args.File == nil {
@@ -293,8 +273,6 @@ func autoloadFiles(args language.GenerateArgs) map[string][]string {
 	return out
 }
 
-// handwrittenSources lists the srcs of rules that are neither php_library nor
-// php_test, such as php_binary and php_bench.
 func handwrittenSources(args language.GenerateArgs) map[string]bool {
 	out := make(map[string]bool)
 	if args.File == nil {
@@ -311,9 +289,6 @@ func handwrittenSources(args language.GenerateArgs) map[string]bool {
 	return out
 }
 
-// ownsStale reports whether generation could have produced r: it is the
-// library, or it lists srcs and none of them exist in the directory. A rule
-// with a label in srcs is hand-written, since generation lists only files.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if r.Name() == libName {
@@ -358,9 +333,6 @@ func importsOf(args language.GenerateArgs, files []string, isTest bool, rep comm
 	return imports
 }
 
-// librarySources lists the package-relative .php files the library owns: the
-// directory's own sources plus every source under src that no nested package
-// or exclude claims. Tests and autoload_files are left out.
 func librarySources(args language.GenerateArgs, excludes []string, autoload map[string][]string, handwritten map[string]bool) ([]string, error) {
 	skip := make(map[string]bool)
 	for f := range handwritten {
@@ -387,8 +359,6 @@ func librarySources(args language.GenerateArgs, excludes []string, autoload map[
 	return srcs, nil
 }
 
-// testSources lists the *Test.php files under the package's tests and test
-// directories, and any in the package directory itself.
 func testSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	var tests []string
 	for _, name := range args.RegularFiles {
@@ -408,8 +378,6 @@ func testSources(args language.GenerateArgs, excludes []string) ([]string, error
 	return tests, nil
 }
 
-// walkTree walks one of the package's top-level source trees. A missing src,
-// tests or test directory is normal; any other read failure is returned.
 func walkTree(args language.GenerateArgs, excludes []string, rel string, keep func(name string) bool, out *[]string) error {
 	if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(rel))); os.IsNotExist(err) {
 		return nil
@@ -441,8 +409,6 @@ func walk(args language.GenerateArgs, excludes []string, rel string, keep func(n
 
 func hiddenDir(name string) bool { return strings.HasPrefix(name, ".") }
 
-// claimed reports whether the package-relative directory sub is excluded or
-// holds a BUILD file of its own.
 func claimed(args language.GenerateArgs, excludes []string, sub string) bool {
 	if excluded(args, excludes, sub) {
 		return true
@@ -479,9 +445,6 @@ func excluded(args language.GenerateArgs, excludes []string, sub string) bool {
 	return false
 }
 
-// ownedByAncestor reports whether args.Rel sits inside the src, tests or test
-// tree of a parent package, with no BUILD file from that tree's root down to
-// the directory itself.
 func ownedByAncestor(args language.GenerateArgs) bool {
 	if args.Rel == "" || args.Config == nil {
 		return false

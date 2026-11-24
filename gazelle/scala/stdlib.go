@@ -2,7 +2,6 @@ package scala
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-// Packages in scala-library 2.13.18 and scala3-library_3 3.3.x.
 var platformPackages = common.PackageSet(
 	"scala",
 	"scala.annotation",

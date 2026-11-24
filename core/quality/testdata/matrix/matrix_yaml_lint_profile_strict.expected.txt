@@ -4,10 +4,14 @@ stages 1
 stage yamllint classes=yaml sources=matrix/yamllint_profile_strict.yaml
 completed_rounds 1
 convergence STABLE
-initial 2
+initial 4
 initial WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
 initial WARNING yamllint key-ordering matrix/yamllint_profile_strict.yaml 13 13 fixable=false "wrong ordering of key \"key\" in mapping"
-terminal 2
+initial WARNING yamllint comments matrix/yamllint_profile_strict.yaml 115 115 fixable=false "missing starting space in comment"
+initial WARNING yamllint trailing-spaces matrix/yamllint_profile_strict.yaml 130 130 fixable=false "trailing spaces"
+terminal 4
 terminal WARNING yamllint truthy matrix/yamllint_profile_strict.yaml 4 4 fixable=false "truthy value should be one of [false, true]"
 terminal WARNING yamllint key-ordering matrix/yamllint_profile_strict.yaml 13 13 fixable=false "wrong ordering of key \"key\" in mapping"
+terminal WARNING yamllint comments matrix/yamllint_profile_strict.yaml 115 115 fixable=false "missing starting space in comment"
+terminal WARNING yamllint trailing-spaces matrix/yamllint_profile_strict.yaml 130 130 fixable=false "trailing spaces"
 replacements 0

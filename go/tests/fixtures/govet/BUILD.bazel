@@ -46,3 +46,38 @@ go_library(
     importpath = "rules_dx/go/tests/fixtures/govet/shadowed",
     tags = ["manual"],
 )
+
+go_library(
+    name = "errorlint",
+    srcs = ["errorlint.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/errorlint",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "exhaustive",
+    srcs = ["exhaustive.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/exhaustive",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "noctx",
+    srcs = ["noctx.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/noctx",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "bodyclose",
+    srcs = ["bodyclose.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/bodyclose",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "sqlclosecheck",
+    srcs = ["sqlclosecheck.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/sqlclosecheck",
+    tags = ["manual"],
+)

@@ -28,9 +28,6 @@ fn vale_severity(level: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_vale(
     stdout: &[u8],
     code: Option<i32>,
@@ -62,7 +59,6 @@ pub fn parse_vale(
             .and_then(serde_json::Value::as_str)
             .unwrap_or("vale reported a configuration error");
         let lowered = detail.to_ascii_lowercase();
-        // A runtime error that names an owned document is that document's converter failing.
         let names_owned_file = code_value.as_str() == Some("E100")
             && files
                 .iter()

@@ -1,21 +1,15 @@
-//! The `advisory` update set: advisory snapshot pins in `.dx/pins` against the newest published release.
-
 use dx_error::DxError;
 
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-/// The selector `dx update advisory` takes.
 pub const SET: &str = "advisory";
 
-/// Branch of the advisory bump pull request.
 pub const BRANCH: &str = "dx-update/advisory";
 
-/// Where the newest release of the advisory repository is read.
 pub const LATEST_RELEASE_URL: &str =
     "https://api.github.com/repos/devhusdk/rules_dx-advisory/releases/latest";
 
-/// One `advisory <family> <date> <sha256> <url>` line.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Pin {
     pub family: String,
@@ -34,7 +28,6 @@ impl Pin {
     }
 }
 
-/// Reads one pin line; any other line gives `None`.
 #[must_use]
 pub fn parse_line(line: &str) -> Option<Pin> {
     let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
@@ -49,19 +42,16 @@ pub fn parse_line(line: &str) -> Option<Pin> {
     })
 }
 
-/// Every advisory pin of a `.dx/pins` text, in file order.
 pub fn pins(text: &str) -> Vec<Pin> {
     text.lines().filter_map(parse_line).collect()
 }
 
-/// The pins one release lists in its body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Release {
     pub tag: String,
     pub pins: Vec<Pin>,
 }
 
-/// Reads the releases API answer: the tag and the pin lines of the body.
 pub fn parse_release(json: &str) -> Result<Release, DxError> {
     let value: serde_json::Value = serde_json::from_str(json)
         .map_err(|error| DxError::failure(format!("invalid release answer: {error}")))?;
@@ -85,7 +75,6 @@ pub fn parse_release(json: &str) -> Result<Release, DxError> {
     })
 }
 
-/// Replaces the advisory lines of `text` the release has a pin for; every other line stays as it is.
 #[must_use]
 pub fn rewrite(text: &str, release: &Release) -> String {
     let mut newest: BTreeMap<&str, &Pin> = BTreeMap::new();
@@ -107,7 +96,6 @@ pub fn rewrite(text: &str, release: &Release) -> String {
     out
 }
 
-/// Whole days between two `YYYY-MM-DD` dates.
 #[must_use]
 pub fn days_between(from: &str, to: &str) -> Option<i64> {
     let parse = |value: &str| {
@@ -141,7 +129,6 @@ fn day_number((year, month, day): (i64, i64, i64)) -> i64 {
     era * 146_097 + doe
 }
 
-/// The status lines of `dx update advisory`.
 pub fn status(current: &[Pin], release: &Release, today: &str) -> Vec<String> {
     if current.is_empty() {
         return vec![
@@ -171,7 +158,6 @@ pub fn status(current: &[Pin], release: &Release, today: &str) -> Vec<String> {
     lines
 }
 
-/// The pin diff of a bump as unified-looking `-`/`+` lines; empty when nothing changes.
 #[must_use]
 pub fn diff(before: &str, after: &str) -> Vec<String> {
     let old = pins(before);
@@ -190,7 +176,6 @@ pub fn diff(before: &str, after: &str) -> Vec<String> {
     lines
 }
 
-/// The pull request body: the pin diff and the advisories only the new snapshots report.
 #[must_use]
 pub fn pr_body(release: &Release, diff: &[String], new_findings: &[String]) -> String {
     let mut text = format!(
@@ -218,7 +203,6 @@ pub fn pr_body(release: &Release, diff: &[String], new_findings: &[String]) -> S
     text
 }
 
-/// Findings in `after` that `before` does not have.
 #[must_use]
 pub fn new_findings(before: &[String], after: &[String]) -> Vec<String> {
     let mut found: Vec<String> = after

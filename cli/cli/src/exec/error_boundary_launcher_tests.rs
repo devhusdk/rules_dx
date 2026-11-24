@@ -214,8 +214,6 @@ impl Consumer {
         (path.display().to_string(), witness.to_string())
     }
 
-    /// Runs `args` until stdout carries `marker` and Bazel waits at the gate, then closes stdout
-    /// and opens the gate.
     fn run_hung_up_after(&self, args: &[&str], env: &[(&str, &str)], marker: &str) -> Outcome {
         let started = self.base.join("bazel.log.started");
         let (reader, writer) = std::io::pipe().expect("pipe");
@@ -393,8 +391,6 @@ fn agent_sessions_keep_text_only_failures_in_text() {
 #[test]
 fn owned_and_unowned_file_scopes_resolve_before_building() {
     let consumer = Consumer::new();
-    // The fake answers the graph query by env, not by BUILD files, so each run starts without
-    // the graph the previous run cached on disk.
     let cached = dx_path::state::local_dir(&consumer.workspace()).join(dx_path::state::RULE_GRAPH);
     for (flags, env) in JSON_MODES {
         dx_atomic_fs::discard_file(&cached);
@@ -757,9 +753,6 @@ fn check_cancellation_stops_before_any_later_phase() {
     }
 }
 
-// Without `--apply`, format, lint and typecheck read one shared build, so the last Bazel launch
-// a check-mode run can be cancelled in after generate is that build. The umbrella forwards a
-// phase's events once the phase ends, so the cancelled format phase leaves none.
 #[test]
 fn check_cancellation_during_the_shared_build_stops_before_any_later_phase() {
     let consumer = Consumer::new();

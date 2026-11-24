@@ -6,12 +6,6 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "jsonnetfmt";
 
-/// `--test` lists each file it would rewrite on stdout and exits 2, and reports the first
-/// syntax error as `<path>:<line>:<column> <message>` on stderr with exit 1.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jsonnetfmt(
     stdout: &[u8],
     stderr: &[u8],

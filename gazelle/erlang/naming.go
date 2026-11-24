@@ -29,34 +29,28 @@ const (
 
 var atomPattern = regexp.MustCompile(`^[a-z][A-Za-z0-9_@]*$`)
 
-// ModuleName returns the Erlang module an .erl source defines: its base name.
 func ModuleName(src string) string {
 	return strings.TrimSuffix(path.Base(src), ".erl")
 }
 
-// IsErlSource reports whether src is an .erl file.
 func IsErlSource(src string) bool { return strings.HasSuffix(src, ".erl") }
 
 func isLocal(src string) bool {
 	return src != "" && !strings.ContainsAny(src, ":\\") && !strings.HasPrefix(src, "/") && !strings.Contains("/"+src+"/", "/../")
 }
 
-// IsAppSource reports whether src is a src/**/*.erl or src/**/*.hrl file.
 func IsAppSource(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, SrcDir+"/") && (strings.HasSuffix(src, ".erl") || strings.HasSuffix(src, ".hrl"))
 }
 
-// IsAppHeader reports whether src is an include/**/*.hrl file.
 func IsAppHeader(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, IncludeDir+"/") && strings.HasSuffix(src, ".hrl")
 }
 
-// IsEunitSource reports whether src is a test/*_tests.erl file.
 func IsEunitSource(src string) bool {
 	return isLocal(src) && path.Dir(src) == TestDir && strings.HasSuffix(src, "_tests.erl")
 }
 
-// IsNifSource reports whether src is a C or C++ source under c_src.
 func IsNifSource(src string) bool {
 	if !isLocal(src) || !strings.HasPrefix(src, NifDir+"/") {
 		return false
@@ -68,7 +62,6 @@ func IsNifSource(src string) bool {
 	return false
 }
 
-// IsNifHeader reports whether src is a C or C++ header under c_src.
 func IsNifHeader(src string) bool {
 	if !isLocal(src) || !strings.HasPrefix(src, NifDir+"/") {
 		return false
@@ -80,8 +73,6 @@ func IsNifHeader(src string) bool {
 	return false
 }
 
-// Owns reports whether generation could have produced r, so a stale r may be
-// removed. The generator asks only in directories that hold an Erlang app.
 func Owns(r *rule.Rule, app string) bool {
 	if r.Name() == "" {
 		return false

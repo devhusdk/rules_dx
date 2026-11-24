@@ -1,12 +1,7 @@
-//! Proxy choice from `https_proxy`, `all_proxy`, `http_proxy` and `no_proxy`.
-
 use ureq::Proxy;
 
 use crate::Error;
 
-/// The variables that name the proxy, first set one wins. `http_proxy` comes last so a
-/// host that sets only it still reaches `https://` URLs through it, as ureq's own
-/// `Proxy::try_from_env` does.
 const PROXY_VARIABLES: [&str; 6] = [
     "https_proxy",
     "HTTPS_PROXY",
@@ -16,18 +11,12 @@ const PROXY_VARIABLES: [&str; 6] = [
     "HTTP_PROXY",
 ];
 
-/// The proxy for `https://` URLs, with the `no_proxy` hosts built in.
-///
-/// ureq talks to an HTTP proxy only through `CONNECT`, which many proxies refuse for
-/// port 80, so `http://` URLs (local mirrors and test servers) go direct.
 #[derive(Clone, Debug)]
 pub(crate) struct Proxies {
-    /// A bad value only fails the requests that would use it.
     https: Result<Option<Proxy>, Error>,
 }
 
 impl Proxies {
-    /// Reads the proxy variables through `env`.
     pub(crate) fn from_env(env: &dyn Fn(&str) -> Option<String>) -> Self {
         let bypass = first(env, &["no_proxy", "NO_PROXY"])
             .map(|(_, value)| bypass_entries(&value))
@@ -39,11 +28,6 @@ impl Proxies {
         }
     }
 
-    /// The proxy for `url`, picked by its scheme. ureq keeps it for every redirect hop
-    /// and applies the `no_proxy` hosts on each one.
-    ///
-    /// # Errors
-    /// Fails when `url` needs the proxy and its variable is not a proxy URL.
     pub(crate) fn for_url(&self, url: &str) -> Result<Option<Proxy>, Error> {
         let https = url
             .split_once("://")
@@ -61,8 +45,6 @@ fn first(
         .find_map(|name| env(name).map(|value| (*name, value)))
 }
 
-/// The `no_proxy` list in ureq's syntax. Like curl, `example.com` and `.example.com`
-/// both cover the host and every subdomain, but ureq's own `example.com` only covers the host.
 fn bypass_entries(value: &str) -> Vec<String> {
     let mut entries = Vec::new();
     for entry in value
@@ -85,7 +67,6 @@ fn bypass_entries(value: &str) -> Vec<String> {
 }
 
 fn proxy(name: &str, value: &str, bypass: &[String]) -> Result<Proxy, Error> {
-    // The value can hold a password, so the error names only the variable and drops the parse error.
     let invalid = || Error::Config(format!("{name} is not a proxy URL"));
     let parsed = Proxy::new(value.trim()).ok().ok_or_else(invalid)?;
     let mut builder = Proxy::builder(parsed.protocol())

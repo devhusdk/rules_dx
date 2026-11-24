@@ -3,10 +3,6 @@ use serde::Deserialize;
 use super::{FileFinding, ParseError, check_output_size};
 use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
-/// The error code, with no position, that reports `-Werror` turned warnings into a failure.
-///
-/// javac reports it itself. The kotlinc and scalac drivers synthesize it from the compiler's
-/// position-less -Werror error.
 fn warnings_as_errors(tool: &str) -> &'static str {
     match tool {
         "kotlinc" => "kotlinc.warnings.as.errors",
@@ -15,7 +11,6 @@ fn warnings_as_errors(tool: &str) -> &'static str {
     }
 }
 
-/// javac expands tabs in columns. kotlinc and scalac count UTF-16 units from 1 and keep tabs as one.
 fn column_encoding(tool: &str) -> ColumnEncoding {
     match tool {
         "kotlinc" | "scalac" => ColumnEncoding::Utf16,
@@ -42,15 +37,6 @@ struct Diagnostic {
     message: String,
 }
 
-/// Parses the JSON log of a check-only compiler driver (javac, kotlinc and scalac).
-///
-/// `code` is the driver's own exit status. The compiler's status is inside the log. Findings
-/// outside `files` (generated sources, unlocated notes) are dropped, but a failed compile that
-/// leaves no error among the kept findings is an execution error, never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jvm_diagnostics(
     tool: &'static str,
     bytes: &[u8],
@@ -78,7 +64,6 @@ pub fn parse_jvm_diagnostics(
     let mut findings = Vec::new();
     let mut dropped: Option<String> = None;
     for diagnostic in log.diagnostics {
-        // The dependency analyzer's missing-dependency warning is reported as a BUILD finding instead.
         if diagnostic.code == "scalac.missing.dep" {
             continue;
         }

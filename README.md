@@ -38,6 +38,12 @@ tools/dx build //...
 On a fresh clone, run `tools/dx` once first. Any `dx` command writes the
 gitignored `.dx/bazelrc` files that plain `bazel` reads.
 
+The `.bazelversion` that `dx init --apply` writes picks the Bazel version:
+
+```text
+9.3.1
+```
+
 Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-and-ca.md).
 
 ## Next steps

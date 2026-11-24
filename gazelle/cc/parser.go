@@ -11,7 +11,6 @@ import (
 	"github.com/odvcencio/gotreesitter/grammars/cpp"
 )
 
-// SystemInclude is one angle-bracket include and whether it sits under an __ANDROID conditional.
 type SystemInclude struct {
 	Path    string
 	Guarded bool
@@ -24,7 +23,6 @@ type lexed struct {
 	main    bool
 }
 
-// lexSource masks comments, literals and #include directives and returns the quoted include basenames.
 func lexSource(content []byte) ([]byte, []string) {
 	l := lex(content)
 	return l.code, l.quoted
@@ -102,7 +100,6 @@ var topLevelContainers = map[string]bool{
 	"preproc_elifdef":       true,
 }
 
-// definesMain reports whether a function_definition is named with a plain identifier main.
 func definesMain(tree *treesitter.Tree, fn *treesitter.Node) bool {
 	for _, c := range fn.Children() {
 		if tree.Type(c) != "function_declarator" {
@@ -142,14 +139,12 @@ func collectInclude(tree *treesitter.Tree, n *treesitter.Node, guarded bool, set
 	}
 }
 
-// ParseSystemIncludes returns the angle-bracket includes in source order.
 func ParseSystemIncludes(content []byte) []SystemInclude {
 	return lex(content).systems
 }
 
 var qtHeaderRe = regexp.MustCompile(`^Qt[A-Z][A-Za-z]*$`)
 
-// IsQtInclude reports whether a system include path starts with a Qt module directory.
 func IsQtInclude(p string) bool {
 	first, _, _ := strings.Cut(p, "/")
 	return qtHeaderRe.MatchString(first)
@@ -166,7 +161,6 @@ var qtModuleTargets = map[string]string{
 	"QtQuickTest": "quick_test",
 }
 
-// QtModules returns the sorted module targets of the Qt includes in contents, always with core.
 func QtModules(contents map[string][]byte) ([]string, error) {
 	set := map[string]bool{"core": true}
 	names := make([]string, 0, len(contents))
@@ -197,7 +191,6 @@ func QtModules(contents map[string][]byte) ([]string, error) {
 
 var qtMetaRe = regexp.MustCompile(`\b(Q_OBJECT|Q_GADGET)\b`)
 
-// DefinesQtMeta reports whether unmasked code contains Q_OBJECT or Q_GADGET.
 func DefinesQtMeta(content []byte) bool {
 	return qtMetaRe.Match(lex(content).code)
 }
@@ -215,7 +208,6 @@ func usesQt(contents map[string][]byte) bool {
 
 var entryRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])(ANativeActivity_onCreate|JNI_OnLoad|Java_[A-Za-z0-9_]+)\s*\(([^()]*)\)\s*\{`)
 
-// DefinesAndroidEntry reports whether content defines a native activity or JNI entry point.
 func DefinesAndroidEntry(content []byte) bool {
 	return entryRe.Match(lex(content).code)
 }

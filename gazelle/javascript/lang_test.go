@@ -973,8 +973,6 @@ func TestResolveTSConfigPaths(t *testing.T) {
 	}
 }
 
-// refs builds a RefImportSet whose roots are bare imports, or relative when
-// they start with "./".
 func refs(roots ...string) any {
 	out := make([]common.ImportRef, 0, len(roots))
 	for _, root := range roots {

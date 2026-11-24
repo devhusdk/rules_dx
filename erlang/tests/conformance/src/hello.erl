@@ -2,6 +2,7 @@
 
 -export([main/1]).
 
+-spec main([string()]) -> ok.
 main([Path]) ->
     {ok, Text} = file:read_file(rlocation(Path)),
     io:put_chars(Text);

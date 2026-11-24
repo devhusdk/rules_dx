@@ -1,8 +1,5 @@
 use super::{FileFinding, ParseError, Spelling, listed_paths};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_google_java_format(
     stdout: &[u8],
     code: Option<i32>,

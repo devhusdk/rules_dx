@@ -13,11 +13,8 @@ type ModuleDecl struct {
 	ParentFromFileDir bool
 	Inline            bool
 	CfgTest           bool
-	// DeclCfgTest records whether the declaration itself sits under an outer
-	// #[cfg(test)] (on the mod item or an enclosing inline module). Unlike
-	// CfgTest it is never widened by an inner #![cfg(test)] of the file.
-	DeclCfgTest bool
-	Scope       string
+	DeclCfgTest       bool
+	Scope             string
 }
 
 type UseDecl struct {
@@ -48,20 +45,14 @@ type FileFacts struct {
 	HasTestAttr  bool
 	HasCfgTest   bool
 	InnerCfgTest bool
-	// TestOnly marks a file that rustc reads only under cfg(test): it is
-	// reached through an outer #[cfg(test)] module declaration. Files reached
-	// only through an inner #![cfg(test)] are not TestOnly. Set by LoadCrate.
-	TestOnly bool
+	TestOnly     bool
 }
 
 type AmbiguousError struct {
-	What string
-	Attr string
-	// Path is the workspace-relative file; empty when unknown.
-	Path string
-	// Line and Col are 1-based; Col is a byte column.
-	Line, Col int
-	// StartByte and EndByte are offsets into the original file.
+	What               string
+	Attr               string
+	Path               string
+	Line, Col          int
 	StartByte, EndByte int
 }
 
@@ -109,10 +100,6 @@ func (w *walker) checkSyntax() error {
 	return fmt.Errorf("rust: %s:%d:%d: %s", w.path, line, col, w.describe(e, anc))
 }
 
-// tolerateError lets errors inside function bodies, foreign blocks and type
-// bodies through unless they sit on or contain a mod, use or extern crate
-// declaration. Gazelle reads only module structure, and the
-// grammar lags the language (for example safe items in unsafe extern blocks).
 func tolerateError(e syntaxNode, anc []syntaxNode) bool {
 	if keywordOf(e) != "" {
 		return false
@@ -275,9 +262,6 @@ func (w *walker) items(parent syntaxNode, testScope, inFn bool, facts *FileFacts
 	return nil
 }
 
-// tokenItems reads item-level macro bodies such as cfg_if! as items. Bytes
-// outside the body are blanked so offsets and positions stay those of the file.
-// A body that is not a valid item list is searched for nested brace bodies.
 func (w *walker) tokenItems(tt syntaxNode, testScope bool, facts *FileFacts) error {
 	src := w.tree.src
 	lo, hi := tt.start()+1, tt.end()-1
@@ -309,8 +293,6 @@ func (w *walker) tokenItems(tt syntaxNode, testScope bool, facts *FileFacts) err
 	return nil
 }
 
-// quotesCode reports whether a macro invocation builds code for another crate,
-// as quote! does. Paths in its body are not references of this file.
 func quotesCode(call syntaxNode) bool {
 	name := call.field("macro").text()
 	if i := strings.LastIndex(name, "::"); i >= 0 {
@@ -319,8 +301,6 @@ func quotesCode(call syntaxNode) bool {
 	return name == "quote" || name == "quote_spanned"
 }
 
-// tokenPathRefs records the first segment of each qualified path found in the
-// tokens of a macro argument, such as dx_path in assert_eq!(dx_path::f(), 1).
 func (w *walker) tokenPathRefs(tt syntaxNode, cfgTest bool, facts *FileFacts) {
 	leaves := tt.leaves()
 	for i, l := range leaves {
@@ -453,7 +433,6 @@ func isScopedPath(n syntaxNode) bool {
 	return k == "scoped_identifier" || k == "scoped_type_identifier"
 }
 
-// pathRef records the first segment of a qualified path such as a::b::c.
 func (w *walker) pathRef(n syntaxNode, cfgTest bool, facts *FileFacts) {
 	for {
 		p := n.field("path")

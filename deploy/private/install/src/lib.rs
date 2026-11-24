@@ -42,10 +42,8 @@ impl std::fmt::Display for ArgsError {
 
 impl std::error::Error for ArgsError {}
 
-/// Why `dx_verify` refused a binary or its signed SBOM and NOTICE.
 #[derive(Debug)]
 pub enum InstallError {
-    /// A required input file is absent.
     InputNotFound {
         input: &'static str,
         path: String,
@@ -58,12 +56,10 @@ pub enum InstallError {
         cosign: String,
         gh: String,
     },
-    /// SBOM or NOTICE verification needs cosign, which is absent.
     CosignUnavailable {
         subject: &'static str,
         cosign: String,
     },
-    /// The SBOM or NOTICE signature does not verify.
     SignatureFailed {
         subject: &'static str,
     },
@@ -141,9 +137,6 @@ fn help_text() -> String {
     "usage: dx_verify --binary PATH --bundle PATH --identity ID --issuer ISSUER [--attestation PATH] [--owner OWNER] [--sbom PATH --sbom-bundle PATH] [--notice PATH --notice-manifest PATH --notice-bundle PATH]".to_owned()
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_args(argv: &[String]) -> Result<VerifyArgs, ArgsError> {
     let mut parsed = VerifyArgs::default();
     let mut i = 1;
@@ -309,13 +302,7 @@ pub trait Verifier {
     fn cosign_bin(&self) -> String;
     fn gh_bin(&self) -> String;
     fn have(&self, bin: &str) -> bool;
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     fn sha256_file(&self, path: &Path) -> io::Result<String>;
-    /// # Errors
-    ///
-    /// Returns an error when the file cannot be read as UTF-8.
     fn read_text(&self, path: &Path) -> Result<String, PathIoError>;
 }
 
@@ -432,9 +419,6 @@ fn check_inputs(
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, InstallError> {
     let mut out = String::new();
     let binary = PathBuf::from(&request.binary);
@@ -940,7 +924,6 @@ mod tests {
         )
     }
 
-    /// Writes the NOTICE bytes plus a bundle the fake cosign accepts for them.
     fn write_signed_notice(fake: &mut FakeVerifier, bytes: &[u8]) {
         fake.write("/tmp/NOTICE", bytes);
         let digest = dx_digest::sha256_hex(bytes);

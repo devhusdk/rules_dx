@@ -1,15 +1,11 @@
-//! Reads the JSON deploy config that the shared deploy_tool runs from.
-
 use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;
 
 use serde::de::DeserializeOwned;
 
-/// Names the variable that holds the deploy config rlocation or absolute path.
 pub const DEPLOY_CONFIG_ENV: &str = "DX_DEPLOY_CONFIG";
 
-/// Pins one archive deploy: the app name file, the tarball and its checksum.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArchiveConfig {
@@ -18,33 +14,26 @@ pub struct ArchiveConfig {
     pub checksum_rloc: String,
 }
 
-/// Pins one draft GitHub Release: its tag and asset files.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GithubConfig {
     pub deploy_name: String,
     pub tag: String,
     pub asset_rlocs: Vec<String>,
-    /// `commits`, `file` or `none`.
     #[serde(default)]
     pub notes: String,
     #[serde(default)]
     pub notes_rloc: String,
-    /// Workspace paths whose diff since the previous tag ends the commit notes.
     #[serde(default)]
     pub notes_diff: Vec<String>,
-    /// `off`, `warn` or `fail`.
     pub api_compat: String,
-    /// `registry` or `git`.
     pub api_baseline: String,
     #[serde(default)]
     pub apidiff_rloc: String,
     #[serde(default)]
     pub go_rloc: String,
-    /// Workspace-relative directories of the Go modules to check.
     #[serde(default)]
     pub go_modules: Vec<String>,
-    /// `auto`, `off` or `required`.
     pub sign: String,
     #[serde(default)]
     pub cosign_rloc: String,
@@ -52,12 +41,10 @@ pub struct GithubConfig {
     pub cosign_version: String,
     #[serde(default)]
     pub cosign_sha256: String,
-    /// The registry artifacts the release body lists attestation lines for.
     #[serde(default)]
     pub attestations: Vec<crate::github::Attestation>,
 }
 
-/// Pins one Homebrew tap formula: the GitHub release config it renders from and the tap.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HomebrewTapConfig {
@@ -71,7 +58,6 @@ pub struct HomebrewTapConfig {
     pub homepage: String,
 }
 
-/// Pins one Cloudflare Pages deploy: the project, branches, site and Wrangler.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CloudflarePagesConfig {
@@ -84,7 +70,6 @@ pub struct CloudflarePagesConfig {
     pub wrangler_rloc: String,
 }
 
-/// Pins one PyPI upload: the wheel, an optional sdist and the index.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PypiConfig {
@@ -105,7 +90,6 @@ pub struct PypiConfig {
     pub attestations_rloc: String,
 }
 
-/// Pins one Helm chart push: the chart files, the pinned helm and the target.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HelmChartConfig {
@@ -117,7 +101,6 @@ pub struct HelmChartConfig {
     pub files: Vec<crate::HelmFile>,
 }
 
-/// Pins one npm publish: the packed feed and tarball.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NpmConfig {
@@ -129,7 +112,6 @@ pub struct NpmConfig {
     pub api_extractor_rloc: String,
 }
 
-/// Pins one NuGet push: the nupkg, its expected id and version, and the feed.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NugetConfig {
@@ -146,7 +128,6 @@ pub struct NugetConfig {
     pub apicompat_rloc: String,
 }
 
-/// Pins one CPAN upload: the dist, its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CpanConfig {
@@ -156,7 +137,6 @@ pub struct CpanConfig {
     pub version: String,
 }
 
-/// Pins one Conan upload: the recipe files, reference, remote and the optional pinned conan.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConanConfig {
@@ -170,7 +150,6 @@ pub struct ConanConfig {
     pub conan_rloc: String,
 }
 
-/// Pins one Hackage upload: the sdist and its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HackageConfig {
@@ -180,7 +159,6 @@ pub struct HackageConfig {
     pub version: String,
 }
 
-/// Pins one opam-repository pull request: the opam file, its package and version, and the opam executable.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpamConfig {
@@ -191,7 +169,6 @@ pub struct OpamConfig {
     pub version: String,
 }
 
-/// Pins one Packagist update: the Composer manifest, its expected package and the repository URL.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackagistConfig {
@@ -201,7 +178,6 @@ pub struct PackagistConfig {
     pub repository_url: String,
 }
 
-/// Pins one LuaRocks upload: the rockspec and its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LuarocksConfig {
@@ -211,7 +187,6 @@ pub struct LuarocksConfig {
     pub version: String,
 }
 
-/// Pins one pub.dev publish: the package files, name, version and server.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PubConfig {
@@ -233,7 +208,6 @@ pub struct PubConfig {
     pub package_dir: String,
 }
 
-/// Pins one crates.io publish: the crate files, name and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CratesConfig {
@@ -248,7 +222,6 @@ pub struct CratesConfig {
     pub crate_dir: String,
 }
 
-/// Pins one Hex publish: the package files, name, version and build tool.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HexConfig {
@@ -258,19 +231,16 @@ pub struct HexConfig {
     pub tool: String,
 }
 
-/// Pins one RubyGems push: the gem source files, name and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RubygemsConfig {
     pub gem_rlocs: Vec<String>,
     pub gem_name: String,
     pub version: String,
-    /// Runfile of the pinned `ruby`; empty takes `gem` from PATH.
     #[serde(default)]
     pub ruby_rloc: String,
 }
 
-/// Pins one Maven publish: the jar, pom, optional extra jars and the repository.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MavenConfig {
@@ -291,7 +261,6 @@ pub struct MavenConfig {
     pub java_rloc: String,
 }
 
-/// Pins one OCI push: the image and its destination.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OciConfig {
@@ -308,7 +277,6 @@ pub struct OciConfig {
     pub scan_severity: String,
     #[serde(default)]
     pub sbom_rloc: String,
-    /// `auto`, `off` or `required`.
     #[serde(default = "default_oci_sign")]
     pub sign: String,
     #[serde(default)]
@@ -331,7 +299,6 @@ fn default_scan_severity() -> String {
     "HIGH".to_owned()
 }
 
-/// Describes the SBOM kept with an OCI deployment, with its package count.
 fn oci_sbom_line(rloc: &str) -> String {
     let base = rloc.rsplit('/').next().unwrap_or(rloc);
     let count = crate::stage::resolve_runfile(rloc)
@@ -343,7 +310,6 @@ fn oci_sbom_line(rloc: &str) -> String {
     }
 }
 
-/// Pins one Octopus release: the package, project and target environments.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OctopusConfig {
@@ -358,7 +324,6 @@ pub struct OctopusConfig {
     pub registry_url: String,
 }
 
-/// Holds one deploy config; `kind` picks the variant and `config` holds its fields.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(
     tag = "kind",
@@ -390,15 +355,10 @@ pub enum DeployConfig {
     Octopus(OctopusConfig),
 }
 
-/// Reads the deploy config named by `DX_DEPLOY_CONFIG`.
-///
-/// Children never see the variable: publishers run with a scrubbed
-/// environment (`scrubbed_command`) and `signing::run_output` removes it.
 pub fn load_deploy_config<T: DeserializeOwned>() -> Result<T, String> {
     load_deploy_config_from(std::env::var_os(DEPLOY_CONFIG_ENV), &crate::resolve_runfile)
 }
 
-/// Reads one deploy config from an absolute path or a runfiles rlocation.
 pub fn load_deploy_config_from<T: DeserializeOwned>(
     raw: Option<OsString>,
     resolve: &dyn Fn(&str) -> io::Result<PathBuf>,
@@ -427,7 +387,6 @@ pub fn load_deploy_config_from<T: DeserializeOwned>(
         .map_err(|error| format!("invalid deploy config {}: {error}", path.display()))
 }
 
-/// Runs the deploy that one config names.
 pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
     match config {
         DeployConfig::Archive(archive) => crate::archive_main(
@@ -691,9 +650,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
     }
 }
 
-/// Runs the shared deploy tool: loads the config, then dispatches on its kind.
-///
-/// Returns 2 when the config cannot be loaded.
 pub fn deploy_tool_main(argv: &[String]) -> i32 {
     match load_deploy_config::<DeployConfig>() {
         Ok(config) => run_deploy_config(&config, argv),
@@ -778,7 +734,6 @@ mod tests {
         );
     }
 
-    /// A github deploy config with `fields` after the ones every github config sets.
     fn github_config(fields: &str) -> String {
         format!(
             r#"{{"config":{{"deploy_name":"demo","tag":"v1.0.0","api_compat":"off","api_baseline":"registry","sign":"off",{fields}}},"kind":"github"}}"#

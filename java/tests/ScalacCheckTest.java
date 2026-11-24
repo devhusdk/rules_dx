@@ -37,6 +37,7 @@ public final class ScalacCheckTest {
     werror(dir);
     unused(dir);
     unusedOverridesInfo(dir);
+    guards(dir);
     srcjar(dir);
     javaSource(dir);
     malformed();
@@ -141,6 +142,50 @@ public final class ScalacCheckTest {
                 "scalacopt=-Wconf:cat=unused:info",
                 "scalacopt=-Wconf:cat=unused:w"));
     expect(occurrences(log, "\"severity\":\"warning\"") == 2, "last -Wconf keeps warnings", log);
+  }
+
+  private static final List<String> GUARDS =
+      List.of(
+          "scalacopt=-Wvalue-discard",
+          "scalacopt=-Wnonunit-statement",
+          "scalacopt=-Xlint:missing-interpolator,nonlocal-return",
+          "scalacopt=-Werror");
+
+  private static void guard(Path dir, String name, String body, String message)
+      throws IOException {
+    Path a = write(dir, "guards/" + name + ".scala", body);
+    List<String> request = new ArrayList<>(GUARDS);
+    request.add("source=" + a);
+    String log = check(request);
+    expect(log.contains("\"exit\":1"), name + " fails under -Werror", log);
+    expect(log.contains(message), name + " reported", log);
+  }
+
+  private static void guards(Path dir) throws IOException {
+    guard(
+        dir,
+        "Discard",
+        "import scala.concurrent.Future\nobject Discard {\n"
+            + "  def f: Future[Int] = Future.successful(1)\n  def g: Unit = f\n}\n",
+        "value of type scala.concurrent.Future[Int]");
+    guard(
+        dir,
+        "Statement",
+        "import scala.concurrent.Future\nobject Statement {\n"
+            + "  def f: Future[Int] = Future.successful(1)\n"
+            + "  def g: Int = { f; 2 }\n}\n",
+        "value of type scala.concurrent.Future[Int]");
+    guard(
+        dir,
+        "Interpolator",
+        "object Interpolator {\n  val n: Int = 1\n  def g: String = \"n is $n\"\n}\n",
+        "possible missing interpolator");
+    guard(
+        dir,
+        "NonLocal",
+        "object NonLocal {\n  def g(xs: List[Int]): Int = {\n"
+            + "    xs.foreach { x => if (x > 0) return x }\n    0\n  }\n}\n",
+        "return statement uses an exception");
   }
 
   private static int occurrences(String text, String what) {

@@ -1,5 +1,3 @@
-//! Buildifier accepts every quality config without an unexpected warning about its own settings.
-
 use dx_testing::{env_file, env_files, path_text, run, scratch_dir, write};
 
 #[test]

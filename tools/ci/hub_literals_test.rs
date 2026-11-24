@@ -1,18 +1,14 @@
-//! No non-test Go or Rust file binds a hub-named identifier to a bare lock hub literal (`DEFAULT_HUB = "crates"`, `hub: Some("npm")`); hub names come from the lock registry.
-
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use serde_json::Value;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// Fewer snapshot entries than this means the sweep lost the tree.
 const MIN_LANGUAGES: usize = 50;
 const MIN_RUST: usize = 300;
 const MIN_GO: usize = 100;
 
-/// The hub names of every `<lang>/lang.json` `setup.hubs` entry.
 fn hubs(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for (path, text) in files {
@@ -37,7 +33,6 @@ fn hubs(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     out
 }
 
-/// The source up to its first `#[cfg(test)]` line.
 fn non_test(source: &str) -> &str {
     let mut offset = 0;
     for line in source.split_inclusive('\n') {
@@ -49,7 +44,6 @@ fn non_test(source: &str) -> &str {
     source
 }
 
-/// Whether `before`, the line text ahead of a string literal, binds or compares a hub-named identifier.
 fn binds_hub(before: &str) -> bool {
     let before = before.trim_end();
     let before = before.strip_suffix("Some(").unwrap_or(before).trim_end();
@@ -71,13 +65,16 @@ fn binds_hub(before: &str) -> bool {
         .contains("hub")
 }
 
-/// One `path:line hub` entry per bare hub literal bound to a hub-named identifier.
 fn violations(
     hubs: &BTreeSet<String>,
     rust: &BTreeMap<String, String>,
     lock_scan: &BTreeMap<String, String>,
 ) -> BTreeSet<String> {
-    let go = lock_scan.iter().filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")));
+    let go = lock_scan.iter().filter(|(path, _)| {
+        Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+    });
     let mut out = BTreeSet::new();
     for (path, source) in rust.iter().chain(go) {
         for (index, line) in non_test(source).lines().enumerate() {
@@ -97,7 +94,6 @@ fn violations(
     out
 }
 
-/// Reads one runfile named by an environment variable.
 fn read_input(variable: &str) -> String {
     let key = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} is set by the test"));
     let path = dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("{variable}: {error}"));
@@ -144,7 +140,11 @@ fn the_tree_has_no_bare_hub_literal() {
     );
     let go = lock_scan
         .keys()
-        .filter(|path| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("go")))
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("go"))
+        })
         .count();
     assert!(
         go >= MIN_GO,

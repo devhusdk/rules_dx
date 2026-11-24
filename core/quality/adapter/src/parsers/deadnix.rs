@@ -3,7 +3,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "deadnix";
 
-/// How deadnix spells an IO failure in a result message.
 const IO_ERROR: &str = "(os error ";
 
 fn number(value: &serde_json::Value, key: &str) -> Result<Option<u64>, ParseError> {
@@ -76,15 +75,6 @@ fn deadnix_result(
     })
 }
 
-/// Parses `deadnix --fail -o json <files>`: one JSON object per file with results.
-///
-/// A result with a line is dead code. A result without one is a parse or IO failure, which
-/// deadnix reports with exit 0 even under `--fail`: a parse failure becomes a `syntax` error
-/// finding and an IO failure fails closed.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_deadnix(
     stdout: &[u8],
     stderr: &[u8],

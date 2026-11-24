@@ -1,13 +1,9 @@
-//! The Bazel host-failure diagnosis for a full or low disk.
-
 use std::path::{Component, Path, PathBuf};
 
 use dx_worktree::disk::is_full;
 
-/// Bazel exit code for a failure of the local environment, such as a full disk.
 pub const BAZEL_LOCAL_ENVIRONMENT_EXIT: i32 = 36;
 
-/// The directories a Bazel run writes to: workspace, output roots, temp dir and home.
 #[must_use]
 pub fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
     let mut paths = vec![workspace.to_path_buf()];
@@ -43,7 +39,6 @@ pub fn disk_paths(workspace: &Path, argv: &[String]) -> Vec<PathBuf> {
     paths
 }
 
-/// The probed path with the least free space, when that is under `DISK_FULL_BYTES`.
 pub fn shortage(
     probe: &dyn Fn(&Path) -> Option<u64>,
     workspace: &Path,
@@ -56,7 +51,6 @@ pub fn shortage(
         .min_by_key(|(_, free)| *free)
 }
 
-/// The diagnosis of a Bazel exit `code` with `free` bytes left at `path`.
 #[must_use]
 pub fn full_message(code: i32, path: &Path, free: u64) -> String {
     format!(
@@ -66,7 +60,6 @@ pub fn full_message(code: i32, path: &Path, free: u64) -> String {
     )
 }
 
-/// The `disk_low` warning for `free` bytes left at `path`, shown before a Bazel run.
 #[must_use]
 pub fn low_message(path: &Path, free: u64) -> String {
     format!(

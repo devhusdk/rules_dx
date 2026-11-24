@@ -42,13 +42,11 @@ type cargoTOMLWorkspace struct {
 type cargoTOMLPackage struct {
 	Name      string `toml:"name"`
 	Workspace string `toml:"workspace"`
-	// Version, Edition and Build are a string, a bool, or a table.
-	Version any `toml:"version"`
-	Edition any `toml:"edition"`
-	Build   any `toml:"build"`
+	Version   any    `toml:"version"`
+	Edition   any    `toml:"edition"`
+	Build     any    `toml:"build"`
 }
 
-// cargoTOMLTarget uses pointers so a present field differs from a missing one.
 type cargoTOMLTarget struct {
 	Name             string    `toml:"name"`
 	Path             *string   `toml:"path"`
@@ -82,8 +80,6 @@ func decodeCargoTOML(manifestPath string, content []byte) (*cargoTOML, error) {
 
 var tomlMismatch = regexp.MustCompile(`^cannot decode TOML (.+?) into `)
 
-// cargoTOMLError turns a go-toml error into rust: <path>:<row>: <key>: <msg>
-// without leaking Go type names.
 func cargoTOMLError(manifestPath string, err error) error {
 	var de *toml.DecodeError
 	if !errors.As(err, &de) {
@@ -113,7 +109,6 @@ func cargoTOMLError(manifestPath string, err error) error {
 
 var tomlBareKey = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-// tomlKeyPath renders key parts as a TOML dotted key, quoting where needed.
 func tomlKeyPath(parts ...string) string {
 	out := make([]string, len(parts))
 	for i, part := range parts {
@@ -129,8 +124,6 @@ func tomlKeyPath(parts ...string) string {
 	return strings.Join(out, ".")
 }
 
-// cargoDepEntries normalizes every dependency table into
-// table -> dependency key -> target cfg ("" when unconditional) -> entry.
 func (doc *cargoTOML) cargoDepEntries(manifestPath string) (map[string]map[string]map[string]*cargoDepEntry, error) {
 	out := make(map[string]map[string]map[string]*cargoDepEntry)
 	add := func(table, cfg string, deps map[string]any, prefix ...string) error {

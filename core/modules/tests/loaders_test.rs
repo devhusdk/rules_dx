@@ -1,5 +1,3 @@
-//! Every non-dev `bazel_dep` of the root module has a consumer in the shipped tree.
-
 use std::path::Path;
 
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -73,7 +71,6 @@ fn non_dev_deps(module: &ModuleFile) -> Vec<String> {
         .collect()
 }
 
-/// Workspace paths of the `build_file` labels the module passes to repository rules.
 fn build_files(module: &ModuleFile) -> Vec<String> {
     module
         .calls()
@@ -106,8 +103,6 @@ fn is_patched(module: &ModuleFile, dep: &str) -> bool {
         .any(|call| call.str("module_name") == Some(dep) && !call.str_list("patches").is_empty())
 }
 
-/// The repos the `# needed: @repo ... loads @dep` lines directly above the `bazel_dep` of
-/// `dep` name as its loaders.
 fn needed_by(module: &ModuleFile, dep: &str) -> Vec<String> {
     let Some(call) = module
         .calls_named("bazel_dep")
@@ -149,7 +144,6 @@ fn has_consumer(module: &ModuleFile, starlark: &[String], dep: &str) -> bool {
             .any(|repo| imports_repo(module, repo))
 }
 
-/// The non-dev deps of `module` without a consumer in `module` or `starlark`.
 fn unused(module: &ModuleFile, starlark: &[String]) -> Vec<String> {
     non_dev_deps(module)
         .iter()

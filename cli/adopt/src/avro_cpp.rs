@@ -1,5 +1,3 @@
-//! Plans the files and `MODULE.bazel` lines `avro_cc_library` needs.
-
 use std::path::Path;
 
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -19,8 +17,6 @@ const PATCH_LABEL: &str = "//third_party/rules_dx/avro-cpp:iterator.patch";
 const PATCH: &str = include_str!("../../../patches/avro-cpp/iterator.patch");
 const PATCH_BUILD: &str = "exports_files([\"iterator.patch\"])\n";
 
-/// The edits `dx generate --apply` writes for `avro_cc_library`, BUILD and patch before
-/// `MODULE.bazel`.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct AvroCpp {
     pub edits: Vec<ModuleEdit>,
@@ -34,14 +30,12 @@ fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     }
 }
 
-/// What the walk of one module root found.
 #[derive(Default)]
 struct Found {
     avro_cc: bool,
     schema: bool,
 }
 
-/// Walks `root` up to nested modules for `avro_cc_library` calls and `.avsc` or `.avdl` files.
 fn scan(root: &Path) -> Found {
     let mut found = Found::default();
     let mut pending = vec![root.to_path_buf()];
@@ -86,7 +80,6 @@ fn scan(root: &Path) -> Found {
     found
 }
 
-/// Whether an `override_repo` of `binding` already binds `dx_avro_cpp`.
 fn overrides(file: &ModuleFile, binding: &str) -> bool {
     file.calls_named("override_repo").any(|call| {
         matches!(call.positional.first(), Some(Value::Ident(name)) if name == binding)
@@ -94,7 +87,6 @@ fn overrides(file: &ModuleFile, binding: &str) -> bool {
     })
 }
 
-/// The `*_override` call for module `name`.
 fn module_override<'a>(file: &'a ModuleFile, name: &str) -> Option<&'a Call> {
     file.calls()
         .iter()
@@ -112,7 +104,6 @@ fn append(out: &mut String, block: &str) {
     out.push_str(&block.replace('\n', eol));
 }
 
-/// Plans a file under `root` holding `want`, unless it already does.
 fn file_edit(root: &Path, path: String, want: &str) -> Option<ModuleEdit> {
     let old = std::fs::read_to_string(root.join(&path)).unwrap_or_default();
     (old != want).then(|| ModuleEdit {
@@ -122,7 +113,6 @@ fn file_edit(root: &Path, path: String, want: &str) -> Option<ModuleEdit> {
     })
 }
 
-/// The `*_override` call for module `name` in `file` or one of the files it includes.
 fn any_override<'a>(
     file: &'a ModuleFile,
     includes: &'a [ModuleFile],
@@ -133,7 +123,6 @@ fn any_override<'a>(
         .find_map(|file| module_override(file, name))
 }
 
-/// The root and every file it includes, read relative to `root`.
 fn load_modules(root: &Path, text: &str) -> Result<Vec<ModuleFile>, AdoptError> {
     let read_include = |label: &str| -> Result<String, AdoptError> {
         let rel = dx_module_bazel::include_rel("", label).map_err(refuse)?;
@@ -144,7 +133,6 @@ fn load_modules(root: &Path, text: &str) -> Result<Vec<ModuleFile>, AdoptError> 
         .map_err(|error| error.into_error(refuse))
 }
 
-/// Plans the patched avro-cpp and the fmt `single_version_override`s, and the patch they name.
 fn plan_overrides(
     root: &Path,
     includes: &[ModuleFile],
@@ -188,14 +176,11 @@ fn plan_overrides(
     Ok(())
 }
 
-/// Whether `file` declares `module(name = "rules_dx")`.
 fn is_rules_dx(file: &ModuleFile) -> bool {
     file.calls_named("module")
         .any(|call| call.str("name") == Some("rules_dx"))
 }
 
-/// Plans what a root that has `avro_cc_library`, or Avro schemas Gazelle turns into one,
-/// needs. Writes nothing.
 pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
         return Ok(AvroCpp::default());
@@ -227,8 +212,6 @@ pub fn plan_avro_cpp(root: &Path) -> Result<AvroCpp, AdoptError> {
             .map_err(refuse)?;
         file = ModuleFile::parse(&out).map_err(refuse)?;
     }
-    // An include keeps its bindings to itself, so its override_repo only counts next to
-    // its own use_extension.
     let included_override = includes.iter().any(|module| {
         module
             .extension_bindings(EXTENSION_BZL, EXTENSION)

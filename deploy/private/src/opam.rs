@@ -1,5 +1,3 @@
-//! opam publisher: opam file identity check, lint with the pinned opam, and the opam-repository pull request.
-
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, pages_redact,
     scrubbed_command,
@@ -9,7 +7,6 @@ use dx_atomic_fs::path_io;
 use std::fmt;
 use std::path::Path;
 
-/// Owner approval gate for opam_deploy.
 pub(crate) const OPAM_GATE: OwnerGate = OwnerGate {
     tool: "opam_deploy",
     action: "pull request",
@@ -21,7 +18,6 @@ const GITHUB_API: &str = "https://api.github.com";
 const UPSTREAM: &str = "ocaml/opam-repository";
 const UPSTREAM_BASE: &str = "master";
 
-/// Why an opam identity check or the opam-repository pull request failed.
 #[derive(Debug)]
 pub enum OpamError {
     PackageMismatch {
@@ -33,11 +29,9 @@ pub enum OpamError {
         expected: String,
     },
     Client(dx_http::Error),
-    /// The request failed before a response; `message` is token-redacted.
     Transport {
         message: String,
     },
-    /// GitHub answered outside 2xx; `body` is token-redacted.
     Status {
         method: String,
         path: String,
@@ -53,7 +47,6 @@ pub enum OpamError {
 }
 
 impl OpamError {
-    /// GitHub refused to create a ref or pull request that already exists.
     fn already_exists(&self) -> bool {
         matches!(self, Self::Status { status: 422, body, .. } if body.contains("already exists"))
     }
@@ -98,7 +91,6 @@ impl std::error::Error for OpamError {
     }
 }
 
-/// Reads the optional `name:` and `version:` fields of an opam file.
 pub fn opam_read_identity(text: &str) -> (Option<String>, Option<String>) {
     let field = |key: &str| {
         text.lines().find_map(|line| {
@@ -110,7 +102,6 @@ pub fn opam_read_identity(text: &str) -> (Option<String>, Option<String>) {
     (field("name"), field("version"))
 }
 
-/// Checks the opam file's own name and version fields against the declared ones.
 pub fn opam_check_identity(text: &str, package: &str, version: &str) -> Result<(), OpamError> {
     let (name, declared) = opam_read_identity(text);
     if let Some(name) = name.filter(|name| name != package) {
@@ -128,12 +119,10 @@ pub fn opam_check_identity(text: &str, package: &str, version: &str) -> Result<(
     Ok(())
 }
 
-/// Path of the opam file inside opam-repository.
 pub fn opam_repository_path(package: &str, version: &str) -> String {
     format!("packages/{package}/{package}.{version}/opam")
 }
 
-/// Git branch name for the release: characters outside `[A-Za-z0-9._-]` become `-`, dot runs collapse to one dot.
 pub fn opam_branch_name(package: &str, version: &str) -> String {
     let mut branch = String::new();
     for ch in format!("{package}.{version}").chars() {
@@ -155,7 +144,6 @@ pub fn opam_branch_name(package: &str, version: &str) -> String {
     branch
 }
 
-/// Runs `opam lint` on the file with the pinned opam and an empty root.
 fn opam_lint(opam: &Path, file: &Path, home: &Path) -> bool {
     let home_text = home.to_string_lossy().into_owned();
     let mut cmd = scrubbed_command(
@@ -243,7 +231,6 @@ fn text_field(value: &serde_json::Value, pointer: &str) -> Result<String, OpamEr
         })
 }
 
-/// Forks opam-repository, commits the opam file on a branch and opens the pull request.
 fn opam_live_pull_request(
     package: &str,
     version: &str,
@@ -346,7 +333,6 @@ fn opam_live_pull_request(
     }
 }
 
-/// Runs the opam deploy tool.
 pub fn opam_main(
     opam_rloc: &str,
     opam_file_rloc: &str,

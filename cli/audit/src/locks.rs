@@ -61,7 +61,6 @@ pub use locks_ruby::*;
 pub use locks_swift::*;
 pub use locks_uv::*;
 
-/// Reads the Go packages a module file pins, with its `replace` directives applied.
 pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let file = dx_gomod::parse_mod(text).map_err(DxError::failure)?;
     if file.module.is_empty() {
@@ -140,23 +139,19 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     Ok(out)
 }
 
-/// Drops a leading UTF-8 byte order mark that Windows editors add.
 pub(crate) fn strip_bom(text: &str) -> &str {
     text.strip_prefix('\u{feff}').unwrap_or(text)
 }
 
-/// Orders packages by name then version and drops repeats.
 pub(crate) fn sort_unique(out: &mut Vec<LockedPackage>) {
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version);
 }
 
-/// Number of leading whitespace bytes of `line`.
 pub(crate) fn indent_of(line: &str) -> usize {
     line.len() - line.trim_start().len()
 }
 
-/// Parses `name (version)` where `version` has no parentheses.
 pub(crate) fn split_paren_spec(line: &str) -> Option<(&str, &str)> {
     for (open, _) in line.rmatch_indices('(') {
         let Some((name_part, tail)) = line.split_at_checked(open) else {

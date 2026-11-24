@@ -9,8 +9,6 @@ import (
 	"sync"
 )
 
-// BuildSnapshot remembers the on-disk state of BUILD files before gazelle may
-// write them, so a failed run can put every file back byte for byte.
 type BuildSnapshot struct {
 	mu    sync.Mutex
 	files map[string]snapshotEntry
@@ -25,15 +23,12 @@ type snapshotEntry struct {
 	target string
 }
 
-// Reset forgets all recorded files.
 func (s *BuildSnapshot) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.files = nil
 }
 
-// Record stores the current state of path once; later calls for the same path
-// keep the first state. A directory is left alone. It fails if the file cannot be inspected or read.
 func (s *BuildSnapshot) Record(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -67,8 +62,6 @@ func (s *BuildSnapshot) Record(path string) error {
 	return nil
 }
 
-// RecordDir records every candidate BUILD file name in dir and returns every
-// error joined.
 func (s *BuildSnapshot) RecordDir(dir string, names []string) error {
 	var errs []error
 	for _, name := range names {
@@ -79,8 +72,6 @@ func (s *BuildSnapshot) RecordDir(dir string, names []string) error {
 	return errors.Join(errs...)
 }
 
-// Restore rewrites changed files and removes files that did not exist when
-// they were recorded. It is idempotent and returns every error joined.
 func (s *BuildSnapshot) Restore() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,8 +108,6 @@ func (s *BuildSnapshot) Restore() error {
 	return errors.Join(errs...)
 }
 
-// restoreLink keeps a link that still points at target and otherwise replaces
-// whatever is at path with a link to target.
 func restoreLink(path, target string) error {
 	if cur, err := os.Readlink(path); err == nil && cur == target {
 		return nil

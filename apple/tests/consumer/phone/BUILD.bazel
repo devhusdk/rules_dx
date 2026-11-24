@@ -1,4 +1,4 @@
-load("@rules_dx//apple:defs.bzl", "apple_ios_app", "apple_ios_lib")
+load("@rules_dx//apple:defs.bzl", "apple_ios_app")
 load("@rules_dx//swift:defs.bzl", "swift_library")
 
 swift_library(
@@ -14,10 +14,4 @@ apple_ios_app(
     entry = ":phone",
     platform = "@rules_dx//apple:ios_sim_arm64",
     version = "1.0",
-)
-
-apple_ios_lib(
-    name = "share",
-    srcs = ["share.rs"],
-    platform = "@rules_dx//apple:ios_sim_arm64",
 )

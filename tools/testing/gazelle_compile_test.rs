@@ -1,5 +1,3 @@
-//! Compiles each Gazelle fixture package with only its generated deps.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 

@@ -1,5 +1,3 @@
-//! Shared entry point, flag reader and shard writer for the docs extractor subcommands.
-
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
 
@@ -7,7 +5,6 @@ pub use dx_atomic_fs::path_io::{self, PathIoError};
 
 use crate::proto::DocIr;
 
-/// Prints usage on -h/--help, returns 2 after printing "<program>: <detail>\n<usage>" on a parse error, 1 after "<program>: <detail>" on a run error.
 #[must_use]
 pub fn run_process<O, PE: Display, RE: Display>(
     program: &str,
@@ -57,7 +54,6 @@ fn execute<O, PE: Display, RE: Display>(
     }
 }
 
-/// A rejected `--flag VALUE` invocation.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FlagError {
     Unknown { flag: String },
@@ -81,24 +77,17 @@ impl Display for FlagError {
 
 impl std::error::Error for FlagError {}
 
-/// Bridge for callers that still return `String`.
 impl From<FlagError> for String {
     fn from(error: FlagError) -> Self {
         error.to_string()
     }
 }
 
-/// The `--flag VALUE` pairs of one invocation.
 #[derive(Debug)]
 pub struct Flags {
     pairs: Vec<(String, String)>,
 }
 
-/// Reads `--flag VALUE` pairs; rejects unknown flags, missing values and empty values.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, FlagError> {
     let mut pairs = Vec::new();
     let mut index = 0;
@@ -128,22 +117,12 @@ pub fn flags(args: &[String], known: &[&str]) -> Result<Flags, FlagError> {
 }
 
 impl Flags {
-    /// The value of a flag that must appear exactly once.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn one(&mut self, flag: &str) -> Result<String, FlagError> {
         self.optional(flag)?.ok_or_else(|| FlagError::Required {
             flag: flag.to_owned(),
         })
     }
 
-    /// The value of a flag that may appear at most once.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn optional(&mut self, flag: &str) -> Result<Option<String>, FlagError> {
         let mut values = self.many(flag);
         if values.len() > 1 {
@@ -154,7 +133,6 @@ impl Flags {
         Ok(values.pop())
     }
 
-    /// Every value of a repeatable flag, in order.
     pub fn many(&mut self, flag: &str) -> Vec<String> {
         let (taken, rest) = std::mem::take(&mut self.pairs)
             .into_iter()
@@ -164,7 +142,6 @@ impl Flags {
     }
 }
 
-/// One source file of a documented library, as one line of the srcs manifest that `shard.bzl` writes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Source {
     pub exec_path: String,
@@ -172,7 +149,6 @@ pub struct Source {
     pub generated: bool,
 }
 
-/// A srcs manifest line without three fields or with another generated flag.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourcesError {
     pub line: String,
@@ -186,18 +162,12 @@ impl Display for SourcesError {
 
 impl std::error::Error for SourcesError {}
 
-/// Bridge for callers that still return `String`.
 impl From<SourcesError> for String {
     fn from(error: SourcesError) -> Self {
         error.to_string()
     }
 }
 
-/// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines, where generated is `0` or `1`.
-///
-/// # Errors
-///
-/// Returns an error naming the first line without three fields or with another generated flag.
 pub fn parse_sources(text: &str) -> Result<Vec<Source>, SourcesError> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -223,7 +193,6 @@ pub fn parse_sources(text: &str) -> Result<Vec<Source>, SourcesError> {
         .collect()
 }
 
-/// A shard that could not be encoded or written.
 #[derive(Debug)]
 pub enum WriteShardError {
     Encode(crate::Error),
@@ -248,18 +217,12 @@ impl std::error::Error for WriteShardError {
     }
 }
 
-/// Bridge for callers that still return `String`.
 impl From<WriteShardError> for String {
     fn from(error: WriteShardError) -> Self {
         error.to_string()
     }
 }
 
-/// Encodes and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the shard does not encode or the file cannot be written.
 pub fn write_shard(out: &str, shard: &DocIr) -> Result<(), WriteShardError> {
     let bytes = crate::encode_shard(shard).map_err(WriteShardError::Encode)?;
     let path = Path::new(out);

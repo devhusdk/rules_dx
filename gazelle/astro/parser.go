@@ -24,7 +24,6 @@ func ParseImports(content []byte, dir string) []common.ImportRef {
 	return set.Refs()
 }
 
-// splitFence only frames the frontmatter; ScanEmbedded reads its imports.
 func splitFence(src []byte) (fenced bool, front, rest []byte, ok bool) {
 	var first, after []byte
 	if nl := bytes.IndexByte(src, '\n'); nl < 0 {

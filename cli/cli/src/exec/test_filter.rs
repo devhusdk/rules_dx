@@ -78,8 +78,6 @@ pub(crate) fn rust_filter_args(
     Ok(vec![format!("--test_arg={filter}")])
 }
 
-/// Returns the targets among `labels` and their `upstream` tests that set
-/// `use_libtest_harness = False`. Such binaries do not parse libtest filters.
 pub(crate) fn without_libtest_harness(
     labels: &[String],
     workspace: &Path,

@@ -13,8 +13,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return php.Language() })
 
-// reserved are the names that never refer to a user declaration when they
-// stand alone in a class position.
 var reserved = map[string]bool{
 	"self": true, "static": true, "parent": true,
 	"array": true, "callable": true, "bool": true, "boolean": true, "int": true, "integer": true,
@@ -22,20 +20,6 @@ var reserved = map[string]bool{
 	"never": true, "void": true, "null": true, "false": true, "true": true,
 }
 
-// Parse returns the sorted, deduplicated fully qualified names content
-// declares at the top level of a file or namespace body, and the names it
-// refers to. Names carry no leading backslash. Classes, interfaces, traits and
-// enums are declared by their full name; functions and constants are declared
-// by their namespaced name too.
-//
-// References come from use clauses of every kind and from the class positions
-// of the code (extends, implements, trait use, new, static access, instanceof,
-// catch, type declarations, attributes) plus every qualified name. They are
-// resolved with PHP's lexical rules: the current namespace and the use aliases
-// of the file. Unqualified function and constant names are skipped because PHP
-// falls back to the global one, so the target is unknowable. Strings,
-// heredocs, comments, inline HTML and require/include are never read.
-// Declarations before a syntax error are kept.
 func Parse(content []byte) (declares, imports []string) {
 	content = bytes.TrimPrefix(content, []byte("\xef\xbb\xbf"))
 	tree := treesitter.Parse(grammar(), content)
@@ -79,7 +63,6 @@ func (p *parser) qualify(name string) string {
 	return p.ns + `\` + name
 }
 
-// statement handles a node at the top level of a file or namespace body.
 func (p *parser) statement(n *treesitter.Node) {
 	switch p.tree.Type(n) {
 	case "namespace_definition":
@@ -135,7 +118,6 @@ func (p *parser) declareNamed(n *treesitter.Node) {
 	}
 }
 
-// visit finds references below n.
 func (p *parser) visit(n *treesitter.Node) {
 	p.tree.Walk(n, func(c *treesitter.Node) bool {
 		switch p.tree.Type(c) {
@@ -161,9 +143,6 @@ func (p *parser) visit(n *treesitter.Node) {
 	})
 }
 
-// nameChildren resolves the plain name children of n. A limit above zero
-// stops after that many children, which keeps a member name such as the
-// constant in Foo::BAR out.
 func (p *parser) nameChildren(n *treesitter.Node, limit int) {
 	for i, c := range n.Children() {
 		if limit > 0 && i >= limit {
@@ -178,7 +157,6 @@ func (p *parser) nameChildren(n *treesitter.Node, limit int) {
 	}
 }
 
-// ref resolves a name written in code and records it.
 func (p *parser) ref(raw string) {
 	name := strings.TrimSpace(raw)
 	switch {
@@ -207,8 +185,6 @@ func (p *parser) ref(raw string) {
 	}
 }
 
-// useDeclaration records the names of one use statement and the aliases of
-// its class clauses.
 func (p *parser) useDeclaration(n *treesitter.Node) {
 	kind := ""
 	prefix := ""

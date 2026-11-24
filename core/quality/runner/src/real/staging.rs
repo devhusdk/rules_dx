@@ -9,8 +9,6 @@ use super::{
     missing_tier_base, parent_rel, write_all,
 };
 
-/// Tools that never run without a bound config: the runner has no default of its own, so the
-/// tier base the policy binds is the only one.
 pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "bicep",
     "biome",
@@ -24,6 +22,7 @@ pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "gplint",
     "hadolint",
     "hlint",
+    "luals",
     "mbake",
     "pmd",
     "redocly",
@@ -36,8 +35,6 @@ pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "tflint",
 ];
 
-/// shfmt only reads `.editorconfig`, searching up from each file. The bound config goes in the
-/// scratch root as that file, and `root = true` stops the search there.
 const SHFMT_CONFIG_REL: &str = ".editorconfig";
 
 fn shfmt_editorconfig(bound: Option<&[u8]>) -> Vec<u8> {
@@ -46,12 +43,9 @@ fn shfmt_editorconfig(bound: Option<&[u8]>) -> Vec<u8> {
     out
 }
 
-/// fantomas reads `.editorconfig`, searching up from each file, and otherwise writes the host
-/// newline.
 const FANTOMAS_CONFIG_REL: &str = ".editorconfig";
 const FANTOMAS_EDITORCONFIG: &[u8] = b"root = true\n\n[*.{fs,fsi,fsx}]\nend_of_line = lf\n";
 
-/// helmfmt reads `~/.helmfmt` and then `./.helmfmt` of its working directory, the scratch root.
 const HELMFMT_CONFIG_REL: &str = ".helmfmt";
 
 const FSHARPLINT_CONTEXT_REL: &str = "dx-fsharplint/context.json";
@@ -63,7 +57,6 @@ pub(super) struct FsharplintInputs {
     pub langversion: String,
 }
 
-/// Strips the comments Bicep accepts in `bicepconfig.json`.
 fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -104,7 +97,6 @@ fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Points Bicep's module cache at the scratch home whatever the bound config says.
 fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
     let mut config = match bound {
         None => serde_json::Value::Object(serde_json::Map::new()),
@@ -131,9 +123,6 @@ fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
     out
 }
 
-/// Whether the user's staged config closure already provides `lua54.{yml,yaml,toml}` in the
-/// config's directory or the scratch root. Ours at the root would shadow theirs (cwd is searched
-/// first) or collide with it.
 fn user_ships_selene_std<'a>(
     tool: &RealTool,
     staged: impl Iterator<Item = &'a MirrorFile>,
@@ -216,7 +205,6 @@ impl RealBackend {
         }
         if tool_id == "selene" && !user_ships_selene_std(tool, staged.iter().chain(mirrors.iter()))
         {
-            // selene reads the cwd config first.
             mirrors.push(MirrorFile {
                 mirror_rel: PathBuf::from(SELENE_STD_FILE),
                 contents: MirrorContents::Bytes(SELENE_STD_BYTES.to_vec()),
@@ -431,8 +419,6 @@ impl RealBackend {
         })
     }
 
-    /// The scratch directory latexindent writes its log and backups to, so a run never leaves
-    /// `indent.log` or `.bak` files next to the sources.
     pub(super) fn latexindent_cruft(
         tool_id: &str,
         scratch: &Scratch,
@@ -465,8 +451,6 @@ impl RealBackend {
         Ok(dir)
     }
 
-    /// The directory ffmt runs in: the one that holds its config. ffmt only recognizes two file
-    /// names, so another name would be ignored silently.
     pub(super) fn ffmt_config_dir(tool: &RealTool) -> Result<String, RunnerError> {
         let Some(rel) = tool.config_rel.as_deref() else {
             return Err(missing_tier_base("ffmt"));
@@ -492,9 +476,6 @@ impl RealBackend {
     }
 }
 
-/// Collection roots (the directories that hold `ansible_collections/`) among the staged tool files.
-///
-/// Roots come back sorted and unique; the same `namespace.collection` under two roots is an error.
 pub(super) fn ansible_collections_roots<'a>(
     rels: impl IntoIterator<Item = &'a str>,
 ) -> Result<Vec<String>, String> {
@@ -591,7 +572,6 @@ pub(super) fn place_qmllint_settings(
     Ok(())
 }
 
-/// Extracts the `META-INF/semanticdb/` members of one jar into a new directory, which scalafix reads on every platform.
 fn extract_semanticdb(jar: &Path, into: &Path) -> Result<(), String> {
     match std::fs::remove_dir_all(into) {
         Ok(()) => {}

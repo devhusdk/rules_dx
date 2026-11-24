@@ -65,11 +65,11 @@ func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Report
 
 func NewLanguage() language.Language {
 	return common.NewSingleLang(common.SingleLangSpec{
-		LanguageName:   languageName,
-		LibraryKind:    LibraryKind,
-		Kinds:          ccKinds,
-		DefsPackage:    "cc:defs.bzl",
-		ExtraKinds:     []string{CudaKind, TestKind, QtLibraryKind, QtTestKind},
+		LanguageName: languageName,
+		LibraryKind:  LibraryKind,
+		Kinds:        ccKinds,
+		DefsPackage:  "cc:defs.bzl",
+		ExtraKinds:   []string{CudaKind, TestKind, QtLibraryKind, QtTestKind},
 		KindDefs: map[string]string{
 			CudaKind:      "@rules_dx//cuda:defs.bzl",
 			QtLibraryKind: "@rules_dx//qt:defs.bzl",
@@ -91,13 +91,9 @@ func NewLanguage() language.Language {
 	})
 }
 
-// isCudaLibraryHeader reports whether a cuda_library hdrs entry is indexed for
-// includes: plain C/C++ headers and .cuh headers both count.
 func isCudaLibraryHeader(name string) bool { return IsHeader(name) || IsCudaHeader(name) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
-	// An Erlang app lists its c_src sources in its own erlang_nif rule.
-	// Gazelle owns only <dir>_cuda, so MergeStale must never see cuda_library.
 	owned := make(map[string]rule.KindInfo, len(kinds))
 	for k, v := range kinds {
 		if k != CudaKind {
@@ -202,7 +198,7 @@ func generateCc(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep 
 			IsSource: func(name string) bool { return IsSource(name) && IsTestSource(name) },
 			Name:     func(src string) (string, error) { return common.SnakeName(src, SupportedSrcExts) },
 		},
-		Wrap:   common.WrapImportSet,
+		Wrap: common.WrapImportSet,
 	}, rep)
 }
 

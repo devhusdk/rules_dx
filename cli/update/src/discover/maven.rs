@@ -1,5 +1,3 @@
-//! Lists Maven artifacts whose newest release on Maven Central is newer than the declared version.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, Overridden, wanted};
@@ -11,9 +9,6 @@ pub const DEFAULT_BASE: &str = "https://repo1.maven.org/maven2";
 
 const PRERELEASE: [&str; 6] = ["snapshot", "alpha", "beta", "rc", "cr", "preview"];
 
-/// Checks each literal coordinate of the `maven.install` named `set` against the repository at `base`.
-/// `resolved` maps `group:artifact` to the version the lock holds; that version is the current one,
-/// and a coordinate that asked for another is reported as overridden.
 pub fn outdated(
     set: &str,
     module: &ModuleFile,

@@ -61,7 +61,6 @@ CONSUMER_FIXTURES = [
     "zig",
 ]
 
-# The consumer fixtures //tools/testing/consumer:go_prebuilt_guard_test covers.
 GO_GUARD_LANGS = [
     "go",
     "lua",
@@ -75,12 +74,10 @@ GO_GUARD_LANGS = [
     "cc",
 ]
 
-# The consumer fixtures //tools/testing/consumer:java_prebuilt_guard_test covers.
 JAVA_GUARD_LANGS = [
     "java",
 ]
 
-# The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
 IN_GRAPH_GUARD_LANGS = [
     "android",
     "ansible",
@@ -125,23 +122,17 @@ IN_GRAPH_GUARD_LANGS = [
     "zig",
 ]
 
-# The consumer fixtures the macos_arm64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
-# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
 MACOS_IN_GRAPH_GUARD_LANGS = [
     "apple",
     "swift",
 ]
 
-# The consumer fixtures the windows_x86_64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
-# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
 WINDOWS_IN_GRAPH_GUARD_LANGS = [
     "msix",
 ]
 
-# The consumer fixtures no prebuilt guard covers yet.
 GUARD_PENDING = []
 
-# The fixtures whose test is the consumer evidence of the support matrix row of the same name.
 CONSUMER_ROWS = [
     "android",
     "astro",

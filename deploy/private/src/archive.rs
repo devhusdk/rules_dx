@@ -1,5 +1,3 @@
-//! Deterministic tar, gzip and zip archives, plus the archive publisher.
-
 use crate::run::{DeployRun, deploy_build_mode};
 use crate::stage::*;
 use std::io::{self, BufRead, Read, Write};
@@ -10,7 +8,6 @@ pub(crate) const RECORDSIZE: usize = 20 * 512;
 
 const USTAR_LIMIT: &str = "must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes, with no NUL";
 
-/// Returns one deterministic ustar image padded to a whole record.
 pub(crate) fn tar_archive<'a>(
     members: impl Iterator<Item = (&'a str, &'a [u8], u32)>,
 ) -> io::Result<Vec<u8>> {
@@ -37,7 +34,6 @@ pub fn member_name_error(name: &str) -> Option<String> {
     name_error(name, false)
 }
 
-/// Returns why a member name is unsafe, optionally allowing '='.
 fn name_error(name: &str, allow_equals: bool) -> Option<String> {
     if name.is_empty() {
         return Some("archive member name must not be empty".to_owned());
@@ -71,7 +67,6 @@ fn name_error(name: &str, allow_equals: bool) -> Option<String> {
     None
 }
 
-/// Parses `[--executable <member>]... <name=path>...` into archive members.
 pub fn member_args(args: &[String]) -> Result<Vec<(String, std::path::PathBuf, bool)>, String> {
     let mut executables: Vec<&str> = Vec::new();
     let mut rest = args;
@@ -108,7 +103,6 @@ pub fn member_args(args: &[String]) -> Result<Vec<(String, std::path::PathBuf, b
     Ok(members)
 }
 
-/// Writes one deterministic archive of files; the dst suffix picks tar.gz or zip.
 pub fn archive_members(members: &[(&str, &Path, bool)], dst: &Path) -> io::Result<()> {
     if members.is_empty() {
         return Err(io::Error::new(
@@ -131,7 +125,6 @@ pub fn archive_members(members: &[(&str, &Path, bool)], dst: &Path) -> io::Resul
     archive_tree(&refs, dst)
 }
 
-/// Writes one deterministic archive of in-memory members sorted by name; a .zip dst writes zip.
 pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()> {
     if members.is_empty() {
         return Err(io::Error::new(
@@ -165,7 +158,6 @@ pub fn archive_tree(members: &[(&str, &[u8], u32)], dst: &Path) -> io::Result<()
     Ok(())
 }
 
-/// Returns one deterministic zip image.
 pub(crate) fn zip_archive(members: &[(&str, &[u8], u32)]) -> io::Result<Vec<u8>> {
     let mut writer = dx_archive::ZipWriter::new();
     for (name, data, mode) in members {
@@ -182,7 +174,6 @@ fn is_zip(path: &Path) -> bool {
     path.extension().is_some_and(|ext| ext == "zip")
 }
 
-/// Limits for reading release archives: deploy reads whole archives it built or was handed to publish.
 pub(crate) const LISTING_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: usize::MAX,
     max_entry_bytes: u64::MAX,
@@ -224,14 +215,12 @@ fn archive_entries<T>(
     Ok(out)
 }
 
-/// Lists name, mode and sha256 of every regular member of a tar.gz or zip.
 pub fn archive_listing(path: &Path) -> io::Result<Vec<(String, u32, String)>> {
     archive_entries(path, LISTING_LIMITS, |name, mode, body| {
         Ok(Some((name, mode, dx_digest::sha256_reader_hex(body)?)))
     })
 }
 
-/// Returns the bytes of one named member of a tar.gz or zip.
 pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
     let mut found = archive_entries(path, LISTING_LIMITS, |name, _, body| {
         if name != member {
@@ -249,7 +238,6 @@ pub fn archive_read_member(path: &Path, member: &str) -> io::Result<Vec<u8>> {
     })
 }
 
-/// Extracts every regular member of a tar.gz or zip into a new dir and lists name, mode and sha256.
 pub fn archive_extract(path: &Path, dir: &Path) -> io::Result<Vec<(String, u32, String)>> {
     archive_extract_capped(path, dir, 512 << 20, 1 << 30)
 }
@@ -322,7 +310,6 @@ fn set_member_mode(_path: &Path, _mode: u32) -> io::Result<()> {
     Ok(())
 }
 
-/// Archives one executable under its basename.
 pub fn archive_file(src: &Path, dst: &Path) -> io::Result<()> {
     let name = basename(src)?;
     archive_members(&[(name.as_str(), src, true)], dst)
@@ -334,7 +321,6 @@ pub fn archive_bytes(data: &[u8], name: &str, executable: bool) -> io::Result<Ve
     dx_archive::gzip(&tar)
 }
 
-/// Writes one deterministic docker-save archive and returns its config digest.
 pub fn archive_image(
     layers: &[&Path],
     platform: &str,
@@ -435,7 +421,6 @@ pub fn hash_file(src: &Path, dst: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Stages one release tarball pair.
 pub fn archive_stage_release(
     app_src: &Path,
     tarball_src: &Path,
@@ -474,7 +459,6 @@ pub fn archive_stage_release(
     Ok((app_name, tarball_dest, checksum_dest))
 }
 
-/// Runs the archive deploy tool.
 pub fn archive_main(
     app_rloc: &str,
     tarball_rloc: &str,
@@ -514,7 +498,6 @@ pub(crate) const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 
 pub(crate) const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
 
-/// Compression detected from the first bytes of an archive or layer.
 #[derive(Clone, Copy)]
 pub(crate) enum OciCompression {
     None,
@@ -522,7 +505,6 @@ pub(crate) enum OciCompression {
     Zstd,
 }
 
-/// Detects gzip or zstd from a stream prefix.
 pub(crate) fn oci_compression(head: &[u8]) -> OciCompression {
     if head.starts_with(&GZIP_MAGIC) {
         OciCompression::Gzip
@@ -533,7 +515,6 @@ pub(crate) fn oci_compression(head: &[u8]) -> OciCompression {
     }
 }
 
-/// Decodes every zstd frame in `source` in order, skipping skippable frames.
 pub(crate) fn zstd_multi_frame_reader<R: BufRead>(source: R) -> impl Read {
     ZstdFrames {
         source,
@@ -738,7 +719,6 @@ mod tests {
         )
         .expect("write bad");
         assert!(archive_stage_release(&app, &tarball, &bad_checksum, &outdir).is_err());
-        // Windows tools (certutil, Get-FileHash) write uppercase hex.
         let upper_checksum = scratch.path().join("upper.sha256");
         std::fs::write(
             &upper_checksum,

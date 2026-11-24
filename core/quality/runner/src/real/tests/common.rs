@@ -18,7 +18,6 @@ pub(super) fn padded_selection(count: usize, pad: usize) -> BTreeMap<String, Str
     files
 }
 
-/// A spawn counter per test thread, so tests running in parallel never see each other's spawns.
 pub(super) struct SpawnCount(std::sync::Mutex<Vec<(std::thread::ThreadId, usize)>>);
 
 impl SpawnCount {
@@ -41,7 +40,6 @@ impl SpawnCount {
         act(&mut all[at].1)
     }
 
-    /// Counts one spawn and returns how many came before it.
     pub(super) fn bump(&self) -> usize {
         self.with(|count| {
             *count += 1;

@@ -1,5 +1,3 @@
-//! Analyzes the `//tools/testing/deep_graph` chains of depth 100 and 400 with the `dx check`,
-//! `dx docs` and `dx sync` aspects and fails when the deeper graph's analysis phase grows faster than `MAX_RATIO`.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -11,13 +9,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 
 const DEPTHS: [u32; 2] = [100, 400];
-/// Linear growth from depth 100 to 400 is about 4x and quadratic about 16x.
 const MAX_RATIO: f64 = 8.0;
-/// Below this the measured runs did not analyze the chains.
 const MIN_RATIO: f64 = 2.0;
 const ANALYSIS_MARKER: &str = "Load and analyze dependencies";
 
-/// The aspects of `dx check` (lint, typecheck, format), `dx docs` and `dx sync`, each once.
 fn aspects() -> String {
     let mut labels: Vec<String> = Vec::new();
     let check_and_docs = [
@@ -43,8 +38,6 @@ fn startup(bazel: &str, out: &Path, depth: u32) -> Vec<String> {
     ]
 }
 
-/// One `--nobuild` analysis of the chains of `depth`; `run` names the `--define` that keeps the
-/// warm-up's analysis cache from serving the measured run.
 fn analyze_argv(
     bazel: &str,
     out: &Path,
@@ -85,8 +78,6 @@ fn run(argv: &[String], workspace: &Path) -> Result<(), String> {
     }
 }
 
-/// The analysis phase of a JSON trace profile in milliseconds: from the analysis marker to the
-/// next build phase marker, or to the last event when no marker follows.
 fn analysis_ms(profile: &str) -> Result<f64, String> {
     let profile: serde_json::Value =
         serde_json::from_str(profile).map_err(|e| format!("profile: {e}"))?;

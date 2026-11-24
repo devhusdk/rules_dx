@@ -2,9 +2,6 @@ use std::path::Path;
 
 use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalafmt(
     stdout: &[u8],
     stderr: &[u8],

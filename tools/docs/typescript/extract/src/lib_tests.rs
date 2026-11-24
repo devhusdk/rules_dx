@@ -545,6 +545,6 @@ fn run_writes_a_valid_shard_and_reports_file_errors() {
     fs::write(path("bad.json"), "{").expect("write");
     let error = run(&options(path("bad.json"), path("o.pb"))).expect_err("malformed");
     assert!(error.contains("malformed"), "{error}");
-    let error = run(&options(path("ok.json"), path("no/such/dir/o.pb"))).expect_err("unwritable");
+    let error = run(&options(path("ok.json"), path("ok.json/o.pb"))).expect_err("unwritable");
     assert!(error.contains("cannot write"), "{error}");
 }

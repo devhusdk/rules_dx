@@ -1,10 +1,10 @@
 """Analysis checks for library cells and ad hoc signing under explicit Apple configurations."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:failure_test.bzl", "failure_test_rule")
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//apple/private/bundle:defs.bzl", "adhoc_signing_transition")
+load("//core:failure_test.bzl", "failure_test_rule")
 load("//core/quality:sources.bzl", "single_target")
 
 _XCODES = str(Label("//apple/private/provisioning:managed_xcodes"))
@@ -28,32 +28,32 @@ stub_library = rule(
 _host_test = failure_test_rule()
 
 _simulator_test = failure_test_rule({
-        "//command_line_option:ios_minimum_os": "17.0",
-        "//command_line_option:platforms": [_IOS_SIM],
-        "//command_line_option:xcode_version_config": _XCODES,
-    })
+    "//command_line_option:ios_minimum_os": "17.0",
+    "//command_line_option:platforms": [_IOS_SIM],
+    "//command_line_option:xcode_version_config": _XCODES,
+})
 
 _simulator_no_xcode_test = failure_test_rule({
-        "//command_line_option:ios_minimum_os": "17.0",
-        "//command_line_option:platforms": [_IOS_SIM],
-    })
+    "//command_line_option:ios_minimum_os": "17.0",
+    "//command_line_option:platforms": [_IOS_SIM],
+})
 
 _device_test = failure_test_rule({
-        "//command_line_option:ios_minimum_os": "17.0",
-        "//command_line_option:platforms": [_IOS_DEVICE],
-        "//command_line_option:xcode_version_config": _XCODES,
-    })
+    "//command_line_option:ios_minimum_os": "17.0",
+    "//command_line_option:platforms": [_IOS_DEVICE],
+    "//command_line_option:xcode_version_config": _XCODES,
+})
 
 _macos_test = failure_test_rule({
-        "//command_line_option:macos_minimum_os": "14.0",
-        "//command_line_option:platforms": [_MACOS],
-        "//command_line_option:xcode_version_config": _XCODES,
-    })
+    "//command_line_option:macos_minimum_os": "14.0",
+    "//command_line_option:platforms": [_MACOS],
+    "//command_line_option:xcode_version_config": _XCODES,
+})
 
 _macos_no_xcode_test = failure_test_rule({
-        "//command_line_option:macos_minimum_os": "14.0",
-        "//command_line_option:platforms": [_MACOS],
-    })
+    "//command_line_option:macos_minimum_os": "14.0",
+    "//command_line_option:platforms": [_MACOS],
+})
 
 _RULES = {
     "device": _device_test,

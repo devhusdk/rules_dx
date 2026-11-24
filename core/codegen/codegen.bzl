@@ -15,7 +15,6 @@ load(
     "plan_shard_subject_records",
 )
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 DxCodegenPlanInfo = provider(
@@ -260,7 +259,6 @@ def _prost_plan(target, ctx):
     groups = target[OutputGroupInfo]
     if "rust_generated_srcs" not in groups:
         return None
-    # Bounded by one prost library's generated sources.
     generated = groups.rust_generated_srcs.to_list()
     if len(generated) == 0:
         return None
@@ -297,7 +295,6 @@ def _dx_codegen_plan_aspect_impl(target, ctx):
     if prost != None or (DxCodegenPlanInfo in target and target[DxCodegenPlanInfo].direct):
         sources = ctx.actions.declare_file(ctx.label.name + DX_CODEGEN_SOURCES_SUFFIX)
 
-        # Written straight from the depset: dx sync sorts and dedups the lines.
         lines = ctx.actions.args()
         lines.set_param_file_format("multiline")
         lines.add_all(paths)

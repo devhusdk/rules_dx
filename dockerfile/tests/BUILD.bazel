@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
 load("//dockerfile:defs.bzl", "dockerfile_library")
 load(":defs_tests.bzl", "owns_dockerfile_class_test")
+load(":tier_tests.bzl", "dockerfile_tier_tests")
 
 dockerfile_library(
     name = "app",
@@ -28,12 +29,19 @@ failure_test(
     target = ":bad_name",
 )
 
+dockerfile_tier_tests(
+    name = "guard_tier_test",
+    size = "small",
+    target = ":app",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "defs_tests.bzl",
+        "tier_tests.bzl",
     ],
     tags = ["corpus"],
 )

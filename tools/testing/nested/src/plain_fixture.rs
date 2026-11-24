@@ -1,16 +1,9 @@
-//! Runs every check on a rule-set plain fixture: the consumer shape and the footprint budget.
-
 use std::path::Path;
 
 use serde_json::Value;
 
 use crate::{Case, footprint, plain_consumer};
 
-/// Returns `Ok` when the fixture is a plain consumer of `rules_<lang>` and its measured footprint matches `budget`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn check_fixture(
     lang: &str,
     module_bazel: &str,
@@ -40,7 +33,6 @@ pub fn check_fixture(
     }
 }
 
-/// Returns the paths below `root` relative to it, dotfiles and dot directories included.
 #[must_use]
 pub fn fixture_files(root: &Path) -> Vec<String> {
     let mut found = Vec::new();
@@ -65,11 +57,6 @@ fn collect(dir: &Path, prefix: &str, found: &mut Vec<String>) {
     }
 }
 
-/// Measures the footprint of the module the case's nested Bazel resolved.
-///
-/// # Errors
-///
-/// Returns `Err` when a Bazel command fails or the measurement cannot be read.
 pub fn measure_case(case: &Case) -> Result<footprint::Footprint, String> {
     let graph = run_ok(case, &["mod", "graph", "--output=json"], "mod graph")?;
     let info = run_ok(case, &["info", "output_base"], "info output_base")?;
@@ -78,11 +65,6 @@ pub fn measure_case(case: &Case) -> Result<footprint::Footprint, String> {
     footprint::measure(&graph.stdout, &lock, &external)
 }
 
-/// Returns `Ok` when every C++ toolchain selected in `resolution` comes from a `local_config_cc` repository.
-///
-/// # Errors
-///
-/// Returns `Err` when no C++ toolchain was selected or one comes from another repository.
 pub fn check_own_cc(resolution: &str) -> Result<(), String> {
     let selected: Vec<&str> = resolution
         .lines()
@@ -94,25 +76,30 @@ pub fn check_own_cc(resolution: &str) -> Result<(), String> {
     let foreign: Vec<&str> = selected
         .iter()
         .copied()
-        .filter(|line| !selected_repo(line).is_some_and(|repo| repo.rsplit('+').next() == Some("local_config_cc")))
+        .filter(|line| {
+            !selected_repo(line)
+                .is_some_and(|repo| repo.rsplit('+').next() == Some("local_config_cc"))
+        })
         .collect();
     if foreign.is_empty() {
         Ok(())
     } else {
-        Err(format!("C++ toolchain is not local_config_cc:\n{}", foreign.join("\n")))
+        Err(format!(
+            "C++ toolchain is not local_config_cc:\n{}",
+            foreign.join("\n")
+        ))
     }
 }
 
 fn selected_repo(line: &str) -> Option<&str> {
-    let label = line.split("-> toolchain ").nth(1)?.split_whitespace().next()?;
+    let label = line
+        .split("-> toolchain ")
+        .nth(1)?
+        .split_whitespace()
+        .next()?;
     label.trim_start_matches('@').split("//").next()
 }
 
-/// Checks that `target` in the case resolves its C++ toolchain to `local_config_cc`.
-///
-/// # Errors
-///
-/// Returns `Err` when the cquery fails or another C++ toolchain is selected.
 pub fn assert_own_cc(case: &Case, target: &str) -> Result<(), String> {
     let run = run_ok(
         case,
@@ -202,7 +189,9 @@ mod tests {
 
     #[test]
     fn accepts_local_config_cc() {
-        let text = format!("{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n");
+        let text = format!(
+            "{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n"
+        );
         assert_eq!(check_own_cc(&text), Ok(()));
     }
 
@@ -212,7 +201,10 @@ mod tests {
             "{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n{SELECTED}@@llvm+//toolchain:cc\n"
         );
         let error = check_own_cc(&text).expect_err("llvm");
-        assert!(error.contains("@@llvm+//toolchain:cc") && !error.contains("cc-compiler-k8"), "{error}");
+        assert!(
+            error.contains("@@llvm+//toolchain:cc") && !error.contains("cc-compiler-k8"),
+            "{error}"
+        );
     }
 
     #[test]

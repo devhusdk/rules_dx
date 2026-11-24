@@ -3,7 +3,6 @@ use dx_audit::advisory::{advisory_source, identity_matches_bytes, parse_identity
 use dx_audit::vuln::parse_snapshot;
 use tempfile::TempDir;
 
-/// Builds a zip that holds every `(name, body)` entry in order.
 fn archive(entries: &[(&str, &str)]) -> Vec<u8> {
     let mut writer = dx_archive::ZipWriter::new();
     for (name, body) in entries {

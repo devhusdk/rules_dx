@@ -1,12 +1,5 @@
-//! Every `# gazelle:ignore` in a `<lang>/tests/conformance/BUILD.bazel` says why on the next line.
-//!
-//! A blanket ignore hides the file from `dx generate`, so drift between the suite and what gazelle
-//! would write goes unnoticed. Prefer a narrow `# gazelle:exclude <file>` plus `# keep` on the
-//! hand-written fixture targets; when gazelle cannot produce the file at all, name the reason.
-
 const IGNORE: &str = "# gazelle:ignore";
 
-/// Returns one line per reasonless ignore in `body`, labelled with `name`.
 fn problems(name: &str, body: &str) -> Vec<String> {
     let lines: Vec<&str> = body.lines().map(str::trim).collect();
     let mut out = Vec::new();

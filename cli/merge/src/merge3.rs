@@ -1,8 +1,5 @@
-//! A line-level three-way merge (diff3) of two edits of one ancestor.
-
 use similar::{Algorithm, DiffOp, capture_diff_slices};
 
-/// The names written after the conflict markers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Labels<'a> {
     pub ours: &'a str,
@@ -20,14 +17,12 @@ impl Default for Labels<'_> {
     }
 }
 
-/// The merged text. A conflict is a result, not an error: the text holds the markers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Merge3 {
     Merged(String),
     Conflicts { text: String, hunks: usize },
 }
 
-/// Merges the changes from `ancestor` to `ours` and from `ancestor` to `theirs`, keeping every byte.
 #[must_use]
 pub fn merge3(ancestor: &str, ours: &str, theirs: &str, labels: Labels<'_>) -> Merge3 {
     let base: Vec<&str> = ancestor.split_inclusive('\n').collect();
@@ -81,7 +76,6 @@ pub fn merge3(ancestor: &str, ours: &str, theirs: &str, labels: Labels<'_>) -> M
     }
 }
 
-/// For each line of `old`, the index of the equal line in `new` that Myers matched it to.
 fn matches(old: &[&str], new: &[&str]) -> Vec<Option<usize>> {
     let mut map = vec![None; old.len()];
     for op in capture_diff_slices(Algorithm::Myers, old, new) {

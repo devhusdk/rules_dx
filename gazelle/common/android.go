@@ -10,11 +10,8 @@ import (
 	"strings"
 )
 
-// AndroidNS is the namespace URI of android: manifest attributes.
 const AndroidNS = "http://schemas.android.com/apk/res/android"
 
-// AndroidManifest holds the facts generation reads from an AndroidManifest.xml.
-// MinSDK and TargetSDK are 0 when the manifest does not declare them.
 type AndroidManifest struct {
 	Package     string
 	MinSDK      int
@@ -22,7 +19,6 @@ type AndroidManifest struct {
 	Permissions []string
 }
 
-// ParseAndroidManifest reads the package, SDK levels and permissions of a manifest.
 func ParseAndroidManifest(content []byte) (AndroidManifest, error) {
 	var m AndroidManifest
 	dec := xml.NewDecoder(bytes.NewReader(content))
@@ -108,7 +104,6 @@ var ndkAndroidLibHeaders = map[string]bool{
 	"native_window":     true,
 }
 
-// NDKLib reports whether header is an NDK android/ header and the system library it links, if any.
 func NDKLib(header string) (string, bool) {
 	rest, ok := strings.CutPrefix(header, "android/")
 	if !ok || rest == "" {
@@ -126,28 +121,20 @@ func NDKLib(header string) (string, bool) {
 
 var androidSDKPackages = []string{"android", "dalvik"}
 
-// androidMavenPackages ship as Maven artifacts, not in android.jar.
 var androidMavenPackages = []string{"android.support", "android.arch"}
 
-// androidBundledPackages ship in android.jar next to the android packages.
 var androidBundledPackages = []string{"org.json", "org.xmlpull.v1"}
 
-// IsAndroidSDKPlatform reports whether an import is an android.jar package
-// that selects an Android library kind.
 func IsAndroidSDKPlatform(spec string) bool {
 	return InPackages(spec, androidSDKPackages) && !InPackages(spec, androidMavenPackages)
 }
 
-// IsAndroidPlatformImport reports whether an import resolves against android.jar.
 func IsAndroidPlatformImport(spec string) bool {
 	return IsAndroidSDKPlatform(spec) || InPackages(spec, androidBundledPackages)
 }
 
-// AndroidSDKHosts are the constraints of the hosts the pinned Android SDK runs on.
 var AndroidSDKHosts = []string{"@platforms//cpu:x86_64", "@platforms//os:linux"}
 
-// AndroidVariant returns the KindVariant generating kind for sources that
-// import the Android SDK.
 func AndroidVariant(kind string) *KindVariant {
 	return &KindVariant{
 		Kind:         kind,

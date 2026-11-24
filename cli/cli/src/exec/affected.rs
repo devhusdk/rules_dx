@@ -14,21 +14,17 @@ use serde_json::{Value, json};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// The targets one `--affected` run selects, with the evidence behind them.
 pub(crate) struct AffectedPlan {
     pub(crate) base: String,
     pub(crate) changed_files: Vec<String>,
     pub(crate) targets: Vec<String>,
     pub(crate) tests: Vec<String>,
-    /// `check`: the package patterns of the changed files, for the generate phase.
     pub(crate) generate: Vec<String>,
-    /// `check`: the rules that own the changed files, for the format phase.
     pub(crate) format: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
 }
 
-/// How many widened scopes the stderr summary names before "and N more".
 const SUMMARY_WIDENED_LIMIT: usize = 3;
 
 impl AffectedPlan {
@@ -72,7 +68,6 @@ impl AffectedPlan {
                 widened.push(item);
             }
         }
-        // Stable sort keeps input order within the `//...` and other groups.
         widened.sort_by_key(|item| item.0);
         let widened: Vec<String> = widened.into_iter().map(|item| item.1).collect();
         let suffix = if widened.is_empty() {
@@ -143,8 +138,6 @@ fn scope_to_graph(
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        // The graph holds only main-repo rules, so every test it names is one the test phase
-        // accepts.
         let mut tests = graph.tests_of(&rules);
         tests.retain(|test| !exclude::covered(&excludes, test));
         tests
@@ -275,12 +268,8 @@ pub(crate) fn plan(
     Ok(plan)
 }
 
-/// The lock file Bazel writes at the workspace root; generate does not read it.
 const BAZEL_LOCK: &str = "MODULE.bazel.lock";
 
-/// The package patterns generate must visit for these changed files: each
-/// file's nearest existing directory alone, so new and deleted files count and
-/// the packages below stay untouched.
 fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     let labels: Vec<String> = changed_files
         .iter()
@@ -300,7 +289,6 @@ fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     dx_plan::plan::generate_package_scope(&labels)
 }
 
-/// Adds the `affected` object to the first `command_started` line and passes the rest through.
 struct InjectAffected<'a> {
     inner: &'a mut dyn Write,
     affected: Value,
@@ -467,8 +455,6 @@ fn resolve_plan(
     Ok(plan)
 }
 
-/// Keeps only the affected targets inside the scopes the user also named, so
-/// `dx test --affected //svc/...` runs the affected tests under `//svc`.
 fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
     let inside = |label: &String| exclude::covered(scope, label);
     plan.targets.retain(inside);
@@ -490,9 +476,6 @@ fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
 
 const BUILD_FILE_NAMES: [&str; 2] = ["BUILD.bazel", "BUILD"];
 
-/// The changed files plus the BUILD file of each one's package, the nearest directory
-/// above it that has one. A directory stands for everything under it. A fixer may
-/// write only these, however far the affected targets reach.
 pub(crate) fn writable_paths(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     let mut paths = changed_files.to_vec();
     for file in changed_files {
@@ -615,7 +598,6 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     exit_after_finish(code, injector.finish())
 }
 
-/// Keeps a failing exit code; a clean run fails when the held-back first line cannot be written.
 fn exit_after_finish(code: i32, finished: std::io::Result<()>) -> i32 {
     if code != 0 {
         return code;

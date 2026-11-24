@@ -33,7 +33,7 @@ Every test call follows these rules. `//tools/ci:test_budget_test` checks them.
 ## Nested tests
 
 - `tools/testing/nested_smoke.txt` holds one sorted line per nested test: `<label> <seconds>`.
-- `<seconds>` is the cold time measured on Linux x86_64. A test with no measurement lists its declared timeout.
+- `<seconds>` is the time measured on Linux x86_64 with a fresh `TEST_TMPDIR` and a warm `DX_NESTED_SHARED` root. A test with `caches = "private"` is measured cold. A test with no measurement lists its declared timeout.
 - A nested test is a test call in a BUILD file whose `tags` hold `resources:nested_bazel`, as a string or through a constant.
 - A call of a macro that declares such a test is a nested test. A macro that declares one under an `if` counts when the call sets a name of the condition to `True`.
 - A target whose name ends in `_upstream` is skipped.

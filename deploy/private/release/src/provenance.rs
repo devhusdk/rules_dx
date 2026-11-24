@@ -1,6 +1,3 @@
-//! Typed view of the in-toto Statement v1 / SLSA provenance v1 that `render_provenance` writes.
-//! Verification reads these fields; it never matches on the raw text.
-
 use std::fmt;
 
 use serde::Deserialize;
@@ -52,7 +49,6 @@ pub struct Statement {
     pub predicate: Predicate,
 }
 
-/// A provenance statement that does not bind the artifact to an allowlisted builder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProvenanceError {
     StatementType,
@@ -79,8 +75,6 @@ impl fmt::Display for ProvenanceError {
 
 impl std::error::Error for ProvenanceError {}
 
-/// Checks every binding with exact field comparisons. `builder` is the identity the caller expects;
-/// it must also pass the allowlist, so an arbitrary string fails closed.
 pub fn statement_error(
     statement: &Statement,
     base: &str,

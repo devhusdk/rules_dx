@@ -12,6 +12,10 @@ def _actions(env, mnemonics):
     asserts.true(env, len(found) > 0, "no action with mnemonic in %s: %s" % (mnemonics, [a.mnemonic for a in analysistest.target_actions(env)]))
     return found
 
+def _expect_strict(env, action, flags):
+    for flag in flags:
+        asserts.true(env, flag in action.argv, "%s missing from %s: %s" % (flag, action.mnemonic, action.argv))
+
 def _gcc_impl(ctx):
     env = analysistest.begin(ctx)
     for action in _actions(env, ctx.attr.mnemonics):
@@ -20,6 +24,7 @@ def _gcc_impl(ctx):
             asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
         if action.mnemonic == "CppCompile":
             asserts.true(env, action.argv[0].endswith("/xbin/gcc"), "compiler is not xbin/gcc: " + action.argv[0])
+            _expect_strict(env, action, ["-Wall", "-Wextra"])
         if action.mnemonic == "CppLink":
             linkers = [f for f in action.inputs.to_list() if "dx_gcc_linux_x86_64" in f.path and f.path.endswith("/xbin/ld")]
             asserts.true(env, len(linkers) > 0, "link action does not use the pinned GCC linker")
@@ -48,6 +53,8 @@ def _llvm_impl(ctx):
     env = analysistest.begin(ctx)
     for action in _actions(env, ctx.attr.mnemonics):
         asserts.false(env, "dx_gcc" in action.argv[0], "GCC tool under llvm: " + action.argv[0])
+        if action.mnemonic == "CppCompile":
+            _expect_strict(env, action, ["-Wall", "-Wextra"])
     return analysistest.end(env)
 
 _ATTRS = {"mnemonics": attr.string_list()}
@@ -140,6 +147,8 @@ def _check_msvc(env, mnemonics, bin_dir, lib_suffix):
         asserts.true(env, "external/{}/".format(_MSVC_REPO) in tool, "tool outside the pinned MSVC: " + tool)
         asserts.true(env, bin_dir in tool, "tool not under %s: %s" % (bin_dir, tool))
         asserts.true(env, tool.endswith("/" + _MSVC_TOOLS[action.mnemonic]), "unexpected tool for %s: %s" % (action.mnemonic, tool))
+        if action.mnemonic == "CppCompile":
+            _expect_strict(env, action, ["/W4"])
         for key in ["INCLUDE", "LIB"]:
             for entry in (action.env or {}).get(key, "").split(";"):
                 if entry:
@@ -192,7 +201,7 @@ def cc_msvc_arm64_action_tests(name, compile_target, link_target):
             size = "small",
             testonly = True,
             exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-            target_compatible_with = ["@platforms//os:windows"],
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
         )
         tests.append(test)

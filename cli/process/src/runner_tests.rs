@@ -160,9 +160,6 @@ fn bazel_stderr_is_teed_only_off_a_terminal() {
     ));
 }
 
-/// The probe linked (copied on Windows) under a Bazel-like name, so the runner
-/// treats it as Bazel. A link opens no write fd, so a concurrent fork cannot make
-/// exec fail with ETXTBSY.
 fn bazel_probe(dir: &Path) -> String {
     let probe = PathBuf::from(&probe_argv(&[])[0]);
     #[cfg(unix)]
@@ -304,8 +301,6 @@ fn holding_run_does_not_inherit_held() {
     );
 }
 
-/// Another thread's fork can carry the lock until its child execs, so give
-/// the probe a short window before calling the lock leaked.
 #[cfg(unix)]
 fn lock_comes_free(path: &std::path::Path) -> bool {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
@@ -324,7 +319,6 @@ fn lock_comes_free(path: &std::path::Path) -> bool {
 }
 
 // LCOV_EXCL_START - reason: failure-only message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// The `/proc/locks` rows on the file's inode, each with the holder's cmdline.
 #[cfg(unix)]
 fn lock_holders(path: &std::path::Path) -> String {
     use std::os::unix::fs::MetadataExt;

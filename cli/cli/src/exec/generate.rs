@@ -54,8 +54,6 @@ fn finish_incomplete_generate(
     code
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`, first creating the root locks that are missing; otherwise says what
-/// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
 fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &ResolvedScope) -> Wiring {
     let mut wiring = Wiring::default();
     let workspace = env.workspace;
@@ -115,9 +113,6 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &Resolved
     wiring
 }
 
-/// Runs the pinned resolver of every lock set in the generate scope: a check compares the lock
-/// with its inputs offline, `--apply` writes a stale lock. A root manifest seeded above
-/// is skipped.
 fn lock_sets(
     request: &GenerateRequest,
     env: &mut Env<'_>,
@@ -139,10 +134,25 @@ fn lock_sets(
         .iter()
         .map(|(name, value)| (name.as_str(), value.as_str()))
         .collect();
+    let mut runs_here = std::collections::BTreeMap::new();
     for set in sets {
         if (set.dir == "." && unlocked.contains(&set.manifest))
             || !generate_scope_visits(resolved, &set.dir)
         {
+            continue;
+        }
+        if !*runs_here.entry(set.resolver).or_insert_with(|| {
+            resolver_runs_here(env.query_runner, env.workspace, &head, set.resolver)
+        }) {
+            wiring.info(
+                env.err,
+                format!(
+                    "lock of {} not {}: {} is incompatible with this platform",
+                    set.name,
+                    if apply { "written" } else { "checked" },
+                    set.resolver
+                ),
+            );
             continue;
         }
         let path = env.workspace.join(&set.dir);
@@ -186,7 +196,25 @@ fn lock_sets(
     }
 }
 
-/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that `rules_js` requires beside each wired pnpm lock.
+/// False only when Bazel reports the resolver incompatible; any other answer lets the run report.
+fn resolver_runs_here(
+    query: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &Path,
+    head: &dx_process::BazelHead,
+    resolver: &str,
+) -> bool {
+    let mut argv = head.argv("cquery");
+    argv.extend([
+        "--output=starlark".to_owned(),
+        "--starlark:expr='IncompatiblePlatformProvider' in (providers(target) or {})".to_owned(),
+        resolver.to_owned(),
+    ]);
+    !matches!(
+        query.run_query(&argv, workspace),
+        Ok(result) if result.code == Some(0) && result.stdout.trim_ascii() == b"True"
+    )
+}
+
 fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
     let paths = match dx_adopt::plan_pnpm_settings(workspace) {
         Ok(paths) => paths,
@@ -211,7 +239,6 @@ fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring
     }
 }
 
-/// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
 fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
     let plan = match dx_adopt::plan_avro_cpp(workspace) {
         Ok(plan) => plan,
@@ -260,7 +287,6 @@ fn resolver_hub(manifest: &str) -> Option<&'static dx_families::Hub> {
         .find(|hub| hub.manifest == manifest && hub.resolver.is_some())
 }
 
-/// Runs the pinned resolver of `hub` at the root.
 fn seed_resolver_lock(
     request: &GenerateRequest,
     env: &mut Env<'_>,
@@ -299,7 +325,6 @@ fn has_root_build(workspace: &Path) -> bool {
     workspace.join("BUILD").exists() || workspace.join("BUILD.bazel").exists()
 }
 
-/// Runs `uv lock` at the root with the pinned uv and interpreter.
 fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let closure = dx_exec_reports::uv_tools::configured_uv_closure(
         env.runner,
@@ -339,7 +364,6 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
     );
 }
 
-/// Makes `@pnpm` visible to the root module, then runs `pnpm install --lockfile-only` with it.
 fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let tool = dx_adopt::plan_pnpm_tool(env.workspace).map(|plan| (plan.notes, plan.edit));
     wire(
@@ -371,7 +395,6 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     );
 }
 
-/// Fills the empty cargo lock with the `crate_universe` repin `dx update` runs.
 fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let hub = dx_families::hub("cargo").map_or("", |hub| hub.hub.as_str());
     let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), hub, false);
@@ -454,7 +477,6 @@ fn wire(
     }
 }
 
-/// What the module and lock wiring said, kept for the JSON stream and the exit code.
 #[derive(Default)]
 struct Wiring {
     notices: Vec<dx_output::NoticeEvent>,
@@ -488,7 +510,6 @@ impl Wiring {
         self.notices.push(notice);
     }
 
-    /// A step that failed, or a check with edits left to make, is not clean.
     fn dirty(&self, apply: bool) -> bool {
         self.failed || (!apply && self.pending)
     }
@@ -596,8 +617,6 @@ fn run_generate_request(
     code
 }
 
-/// Gazelle writes the workspace itself only when every path is writable; otherwise it
-/// runs as a check and [`apply_within`] writes the writable part of its result.
 fn gazelle_writes(request: &GenerateRequest) -> bool {
     request.applies() && request.writable.is_none()
 }
@@ -979,7 +998,6 @@ mod tests {
         harness
     }
 
-    /// The `cargo` hub name.
     fn cargo_hub() -> &'static str {
         dx_families::hub("cargo")
             .expect("setup.hubs entry cargo")
@@ -1045,7 +1063,6 @@ mod tests {
         );
     }
 
-    /// A workspace with one `ecosystem` set named `web` in `php` whose manifest is `manifest`.
     fn lock_set(
         name: &str,
         ecosystem: &str,
@@ -1110,6 +1127,37 @@ mod tests {
                 .any(|argv| argv.iter().any(|arg| arg == "fetch")),
             "{code}"
         );
+    }
+
+    #[test]
+    fn check_skips_a_resolver_that_is_incompatible_with_the_platform() {
+        let (mut harness, hub) = composer_set("check-lock-incompatible");
+        harness.app_code = Some(1);
+        harness.query.script_stdout("True\n");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (code, out, err) = harness.run(&["check"]);
+        assert!(resolver_runs(&harness, resolver).is_empty(), "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 1, "{calls:?}");
+        assert!(calls[0].iter().any(|arg| arg == "cquery"), "{calls:?}");
+        assert_eq!(calls[0].last().map(String::as_str), Some(resolver));
+        assert!(
+            err.contains(&format!(
+                "dx: lock of web not checked: {resolver} is incompatible with this platform"
+            )),
+            "{err}"
+        );
+        assert!(!err.contains("is stale"), "{code}{err}");
+    }
+
+    #[test]
+    fn check_runs_a_resolver_that_bazel_reports_compatible() {
+        let (harness, hub) = composer_set("check-lock-compatible");
+        harness.query.script_stdout("False\n");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (_, out, err) = harness.run(&["check"]);
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1, "{out}{err}");
+        assert!(!err.contains("incompatible"), "{err}");
     }
 
     #[test]

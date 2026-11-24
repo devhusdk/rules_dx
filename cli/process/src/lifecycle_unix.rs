@@ -27,7 +27,6 @@ impl OwnedChild {
     }
 }
 
-/// Makes the child die with dx, and fail to spawn if dx is already gone.
 #[cfg(target_os = "linux")]
 fn stop_with_parent(command: &mut Command) {
     dx_os_sys::spawn::die_with_parent(command, SIGTERM);
@@ -48,7 +47,6 @@ pub fn spawn_owned(command: &mut Command, descendants: Descendants) -> io::Resul
     })
 }
 
-/// Ends what an owned run left in the child's group once the child has exited.
 pub fn end_owned_descendants(owned: &mut OwnedChild) {
     if owned.descendants == Descendants::Owned {
         signal_group(owned, SIGKILL);
@@ -62,7 +60,6 @@ fn signal_group(owned: &mut OwnedChild, signo: i32) {
     } else {
         -id
     };
-    // The child may have exited and been reaped already; there is nothing left to signal then.
     drop(dx_os_sys::process::signal(target, signo));
 }
 
@@ -79,11 +76,8 @@ pub fn termination_signal(status: &ExitStatus) -> Option<i32> {
     status.signal()
 }
 
-/// Nothing beyond the inherited descriptors keeps a Unix tree's locks.
 pub struct StreamTree;
 
-/// Clears close-on-exec on duplicates of the held descriptors in the child only,
-/// so concurrent spawns from other threads never inherit them.
 fn inherit_held(command: &mut Command, held: &[std::fs::File]) -> io::Result<()> {
     use std::os::fd::AsFd;
     let fds = held
@@ -118,7 +112,6 @@ pub fn spawn_streamed(
     Ok((command.spawn()?, StreamTree))
 }
 
-/// The negative group id every forwarded signal goes to.
 pub fn stream_target(child: &Child, group: Group) -> i32 {
     match group {
         Group::Join(pgid) => -pgid, // LCOV_EXCL_LINE - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -126,11 +119,9 @@ pub fn stream_target(child: &Child, group: Group) -> i32 {
     }
 }
 
-/// Signals `target`; safe to call from a signal handler, and leaves `errno` as it was.
 pub fn send(target: i32, signo: i32) {
     if target != 0 {
         let _errno = dx_os_sys::errno::ErrnoGuard::save();
-        // A target that is already gone needs no signal.
         drop(dx_os_sys::process::signal(target, signo));
     }
 }

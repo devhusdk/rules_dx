@@ -1,5 +1,3 @@
-//! Smoke-tests one served docs site against the staged artifact bytes.
-
 use dx_site_check::rendered::asset;
 use std::path::Path;
 use std::thread;

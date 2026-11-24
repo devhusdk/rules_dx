@@ -17,12 +17,10 @@ use dx_error::DxError;
 
 const WATCH_POLL: Duration = Duration::from_millis(100);
 
-/// Quiet time with no watcher event before watch asks git whether a save got past it.
 const POLL_HINT_AFTER: Duration = Duration::from_secs(30);
 
 const POLL_HINT: &str = "no file events for 30s but git status changed; if saves are missed (network mount, container), try dx watch --poll";
 
-/// One stretch without events: the git status when it began and whether it was already checked.
 struct QuietStretch<'a> {
     query: &'a dyn QueryRunner,
     workspace: &'a Path,
@@ -42,7 +40,6 @@ impl<'a> QuietStretch<'a> {
         }
     }
 
-    /// Whether git now shows a change the watcher never reported. Checks once per stretch.
     fn missed_save(&mut self, now: Instant) -> bool {
         if self.checked || now.duration_since(self.since) < POLL_HINT_AFTER {
             return false;
@@ -52,7 +49,6 @@ impl<'a> QuietStretch<'a> {
     }
 }
 
-/// `git status` output for the workspace; empty when git fails, as outside a checkout.
 fn git_status(query: &dyn QueryRunner, workspace: &Path) -> Vec<u8> {
     let argv = ["git", "--no-optional-locks", "status", "--porcelain"].map(str::to_owned);
     match query.run_query(&argv, workspace) {
@@ -61,7 +57,6 @@ fn git_status(query: &dyn QueryRunner, workspace: &Path) -> Vec<u8> {
     }
 }
 
-/// Runs the wrapped command, then reruns it after every change until interrupted.
 pub(crate) fn execute_watch(invocation: &Invocation, env: Env<'_>) -> i32 {
     watch(
         invocation,
@@ -81,7 +76,6 @@ fn report_paths(iteration: &Invocation, workspace: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Where watch writes its own progress lines.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Progress {
     Silent,
@@ -263,7 +257,6 @@ fn run_iteration(
     Ok(code)
 }
 
-/// Prints the round header; from round 2 on it clears the screen first when `clear_screen`.
 fn announce_round(
     progress: Progress,
     clear_screen: bool,
@@ -428,7 +421,6 @@ fn watch(
     }
 }
 
-/// Builds the invocation one watch iteration executes: the wrapped command with its scopes and flags.
 fn build_iteration(invocation: &Invocation) -> Result<Invocation, DxError> {
     let wrapped = invocation
         .targets
@@ -444,7 +436,6 @@ fn build_iteration(invocation: &Invocation) -> Result<Invocation, DxError> {
     Ok(iteration)
 }
 
-/// Names what each iteration covers: the given scopes, `--affected`, or `//...`.
 fn scope_label(iteration: &Invocation) -> String {
     if iteration.affected {
         return "--affected".to_owned();
@@ -456,7 +447,6 @@ fn scope_label(iteration: &Invocation) -> String {
 }
 
 const SEPARATOR: &str = "----------------------------------------";
-/// Erases the terminal and moves the cursor home.
 const CLEAR_SCREEN: &str = "\x1b[2J\x1b[H";
 
 fn verdict_line(round: u32, code: i32, elapsed: Duration, first: bool) -> String {
@@ -530,7 +520,6 @@ mod tests {
     use std::path::Path;
     use std::time::Duration;
 
-    /// Answers each `git status` with the next scripted output; empty once the script runs out.
     struct GitStatus {
         outputs: RefCell<VecDeque<&'static str>>,
     }
@@ -1861,10 +1850,8 @@ mod tests {
                 .recv_timeout(Duration::from_secs(30))
                 .expect("the watch iteration waits for the slot");
             drop(held);
-            // Kept open until the watch returns, so a later wait still has a listener.
             waiting
         });
-        // The reaper runs inside the wait, just before the wait notice.
         let gate = dx_plan::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
             .reaping(move |_, _| {
                 blocked.send(()).expect("the releaser is listening");
@@ -1909,7 +1896,6 @@ mod tests {
     }
 }
 
-// SIGTERM/SIGHUP and the group-signal probes have no Windows counterpart; the Windows Ctrl-C probe lives in watch_relaunch_tests.rs.
 #[cfg(test)]
 #[cfg(unix)]
 #[path = "watch_probe_tests.rs"]

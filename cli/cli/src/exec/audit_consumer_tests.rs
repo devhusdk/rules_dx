@@ -50,7 +50,6 @@ source = { registry = "https://pypi.org/simple" }
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let harness = Harness::new(&format!("audit-consumer-{name}-{id}"));
         harness.write_source("MODULE.bazel", module);
-        // The consumer cases have no yanked-version snapshots, which only the standard base allows.
         harness.write_source("dx.toml", "schema_version = 1\ntier = \"standard\"\n");
         harness.write_source(
             &format!("apps/frontend/{}", manifest_of(Ecosystem::Uv)),
@@ -1466,7 +1465,6 @@ source = { registry = "https://pypi.org/simple" }
     const MEDIUM_REPORT: &str = r#"{"Results":[{"Vulnerabilities":[
         {"VulnerabilityID":"CVE-2024-0003","PkgName":"zlib1g","InstalledVersion":"1.2.11","Severity":"MEDIUM"}]}]}"#;
 
-    /// Runs `dx security` on a workspace with one `oci_deploy` image, `//app:image`.
     fn audit_image(
         name: &str,
         report: &str,

@@ -147,8 +147,15 @@ _cc_forward_test = dx_executable_forward_rule(
     ),
 )
 
+_CC_STRICT_WARNINGS = select({
+    Label("@rules_cc//cc/compiler:clang-cl"): ["/W4"],
+    Label("@rules_cc//cc/compiler:msvc-cl"): ["/W4"],
+    "//conditions:default": ["-Wall", "-Wextra"],
+})
+
 def _cc_warnings_as_errors(kwargs):
     rest, flag = dx_warnings_as_errors(kwargs, ["treat_warnings_as_errors"])
+    rest["copts"] = _CC_STRICT_WARNINGS + (rest.get("copts") or [])
     return dx_append_flags(rest, "features", flag)
 
 _PARAM_FILE_ATTRS = ["textual_hdrs", "includes", "copts", "conlyopts", "cxxopts", "defines", "local_defines"]
@@ -205,7 +212,7 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
-_cc_fuzz_driver = dx_private_dep_rule(
+_cc_driver_lib = dx_private_dep_rule(
     Label("//cc/private:fuzz_driver"),
     _DX_CC_LIBRARY_PROVIDES + [OutputGroupInfo],
     "Provides the driver cc_fuzz_test links when libFuzzer is not linked.",
@@ -217,7 +224,7 @@ def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = N
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],
     })
-    _cc_fuzz_driver(
+    _cc_driver_lib(
         name = name + "_fuzz_driver",
         testonly = True,
         tags = dx_upstream_tags(tags),

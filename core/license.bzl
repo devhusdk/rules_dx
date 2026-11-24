@@ -12,8 +12,6 @@ TERMS_LABEL = "//core:licenses/pins.json"
 
 LICENSE_IDS = [APPLE_XCODE, ANDROID_SDK, CUDA_EULA, WINDOWS_SDK_BUILDTOOLS, VISUAL_STUDIO_BUILD_TOOLS]
 
-# A JSON object from each accepted id to the terms_sha256 it was accepted at. Readers
-# that only test `id in accepted` work on it unchanged.
 ACCEPTED_LABEL = "@dx_licenses//:accepted.json"
 
 def unknown_ids(ids):

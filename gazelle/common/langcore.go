@@ -35,8 +35,6 @@ func LibraryKindInfo() rule.KindInfo {
 	}
 }
 
-// TestKindInfo is LibraryKindInfo for generated per-source test rules; each
-// extra attribute name is also refreshed on merge.
 func TestKindInfo(extraMergeable ...string) rule.KindInfo {
 	info := LibraryKindInfo()
 	for _, attr := range extraMergeable {
@@ -45,7 +43,6 @@ func TestKindInfo(extraMergeable ...string) rule.KindInfo {
 	return info
 }
 
-// fileBuildPath returns the workspace-relative path of the BUILD file f, keeping its base name.
 func fileBuildPath(f *rule.File) string {
 	name := "BUILD.bazel"
 	if f.Path != "" {
@@ -54,7 +51,6 @@ func fileBuildPath(f *rule.File) string {
 	return manifestPath(f.Pkg, name)
 }
 
-// CheckClaims rejects duplicate generated names and names whose existing rule kind, differs from the claimant's kind.
 func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) error {
 	byName := make(map[string][]Claimant, len(claimants))
 	order := make([]string, 0, len(claimants))
@@ -103,7 +99,6 @@ func CheckClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 	return nil
 }
 
-// RuleNamesOfKind returns the names of rules of the given kind in file and other.
 func RuleNamesOfKind(file *rule.File, other []*rule.Rule, kind string) map[string]bool {
 	names := make(map[string]bool)
 	if file != nil {
@@ -121,8 +116,6 @@ func RuleNamesOfKind(file *rule.File, other []*rule.Rule, kind string) map[strin
 	return names
 }
 
-// CustomRunnerTests returns the names of kind rules in file and other whose
-// runner attribute is set and differs from defaultRunner.
 func CustomRunnerTests(file *rule.File, other []*rule.Rule, kind, defaultRunner string) map[string]bool {
 	names := make(map[string]bool)
 	check := func(r *rule.Rule) {
@@ -145,10 +138,6 @@ func MergeStale(file *rule.File, result language.GenerateResult, kinds map[strin
 	return MergeStaleOwned(file, result, kinds, nil)
 }
 
-// MergeStaleOwned is MergeStale for generators that share their kinds with
-// handwritten rules: an existing rule of an owned kind is removed only when
-// owns reports that generation could have produced it. A nil owns claims every
-// rule of an owned kind, as MergeStale does.
 func MergeStaleOwned(file *rule.File, result language.GenerateResult, kinds map[string]rule.KindInfo, owns func(*rule.Rule) bool) language.GenerateResult {
 	desired := make(map[string]bool, len(result.Gen))
 	for _, r := range result.Gen {
@@ -169,15 +158,11 @@ func MergeStaleOwned(file *rule.File, result language.GenerateResult, kinds map[
 	return result
 }
 
-// GeneratedBinary reports whether r has the shape generation gives a binary:
-// it is named X_bin and its attr lists :X.
 func GeneratedBinary(r *rule.Rule, attr string) bool {
 	target, ok := strings.CutSuffix(r.Name(), BinaryName(""))
 	return ok && target != "" && slices.Contains(r.AttrStrings(attr), ":"+target)
 }
 
-// CoveredBinary reports whether a rule of kind other than want already serves
-// the entry, as judged by covers, so generation leaves want out.
 func CoveredBinary(file *rule.File, kind, want string, covers func(*rule.Rule) bool) bool {
 	if file == nil {
 		return false
@@ -187,7 +172,6 @@ func CoveredBinary(file *rule.File, kind, want string, covers func(*rule.Rule) b
 	})
 }
 
-// ExportedFiles lists the files named by exports_files calls in file.
 func ExportedFiles(file *rule.File) map[string]bool {
 	files := make(map[string]bool)
 	if file == nil {
@@ -223,8 +207,6 @@ type SingleFileSpec struct {
 	LanguageName string
 	LibraryKind  string
 	IsSource     func(name string) bool
-	// OwnsByName limits stale removal to rules named like the generated
-	// library or naming no existing source, so handwritten rules survive.
 	OwnsByName   bool
 	TargetName   func(name string) (string, error)
 	ParseImports func(content []byte, dir string) []ImportRef
@@ -324,8 +306,6 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	return MergeStaleOwned(args.File, result, kinds, singleFileOwns(args, spec, generated))
 }
 
-// singleFileOwns limits stale removal to rules named like a generated target or
-// naming no existing source, when spec.OwnsByName is set.
 func singleFileOwns(args language.GenerateArgs, spec SingleFileSpec, generated map[string]bool) func(*rule.Rule) bool {
 	if !spec.OwnsByName {
 		return nil
@@ -357,62 +337,43 @@ func ReadSource(path string) ([]byte, error) {
 	return StripBOM(content), nil
 }
 
-// KindAttr is one attribute a KindVariant sets on a newly generated rule.
 type KindAttr struct {
 	Name  string
 	Value any
 }
 
-// KindVariant swaps a directory's library kind when its sources import
-// platform packages the host kind cannot build against.
 type KindVariant struct {
-	// Kind is the rule kind generated instead of the library kind.
-	Kind string
-	// DefsPackage is the defs package that exports Kind.
-	DefsPackage string
-	// Selects reports whether an import root picks the variant.
-	Selects func(root string) bool
-	// IsPlatform reports whether an import root ships with the variant's
-	// platform, so it needs no dependency once the variant is chosen.
-	IsPlatform func(root string) bool
-	// Attrs returns the attributes set on the generated rule, in order. pkg is
-	// the source package, which is never empty.
-	Attrs func(pkg string) []KindAttr
-	// NeedsPackage is the failure message when the sources declare no package.
+	Kind         string
+	DefsPackage  string
+	Selects      func(root string) bool
+	IsPlatform   func(root string) bool
+	Attrs        func(pkg string) []KindAttr
 	NeedsPackage string
 }
 
 type SingleDirSpec struct {
-	// Variant, when set, swaps LibraryKind for Variant.Kind in directories
-	// importing a package Variant.Selects.
-	Variant *KindVariant
-	// OwnsByName limits stale removal to rules named like the generated
-	// library or naming no existing source, so handwritten rules survive.
-	OwnsByName   bool
-	LanguageName string
-	LibraryKind  string
-	IsSource     func(name string) bool
-	IsHeader     func(name string) bool
-	IsMainFile   func(name string) bool
-	DirName      func(dir string) (string, error)
-	RootHint     func(args language.GenerateArgs) string
-	CheckPackage bool
-	ParsePackage func(content []byte) (string, error)
-	DefinesMain  func(content []byte) bool
-	MainRule     string
-	MainPhrase   string
-	ParseImports func(content []byte) []string
-	IsStdLib     func(name string) bool
-	Candidates   func(name string) []string
-	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
-	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
-	Extend       func(r *rule.Rule, files []string, contents map[string][]byte) error
-	Wrap         func(imports []string) any
-	// Tests, when set, also generates one test rule per test source. Nil
-	// keeps library-only generation.
-	Tests *TestSpec
-	// KeepLibraryName names the directory library after the first existing
-	// LibraryKind rule whose srcs are all directory sources.
+	Variant         *KindVariant
+	OwnsByName      bool
+	LanguageName    string
+	LibraryKind     string
+	IsSource        func(name string) bool
+	IsHeader        func(name string) bool
+	IsMainFile      func(name string) bool
+	DirName         func(dir string) (string, error)
+	RootHint        func(args language.GenerateArgs) string
+	CheckPackage    bool
+	ParsePackage    func(content []byte) (string, error)
+	DefinesMain     func(content []byte) bool
+	MainRule        string
+	MainPhrase      string
+	ParseImports    func(content []byte) []string
+	IsStdLib        func(name string) bool
+	Candidates      func(name string) []string
+	OrderSrcs       func(name string, sources []string, contents map[string][]byte) ([]string, error)
+	MakeRule        func(name string, sources []string, headers []string) *rule.Rule
+	Extend          func(r *rule.Rule, files []string, contents map[string][]byte) error
+	Wrap            func(imports []string) any
+	Tests           *TestSpec
 	KeepLibraryName bool
 }
 
@@ -568,8 +529,6 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 	return MergeStaleOwned(args.File, result, kinds, owns)
 }
 
-// withoutNestedSources narrows owns to rules that list no existing file in a
-// subdirectory of dir, which single-directory generation never produces.
 func withoutNestedSources(dir string, owns func(*rule.Rule) bool) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		for _, attr := range []string{"srcs", "hdrs"} {
@@ -586,7 +545,6 @@ func withoutNestedSources(dir string, owns func(*rule.Rule) bool) func(*rule.Rul
 	}
 }
 
-// dirLibrary is the directory library rule generateDirLibrary builds.
 type dirLibrary struct {
 	name    string
 	kind    string
@@ -595,9 +553,6 @@ type dirLibrary struct {
 	empty   bool
 }
 
-// handwrittenSources returns the sources that a call of a kind outside kinds,
-// other than filegroup, names in srcs, hdrs, main or struct, anywhere in the
-// file.
 func handwrittenSources(file *rule.File, kinds map[string]rule.KindInfo) map[string]bool {
 	named := make(map[string]bool)
 	if file == nil || file.File == nil {
@@ -632,7 +587,6 @@ func handwrittenSources(file *rule.File, kinds map[string]rule.KindInfo) map[str
 	return named
 }
 
-// exportedFiles returns the files exports_files lists by name.
 func exportedFiles(file *rule.File) map[string]bool {
 	exported := make(map[string]bool)
 	if file == nil {
@@ -653,8 +607,6 @@ func exportedFiles(file *rule.File) map[string]bool {
 	return exported
 }
 
-// mainOwners returns the sources that a handwritten rule of the given kind
-// lists in srcs, plus the files exports_files lists by name.
 func mainOwners(file *rule.File, kind string) map[string]bool {
 	owned := exportedFiles(file)
 	if file == nil || kind == "" {
@@ -671,8 +623,6 @@ func mainOwners(file *rule.File, kind string) map[string]bool {
 	return owned
 }
 
-// ExistingLibraryName returns the name of the first kind rule in file whose
-// srcs are non-empty and all in sources.
 func ExistingLibraryName(file *rule.File, kind string, sources []string) (string, bool) {
 	if file == nil {
 		return "", false
@@ -703,7 +653,6 @@ func ExistingLibraryName(file *rule.File, kind string, sources []string) (string
 	return "", false
 }
 
-// generateDirLibrary builds the directory library rule and its imports.
 func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources, headers []string, rep Reporter) (dirLibrary, bool) {
 	var hints []string
 	if args.Rel == "" && spec.RootHint != nil {
@@ -850,31 +799,19 @@ func generateDirLibrary(args language.GenerateArgs, spec SingleDirSpec, sources,
 }
 
 type ResolveSpec struct {
-	LanguageName string
-	WantKind     string
-	Attr         string
-	Unwrap       func(raw any) ([]string, bool)
-	// UnwrapRefs, when set and matching, takes precedence over Unwrap and
-	// gives import refs whose relative entries may use Fallback.
-	UnwrapRefs func(raw any) ([]ImportRef, bool)
-	// Fallback lists the languages whose rule index and overrides a relative
-	// import searches, in order, when the own language has no match.
-	Fallback []string
-	// Find, when set, replaces the own-name override, Lookups, Candidates and
-	// the own-index JS-extension skip with one lookup of the whole ref.
-	Find       func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
-	IsStdLib   func(name string) bool
-	Candidates func(name string) []string
-	Lookups    func(pkg, name string) []string
-	MarkUsed   func(name string) bool
-	// SkipDep, when set and true, drops a resolved dep. The rule itself is
-	// always dropped.
-	SkipDep func(dep label.Label) bool
-	// External looks a non-relative import up in the third-party sources
-	// after the index and ignores. It returns the labels found, or a hint.
-	External func(name string) ([]label.Label, string)
-	// MissingExternalHint names where a bare import nothing resolves should
-	// be declared. It is used when External gives no hint.
+	LanguageName        string
+	WantKind            string
+	Attr                string
+	Unwrap              func(raw any) ([]string, bool)
+	UnwrapRefs          func(raw any) ([]ImportRef, bool)
+	Fallback            []string
+	Find                func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
+	IsStdLib            func(name string) bool
+	Candidates          func(name string) []string
+	Lookups             func(pkg, name string) []string
+	MarkUsed            func(name string) bool
+	SkipDep             func(dep label.Label) bool
+	External            func(name string) ([]label.Label, string)
 	MissingExternalHint func(pkg, name string) string
 	FailConflict        func(from label.Label, name string)
 	FailUnresolved      func(from label.Label, name string, hint string)
@@ -935,8 +872,6 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 			}
 		}
 		if len(matches) == 0 && ref.Relative && ref.Ext != "" {
-			// An asset no target owns is left to the bundler. A matching
-			// ignore is still marked used so it never reads as stale.
 			spec.MarkUsed(name)
 			continue
 		}
@@ -987,9 +922,6 @@ func ResolveSingle(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw an
 	}
 }
 
-// lookupOwn resolves ref against overrides, the own rule index, Lookups and
-// Candidates. done reports that the ref is fully handled (override added,
-// conflict, or stdlib).
 func lookupOwn(c *config.Config, ix *resolve.RuleIndex, spec ResolveSpec, ref ImportRef, from label.Label, add func(label.Label)) (matches []resolve.FindResult, done bool) {
 	name := ref.Root
 	imp := resolve.ImportSpec{Lang: spec.LanguageName, Imp: name}
@@ -1005,8 +937,6 @@ func lookupOwn(c *config.Config, ix *resolve.RuleIndex, spec ResolveSpec, ref Im
 		add(override)
 		return nil, true
 	}
-	// A relative import naming a JavaScript or TypeScript extension can
-	// never be a source of this language, so it skips the own index.
 	ownIndex := !ref.Relative || !slices.Contains(JSModuleExts, ref.ModuleExt)
 	keys := []string{name}
 	if spec.Lookups != nil {
@@ -1082,10 +1012,6 @@ type fallbackLookup struct {
 	SelfMatch bool
 }
 
-// findFallback looks a relative import up in each fallback language. The first
-// override, in fallback order, wins. Otherwise index matches from every
-// fallback language are combined with from itself left out; SelfMatch reports
-// that from was the only match.
 func findFallback(c *config.Config, ix *resolve.RuleIndex, langs []string, name string, from label.Label) (fallbackLookup, bool) {
 	var out fallbackLookup
 	seen := make(map[label.Label]bool)

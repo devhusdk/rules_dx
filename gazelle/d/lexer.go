@@ -9,9 +9,7 @@ type kind byte
 
 const (
 	kIdent kind = iota
-	// kString is a string literal with no escapes and no postfix, so its text is its value.
 	kString
-	// kOther is any other literal: numbers, characters, escaped or postfixed strings, token strings.
 	kOther
 	kPunct
 )
@@ -30,9 +28,6 @@ type lexer struct {
 	line int
 }
 
-// lex splits D source into tokens. Comments, whitespace, a shebang line and
-// #line directives are dropped, and lexing stops at __EOF__. An unterminated
-// literal or comment fails with its line.
 func lex(src string) ([]token, error) {
 	l := &lexer{src: src, line: 1}
 	if strings.HasPrefix(src, "#!") {
@@ -76,7 +71,6 @@ func isDigit(c byte) bool { return c >= '0' && c <= '9' }
 
 func isIdentChar(c byte) bool { return isIdentStart(c) || isDigit(c) }
 
-// next returns the next token, or false at the end of the input.
 func (l *lexer) next() (token, bool, error) {
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
@@ -228,8 +222,6 @@ func (l *lexer) postfix() bool {
 	return false
 }
 
-// quoted lexes a string whose opening quote is at pos. With escapes, a
-// backslash skips the next character.
 func (l *lexer) quoted(quote byte, escapes bool) (token, error) {
 	line := l.line
 	start := l.pos + 1
@@ -282,8 +274,6 @@ func (l *lexer) char() (token, error) {
 
 var closers = map[byte]byte{'(': ')', '[': ']', '{': '}', '<': '>'}
 
-// delimited lexes q"(...)" with nesting brackets, q"/.../" with a single
-// delimiter and the heredoc q"ID ... ID". pos is at the opening quote.
 func (l *lexer) delimited() (token, error) {
 	line := l.line
 	body := l.pos + 1
@@ -312,7 +302,6 @@ func (l *lexer) delimited() (token, error) {
 	return token{kind: kOther, line: line}, nil
 }
 
-// closeNested returns the index of the quote ending a bracketed string.
 func (l *lexer) closeNested(from int, open, closer byte) int {
 	depth := 1
 	for i := from; i < len(l.src); i++ {
@@ -345,8 +334,6 @@ func (l *lexer) closeHeredoc(from int) int {
 	return from + nl + end + len(id) + 1
 }
 
-// tokenString lexes q{...}. pos is at the opening brace. Its contents are
-// lexed so that braces inside strings and comments do not count.
 func (l *lexer) tokenString() (token, error) {
 	line := l.line
 	l.pos++
@@ -370,8 +357,6 @@ func (l *lexer) tokenString() (token, error) {
 	return token{kind: kOther, line: line}, nil
 }
 
-// interpolated lexes i"..." and i`...`. A $(...) expression inside may hold
-// quotes of its own, so it is lexed as code.
 func (l *lexer) interpolated(quote byte) (token, error) {
 	line := l.line
 	l.pos++

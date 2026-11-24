@@ -7,26 +7,8 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "gersemi";
 
-/// Exit status gersemi uses when at least one file failed to parse or read.
 const EXIT_FAILED: i32 = 123;
 
-/// Parses `gersemi --check --diff --no-cache --no-color -w 1 --config <config> -- <files>`.
-///
-/// Streams and exits, as measured on 0.29.2:
-/// - stdout carries one unified diff per unformatted file (`--- path` / `+++ path`);
-/// - stderr names every unformatted file as `<path> would be reformatted`, every file that did
-///   not parse as `<path>: <line>:<col>: <message>` followed by the source line and a caret line,
-///   and unknown commands as a `Warning: unknown command ...` block;
-/// - exit 0 is clean, 1 is unformatted files only, 123 is a parse or read failure in any file.
-///
-/// Anything outside that shape is an error, never clean. This matters because gersemi reports a
-/// missing config as exit 1 with a bare message, and an unsupported `.gersemirc` key as a message
-/// on stderr with the normal exit code. A file that failed to parse is reported as that and never
-/// as unformatted or clean, whatever else the batch holds.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gersemi(
     stdout: &[u8],
     stderr: &[u8],
@@ -50,7 +32,6 @@ pub fn parse_gersemi(
             continue;
         }
         if line.starts_with("Warning: unknown command ") {
-            // Every call site follows on its own `<path>:<line>:<col>` line, up to a blank line.
             while lines.get(at).is_some_and(|next| !next.trim().is_empty()) {
                 at += 1;
             }
@@ -79,7 +60,6 @@ pub fn parse_gersemi(
             position,
             ColumnEncoding::Scalars,
         ));
-        // The source line and the caret line follow a located message only.
         if is_located {
             if lines.get(at).is_some_and(|next| next.trim() == "^") {
                 at += 1;
@@ -133,7 +113,6 @@ pub fn parse_gersemi(
     Ok(findings)
 }
 
-/// Splits `<known path>: <rest>`; the path may itself contain colons.
 fn split_known<'a, 'b>(files: &[&'a str], line: &'b str) -> Option<(&'a str, &'b str)> {
     files.iter().find_map(|file| {
         line.strip_prefix(file)
@@ -142,11 +121,9 @@ fn split_known<'a, 'b>(files: &[&'a str], line: &'b str) -> Option<(&'a str, &'b
     })
 }
 
-/// `<line>:<col>: <message>`, or the whole text at the start of the file.
 fn located(rest: &str) -> (TextPosition, &str, bool) {
     let mut parts = rest.splitn(3, ':');
     if let (Some(line), Some(column), Some(message)) = (parts.next(), parts.next(), parts.next()) {
-        // Only the line is trusted; the column is pinned to the line start.
         if let (Ok(line), Ok(_)) = (line.trim().parse::<u64>(), column.trim().parse::<u64>()) {
             return (TextPosition { line, column: 1 }, message.trim(), true);
         }
@@ -154,7 +131,6 @@ fn located(rest: &str) -> (TextPosition, &str, bool) {
     (TextPosition { line: 1, column: 1 }, rest.trim(), false)
 }
 
-/// Each file with a diff and the first changed line of its first hunk.
 fn diff_files<'a>(diff: &str, files: &[&'a str]) -> Result<Vec<(&'a str, u64)>, ParseError> {
     let mut found: Vec<(&'a str, u64)> = Vec::new();
     let mut lines = diff.lines().peekable();
@@ -205,7 +181,6 @@ fn diff_files<'a>(diff: &str, files: &[&'a str]) -> Result<Vec<(&'a str, u64)>, 
     Ok(found)
 }
 
-/// Whether the peeked `--- ` line starts a new file header rather than being removed content.
 fn is_header_pair(lines: &std::iter::Peekable<std::str::Lines<'_>>) -> bool {
     let mut ahead = lines.clone();
     let (Some(old), Some(new)) = (ahead.next(), ahead.next()) else {
@@ -322,26 +297,20 @@ mod tests {
 
     #[test]
     fn anything_else_is_an_error() {
-        // A missing config exits 1 with a bare message.
         let missing = b"[Errno 2] No such file or directory: '/w/.gersemirc'\n";
         assert!(parse_gersemi(b"", missing, Some(1), &FILES).is_err());
-        // An unsupported key is only a message on stderr and exit 0.
         let key = b"/w/.gersemirc: these options are not supported: bogus\n";
         assert!(parse_gersemi(b"", key, Some(0), &FILES).is_err());
-        // A missing source path.
         let path = b"Source path doesn't exist: /w/x.cmake\n";
         assert!(parse_gersemi(b"", path, Some(1), &FILES).is_err());
-        // Exit codes that disagree with the streams.
         assert!(parse_gersemi(b"", b"", Some(1), &FILES).is_err());
         assert!(parse_gersemi(b"", b"", Some(123), &FILES).is_err());
         assert!(parse_gersemi(b"", b"", None, &FILES).is_err());
         assert!(parse_gersemi(DIRTY.as_bytes(), DIRTY_ERR.as_bytes(), Some(0), &FILES).is_err());
         assert!(parse_gersemi(b"", BROKEN.as_bytes(), Some(1), &FILES).is_err());
         assert!(parse_gersemi(b"", BROKEN.as_bytes(), Some(0), &FILES).is_err());
-        // A diff without the matching stderr line, and the reverse.
         assert!(parse_gersemi(DIRTY.as_bytes(), b"", Some(1), &FILES).is_err());
         assert!(parse_gersemi(b"", DIRTY_ERR.as_bytes(), Some(1), &FILES).is_err());
-        // Malformed or foreign output.
         assert!(parse_gersemi(b"garbage\n", b"", Some(1), &FILES).is_err());
         assert!(parse_gersemi(b"--- /w/b.cmake\n", b"", Some(1), &FILES).is_err());
         let stranger = DIRTY.replace("/w/b.cmake", "/w/other.cmake");

@@ -1,21 +1,14 @@
-//! Whether the host is under memory pressure right now.
-
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
-/// Memory PSI `some avg10` at or above this is high pressure.
 pub const PSI_HIGH: f64 = 10.0;
 
-/// The longest one waiter holds back from a free base slot under pressure.
 pub const PRESSURE_WAIT: Duration = Duration::from_secs(30);
 
-/// Reads host memory pressure.
 pub trait Pressure: Debug + Send + Sync {
-    /// `Some(true)` under pressure, `Some(false)` when calm, `None` without a signal.
     fn high(&self) -> Option<bool>;
 }
 
-/// A reader with no signal: it never pauses base slots and never grants extras.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoSignal;
 
@@ -25,14 +18,12 @@ impl Pressure for NoSignal {
     }
 }
 
-/// The pressure reader for this host; `low_available` is one slot's memory budget in bytes.
 #[derive(Debug, Clone, Copy)]
 pub struct HostPressure {
     low_available: u64,
 }
 
 impl HostPressure {
-    /// A reader that, without PSI, calls `MemAvailable` below `low_available` high pressure.
     #[must_use]
     pub fn new(low_available: u64) -> Self {
         Self { low_available }
@@ -45,7 +36,6 @@ impl Pressure for HostPressure {
     }
 }
 
-/// Whether the host's memory is under pressure, from PSI with a meminfo fallback.
 #[cfg(target_os = "linux")]
 fn host_high(low_available: u64) -> Option<bool> {
     let psi = std::fs::read_to_string("/proc/pressure/memory").ok();
@@ -53,25 +43,21 @@ fn host_high(low_available: u64) -> Option<bool> {
     judge(psi.as_deref(), meminfo().as_deref(), low_available)
 }
 
-/// Whether the host's memory is under pressure, from the kernel's pressure level.
 #[cfg(target_os = "macos")]
 fn host_high(_low_available: u64) -> Option<bool> {
     macos_level().and_then(judge_level)
 }
 
-/// No pressure signal on this host.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn host_high(_low_available: u64) -> Option<bool> {
     None
 }
 
-/// The kernel's memory pressure level, from `kern.memorystatus_vm_pressure_level`.
 #[cfg(target_os = "macos")]
 fn macos_level() -> Option<i32> {
     dx_os_sys::macos::sysctl_i32(c"kern.memorystatus_vm_pressure_level")
 }
 
-/// Judges a macOS pressure level: 1 is normal, 2 is warn, 4 is critical. Other values have no signal.
 #[must_use]
 pub fn judge_level(level: i32) -> Option<bool> {
     match level {
@@ -81,7 +67,6 @@ pub fn judge_level(level: i32) -> Option<bool> {
     }
 }
 
-/// Judges pressure from PSI text, falling back to meminfo text.
 pub fn judge(psi: Option<&str>, meminfo: Option<&str>, low_available: u64) -> Option<bool> {
     if let Some(avg10) = psi.and_then(parse_psi) {
         return Some(avg10 >= PSI_HIGH);
@@ -90,10 +75,6 @@ pub fn judge(psi: Option<&str>, meminfo: Option<&str>, low_available: u64) -> Op
     Some(available < low_available)
 }
 
-/// How long one waiter has held back from a free base slot.
-///
-/// The clock starts at the first high reading and is never reset, so a flapping signal cannot
-/// pause the waiter again once `cap` has passed.
 #[derive(Debug, Clone, Copy)]
 pub struct PressurePause {
     cap: Duration,
@@ -111,7 +92,6 @@ impl PressurePause {
         }
     }
 
-    /// Whether the waiter should still hold back, given the latest reading.
     pub fn hold_back(&mut self, high: Option<bool>, now: Instant) -> bool {
         if self.expired || high != Some(true) {
             return false;
@@ -124,14 +104,12 @@ impl PressurePause {
         true
     }
 
-    /// Whether the cap has passed.
     #[must_use]
     pub fn expired(&self) -> bool {
         self.expired
     }
 }
 
-/// Reads `some avg10` from `/proc/pressure/memory` text.
 #[must_use]
 pub fn parse_psi(text: &str) -> Option<f64> {
     let line = text.lines().find(|line| line.starts_with("some "))?;

@@ -22,7 +22,6 @@ fn apply_drops_covered_labels_and_subtracts_patterns() {
         &'static [&'static str],
     );
     let exclude = strings(&["//third_party/...", "//vendor:blob"]);
-    // (targets, typed scopes, targets after, excluded, kept)
     let cases: [Case; 5] = [
         (
             &["//..."],

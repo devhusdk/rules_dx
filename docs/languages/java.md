@@ -82,6 +82,23 @@ package path has no Java root, the build fails and asks you to set
 private methods, fields, locals, parameters and assignments as info. See the
 [quality config table](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/quality.md).
 
+### Warnings
+
+`java_library`, `java_binary` and `java_test` compile with
+`-Xlint:all,-processing,-serial -parameters -Werror`. Error Prone runs with
+these checks as errors: `EmptyCatch`, `CatchAndPrintStackTrace`,
+`InterruptedExceptionSwallowed`, `ReturnValueIgnored`, `CheckReturnValue`,
+`FutureReturnValueIgnored`, `ReferenceEquality`, `UnusedVariable` and
+`UnusedMethod`.
+
+On one target, set `warnings_as_errors = False` to drop `-Werror` and report
+those checks as warnings. To do it for the whole repository, add this line to
+`.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
 ## Bench and fuzz
 
 `java_bench` runs JMH benchmarks for `dx bench`. rules_dx brings JMH, so you

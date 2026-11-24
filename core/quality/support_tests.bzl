@@ -219,7 +219,6 @@ def _canonical(cells):
     """Maps toolchain cell names to support platform names (amd64 is x86_64)."""
     return [cell.replace("amd64", "x86_64") for cell in cells]
 
-# A record may only claim platforms inside its tool's language toolchain cells.
 def _toolchain_platforms():
     return {
         "credo": _canonical(ELIXIR_CELLS),
@@ -236,7 +235,6 @@ def _toolchain_platforms():
 
 _CONFIG_INFRA_DOC_TOOLS = ["ansible_lint", "cfn_lint", "checkmake", "chktex", "cue", "deadnix", "djlint", "flatc", "gersemi", "gplint", "hadolint", "helm", "helmfmt", "jsonnet_lint", "jsonnetfmt", "keep_sorted", "kubeconform", "latexindent", "nixfmt", "opa", "pkl", "redocly", "regal", "shellcheck", "terraform", "thrift", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint"]
 
-# Records that must name every platform as either supported or unsupported with a reason.
 _COMPLETE_TOOLS = ["ansible_lint", "capnp", "cfn_lint", "checkmake", "chktex", "clang_format", "credo", "cue", "dart", "deadnix", "djlint", "elvis", "erlfmt", "flatc", "gersemi", "gofumpt", "gplint", "hadolint", "helm", "helmfmt", "hlint", "jsonnet_lint", "jsonnetfmt", "julia_format", "julialint", "keep_sorted", "kubeconform", "latexindent", "mix_format", "modfmt", "nixfmt", "opa", "ormolu", "pkl", "pkl_lsp", "psscriptanalyzer", "qmlformat", "qmllint", "redocly", "regal", "rubocop", "rustfmt", "shellcheck", "terraform", "thrift", "tflint", "trivy_config", "typstyle", "vale", "yamlfmt", "yamllint", "zig_fmt"]
 
 def _toolchain_checks():

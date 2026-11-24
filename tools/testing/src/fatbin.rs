@@ -1,5 +1,3 @@
-//! Reads CUDA device code and dynamic dependencies from ELF and COFF/PE objects, archives and binaries.
-
 pub const FATBIN_MAGIC: u32 = 0xBA55_ED50;
 const FATBIN_VERSION: u16 = 1;
 const FATBIN_HEADER_SIZE: usize = 16;
@@ -48,11 +46,6 @@ fn to_usize(value: u64) -> Result<usize, String> {
     usize::try_from(value).map_err(|error| format!("value {value} does not fit in usize: {error}"))
 }
 
-/// Decodes every fatbin in a section payload into its entries.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn fatbin_entries(data: &[u8]) -> Result<Vec<Entry>, String> {
     let mut entries = Vec::new();
     let mut at = 0;
@@ -200,11 +193,6 @@ fn elf_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     Ok(entries)
 }
 
-/// Returns the members of a System V or GNU ar archive.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn archive_members(bytes: &[u8]) -> Result<Vec<(String, &[u8])>, String> {
     let mut members = Vec::new();
     let mut long_names: &[u8] = &[];
@@ -385,7 +373,6 @@ fn object_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     }
 }
 
-/// Sorts and deduplicates device-code entries for comparison.
 #[must_use]
 pub fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
     entries.sort();
@@ -393,12 +380,6 @@ pub fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
     entries
 }
 
-/// Returns the device code embedded in an ELF, COFF or PE file, or in every object member of an
-/// ar archive.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     if bytes.starts_with(b"!<arch>\n") {
         let mut entries = Vec::new();
@@ -450,11 +431,6 @@ fn pe_imports(bytes: &[u8]) -> Result<Vec<String>, String> {
     Ok(needed)
 }
 
-/// Returns the `DT_NEEDED` entries of an ELF file or the imported DLL names of a PE file.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn needed_libraries(bytes: &[u8]) -> Result<Vec<String>, String> {
     if is_pe_image(bytes) {
         return pe_imports(bytes);

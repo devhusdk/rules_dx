@@ -1,7 +1,5 @@
 use dx_plan::args::Command;
 
-/// A shared build of format and lint that failed with `failing`, lint passing one aspect format
-/// also passes.
 fn failed_build(failing: Option<&[Option<&str>]>) -> super::SharedBuild {
     let aspects = |names: &[&str]| names.iter().map(|name| (*name).to_owned()).collect();
     super::SharedBuild {
@@ -52,7 +50,6 @@ fn a_failure_goes_to_every_phase_that_passed_its_aspect() {
         (1, 1),
         "a foreign failure masks no own failure"
     );
-    // Failures the events cannot pin on one member belong to every member, so none exits 0.
     assert_eq!(codes(Some(&[None])), (1, 1), "target-level failure");
     assert_eq!(
         codes(Some(&[Some("q:f.bzl%other")])),

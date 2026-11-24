@@ -1,5 +1,3 @@
-//! Argument parsing, runfiles lookup and the per-engine command lines.
-
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -32,7 +30,6 @@ impl Engine {
         !matches!(self, Engine::Libfuzzer | Engine::Crowbar)
     }
 
-    /// Whether the engine reads a corpus directory that `--corpus` can seed.
     fn takes_corpus(self) -> bool {
         matches!(self, Engine::Libfuzzer | Engine::Jazzer | Engine::Dotnet)
     }
@@ -70,7 +67,6 @@ pub fn parse_options(args: &[String]) -> Result<Options, String> {
     Ok(options)
 }
 
-/// The command line for fuzzing, without the program.
 pub fn fuzz_args(
     engine: Engine,
     target: &str,
@@ -124,7 +120,6 @@ pub fn fuzz_args(
     args
 }
 
-/// The command line for replaying one crash file, without the program.
 pub fn repro_args(engine: Engine, target: &str, repro: &Path) -> Vec<String> {
     let repro = repro.display().to_string();
     match engine {
@@ -138,7 +133,6 @@ pub fn repro_args(engine: Engine, target: &str, repro: &Path) -> Vec<String> {
 
 const CROWBAR_RUNS: &str = "500";
 
-/// The command line for one Crowbar round with the seed given as text.
 pub fn crowbar_args(seed: &str) -> Vec<String> {
     vec![
         "-s".to_owned(),
@@ -162,7 +156,6 @@ fn random_seed() -> i64 {
 
 type Spawn<'a> = dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure> + 'a;
 
-/// Runs Crowbar rounds with fresh seeds until the time is up; a failing seed is written to `crashes`.
 fn crowbar_rounds(spawn: &Spawn<'_>, options: &Options, crashes: &Path) -> Result<i32, Failure> {
     let seconds: u64 = options.seconds.parse().ok().ok_or_else(usage)?;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
@@ -185,7 +178,6 @@ fn absolute(path: &Path) -> PathBuf {
     std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf())
 }
 
-/// A path given on the command line, or a runfiles key.
 fn locate(arg: &str) -> PathBuf {
     let path = Path::new(arg);
     if path.is_absolute() || path.exists() {
@@ -198,7 +190,6 @@ fn locate(arg: &str) -> PathBuf {
         .map_or_else(|| absolute(path), |found| absolute(&found))
 }
 
-/// A path the user gave, read from the workspace the command was run in.
 fn from_user(arg: &str) -> PathBuf {
     let path = Path::new(arg);
     if path.is_absolute() {
@@ -211,7 +202,6 @@ fn from_user(arg: &str) -> PathBuf {
     base.join(path)
 }
 
-/// Copies the files in `seeds` into the engine's working corpus.
 fn seed_corpus(engine: Engine, seeds: &Path, corpus: &Path) -> Result<(), Failure> {
     if !engine.takes_corpus() {
         return Err((
@@ -278,7 +268,6 @@ fn run(args: &[String]) -> Result<i32, Failure> {
     };
     let options = parse_options(rest).map_err(|message| (2, message))?;
 
-    // Removed when `work` drops, after the engine exits.
     let work = tempfile::Builder::new()
         .prefix("dx-fuzz-")
         .tempdir()

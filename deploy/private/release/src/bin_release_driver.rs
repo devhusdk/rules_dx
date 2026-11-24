@@ -14,7 +14,6 @@ use dx_release_tools::{GitState, OpRecord, OpState, ReleaseError, ledger_exit, r
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
 const DEFAULT_REPO: &str = "devhusdk/rules_dx";
 
-/// Releases API path for the repo the release job runs in, so forks work.
 fn release_api(repo: Option<String>) -> String {
     let repo = repo.filter(|r| !r.is_empty());
     format!("repos/{}/releases", repo.as_deref().unwrap_or(DEFAULT_REPO))

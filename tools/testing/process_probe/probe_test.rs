@@ -422,7 +422,6 @@ impl Drop for Probe {
     }
 }
 
-/// Opens its gate file on drop, so a probe waiting on it ends even if the test panics.
 struct Release(PathBuf);
 
 impl Release {

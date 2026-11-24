@@ -1,15 +1,7 @@
-//! Offline checks of a bound buf config before buf runs.
-
 use saphyr_parser::{Event, Parser};
 
 use crate::pointer_index::scan_yaml;
 
-/// Refuses a `buf.yaml` (v1 or v2) that lists `deps`, and any alias, merge key or tag
-/// that could hide them. buf would fetch those modules from the Buf Schema Registry.
-///
-/// # Errors
-///
-/// Returns a message naming the refused setting.
 pub fn check_config(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     for item in Parser::new_from_str(text) {

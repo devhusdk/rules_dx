@@ -5,12 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::{normalize_lower, put};
 
-/// Reads the `dependencies` of a manifest, JSON or SDL chosen by the file extension.
-/// A sub-package dependency (`vibe-d:http`) counts as its base package.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_d_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut deps = BTreeMap::new();
@@ -75,7 +69,6 @@ fn add_dep(
     );
 }
 
-/// Dub separates range bounds with a space; the shared grammar uses commas.
 fn d_spec(version: &str) -> String {
     let version = version.trim();
     if version.is_empty() || version.starts_with('~') && !version.starts_with("~>") {
@@ -91,11 +84,6 @@ fn d_spec(version: &str) -> String {
     spec
 }
 
-/// Reads a selections file: package name to selected version. A path selection has none.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_d_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;

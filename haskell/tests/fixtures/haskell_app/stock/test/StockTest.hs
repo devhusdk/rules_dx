@@ -12,6 +12,7 @@ check name ok = do
 
 main :: IO ()
 main = do
+  checksum <- checksumOf "Wikipedia"
   let input = "lamp,4,1250\ncable,12,199\n\nfuse,0,35\n"
   results <-
     sequence
@@ -20,6 +21,6 @@ main = do
       , check "malformed" (parseItems "lamp,4\n" == Left "malformed line 1")
       , check "not a number" (parseItems "a,1,2\nb,x,2\n" == Left "malformed line 2")
       , check "version" (version == "1.0.0")
-      , check "checksum" (checksumOf "Wikipedia" == 0x11E60398)
+      , check "checksum" (checksum == 0x11E60398)
       ]
   unless (and results) exitFailure

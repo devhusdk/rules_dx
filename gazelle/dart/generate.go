@@ -24,10 +24,6 @@ func hasBuildFile(dir string) bool {
 	return false
 }
 
-// dartFiles lists the .dart files under root (relative to dir, slash
-// separated). Symlinked files and directories are followed, so a lib that
-// links to shared code is still a library. A BUILD file below root is an
-// error: one pub package is one Bazel package.
 func dartFiles(dir, root string) ([]string, error) {
 	var out []string
 	if _, err := os.Stat(filepath.Join(dir, root)); err != nil {
@@ -38,9 +34,6 @@ func dartFiles(dir, root string) ([]string, error) {
 	return out, err
 }
 
-// walkDart lists the .dart files under rel, a slash separated path below dir.
-// active holds the real paths of the directories on the current walk, so a
-// symlink back to one of them ends the walk instead of looping.
 func walkDart(dir, rel string, active map[string]bool, out *[]string) error {
 	p := filepath.Join(dir, filepath.FromSlash(rel))
 	target, err := filepath.EvalSymlinks(p)
@@ -125,8 +118,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		}
 	}
 	if !hasPubspec {
-		// Without a pubspec nothing is generated; rules whose files are all
-		// gone are swept, and handwritten rules stay.
 		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, func(r *rule.Rule) bool {
 			refs := append(r.AttrStrings("srcs"), r.AttrString("main"))
 			seen := false
@@ -172,8 +163,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	genOuts := genruleOutputs(args.File)
 
-	// scan reads the directives of files and returns the pub packages they
-	// use plus any generated files they pull in.
 	scan := func(files []string, isLib, isTest bool) (pkgs, generated []string) {
 		seenPkg := map[string]bool{}
 		seenGen := map[string]bool{}

@@ -1,21 +1,14 @@
-//! Appends accepted findings to `security.toml` and `license.toml`, keeping the file's comments and order.
-
 use dx_error::DxError;
 
 use toml_edit::{ArrayOfTables, DocumentMut, Item, Table, value};
 
-/// One `[[table]]` entry to append.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Entry {
     pub table: &'static str,
-    /// The keys that name the finding; an entry with the same identity is not added again.
     pub identity: Vec<(&'static str, String)>,
-    /// The remaining keys, written after the identity.
     pub rest: Vec<(&'static str, String)>,
 }
 
-/// The new text of a policy file with `entries` appended, or `None` when every entry is already there.
-/// A missing file starts with `header` and `schema_version = 1`.
 pub fn append_entries(
     text: Option<&str>,
     header: &str,

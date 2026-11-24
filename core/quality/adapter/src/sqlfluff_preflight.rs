@@ -1,9 +1,3 @@
-//! Offline check dx runs on a sqlfluff config before sqlfluff sees it.
-//!
-//! The dialect comes from the `sql_library` or the file suffix and reaches sqlfluff as `--dialect`,
-//! so a config must not set one. Templaters that run project code or reach outside the config are refused.
-
-/// The dialects sqlfluff 4.4.0 lists in `sqlfluff dialects`; update with the pin.
 pub const DIALECTS: &[&str] = &[
     "ansi",
     "athena",
@@ -35,24 +29,16 @@ pub const DIALECTS: &[&str] = &[
     "vertical",
 ];
 
-/// The templaters that need no project code or dependency beyond the pinned wheels.
 pub const TEMPLATERS: &[&str] = &["raw", "jinja", "placeholder"];
 
-/// Keys that make a templater read files outside the bound config.
 const BANNED_KEYS: &[&str] = &[
     "library_path",
     "load_macros_from_path",
     "loader_search_path",
 ];
 
-/// Sections of templaters that run project code.
 const BANNED_SECTIONS: &[&str] = &["sqlfluff:templater:dbt", "sqlfluff:templater:python"];
 
-/// The sqlfluff dialect for a `sql_library` dialect name or file suffix, or the reason it has none.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn dialect_from_sql_library(name: &str) -> Result<&'static str, String> {
     let dialect = match name {
         "bigquery" => "bigquery",
@@ -78,7 +64,6 @@ pub fn dialect_from_sql_library(name: &str) -> Result<&'static str, String> {
     Ok(dialect)
 }
 
-/// The `sql_library` dialect a file name carries as `name.<dialect>.sql`, if any.
 #[must_use]
 pub fn suffix_dialect(basename: &str) -> Option<&str> {
     let mut parts = basename.rsplit('.');
@@ -90,11 +75,6 @@ pub fn suffix_dialect(basename: &str) -> Option<&str> {
     dialect_from_sql_library(suffix).is_ok().then_some(suffix)
 }
 
-/// Refuses a sqlfluff config that sets a dialect or a templater dx does not allow.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     check(text)
 }
@@ -103,7 +83,6 @@ fn check(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut section = String::new();
     let mut templater: Option<String> = None;
-    // Mirrors Python's configparser.
     let mut in_key = false;
     let mut indent_level = 0usize;
     for (index, raw) in text.lines().enumerate() {
@@ -169,12 +148,6 @@ fn check(text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Refuses inline `-- sqlfluff:...` directives in a SQL file that set a banned key, because
-/// sqlfluff applies them without the config checks above.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn check_inline_config(sql: &str) -> Result<(), String> {
     for (index, raw) in sql.lines().enumerate() {
         let mut line = raw.trim_start();
@@ -211,7 +184,6 @@ mod tests {
             "# c\n[sqlfluff]\ntemplater = jinja\nexclude_rules =\n    LT01,\n    LT02\n[sqlfluff:rules:capitalisation.keywords]\ncapitalisation_policy = lower\n"
         )
         .is_ok());
-        // A dialect under another section is not the one sqlfluff reads.
         assert!(check_config("[sqlfluff:core]\n").is_ok());
     }
 
@@ -286,15 +258,12 @@ mod tests {
 
     #[test]
     fn indented_lines_without_a_key_above_are_keys() {
-        // configparser reads an indented first line of a section as a key.
         let err = check_config("[sqlfluff]\n[sqlfluff:templater:jinja]\n  library_path = /x\n")
             .expect_err("library_path");
         assert!(err.contains("library_path"), "{err}");
         let err = check_config("[sqlfluff]\n  templater = python\n").expect_err("templater");
         assert!(err.contains("python"), "{err}");
-        // Same indent as the key above is a new key, not a continuation.
         assert!(check_config("[sqlfluff]\n  exclude_rules = x\n  templater = python\n").is_err());
-        // Deeper indent after a key stays a continuation.
         assert!(check_config("[sqlfluff]\nexclude_rules =\n  library_path = x\n").is_ok());
     }
 

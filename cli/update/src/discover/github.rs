@@ -1,5 +1,3 @@
-//! Lists GitHub Actions pins and the `.bazelversion` pin that lag the newest GitHub release.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError};
@@ -20,7 +18,6 @@ struct Release {
     published: Option<String>,
 }
 
-/// Checks each remote `uses:` pin of the workflows against the newest release of its repo.
 pub fn actions(
     workflows: &[(String, String)],
     only: &[String],
@@ -82,7 +79,6 @@ pub fn actions(
     found
 }
 
-/// Checks the Bazel version in `.bazelversion` against the newest bazelbuild/bazel release.
 pub fn bazelversion(text: &str, base: &str, fetch: &dyn Fetch) -> Findings {
     let mut found = Findings::default();
     let current = text.trim();
@@ -180,7 +176,6 @@ const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
 
 const NO_RELEASE: &str = "no GitHub release";
 
-/// Resolves a tag or branch of `package` to its commit SHA.
 pub fn commit_sha(
     package: &str,
     tag: &str,
@@ -192,7 +187,6 @@ pub fn commit_sha(
     resolve_sha_from_commit_response(&body).map_err(|error| DxError::failure(error.to_string()))
 }
 
-/// The version after `prefix` in the tag of the latest release of `package`.
 pub fn latest_tag(
     package: &str,
     prefix: &str,
@@ -210,8 +204,6 @@ pub fn latest_tag(
         .map_err(|error| DxError::failure(error.reason))
 }
 
-/// The latest release of `package` whose tag starts with `prefix`; a `-` after the prefix
-/// marks a prerelease.
 fn latest_release(
     package: &str,
     prefix: &str,

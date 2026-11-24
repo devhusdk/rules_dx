@@ -15,10 +15,8 @@ use super::grammar::option_at;
 
 pub const COMPLETION_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
-/// The variable a shell sets to ask dx for candidates.
 pub const COMPLETE_VAR: &str = "COMPLETE";
 
-/// The binary name the rendered scripts call back into.
 const COMPLETION_BIN: &str = "dx";
 
 const MAX_LABEL_CANDIDATES: usize = 100;
@@ -39,11 +37,6 @@ const QUERY_STARTUP_OPTS: &[&str] = &["--noblock_for_lock"];
 
 const QUERY_MAX_BYTES: usize = 256 * 1024;
 
-/// Serve the shell request in COMPLETE, and report whether there was one.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn try_complete() -> Result<bool, dx_error::DxError> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
         .try_complete(
@@ -53,7 +46,6 @@ pub fn try_complete() -> Result<bool, dx_error::DxError> {
         .map_err(|error| dx_error::DxError::infra(error.to_string()))
 }
 
-/// Give every command the completer for its own scope slot.
 pub fn with_scope_completers(
     command: clap::Command,
     words: impl IntoIterator<Item = OsString>,
@@ -95,11 +87,6 @@ fn with_request(mut command: clap::Command, request: Request) -> clap::Command {
     command
 }
 
-/// Render the script one shell runs to ask dx for candidates.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
     let unknown = || ArgsError::UnknownShell {
         shell: shell.to_owned(),
@@ -123,13 +110,11 @@ pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
     String::from_utf8(script).ok().ok_or_else(unknown)
 }
 
-/// Whether a rendered script calls back into dx for this shell.
 #[must_use]
 pub fn registers_callback(script: &str, shell: &str) -> bool {
     !script.is_empty() && script.contains(COMPLETE_VAR) && script.contains(shell)
 }
 
-/// The scope words already typed, without the command name and the word in hand.
 fn prior_scopes(words: &[OsString]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let mut index = match words.iter().position(|word| word == "--") {
@@ -161,14 +146,12 @@ fn prior_scopes(words: &[OsString]) -> Vec<String> {
     out
 }
 
-/// The typed words, the start and user base directories, and the environment one request reads.
 struct Request {
     words: Vec<OsString>,
     start: PathBuf,
     base: PathBuf,
 }
 
-/// The workspace and Bazel startup tokens a request selects.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Selection {
     workspace: PathBuf,
@@ -176,14 +159,12 @@ struct Selection {
 }
 
 impl Request {
-    /// Select the way a run does, falling back to the start directory.
     fn select(&self) -> Selection {
         let (flag, tokens) =
             super::tokenizer::selected_identity(typed_words(&self.words)).unwrap_or_default();
         let flag = flag
             .and_then(|value| value.into_string().ok())
             .filter(|value| !value.is_empty());
-        // A relative workspace is typed relative to the user's directory, not the workspace start.
         let override_dir =
             flag.map(|raw| dx_process::resolve_override_display(Path::new(&raw), &self.base));
         let workspace = dx_process::discover_real(&self.start, override_dir.as_deref())
@@ -197,7 +178,6 @@ impl Request {
     }
 }
 
-/// The words after the program name, without the word in hand.
 fn typed_words(words: &[OsString]) -> &[OsString] {
     let mut typed: &[OsString] = words;
     if typed.first().is_some_and(|first| first == "--") {
@@ -208,7 +188,6 @@ fn typed_words(words: &[OsString]) -> &[OsString] {
     typed.split_last().map_or(typed, |(_, rest)| rest)
 }
 
-/// The candidates one command offers for its scope slot.
 #[derive(Clone)]
 struct ScopeCompleter {
     command: Command,
@@ -258,12 +237,10 @@ impl ValueCompleter for ScopeCompleter {
     }
 }
 
-/// Whether the directory opens another workspace.
 fn is_workspace_root(dir: &Path) -> bool {
     dir.join("MODULE.bazel").is_file()
 }
 
-/// The ignored directory prefixes listed in the workspace `.bazelignore`.
 fn read_bazelignore(workspace: &Path) -> Vec<String> {
     let Ok(text) = std::fs::read_to_string(workspace.join(".bazelignore")) else {
         return Vec::new();
@@ -286,14 +263,12 @@ fn read_bazelignore(workspace: &Path) -> Vec<String> {
     out
 }
 
-/// Whether the workspace-relative path falls under an ignored prefix.
 fn is_ignored(rel: &str, ignores: &[String]) -> bool {
     ignores
         .iter()
         .any(|prefix| rel == prefix || rel.starts_with(&format!("{prefix}/")))
 }
 
-/// Whether the package sits in a nested workspace or an ignored directory.
 fn in_excluded_dir(workspace: &Path, package: &str) -> bool {
     let rel = package.strip_prefix("//").unwrap_or(package);
     if rel.is_empty() {
@@ -309,7 +284,6 @@ fn in_excluded_dir(workspace: &Path, package: &str) -> bool {
     })
 }
 
-/// The package the current word asks about, when it names a target.
 fn package_of_current(current: &str) -> Option<String> {
     if current.starts_with('@') {
         return None;
@@ -327,12 +301,10 @@ fn package_of_current(current: &str) -> Option<String> {
     Some(package.to_owned())
 }
 
-/// The bounded query that lists one package, never the whole workspace.
 fn query_expression(package: &str) -> String {
     format!("kind(rule, {package}:*)")
 }
 
-/// The bounded query for one package under the selected startup identity.
 fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec {
     let mut argv: Vec<OsString> = vec![OsString::from(dx_process::launcher_argv0())];
     argv.extend(
@@ -357,7 +329,6 @@ fn query_spec(workspace: &Path, startup: &[String], package: &str) -> SpawnSpec 
     }
 }
 
-/// The labels one bounded query returns, empty when it cannot.
 fn run_label_query(spec: &SpawnSpec) -> Vec<String> {
     match dx_process::lifecycle::run_within(spec, QUERY_CLEANUP) {
         Ok(ChildOutcome::Finished {
@@ -369,7 +340,6 @@ fn run_label_query(spec: &SpawnSpec) -> Vec<String> {
     }
 }
 
-/// The sorted, unique label lines in query output, empty when it is not text.
 fn parse_labels(stdout: &[u8]) -> Vec<String> {
     let Ok(text) = std::str::from_utf8(stdout) else {
         return Vec::new();
@@ -385,7 +355,6 @@ fn parse_labels(stdout: &[u8]) -> Vec<String> {
     out
 }
 
-/// The target labels matching the current word through one bounded query.
 fn target_candidates(
     workspace: &Path,
     startup: &[String],
@@ -397,7 +366,6 @@ fn target_candidates(
     })
 }
 
-/// The target labels matching the current word through the given lookup.
 fn target_candidates_with_query(
     workspace: &Path,
     current: &str,
@@ -571,7 +539,6 @@ mod tests {
         complete_with_words(&words, words[1..].to_vec(), workspace)
     }
 
-    /// Complete the way a shell does: the typed words sit behind a `--` separator.
     fn complete_from_a_shell(argv: &[&str], workspace: &Path) -> Vec<String> {
         let words: Vec<OsString> = argv.iter().map(OsString::from).collect();
         let mut passed = vec![OsString::from("--")];

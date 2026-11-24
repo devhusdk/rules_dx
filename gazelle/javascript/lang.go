@@ -175,7 +175,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		result.Gen = append(result.Gen, pj)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 	}
-	// TypeScript writes the package target when the package has TS sources.
 	member = member && !hasTypeScript(args.RegularFiles)
 	if len(sources) == 0 {
 		if member {
@@ -282,7 +281,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	return mergeStale(args.File, result)
 }
 
-// addPackage adds the npm_package a pnpm workspace link resolves to.
 func addPackage(result language.GenerateResult, libraries []string) language.GenerateResult {
 	pkg := rule.NewRule(packageKind, packageName)
 	pkg.SetAttr("srcs", append([]string{npmManifestFile}, libraries...))
@@ -304,7 +302,6 @@ func hasTypeScript(files []string) bool {
 	return false
 }
 
-// servesEntry reports whether a binary runs entry.
 func servesEntry(entry string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool { return r.AttrString("main") == entry }
 }
@@ -327,7 +324,6 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 	})
 }
 
-// rootPackageJSONExists reports whether the repo root has a manifest file.
 func rootPackageJSONExists(repoRoot string) bool {
 	return fileExists(filepath.Join(repoRoot, npmManifestFile))
 }

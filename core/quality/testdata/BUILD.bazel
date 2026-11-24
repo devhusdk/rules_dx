@@ -280,7 +280,18 @@ upstream_cc_library(
 
 no_context_cc(
     name = "fixture_upstream_cc_no_context",
+    sources = ["upstream_hello.cc"],
     tags = ["manual"],
+)
+
+no_context_cc(
+    name = "fixture_upstream_cc_sourceless",
+)
+
+real_source_target(
+    name = "fixture_real_external",
+    json_srcs = ["@dx_test_tags_sources//:sources.json"],
+    toml_srcs = ["real_clean.toml"],
 )
 
 dx_cc_library(
@@ -315,6 +326,14 @@ real_aspect_subject(
 real_aspect_subject(
     tags = ["manual"],
     target = ":fixture_upstream_cc_no_context",
+)
+
+real_aspect_subject(
+    target = ":fixture_upstream_cc_sourceless",
+)
+
+real_aspect_subject(
+    target = ":fixture_real_external",
 )
 
 upstream_ownership_subject(
@@ -355,6 +374,11 @@ upstream_ownership_subject(
 )
 
 upstream_ownership_subject(
+    name = "upstream_cc_sourceless_subject",
+    target = ":fixture_upstream_cc_sourceless",
+)
+
+upstream_ownership_subject(
     name = "upstream_cc_no_context_subject",
     tags = ["manual"],
     target = ":fixture_upstream_cc_no_context",
@@ -372,6 +396,7 @@ upstream_ownership_tests(
         ":upstream_cc_configured_subject",
         ":upstream_cc_empty_subject",
         ":upstream_cc_generated_subject",
+        ":upstream_cc_sourceless_subject",
         ":upstream_cc_subject",
         ":upstream_rust_subject",
     ],
@@ -1006,6 +1031,7 @@ real_aspect_fixture_tests(
         ":fixture_real_cc_hinted_subject",
         ":fixture_real_cc_subject",
         ":fixture_real_delim_python_subject",
+        ":fixture_real_external_subject",
         ":fixture_real_java_hinted_subject",
         ":fixture_real_javascript_subject",
         ":fixture_real_json_subject",
@@ -1035,6 +1061,7 @@ real_aspect_fixture_tests(
         ":fixture_real_starlark_subject",
         ":fixture_real_text_subject",
         ":fixture_real_toml_subject",
+        ":fixture_upstream_cc_sourceless_subject",
         ":fixture_upstream_cc_subject",
         ":fixture_upstream_rust_subject",
         ":fixture_wrapped_cc_no_format_upstream_subject",
@@ -1457,7 +1484,7 @@ dart_subject(
     name = "dart_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//dart/tests/runtime:greet",
+    target = "//dart/tests/fixtures/runtime:greet",
 )
 
 julia_subject(

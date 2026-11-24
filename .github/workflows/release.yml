@@ -267,7 +267,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        # A missing artifact shows up as a rejected cell in the report instead of stopping here.
         continue-on-error: true
         with:
           name: release-cells
@@ -307,7 +306,6 @@ jobs:
           mkdir -p "$stage"
           cells="$RUNNER_TEMP/release-cells"
           mkdir -p "$cells"
-          # The refusal proof only needs some dx file; a missing cell archive is reported by the check below.
           tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx \
             || cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx" \
             || { echo "::error::fetch_dx failed"; failed="$failed fetch_dx"; }

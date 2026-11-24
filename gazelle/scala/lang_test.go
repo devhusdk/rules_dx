@@ -85,9 +85,9 @@ func wantRefusal(t *testing.T, got, want string) {
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"Demo.scala", "Helper.scala", "notes.txt"}
 	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.scala":     "package demo\n\nimport com.example.Widget\n\nclass Demo\n",
-		"pkg/demo/Helper.scala":   "package demo\n\nimport java.util.List\n\nclass Helper\n",
-		"pkg/demo/notes.txt":      "not a source\n",
+		"pkg/demo/Demo.scala":   "package demo\n\nimport com.example.Widget\n\nclass Demo\n",
+		"pkg/demo/Helper.scala": "package demo\n\nimport java.util.List\n\nclass Helper\n",
+		"pkg/demo/notes.txt":    "not a source\n",
 	}, regular)
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))
@@ -325,8 +325,6 @@ func TestTopLevelFunctionResolvesToPackage(t *testing.T) {
 	if lang.Failed() || strings.Join(r.AttrStrings("deps"), ",") != "//grades" {
 		t.Fatalf("grades.BuildInfo: deps = %v", r.AttrStrings("deps"))
 	}
-	// A single-segment package is never a candidate, so its top-level
-	// functions need the file's class or an explicit mapping.
 	r, lang = resolveImports(t, "", srcs, "grades.shout")
 	if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
 		t.Fatalf("grades.shout: deps = %v", r.AttrStrings("deps"))

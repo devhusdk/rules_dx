@@ -1,10 +1,7 @@
 use super::command::Command;
 
-/// The page under `docs/cli/commands/` that documents `dx` itself.
 pub const ROOT_PAGE: &str = "README.md";
 
-/// One flag `--help` lists: its long name, or its short one when it has no long name, its other spellings,
-/// the values it accepts when they are a fixed set, and its defaults.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct HelpFlag {
     pub name: String,
@@ -13,8 +10,6 @@ pub struct HelpFlag {
     pub defaults: Vec<String>,
 }
 
-/// One positional argument `--help` lists, in order: its value name, whether it is required, whether it takes
-/// more than one word, the values it accepts when they are a fixed set, and its defaults.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HelpPositional {
     pub name: String,
@@ -24,7 +19,6 @@ pub struct HelpPositional {
     pub defaults: Vec<String>,
 }
 
-/// One environment variable `dx --help` documents: its name, the shape of its value, and the flag it defaults.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HelpEnv {
     pub name: String,
@@ -32,7 +26,6 @@ pub struct HelpEnv {
     pub default_for: Option<String>,
 }
 
-/// What `--help` says about `dx` (an empty path), one command or one subcommand, and the page that documents it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HelpSurface {
     pub path: Vec<String>,
@@ -43,7 +36,6 @@ pub struct HelpSurface {
 }
 
 impl Command {
-    /// The page under `docs/cli/commands/` that documents this command.
     #[must_use]
     pub fn page(self) -> &'static str {
         match self {
@@ -72,7 +64,6 @@ impl Command {
     }
 }
 
-/// The numbers on the `Exit codes:` line of one rendered help text.
 #[must_use]
 pub fn exit_codes_in(help: &str) -> Vec<String> {
     let mut codes = Vec::new();
@@ -117,8 +108,6 @@ fn visible_flags(command: &clap::Command) -> Vec<HelpFlag> {
     flags
 }
 
-// Switches carry clap's implicit `true`/`false` values and `false` default; they say nothing a user
-// types, so only arguments that take a value report them.
 fn accepted_values(arg: &clap::Arg) -> Vec<String> {
     if !arg.get_action().takes_values() {
         return Vec::new();
@@ -162,7 +151,6 @@ fn visible_positionals(command: &clap::Command) -> Vec<HelpPositional> {
         .collect()
 }
 
-/// Every environment variable `dx --help` documents, `DX_` flag defaults first.
 #[must_use]
 pub fn help_environment() -> Vec<HelpEnv> {
     let defaults = dx_adopt::defaults::ENV_DEFAULTS
@@ -210,7 +198,6 @@ fn collect(
     }
 }
 
-/// `dx` itself, then every command and subcommand the grammar knows.
 #[must_use]
 pub fn help_surface() -> Vec<HelpSurface> {
     let mut root = super::grammar::cli_command();

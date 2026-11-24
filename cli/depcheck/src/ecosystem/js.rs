@@ -36,11 +36,6 @@ fn manifest_spec(
         .ok_or_else(|| DepcheckError::ManifestParse(format!("{field}.{name} must be a string")))
 }
 
-/// Reads the dependency sections of an npm package manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let data: serde_json::Value =
@@ -96,14 +91,12 @@ pub fn parse_js_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     Ok(deps)
 }
 
-/// One direct dependency as an importer records it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PnpmEntry {
     pub specifier: String,
     pub version: String,
 }
 
-/// A pnpm lock split into importers and the package identities it lists.
 #[derive(Debug, Default)]
 pub struct PnpmLock {
     importers: BTreeMap<String, BTreeMap<String, PnpmEntry>>,
@@ -120,7 +113,6 @@ impl PnpmLock {
         self.importers.keys().map(String::as_str).collect()
     }
 
-    /// Package names the lock lists, without versions.
     #[must_use]
     pub fn package_names(&self) -> BTreeSet<String> {
         self.packages.iter().map(|(name, _)| name.clone()).collect()
@@ -159,11 +151,6 @@ fn dir_of(path: &Path) -> std::path::PathBuf {
     }
 }
 
-/// Names the lock importer that belongs to a manifest.
-///
-/// # Errors
-///
-/// Returns an error when either directory cannot be resolved or the manifest is outside the lock's workspace.
 pub fn pnpm_importer_key(manifest: &Path, lock: &Path) -> Result<String, DepcheckError> {
     let manifest_dir =
         std::fs::canonicalize(dir_of(manifest)).map_err(DepcheckError::ManifestIo)?;
@@ -283,11 +270,6 @@ fn collect_packages(
     Ok(())
 }
 
-/// Reads the importers and packages of a pnpm lock.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_pnpm_lock(path: &Path) -> Result<PnpmLock, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let value: yaml_serde::Value =
@@ -350,11 +332,6 @@ fn split_alias(text: &str) -> Option<(&str, &str)> {
         .filter(|(name, spec)| !name.is_empty() && !spec.is_empty())
 }
 
-/// Compares each manifest declaration with the importer's resolution.
-///
-/// # Errors
-///
-/// Returns an error when a declaration uses an unsupported `catalog:` specifier.
 pub fn pnpm_failures(
     deps: &BTreeMap<String, DepInfo>,
     importer: &BTreeMap<String, PnpmEntry>,

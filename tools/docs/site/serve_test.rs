@@ -1,5 +1,3 @@
-//! Serves the rendered site over real HTTP at every hosting base and walks it.
-
 use dx_docs_serve::{Handle, Site};
 use dx_site_check::rendered::asset;
 use std::collections::BTreeSet;

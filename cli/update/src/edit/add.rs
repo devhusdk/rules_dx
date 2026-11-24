@@ -1,5 +1,3 @@
-//! Declares a requirement `dx update` found missing.
-
 use super::request::{ConfiguredKind, DepTarget, EditError, UpdateRequest};
 use super::sets::UpdateSet;
 use super::version::WidenVersion;
@@ -59,7 +57,6 @@ impl From<EditError> for AddError {
 const GITHUB_ACTIONS_HINT: &str = "add the `uses:` step to the workflow, then pin it with `dx update github-actions:<owner/repo> <tag-or-sha>`";
 
 impl AddRequest {
-    /// The insert request for the package an update request names.
     #[must_use]
     pub fn from_request(request: &UpdateRequest) -> AddRequest {
         AddRequest {
@@ -95,7 +92,6 @@ impl AddRequest {
         self.target.target_manifest()
     }
 
-    /// The `dx update` request for the same package and version.
     #[must_use]
     pub fn as_request(&self) -> UpdateRequest {
         UpdateRequest::for_target(
@@ -106,7 +102,6 @@ impl AddRequest {
         )
     }
 
-    /// The manifest with the new requirement declared, in the shape `dx update` widens.
     pub fn plan_insert(&self, content: &str) -> Result<String, AddError> {
         match self.as_request().plan_edit(content) {
             Ok(_) | Err(EditError::Ambiguous { .. }) => {

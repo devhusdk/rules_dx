@@ -1,5 +1,3 @@
-//! No repository rule or module extension refetches: none is configure or local, reads the environment, watches a path or omits reproducible metadata, outside `tools/ci/repo_rule_refetch_allowlist.txt`.
-
 use dx_guard::allowlist::{Counts, REMOVE, add, render};
 use dx_guard::masked::{CallArgs, Masked, calls, masked};
 use dx_guard::snapshot::{is_skipped, tree};
@@ -9,7 +7,6 @@ use starlark_syntax as _;
 use std::path::Path;
 use yaml_serde as _;
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/repo_rule_refetch_allowlist.txt";
 
 const CONFIGURE: &str = "configure";
@@ -19,23 +16,19 @@ const NOT_REPRODUCIBLE: &str = "not-reproducible";
 const WATCH: &str = "watch";
 const KINDS: [&str; 5] = [CONFIGURE, LOCAL, ENVIRON, NOT_REPRODUCIBLE, WATCH];
 
-/// The file of the `@dx_test_tags_sources` rule, which watches the tree it snapshots.
 const SNAPSHOT_RULE: &str = "tools/ci/repos.bzl";
 
-/// Each definition call and the metadata call its implementation returns.
 const DEFINITIONS: [(&str, &str); 2] = [
     ("repository_rule", ".repo_metadata"),
     ("module_extension", ".extension_metadata"),
 ];
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
 fn is_ident(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// Assignments of `value` to the keyword `key` in `mask`.
 fn count_keyword(mask: &str, key: &str, value: &str) -> usize {
     mask.match_indices(key)
         .filter(|(at, _)| {
@@ -62,7 +55,6 @@ fn count_keyword(mask: &str, key: &str, value: &str) -> usize {
         .count()
 }
 
-/// The body of the top-level `def name(` in `source`, strings blanked, or None when it is defined elsewhere.
 fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
     let header = format!("def {name}(");
     let start = source
@@ -81,7 +73,6 @@ fn body<'a>(source: &'a Masked, name: &str) -> Option<&'a str> {
     rest.get(..end)
 }
 
-/// The implementation named by a `repository_rule` or `module_extension` call.
 fn implementation(call: &CallArgs<'_>) -> String {
     call.keyword("implementation").map_or_else(
         || {
@@ -96,7 +87,6 @@ fn implementation(call: &CallArgs<'_>) -> String {
     )
 }
 
-/// Definitions in `source` whose implementation does not return reproducible metadata.
 fn not_reproducible(source: &Masked) -> usize {
     DEFINITIONS
         .iter()
@@ -120,7 +110,6 @@ fn not_reproducible(source: &Masked) -> usize {
         .sum()
 }
 
-/// Whether `argument` is exactly `<name>.attr.<identifier>`.
 fn is_attr_label(argument: &str) -> bool {
     let Some((name, field)) = argument.split_once(".attr.") else {
         return false;
@@ -131,7 +120,6 @@ fn is_attr_label(argument: &str) -> bool {
     identifier(name) && identifier(field)
 }
 
-/// Watches in `source`: `.watch(`, `.watch_tree(` and `.path(` on a label of the main repository or of the calling package.
 fn watches(source: &Masked) -> usize {
     let labels = calls(source, ".path")
         .iter()
@@ -146,7 +134,6 @@ fn watches(source: &Masked) -> usize {
     calls(source, ".watch").len() + calls(source, ".watch_tree").len() + labels
 }
 
-/// The hits in `files`, a `(path, text)` list.
 fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
     for (path, text) in files {

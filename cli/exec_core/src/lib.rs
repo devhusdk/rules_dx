@@ -5,10 +5,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! Shared plumbing for every dx verb: the run environment, event output,
-//! failure reporting, next-step guidance and the Bazel restart runner.
-//! Verb crates depend on this one and never on each other.
-
 pub mod audit_policy;
 pub mod bazel_hint;
 pub mod bazel_restart;

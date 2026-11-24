@@ -950,6 +950,37 @@ fn hadolint_bound_config_reaches_the_tool() {
     assert_eq!(findings[0].rule_id, "DL4006");
 }
 
+#[test]
+fn hadolint_runs_the_dockerfile_guard_on_the_strict_tier_only() {
+    let bound = || RealTool {
+        config_rel: Some("cfg/.hadolint.yaml".to_owned()),
+        tool_files: vec![(
+            "cfg/.hadolint.yaml".to_owned(),
+            b"ignored:\n  - DL3008\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let standard = backend_for("hadolint", bound(), hadolint_bound);
+    let findings = standard
+        .diagnose("hadolint", "lint", &single("Dockerfile", HADOLINT_DIRTY))
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    let mut tool = bound();
+    tool.args = vec!["strict".to_owned()];
+    let strict = backend_for("hadolint", tool, hadolint_bound);
+    let findings = strict
+        .diagnose("hadolint", "lint", &single("Dockerfile", HADOLINT_DIRTY))
+        .expect("diagnosed");
+    let rules: Vec<&str> = findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert_eq!(rules, ["DL4006", "guard/unpinned_image"], "{findings:?}");
+    let guard = &findings[1];
+    assert_eq!(guard.path, "Dockerfile");
+    assert_eq!(
+        guard.severity,
+        quality_result::proto::Severity::Error as i32
+    );
+}
+
 fn checkmake_config_arg(argv: &[OsString]) -> PathBuf {
     let at = argv
         .iter()
@@ -5162,7 +5193,11 @@ fn luals_report(
 
 fn luals_tool() -> RealTool {
     RealTool {
-        tool_files: vec![("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec())],
+        config_rel: Some("cfg/luarc.json".to_owned()),
+        tool_files: vec![
+            ("cfg/luarc.json".to_owned(), b"{}".to_vec()),
+            ("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec()),
+        ],
         ..plain_tool()
     }
 }

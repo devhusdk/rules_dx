@@ -216,3 +216,13 @@ php_corpus(
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//php/tests/fixtures/runfiles:core_coverage_test",
+        "//php/tests/fixtures/runfiles:forward_coverage_test",
+        "//php/tests/fixtures/runfiles:runfiles_test",
+    ],
+)

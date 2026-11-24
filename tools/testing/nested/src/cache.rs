@@ -1,12 +1,9 @@
-//! The repository cache of a nested Bazel: built from declared downloads, and listed from a consumer lock.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
-/// The variable naming the runfiles keys of the `nested_repository_cache` manifests, space separated.
 pub const MANIFESTS_ENV: &str = "DX_NESTED_REPOSITORY_CACHE";
 
-/// The checksum algorithm of a lowercase hex digest, named as in the repository cache.
 fn algorithm(digest: &str) -> Option<&'static str> {
     if !digest
         .bytes()
@@ -22,7 +19,6 @@ fn algorithm(digest: &str) -> Option<&'static str> {
     }
 }
 
-/// One download of a cache set: its hex digest, the file that has it, and the URLs it is fetched from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Download<F> {
     pub digest: String,
@@ -30,11 +26,6 @@ pub struct Download<F> {
     pub urls: Vec<String>,
 }
 
-/// Parses a manifest: one `<hex digest> <runfiles key> <url>...` per line.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn parse_manifest(text: &str) -> Result<Vec<Download<String>>, String> {
     let mut entries = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
@@ -53,7 +44,6 @@ pub fn parse_manifest(text: &str) -> Result<Vec<Download<String>>, String> {
     Ok(entries)
 }
 
-/// The place Bazel looks up a download with the hex `digest` in the repository cache at `cache`.
 #[must_use]
 pub fn entry(cache: &Path, digest: &str) -> PathBuf {
     cache
@@ -63,18 +53,44 @@ pub fn entry(cache: &Path, digest: &str) -> PathBuf {
         .join("file")
 }
 
+/// Links to the resolved file, so the entry outlives the runfiles tree of the test that placed it.
 #[cfg(unix)]
-fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
-    let src = std::path::absolute(src)?;
-    std::os::unix::fs::symlink(src, dst)
+fn link(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(std::fs::canonicalize(src)?, dst)
 }
 
 #[cfg(not(unix))]
-fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
-    std::fs::copy(src, dst).map(|_| ())
+fn link(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::hard_link(src, dst)
 }
 
-/// The hex digest, in the algorithm of `digest`, of a canonical id.
+/// Puts `src` at `dst` with one rename, so a test reading a shared cache sees no entry or a whole one.
+fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
+    static STAGED: AtomicU64 = AtomicU64::new(0);
+    let n = STAGED.fetch_add(1, Ordering::Relaxed);
+    // Sandboxed tests can share a PID across PID namespaces; the clock keeps their staging names apart.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let staging = dst.with_file_name(format!(".file.{}.{nanos}.{n}.tmp", std::process::id()));
+    let placed = match link(src, &staging) {
+        Ok(()) => {
+            std::fs::rename(&staging, dst).inspect_err(|_| dx_atomic_fs::discard_file(&staging))
+        }
+        Err(error) if cfg!(unix) => Err(error),
+        // A hard link cannot cross volumes; the copy is staged and renamed the same way.
+        Err(_) => dx_atomic_fs::copy_scratch(src, dst),
+    };
+    // Another test may have placed the same digest first, and Windows refuses to replace an entry that test has open.
+    placed.or_else(|error| {
+        if std::fs::metadata(dst).is_ok() {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    })
+}
+
 fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
     let bytes = canonical_id.as_bytes();
     match algorithm(digest)? {
@@ -84,10 +100,8 @@ fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
     }
 }
 
-/// The prefix of a canonical id hash file in a repository cache entry and of its cache list token.
 pub const ID_PREFIX: &str = "id-";
 
-/// The `id-<hex>` canonical id hashes in the cache entry of `digest` that no URL in `urls` accounts for.
 #[must_use]
 pub fn extra_ids(cache: &Path, digest: &str, urls: &[&str]) -> Vec<String> {
     let known: Vec<String> = urls.iter().filter_map(|url| id_hash(digest, url)).collect();
@@ -110,12 +124,6 @@ pub fn extra_ids(cache: &Path, digest: &str, urls: &[&str]) -> Vec<String> {
     ids
 }
 
-/// Builds the repository cache at `cache` from `files`; each URL is also recorded as a canonical id
-/// and each `id-<hex>` token is recorded as that canonical id hash.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn install(cache: &Path, files: &[Download<PathBuf>]) -> Result<(), String> {
     std::fs::create_dir_all(cache)
         .map_err(|error| format!("cannot create {}: {error}", cache.display()))?;
@@ -127,7 +135,8 @@ pub fn install(cache: &Path, files: &[Download<PathBuf>]) -> Result<(), String> 
         let dir = dst.parent().unwrap_or(cache);
         std::fs::create_dir_all(dir)
             .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
-        if std::fs::symlink_metadata(&dst).is_err() {
+        // A dangling link counts as missing: the runfiles it pointed at are gone.
+        if std::fs::metadata(&dst).is_err() {
             place(file, &dst).map_err(|error| {
                 format!(
                     "cannot put {} at {}: {error}",
@@ -164,7 +173,6 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// Turns a `sha256-`, `sha384-` or `sha512-<base64>` integrity into its hex digest.
 #[must_use]
 pub fn integrity_hex(integrity: &str) -> Option<String> {
     let (name, encoded) = integrity.split_once('-')?;
@@ -190,7 +198,6 @@ fn quoted_after<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     Some(value)
 }
 
-/// The `(url, sha256)` of every `archive_override` in a MODULE.bazel text.
 pub fn archive_overrides(module: &str) -> Vec<(String, String)> {
     let mut found = Vec::new();
     for block in module.split("archive_override(").skip(1) {
@@ -204,14 +211,6 @@ pub fn archive_overrides(module: &str) -> Vec<(String, String)> {
     found
 }
 
-/// Renders the cache list of a consumer: every registry file of `lock`, plus every module archive,
-/// patch, overlay file and `archive_override` archive that `fetched` holds.
-///
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
-/// `fetched` returns the bytes of a download by sha256, read from the repository cache of an online run.
 pub fn list(
     lock: &str,
     module: &str,
@@ -373,6 +372,51 @@ mod tests {
             placed.with_file_name(id).is_file(),
             "canonical id of the URL"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn install_replaces_an_entry_whose_file_is_gone() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let cache = dir.path().join("cache");
+        let placed = entry(&cache, A);
+        std::fs::create_dir_all(placed.parent().expect("parent")).expect("mkdir");
+        std::os::unix::fs::symlink(dir.path().join("gone"), &placed).expect("dangling link");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: Vec::new(),
+        }];
+        install(&cache, &files).expect("install");
+        assert_eq!(std::fs::read_to_string(&placed).expect("read"), "bytes");
+    }
+
+    #[test]
+    fn concurrent_installs_leave_one_whole_entry_and_no_staging_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let src = dir.path().join("download");
+        std::fs::write(&src, "bytes").expect("write");
+        let cache = dir.path().join("cache");
+        let files = vec![Download {
+            digest: A.to_owned(),
+            file: src,
+            urls: vec!["abc".to_owned()],
+        }];
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| install(&cache, &files).expect("install"));
+            }
+        });
+        let placed = entry(&cache, A);
+        assert_eq!(std::fs::read_to_string(&placed).expect("read"), "bytes");
+        let names: Vec<String> = std::fs::read_dir(placed.parent().expect("parent"))
+            .expect("list")
+            .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+            .filter(|name| name.ends_with(".tmp"))
+            .collect();
+        assert!(names.is_empty(), "{names:?}");
     }
 
     #[test]

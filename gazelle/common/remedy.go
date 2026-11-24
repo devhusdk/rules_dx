@@ -7,7 +7,6 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
-// BuildFilePath returns the workspace-relative BUILD file path gazelle uses for pkg.
 func BuildFilePath(c *config.Config, pkg string) string {
 	name := "BUILD.bazel"
 	if c != nil && len(c.ValidBuildFileNames) > 0 {
@@ -16,12 +15,10 @@ func BuildFilePath(c *config.Config, pkg string) string {
 	return manifestPath(pkg, name)
 }
 
-// UnresolvedImport formats an unresolved import error with its hint and the ignore directive remedy.
 func UnresolvedImport(c *config.Config, lang string, from label.Label, name, hint string) string {
 	return UnresolvedImportError(c, lang, from, name, hint).Message
 }
 
-// UnresolvedImportError is UnresolvedImport as a GenerationError that also carries the kind, import and fix.
 func UnresolvedImportError(c *config.Config, lang string, from label.Label, name, hint string) GenerationError {
 	file := BuildFilePath(c, from.Pkg)
 	directive := fmt.Sprintf("# gazelle:dx_ignore_import %s %s", lang, name)
@@ -36,12 +33,10 @@ func UnresolvedImportError(c *config.Config, lang string, from label.Label, name
 	}
 }
 
-// AmbiguousImport formats an ambiguous import error with the resolve directive remedy.
 func AmbiguousImport(c *config.Config, lang string, from label.Label, name, matches string) string {
 	return AmbiguousImportError(c, lang, from, name, matches).Message
 }
 
-// AmbiguousImportError is AmbiguousImport as a GenerationError that also carries the kind, import and fix.
 func AmbiguousImportError(c *config.Config, lang string, from label.Label, name, matches string) GenerationError {
 	file := BuildFilePath(c, from.Pkg)
 	directive := fmt.Sprintf("# gazelle:resolve %s %s <label>", lang, name)
@@ -56,8 +51,6 @@ func AmbiguousImportError(c *config.Config, lang string, from label.Label, name,
 	}
 }
 
-// ClaimError formats a claim conflict with a remedy. buildFile is the workspace-relative BUILD file holding the
-// handwritten rule have; it is empty when have comes from another generator's output, which the user cannot edit.
 func ClaimError(name, kind, source, have, buildFile string) string {
 	if buildFile == "" {
 		return fmt.Sprintf("target name %q is claimed by generated %s(%s) and existing %s; rename one of the sources that generate it",

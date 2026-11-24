@@ -1,5 +1,3 @@
-//! Converts the JSON pages of `odoc html-generate --as-json` into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -22,7 +20,6 @@ const KEY_INCOMPLETE: &str = "ocaml.incomplete";
 const KEY_CONFIG: &str = "ocaml.config";
 const KEY_ITEM: &str = "ocaml.item";
 
-/// Why the odoc pages could not become a shard.
 #[derive(Debug)]
 pub enum OcamlExtractError {
     Io(PathIoError),
@@ -84,7 +81,6 @@ impl std::error::Error for OcamlExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub html: Vec<String>,
@@ -93,23 +89,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `ocaml_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("ocaml_extract", usage(), parse_args, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: ocaml_extract --html DIR... --package NAME [--config TEXT] --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_args(args: &[String]) -> Result<Options, FlagError> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--html", "--package", "--config", "--out"])?;
@@ -130,11 +119,6 @@ pub fn parse_args(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), OcamlExtractError> {
     let mut pages = Vec::new();
     for html in &options.html {
@@ -145,7 +129,6 @@ pub fn run(options: &Options) -> Result<(), OcamlExtractError> {
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(OcamlExtractError::Write)
 }
 
-/// Reads every page below `root`, keyed by its directory relative to `root`.
 fn collect(
     root: &Path,
     relative: &Path,
@@ -158,7 +141,6 @@ fn collect(
         };
         let name = name.to_string_lossy().into_owned();
         let path = relative.join(&name);
-        // Not followed: odoc writes plain directories, and a symlink loop must not recurse.
         let kind = fs::symlink_metadata(&entry)
             .map_err(|source| OcamlExtractError::Stat {
                 path: entry.clone(),
@@ -180,7 +162,6 @@ fn collect(
     Ok(())
 }
 
-/// One documented item before ids are made unique.
 #[derive(Clone, Debug)]
 struct Item {
     path: String,
@@ -192,7 +173,6 @@ struct Item {
     doc: String,
 }
 
-/// Splits an anchor id such as `module-type-S` into its label and name.
 fn split_anchor(id: &str) -> Option<(&'static str, &str)> {
     const LABELS: [&str; 9] = [
         "module-type",
@@ -237,8 +217,6 @@ fn keyword(label: &str) -> &'static str {
     }
 }
 
-/// Returns the names the page directory stands for, such as `["Shapes", "Sub"]`, and the label
-/// of its last segment.
 fn page_names(key: &str) -> Result<(Vec<String>, &'static str), OcamlExtractError> {
     let mut segments: Vec<&str> = key.split('/').filter(|s| !s.is_empty()).collect();
     if segments.len() < 2 {
@@ -319,11 +297,6 @@ fn qualified(path: &str) -> String {
         .join(".")
 }
 
-/// Converts the pages (directory key, JSON text) of one odoc package into a validated shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     pages: &[(String, String)],
     package: &str,

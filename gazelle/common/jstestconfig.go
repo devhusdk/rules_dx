@@ -13,7 +13,6 @@ var jsTestConfigKeys = map[string]bool{
 	"snapshotSerializers": true,
 }
 
-// IsJSTestConfig reports whether name is a Jest, Vitest, or Vite config file.
 func IsJSTestConfig(name string) bool {
 	base := path.Base(name)
 	stem := strings.TrimSuffix(base, path.Ext(base))
@@ -27,9 +26,6 @@ func IsJSTestConfig(name string) bool {
 	return false
 }
 
-// ScanJSTestConfig reports the literal module specs of setupFiles,
-// setupFilesAfterEnv, globalSetup, globalTeardown, and snapshotSerializers.
-// A leading <rootDir>/ is read as the config's own directory.
 func ScanJSTestConfig(src []byte, add func(string)) {
 	n := len(src)
 	addSpec := func(spec string) {
@@ -98,8 +94,6 @@ func ScanJSTestConfig(src []byte, add func(string)) {
 	}
 }
 
-// scanStringArray reports the string literal elements of an array starting
-// after its '[' and skips any other element.
 func scanStringArray(src []byte, p int, add func(string)) int {
 	n := len(src)
 	depth := 0

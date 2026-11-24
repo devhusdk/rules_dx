@@ -6,9 +6,6 @@ use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "remark";
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_remark(
     stdout: &[u8],
     stderr: &[u8],

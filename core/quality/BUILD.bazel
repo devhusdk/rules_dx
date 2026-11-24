@@ -39,7 +39,6 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "core_aspects.json",
-    "pins.json",
     "coverage_sources.bzl",
     "dart_context.bzl",
     "execution_requirements.bzl",

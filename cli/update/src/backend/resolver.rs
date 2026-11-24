@@ -1,6 +1,5 @@
 use super::{BackendError, BackendPlan, CheckPlan, Ecosystem, Path, ResolvedSet, Selection, bazel};
 
-/// The resolver label of the `setup.hubs` entry of `set`.
 pub(super) fn resolver(set: &ResolvedSet) -> Result<&'static str, BackendError> {
     dx_families::hub(set.ecosystem.name())
         .and_then(|hub| hub.resolver.as_deref())
@@ -24,10 +23,6 @@ fn resolver_argv(
     Ok(bazel(head, "run", &args))
 }
 
-/// The lock step flags that update `request` of `set`.
-///
-/// The pub step upgrades the named packages, or every package with `--upgrade-all`. The other
-/// steps re-resolve the whole set from its manifest.
 fn upgrade_flags<'a>(
     set: &ResolvedSet,
     request: &'a Selection,
@@ -50,7 +45,6 @@ fn upgrade_flags<'a>(
     }
 }
 
-/// Runs the registry resolver of `set`, which resolves the set afresh and writes its lock.
 pub(super) fn plan(
     workspace: &Path,
     set: &ResolvedSet,
@@ -76,7 +70,6 @@ pub(super) fn plan(
     })
 }
 
-/// Runs the registry resolver of `set` with `--check`, which exits 1 when the lock is stale.
 pub(super) fn check(
     workspace: &Path,
     set: &ResolvedSet,

@@ -5,10 +5,8 @@ use super::AdoptError;
 
 pub const WATCH_DEBOUNCE_MS: u64 = 200;
 
-/// Quiet time after a change before one wait reports it.
 const WATCH_SETTLE: Duration = Duration::from_millis(2 * WATCH_DEBOUNCE_MS);
 
-/// Longest one wait keeps collecting a burst after its first change.
 const WATCH_SETTLE_CAP: Duration = Duration::from_millis(10 * WATCH_DEBOUNCE_MS);
 
 pub const WATCHABLE_COMMANDS: &[&str] = &[
@@ -33,7 +31,6 @@ pub fn plan_watch(command: &str, ci: bool) -> Result<String, AdoptError> {
     Ok(format!("watch:{command}:debounce={WATCH_DEBOUNCE_MS}ms"))
 }
 
-/// Whether a path relative to the watch root can trigger a rerun.
 #[must_use]
 pub fn should_watch_path(relative: &Path) -> bool {
     let names: Vec<String> = relative
@@ -54,7 +51,6 @@ pub fn should_watch_path(relative: &Path) -> bool {
     !root_ignored && !probe && !names.iter().any(|name| name == ".git")
 }
 
-/// Sorted, deduplicated paths under one of the roots that can trigger a rerun.
 #[must_use]
 pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
     paths.retain(|path| {
@@ -67,7 +63,6 @@ pub fn coalesce_watch_paths(roots: &[&Path], mut paths: Vec<PathBuf>) -> Vec<Pat
     paths
 }
 
-/// Whether an event changes the tree rather than only reading it.
 #[must_use]
 pub fn is_change(kind: &notify::EventKind) -> bool {
     use notify::event::{AccessKind, AccessMode, EventKind};
@@ -82,7 +77,6 @@ pub fn is_change(kind: &notify::EventKind) -> bool {
     }
 }
 
-/// Whether an event only touches directory timestamps, which Windows reports on reads.
 #[must_use]
 pub fn is_directory_touch(event: &notify::Event) -> bool {
     use notify::event::{EventKind, ModifyKind};
@@ -91,13 +85,10 @@ pub fn is_directory_touch(event: &notify::Event) -> bool {
         && event.paths.iter().all(|path| path.is_dir())
 }
 
-/// Name prefix of the file a session writes once its platform watcher is live.
 const WATCH_START_MARKER: &str = ".dx-watch-start-";
 
-/// Longest a session drops events while waiting for its start marker.
 const WATCH_START_GRACE: Duration = Duration::from_secs(2);
 
-/// Whether the platform watcher can replay changes made before it started.
 const REPLAYS_EARLIER_CHANGES: bool = cfg!(target_os = "macos");
 
 fn is_start_marker(event: &notify::Event) -> bool {
@@ -107,13 +98,10 @@ fn is_start_marker(event: &notify::Event) -> bool {
     })
 }
 
-/// Poll interval for roots whose filesystem does not report changes.
 const WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Filesystems where inotify misses writes made by another host or the Windows side.
 const POLLED_FILESYSTEMS: &[&str] = &["9p", "drvfs", "fuse.drvfs", "nfs", "nfs4", "cifs", "smb3"];
 
-/// Whether the mount holding `root` is one of the polled filesystems.
 #[must_use]
 pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
     mountinfo
@@ -129,7 +117,6 @@ pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
         .is_some_and(|(_, fs_type)| POLLED_FILESYSTEMS.contains(&fs_type))
 }
 
-/// A mountinfo mount point with its `\NNN` octal escapes (space, tab, newline, `\`) decoded.
 fn unescape_mount_point(field: &str) -> String {
     let mut out = String::with_capacity(field.len());
     let mut rest = field;
@@ -154,7 +141,6 @@ fn unescape_mount_point(field: &str) -> String {
     out
 }
 
-/// Whether the session should poll instead of using the platform watcher.
 fn should_poll(root: &Path) -> bool {
     if !cfg!(target_os = "linux") {
         return false;
@@ -169,9 +155,6 @@ enum Backend {
     Poll(notify::PollWatcher),
 }
 
-/// The platform watcher, or a poller when the config asks for `WATCH_POLL_INTERVAL`,
-/// with read-only access events dropped. Where the platform watcher replays earlier
-/// changes, events are dropped until the start marker arrives or `WATCH_START_GRACE` passes.
 pub struct ChangeWatcher(Backend);
 
 impl notify::Watcher for ChangeWatcher {
@@ -246,7 +229,6 @@ fn batch_paths(
         })
 }
 
-/// The error text, naming the sysctl to raise when inotify runs out of watches.
 fn watch_error(error: &notify::Error) -> String {
     match error.kind {
         notify::ErrorKind::MaxFilesWatch => format!(
@@ -261,12 +243,10 @@ fn watch_error(error: &notify::Error) -> String {
     }
 }
 
-/// Whether nothing under this directory can trigger a rerun, so it gets no watch.
 fn is_ignored_dir(relative: &Path, bazelignore: &[PathBuf]) -> bool {
     !should_watch_path(relative) || bazelignore.iter().any(|dir| relative.starts_with(dir))
 }
 
-/// Directories listed in the root `.bazelignore`, relative to the root.
 fn read_bazelignore(root: &Path) -> Vec<PathBuf> {
     std::fs::read_to_string(root.join(".bazelignore"))
         .map(|text| {
@@ -285,10 +265,6 @@ fn read_bazelignore(root: &Path) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-/// Appends watches that cover `dir` without any ignored directory or symlink below it,
-/// and returns whether something below `dir` was left out. A subtree with nothing left
-/// out gets one recursive watch, so the watcher adds its new subdirectories itself; a
-/// directory above a left-out one is watched alone and its children are planned in turn.
 fn plan_watches(
     root: &Path,
     dir: &Path,
@@ -297,10 +273,8 @@ fn plan_watches(
 ) -> bool {
     let start = plan.len();
     let mut pruned = false;
-    // An unreadable directory gets a plain recursive watch so the watcher reports why.
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
-            // `file_type` does not follow symlinks, so a `bazel-out` link is not a directory here.
             if !entry.file_type().is_ok_and(|kind| kind.is_dir()) {
                 continue;
             }
@@ -320,15 +294,10 @@ fn plan_watches(
     pruned
 }
 
-/// Whether the session plans its own watches instead of one recursive watch on the root.
-/// inotify holds one watch per directory, so ignored trees would use up the user's limit;
-/// FSEvents and ReadDirectoryChangesW watch a whole tree with one handle.
 const PLANS_WATCHES: bool = cfg!(target_os = "linux");
 
-/// The watcher and the directories it watches without their children.
 struct Watches {
     debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
-    /// Directories watched without their children; a directory created in one needs its own watch.
     shallow: std::collections::BTreeSet<PathBuf>,
 }
 
@@ -350,12 +319,10 @@ impl Watches {
     }
 }
 
-/// One filesystem observer that stays alive across wrapped executions.
 pub struct WatchSession {
     root: PathBuf,
     canonical_root: PathBuf,
     reports: Vec<PathBuf>,
-    /// `.bazelignore` directories, relative to the root; nothing under them triggers a rerun.
     bazelignore: Vec<PathBuf>,
     polling: bool,
     watches: std::sync::Mutex<Watches>,
@@ -365,13 +332,11 @@ pub struct WatchSession {
 }
 
 impl WatchSession {
-    /// Whether this session polls the tree instead of using the platform watcher.
     #[must_use]
     pub fn polling(&self) -> bool {
         self.polling
     }
 
-    /// `force_poll` is `dx watch --poll`; otherwise the filesystem decides.
     pub fn start(
         watch_root: &Path,
         reports: &[PathBuf],
@@ -382,7 +347,6 @@ impl WatchSession {
 
     fn start_with(watch_root: &Path, reports: &[PathBuf], poll: bool) -> Result<Self, AdoptError> {
         let (tx, events) = std::sync::mpsc::channel();
-        // Symlinks such as `bazel-out` point at trees that never trigger a rerun.
         let mut notify_config = notify::Config::default().with_follow_symlinks(false);
         if poll {
             dx_error::stdio::eprint_line(format_args!(
@@ -416,7 +380,6 @@ impl WatchSession {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |since| since.as_nanos())
             ));
-            // A plain create: a staged write would raise events for a non-marker name.
             if std::fs::File::create(&marker).is_ok() {
                 dx_atomic_fs::discard_file(&marker);
             }
@@ -518,7 +481,6 @@ impl WatchSession {
         Ok(self.coalesce(paths))
     }
 
-    /// The batch's paths, after watching directories that appeared in a shallow-watched one.
     fn receive(
         &self,
         batch: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>,
@@ -547,8 +509,6 @@ impl WatchSession {
                         detail: watch_error(&e),
                     });
                 }
-                // The directory went away again or cannot be read; its creation
-                // already triggers a rerun.
                 Err(_) => {}
             }
         }
@@ -569,7 +529,6 @@ impl WatchSession {
         else {
             return false;
         };
-        // FSEvents and ReadDirectoryChangesW watch the whole tree, ignored dirs included.
         self.bazelignore.iter().any(|dir| rel.starts_with(dir))
             || self
                 .reports
@@ -582,9 +541,6 @@ impl WatchSession {
 mod tests {
     use super::*;
 
-    /// Collect events until a path ending in `name` shows up (a sentinel
-    /// written after the action under test). Kernel events arrive in order,
-    /// so anything the filter wrongly kept is already in the result.
     fn wait_for(session: &WatchSession, name: &str) -> Vec<PathBuf> {
         let deadline = Instant::now() + Duration::from_secs(10);
         let mut seen = Vec::new();
@@ -1058,7 +1014,6 @@ mod tests {
         );
     }
 
-    /// Raw paths the platform watcher reports, before any filter, until one ends in `name`.
     #[cfg(target_os = "linux")]
     fn raw_until(session: &WatchSession, name: &str) -> Vec<PathBuf> {
         let deadline = Instant::now() + Duration::from_secs(10);

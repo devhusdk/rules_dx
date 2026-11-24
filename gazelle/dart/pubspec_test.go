@@ -52,9 +52,9 @@ workspace:
 
 func TestParsePubspecRejects(t *testing.T) {
 	for name, src := range map[string]string{
-		"no name":  "version: 1.0.0\n",
-		"bad name": "name: Bad-Name\n",
-		"reserved": "name: class\n",
+		"no name":       "version: 1.0.0\n",
+		"bad name":      "name: Bad-Name\n",
+		"reserved":      "name: class\n",
 		"leading digit": "name: 1abc\n",
 		"scalar deps":   "name: a\ndependencies: foo\n",
 	} {

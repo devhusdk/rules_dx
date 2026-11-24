@@ -1,7 +1,7 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//haskell/private:defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
+load("//haskell/private:defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "STRICT_LIBRARY_GHCOPTS", "with_gmp")
 load("//haskell/private:kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
 load("//haskell/private/toolchain:pins.bzl", "qualified_cells")
 load(":coverage_tests.bzl", "dx_haskell_coverage_tests")
@@ -40,9 +40,23 @@ dx_wrapper_contract_tests(
                 "-Wall",
                 "-Wcompat",
                 "-Wredundant-constraints",
-                "-Wpartial-fields",
                 "-Widentities",
+                "-Wredundant-bang-patterns",
+                "-Wunticked-promoted-constructors",
+                "-Woperator-whitespace",
+                "-Wincomplete-uni-patterns",
+                "-Wincomplete-record-updates",
+                "-Wx-partial",
+                "-Wpartial-fields",
+                "-Wmissing-deriving-strategies",
+                "-Wunused-packages",
+                "-Wmissing-home-modules",
             ],
+        ),
+        expect_equal(
+            "strict libraries also need export lists",
+            STRICT_LIBRARY_GHCOPTS,
+            STRICT_GHCOPTS + ["-Wmissing-export-lists"],
         ),
         expect_equal(
             "the default ghcopts follow the profile",
@@ -55,34 +69,17 @@ dx_wrapper_contract_tests(
             "select",
         ),
         expect_equal(
-            "-Werror can be forced on",
-            haskell_upstream_kwargs({
-                "ghcopts": ["-Wall"],
-                "warnings_as_errors": True,
-            })["ghcopts"],
-            [
-                "-Wall",
-                "-Werror",
-            ],
-        ),
-        expect_equal(
-            "-Werror can be forced off",
-            haskell_upstream_kwargs({
-                "ghcopts": ["-Wall"],
-                "warnings_as_errors": False,
-            })["ghcopts"],
-            ["-Wall"],
-        ),
-        expect_equal(
-            "user ghcopts keep -Werror",
-            haskell_upstream_kwargs({
+            "user ghcopts keep the tier warnings",
+            type(haskell_upstream_kwargs({
                 "ghcopts": ["-O2"],
-                "warnings_as_errors": True,
-            })["ghcopts"],
-            [
-                "-O2",
-                "-Werror",
-            ],
+                "warnings_as_errors": False,
+            })["ghcopts"]),
+            "select",
+        ),
+        expect_equal(
+            "user ghcopts keep the library tier warnings",
+            type(haskell_upstream_kwargs({"ghcopts": ["-O2"]}, library = True)["ghcopts"]),
+            "select",
         ),
         expect_equal(
             "the attribute is not passed upstream",
@@ -152,6 +149,14 @@ dx_wrapper_contract_tests(
 )
 
 profile_ghcopts_tests(name = "ghcopts_profile_test")
+
+test_suite(
+    name = "fixture_tests",
+    tests = [
+        "//haskell/tests/fixtures/mingw_cc:mingw_cc_test",
+        "//haskell/tests/fixtures/runtime:probe_test",
+    ],
+)
 
 real_source_target(
     name = "corpus_starlark",

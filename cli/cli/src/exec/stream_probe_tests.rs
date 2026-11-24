@@ -453,7 +453,6 @@ fn wait_for_file(run: &mut Run, path: &Path) {
     }
 }
 
-/// The group numbers recorded in the leases the running dx holds.
 fn recorded_groups(run: &Run) -> Vec<i32> {
     let prefix = format!("{}-", run.child.id());
     fs::read_dir(run.dir().join("ws/.dx/local/leases/process-groups"))
@@ -466,7 +465,6 @@ fn recorded_groups(run: &Run) -> Vec<i32> {
         .collect()
 }
 
-/// Waits until dx holds a written lease for `pgid`; on Linux it must already be written.
 #[expect(
     clippy::assertions_on_constants,
     reason = "only Linux must already hold the lease"
@@ -491,7 +489,6 @@ fn wait_for_lease(run: &mut Run, pgid: i32) {
     }
 }
 
-/// Waits until dx has reaped `pid`.
 fn wait_until_reaped(run: &mut Run, pid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while probe(pid) == Presence::Reachable {
@@ -503,7 +500,6 @@ fn wait_until_reaped(run: &mut Run, pid: i32) {
     }
 }
 
-/// Waits until job control has stopped `pid`.
 #[cfg(target_os = "linux")]
 fn wait_until_stopped(pid: i32) {
     let deadline = Instant::now() + Duration::from_secs(30);

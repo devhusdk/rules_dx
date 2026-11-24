@@ -1,3 +1,4 @@
+package main;
 use strict;
 use warnings;
 
@@ -9,6 +10,6 @@ hello $name
 END
 my @words = qw(a b c);
 my $re = qr/a+b/;
-print $text, "@words" =~ $re ? "ok\n" : "no\n";
+print $text, "@words" =~ $re ? "ok\n" : "no\n" or die "print failed\n";
 
-
+1;

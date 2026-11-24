@@ -5,15 +5,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding, located};
 
 const TOOL: &str = "swift_lint";
 
-/// Findings from one batched `swift-format lint --strict` run.
-///
-/// Every stderr line must be `file:LINE:COL: error: message` for one of `files`. A message that
-/// starts with `[Rule]` is a style finding named by that rule; any other message is a syntax
-/// error. Exit 0 with lines, exit 1 without lines and any other exit are errors, never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swift_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -45,8 +36,6 @@ fn shape(detail: String) -> ParseError {
 
 fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
-    // swift-format on Windows prints `C:/...` for a file the runner passed as `C:\...`, so match
-    // the checked file with the shared reader, which knows both spellings and the drive colon.
     let (file, rest) = located(TOOL, line, files)?;
     let mut parts = rest.splitn(3, ':');
     let (Some(row), Some(col), Some(tail)) = (parts.next(), parts.next(), parts.next()) else {

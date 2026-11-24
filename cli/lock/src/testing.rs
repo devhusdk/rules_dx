@@ -1,19 +1,13 @@
-//! Download fakes for lock step tests.
-
 use std::sync::{Mutex, PoisonError};
 
 use dx_lock::{Error, Fetch};
 
-/// Serves fixture files for the URLs that end with a registered suffix and records every URL it is asked for.
 pub struct FixtureFetch {
     fixtures: Vec<(String, String)>,
     asked: Mutex<Vec<String>>,
 }
 
 impl FixtureFetch {
-    /// Serves the file named by environment variable `env` for each URL that ends with `suffix`.
-    ///
-    /// A full URL is its own suffix.
     #[must_use]
     pub fn new(fixtures: &[(&str, &str)]) -> Self {
         Self {
@@ -25,10 +19,6 @@ impl FixtureFetch {
         }
     }
 
-    /// The bytes of the fixture for `url`.
-    ///
-    /// # Errors
-    /// Fails when no suffix matches `url` and when the fixture cannot be read.
     pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.asked
             .lock()
@@ -43,7 +33,6 @@ impl FixtureFetch {
         std::fs::read(dx_testing::env_file(env)).map_err(|error| Error::new(error.to_string()))
     }
 
-    /// The URLs asked for so far, in order.
     #[must_use]
     pub fn asked(&self) -> Vec<String> {
         self.asked
@@ -59,7 +48,6 @@ impl Fetch for FixtureFetch {
     }
 }
 
-/// Fails every download.
 pub struct NoFetch;
 
 impl Fetch for NoFetch {

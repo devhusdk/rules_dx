@@ -42,7 +42,6 @@ pub enum ValidationError {
     MissingFile { path: String },
 }
 
-/// Checks one workspace-relative path without touching the file system.
 pub fn validate_path(path: &str) -> Result<(), ValidationError> {
     match dx_path::classify(path) {
         None => {}
@@ -104,7 +103,6 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
     }
 }
 
-// Windows drops trailing dots and spaces from a name and treats `name:stream` as `name`.
 fn windows_name(component: &str) -> &str {
     component
         .split(':')

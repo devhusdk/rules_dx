@@ -408,7 +408,6 @@ fn widen_targets(
     })
 }
 
-/// Why a widen could not be planned: a refused argument (exit 2) or a failed edit.
 enum WidenFailure {
     Usage(String),
     Missing(String),

@@ -1,5 +1,3 @@
-//! `release_tool <kind> <args...>`: dispatch for the release generators.
-
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -18,7 +16,6 @@ enum Kind {
     Inventory,
 }
 
-/// How many arguments a kind takes after its name.
 #[derive(Clone, Copy)]
 enum Arity {
     Exactly(usize),
@@ -126,7 +123,6 @@ impl Invocation {
     }
 }
 
-/// Why argv did not parse: no known kind, or a known kind with bad arity.
 #[derive(Debug, PartialEq, Eq)]
 enum ParseError {
     UnknownKind,
@@ -141,7 +137,6 @@ fn spec_for(name: &str) -> Option<&'static KindSpec> {
     KINDS.iter().find(|spec| spec.name == name)
 }
 
-/// Parses `[prog, kind, args...]`.
 fn parse(argv: &[String]) -> Result<Invocation, ParseError> {
     let spec = argv
         .get(1)
@@ -279,7 +274,6 @@ fn kind_name(invocation: &Invocation) -> &'static str {
     }
 }
 
-/// A release generator that could not read its inputs or write its output.
 #[derive(Debug)]
 enum ToolError {
     Bcr(crate::BcrError),
@@ -331,7 +325,6 @@ impl From<crate::NoticeError> for ToolError {
     }
 }
 
-/// Replaces each `@<list>` entry with the newline-separated paths in that file.
 fn expand_text_lists(texts: &[PathBuf]) -> Result<Vec<PathBuf>, PathIoError> {
     let mut out = Vec::with_capacity(texts.len());
     for text in texts {
@@ -407,8 +400,6 @@ fn execute(invocation: &Invocation) -> Result<(), ToolError> {
     Ok(())
 }
 
-/// Runs `release_tool <kind> <args...>` and returns the process exit code.
-/// `argv[0]` is the program name, as in `std::env::args()`.
 #[must_use]
 pub fn release_tool_run(argv: &[String]) -> i32 {
     let invocation = match parse(argv) {

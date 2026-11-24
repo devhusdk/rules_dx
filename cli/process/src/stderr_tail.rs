@@ -1,5 +1,3 @@
-//! The last stretch of a Bazel run's stderr, kept so a failure can be classified.
-
 use std::io::{self, IsTerminal, Write};
 use std::sync::Mutex;
 
@@ -7,7 +5,6 @@ const KEEP_BYTES: usize = 256 * 1024;
 
 static TAIL: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
-/// Serializes tests that clear or read the shared tail.
 #[cfg(test)]
 pub(crate) fn tail_lock() -> std::sync::MutexGuard<'static, ()> {
     static LOCK: Mutex<()> = Mutex::new(());
@@ -15,14 +12,12 @@ pub(crate) fn tail_lock() -> std::sync::MutexGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// Forgets the previous run's stderr.
 pub(crate) fn clear() {
     TAIL.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clear();
 }
 
-/// The stderr of the latest Bazel run; empty before any run.
 pub fn last_bazel_stderr() -> String {
     let tail = TAIL
         .lock()
@@ -30,7 +25,6 @@ pub fn last_bazel_stderr() -> String {
     String::from_utf8_lossy(&tail).into_owned()
 }
 
-/// Whether the program is Bazel.
 pub(crate) fn wanted(program: &std::ffi::OsStr) -> bool {
     let name = std::path::Path::new(program)
         .file_stem()
@@ -39,8 +33,6 @@ pub(crate) fn wanted(program: &std::ffi::OsStr) -> bool {
     name.starts_with("bazel")
 }
 
-/// Whether stderr of this run should be copied. On a terminal that needs Bazel's
-/// escape codes to reach the console, which only Unix terminals are known to handle.
 pub(crate) fn copy_wanted(program: &std::ffi::OsStr) -> bool {
     copy_on(program, io::stderr().is_terminal(), cfg!(unix))
 }
@@ -49,10 +41,6 @@ pub(crate) fn copy_on(program: &std::ffi::OsStr, terminal: bool, unix: bool) -> 
     wanted(program) && (unix || !terminal)
 }
 
-/// Bazel turns colors and curses progress off when stderr is a pipe. When dx copies
-/// stderr on a terminal, this tells Bazel it is on one, with the real width, right
-/// after the command word. Colors and curses then resolve as they would on the
-/// terminal, so a user's own flags and rc choices still win.
 pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
     let columns = terminal_columns();
     let no_color = no_color(
@@ -62,7 +50,6 @@ pub(crate) fn keep_terminal_ui(argv: &[String]) -> Vec<String> {
     keep_ui(argv, columns, no_color)
 }
 
-/// A non-empty `NO_COLOR` turns colors off unless an rc file chose them.
 fn no_color(env: Option<std::ffi::OsString>, rc_chose_color: bool) -> bool {
     env.is_some_and(|value| !value.is_empty()) && !rc_chose_color
 }
@@ -110,7 +97,6 @@ fn terminal_columns() -> Option<u16> {
     None
 }
 
-/// Writes to stderr and keeps the last `KEEP_BYTES` written.
 pub(crate) struct Tee;
 
 impl Write for Tee {

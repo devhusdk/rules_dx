@@ -38,7 +38,6 @@ func TestNames(t *testing.T) {
 	}
 }
 
-// The lists mirror _DOCKERFILE_ACCEPTED and _DOCKERFILE_REJECTED in core/quality/sources_tests.bzl.
 func TestDockerfileNames(t *testing.T) {
 	for _, name := range []string{
 		"Dockerfile",

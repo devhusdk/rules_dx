@@ -9,11 +9,6 @@ use crate::ToolSeverity;
 
 const TOOL: &str = "cue";
 
-/// Exit 0 is clean. Exit 1 prints a diff for unformatted files or locates syntax errors on stderr.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cue(
     stdout: &[u8],
     stderr: &[u8],
@@ -87,14 +82,6 @@ fn syntax_errors(stderr: &str, files: &[&str], cwd: &Path) -> Result<Vec<FileFin
     Ok(findings)
 }
 
-/// `cue vet -c=false -E`. Exit 0 with no output is clean. Exit 1 prints one block per error:
-/// a message line, then indented `path:row:col` positions. Each block becomes one finding at its
-/// first position inside `owned`, else at its first position inside `known` (a dependency, which
-/// the caller drops or reports). Any other outcome is an error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cue_vet(
     stdout: &[u8],
     stderr: &[u8],

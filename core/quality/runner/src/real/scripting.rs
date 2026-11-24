@@ -1,11 +1,11 @@
 use quality_adapter::parsers::FileFinding;
-use quality_adapter::{commands, parsers};
+use quality_adapter::{commands, dockerfile_guard, parsers};
 
 use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
 use super::{
     JULIALINT_STANDARD, PKL_LSP_HOME_REL, Path, PathBuf, RealBackend, RealTool, RunnerError,
-    execution, parsed, with_stderr,
+    execution, missing_tier_base, parsed, with_stderr,
 };
 
 /// The bundled standard phpcs runs when the consumer binds no config.
@@ -94,7 +94,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         id: "hadolint",
-        run: lint_family,
+        run: hadolint,
     },
     ToolDef {
         id: "checkmake",
@@ -345,7 +345,7 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let tool = call.tool;
     let scratch = &call.staged.scratch;
     let pairs = &call.staged.pairs;
-    let config = call.config;
+    let config = call.config.ok_or_else(|| missing_tier_base(tool_id))?;
     // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
     let root = real_launcher(scratch.root());
     if !root.is_dir() {
@@ -373,28 +373,19 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
         .iter()
         .any(|(rel, _)| rel.starts_with("dx-luals/mod/"))
         .then(|| root.join("dx-luals/mod"));
-    // A consumer config is a flat .luarc.json object; .jsonc is not read.
-    let consumer: Option<serde_json::Value> = match config {
-        Some(path) => {
-            let text = std::fs::read_to_string(path)
-                .map_err(|err| execution(tool_id, format!("read luals config: {err}")))?;
-            Some(serde_json::from_str(&text).map_err(|err| {
-                execution(
-                    tool_id,
-                    format!("luals config is not plain JSON (.jsonc is unsupported): {err}"),
-                )
-            })?)
-        }
-        None => None,
-    };
+    // The bound config is a flat .luarc.json object; .jsonc is not read.
+    let text = std::fs::read_to_string(config)
+        .map_err(|err| execution(tool_id, format!("read luals config: {err}")))?;
+    let consumer: serde_json::Value = serde_json::from_str(&text).map_err(|err| {
+        execution(
+            tool_id,
+            format!("luals config is not plain JSON (.jsonc is unsupported): {err}"),
+        )
+    })?;
     let luarc = work.join("luarc.json");
     std::fs::write(
         &luarc,
-        commands::luals_luarc(
-            consumer.as_ref(),
-            library.as_deref(),
-            &["dx-luals", ".dx-luals"],
-        ),
+        commands::luals_luarc(&consumer, library.as_deref(), &["dx-luals", ".dx-luals"]),
     )
     .map_err(|err| execution(tool_id, format!("write luals config: {err}")))?;
     let report = work.join("check.json");
@@ -739,6 +730,22 @@ fn rubocop(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
         tool_id,
         parsers::parse_rubocop(&out.stdout, &out.stderr, out.code, &strs, scratch.root()),
     )
+}
+
+/// hadolint, plus the Dockerfile guard when the family passes `strict`.
+fn hadolint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
+    let mut findings = lint_family(backend, call)?;
+    if !call.tool.args.iter().any(|arg| arg == "strict") {
+        return Ok(findings);
+    }
+    let (refs, names) = paths(call);
+    for (name, path) in names.iter().zip(refs) {
+        let bytes = std::fs::read(path)
+            .map_err(|err| execution(call.tool_id, format!("read {name}: {err}")))?;
+        let source = String::from_utf8_lossy(&bytes);
+        findings.extend(dockerfile_guard::dockerfile_guard(name, &source));
+    }
+    Ok(findings)
 }
 
 fn lint_family(

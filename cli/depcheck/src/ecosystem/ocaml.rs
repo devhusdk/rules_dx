@@ -5,7 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::put;
 
-/// Packages that build, document or format the project and never appear in a `libraries` field.
 const TOOLS: [&str; 8] = [
     "ocaml",
     "dune",
@@ -17,12 +16,6 @@ const TOOLS: [&str; 8] = [
     "utop",
 ];
 
-/// Reads the `depends` and `depopts` lists of an opam file. A `with-test` filter marks a
-/// dependency dev, `build` marks it build, and `depopts` entries are optional.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_ocaml_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut deps = BTreeMap::new();
@@ -57,11 +50,6 @@ pub fn parse_ocaml_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, De
     Ok(deps)
 }
 
-/// Maps each package of an `opam.locked` file to its pinned version.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_ocaml_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let version_re = regex::Regex::new(r#"=\s*"([^"]+)""#).map_err(DepcheckError::LockRegex)?;
@@ -76,7 +64,6 @@ pub fn parse_ocaml_lock(path: &Path) -> Result<BTreeMap<String, String>, Depchec
         .collect())
 }
 
-/// The `"name" {filter}` entries of the `key: [ ... ]` list, with the filter text between braces.
 fn list_entries(text: &str, key: &str) -> Vec<(String, String)> {
     let text = strip_comments(text);
     let Some(list) = find_list(&text, key).and_then(|start| text.get(start..)) else {
@@ -124,7 +111,6 @@ fn list_entries(text: &str, key: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Byte offset just past the `[` of `key: [`.
 fn find_list(text: &str, key: &str) -> Option<usize> {
     let re = regex::Regex::new(&format!(r"(?m)^\s*{}\s*:\s*\[", regex::escape(key))).ok()?;
     re.find(text).map(|found| found.end())
@@ -143,7 +129,6 @@ fn has_flag(filter: &str, flags: &[&str]) -> bool {
         .any(|word| flags.contains(&word))
 }
 
-/// Turns `>= "1.0" & < "2.0"` into `>= 1.0, < 2.0`; no version constraint means any.
 fn opam_spec(filter: &str) -> String {
     let re = regex::Regex::new(r#"(>=|<=|!=|<|>|=)\s*"([^"]+)""#);
     let Ok(re) = re else {

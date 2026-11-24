@@ -1,6 +1,3 @@
-//! Runs a language server over stdio, opens files and collects the
-//! diagnostics it publishes, for servers that have no batch mode.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod entry;
@@ -76,8 +73,6 @@ pub fn file_uri(path: &Path) -> String {
     uri
 }
 
-/// Exception header lines from a JVM server's stderr, without stack frames,
-/// first occurrence only, at most `limit` lines.
 #[must_use]
 pub fn exception_headers(stderr: &str, limit: usize) -> Vec<String> {
     let mut headers: Vec<String> = Vec::new();
@@ -97,22 +92,12 @@ pub fn exception_headers(stderr: &str, limit: usize) -> Vec<String> {
     headers
 }
 
-/// Writes one framed LSP message.
-///
-/// # Errors
-///
-/// Returns the I/O error from writing or flushing.
 pub fn write_message(out: &mut impl Write, message: &Value) -> std::io::Result<()> {
     let body = message.to_string();
     write!(out, "Content-Length: {}\r\n\r\n{}", body.len(), body)?;
     out.flush()
 }
 
-/// Reads one framed LSP message.
-///
-/// # Errors
-///
-/// Returns the I/O error from reading or a malformed frame.
 pub fn read_message(input: &mut impl BufRead) -> std::io::Result<Option<Value>> {
     let mut length = None;
     loop {
@@ -196,13 +181,6 @@ fn diagnostics_from(file: &Path, params: &Value) -> Vec<Diagnostic> {
         .collect()
 }
 
-/// Drives one server session. `files` must be absolute paths.
-/// Fails if the server exits early or does not publish for every file
-/// before the timeout.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn check<R, W>(
     server_out: R,
     mut server_in: W,

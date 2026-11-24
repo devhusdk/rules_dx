@@ -11,21 +11,12 @@ pub struct QueryResult {
 }
 
 pub trait QueryRunner {
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult>;
 
-    /// Runs one capturing `bazel info` for output roots.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     fn run_info(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
         self.run_query(argv, cwd)
     }
 
-    /// Free bytes on the disk holding `path`, or `None` when unknown.
     fn free_disk_bytes(&self, _path: &Path) -> Option<u64> {
         None
     }
@@ -51,9 +42,7 @@ impl QueryRunner for NeverQuery {
 pub struct ResolvedScope {
     pub scope: Scope,
     pub targets: Vec<String>,
-    /// `dx.toml` exclude patterns that fall inside `targets`; Bazel gets them as `-pattern`.
     pub excluded: Vec<String>,
-    /// Targets named on the command line that an exclude pattern covers; they still run.
     pub kept: Vec<String>,
 }
 
@@ -181,22 +170,17 @@ impl From<ResolveError> for dx_error::DxError {
 const EXCERPT_LINES: usize = 20;
 const EXCERPT_BYTES: usize = 4096;
 
-/// Why one Bazel query did not yield a selection.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum QueryFailure {
-    /// dx could not build the query or read the scope it asks about.
     #[error("{detail}")]
     Prepare { detail: String },
-    /// The query process did not start.
     #[error("could not launch Bazel: {detail}")]
     Launch { detail: String },
-    /// The query ran and did not succeed.
     #[error("{}", exit_text(*.status, .excerpt.as_ref()))]
     Exit {
         status: Option<i32>,
         excerpt: Option<dx_output::Excerpt>,
     },
-    /// The query exited 36 while a disk it writes to was nearly full.
     #[error("{}", crate::disk::full_message(*.status, .path, *.free))]
     DiskFull {
         status: i32,
@@ -204,7 +188,6 @@ pub enum QueryFailure {
         free: u64,
         excerpt: Option<dx_output::Excerpt>,
     },
-    /// The query succeeded but its output is unusable.
     #[error("{detail}")]
     Output { detail: String },
 }
@@ -221,7 +204,6 @@ fn exit_text(status: Option<i32>, excerpt: Option<&dx_output::Excerpt>) -> Strin
 }
 
 impl QueryFailure {
-    /// The failure of a query that ran, with its native status and a bounded stderr tail.
     fn exited(result: &QueryResult) -> Self {
         QueryFailure::Exit {
             status: result.code,
@@ -229,7 +211,6 @@ impl QueryFailure {
         }
     }
 
-    /// The failure of a query that never started.
     #[must_use]
     pub fn launch(error: &io::Error) -> Self {
         let mut detail = error.to_string();
@@ -262,7 +243,6 @@ impl QueryFailure {
 }
 
 impl ResolveError {
-    /// A failed query named by its expression.
     #[must_use]
     pub fn query(label: &str, failure: QueryFailure) -> Self {
         ResolveError::QueryFailed {
@@ -295,11 +275,6 @@ impl ResolveError {
         }
     }
 
-    /// Runs one query and turns a launch error or an unsuccessful exit into a typed failure.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn run(
         runner: &dyn QueryRunner,
         argv: &[String],

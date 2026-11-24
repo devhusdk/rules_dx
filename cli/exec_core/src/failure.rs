@@ -9,7 +9,6 @@ use std::io::Write;
 pub const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
 pub const CODE_INVALID_SCOPE: &str = "invalid_scope";
 pub const CODE_NO_OWNER: &str = "no_owner";
-/// A command refused in the main checkout once `dx.primary` is set.
 pub const CODE_MAIN_CHECKOUT: &str = "main_checkout";
 pub const CODE_NO_TESTS: &str = "no_tests";
 pub const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
@@ -29,7 +28,6 @@ pub const CODE_NO_TOOLCHAIN: &str = "no_toolchain";
 pub const CODE_MODULE_NOT_FOUND: &str = "module_not_found";
 pub const CODE_PATH_TOO_LONG: &str = "path_too_long";
 
-/// The class of one failure, reported as the `cause` of its `error` event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cause {
     Input,
@@ -68,7 +66,6 @@ impl Cause {
         }
     }
 
-    /// The cause an error code belongs to.
     pub fn of(code: &str) -> Cause {
         match code {
             "invalid_arguments"
@@ -105,7 +102,6 @@ impl Cause {
     }
 }
 
-/// One failure on its way to stderr and, in JSON mode, the terminal event pair.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Failure {
     pub code: String,
@@ -148,7 +144,6 @@ impl Failure {
             && self.exit == pre_exec_code()
     }
 
-    /// The failure of scope resolution, keeping a query's native status and excerpt.
     pub fn resolve(error: &ResolveError) -> Self {
         let (code, exit) = match error {
             ResolveError::QueryFailed {
@@ -236,7 +231,6 @@ fn next_hint(failure: &Failure) -> Option<String> {
         .or_else(|| crate::guidance::next_action(&failure.code).map(str::to_owned))
 }
 
-/// The printed next step without its `next: ` prefix, for the `error` event.
 fn next_step(failure: &Failure) -> Option<String> {
     if failure.shows_usage() {
         return None;
@@ -245,7 +239,6 @@ fn next_step(failure: &Failure) -> Option<String> {
     Some(hint.strip_prefix("next: ").unwrap_or(&hint).to_owned())
 }
 
-/// Builds the `error` event of one failure; an event that fails to build becomes `invalid_result`.
 pub fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
     let cause = failure.cause();
     let next = next_step(failure);
@@ -272,7 +265,6 @@ pub fn error_event_of(failure: &Failure) -> Result<serde_json::Value, i32> {
         .map_err(|error| stdout_output_code(&error))
 }
 
-/// Writes the `error` event and the terminal `command_finished` for one failure.
 pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(), i32> {
     emit_event(out, &error_event_of(failure)?)?;
     emit_event(
@@ -290,9 +282,7 @@ pub fn emit_failure_events(out: &mut dyn Write, failure: &Failure) -> Result<(),
 
 static USAGE_COMMAND: std::sync::OnceLock<dx_plan::args::Command> = std::sync::OnceLock::new();
 
-/// Records the command whose usage a later argument error prints.
 pub fn set_usage_command(command: dx_plan::args::Command) {
-    // The first recorded command wins; a later one is dropped.
     USAGE_COMMAND.set(command).unwrap_or(());
 }
 
@@ -303,7 +293,6 @@ fn usage_text() -> String {
     }
 }
 
-/// Writes the cancellation line for a stop signal, closes the JSON stream, and returns its exit code.
 pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
     dx_output::write_stderr(
         err,
@@ -320,7 +309,6 @@ pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, sign
     exit
 }
 
-/// Ends a run that could not take a build slot: a stop signal cancels, a busy wait fails with `slots_busy`.
 pub fn slot_stop(
     output: OutputMode,
     out: &mut dyn Write,
@@ -353,11 +341,9 @@ fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
 
 fn write_panic_events(out: &mut dyn Write, message: &str) {
     let failure = Failure::new("internal_error", message, 101).without_usage();
-    // The panic exit code stands whether or not stdout still accepts the events.
     emit_failure_events(out, &failure).unwrap_or(());
 }
 
-/// Makes a panic on the main thread close the JSON stream with `internal_error`.
 pub fn install_panic_events() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -372,7 +358,6 @@ fn write_panic_hint(err: &mut dyn Write) {
     dx_output::write_stderr(err, format_args!("dx: {}\n", dx_process::BUG_REPORT_HINT));
 }
 
-/// Prints where to report a bug after the default panic message.
 pub fn install_panic_hint() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -381,7 +366,6 @@ pub fn install_panic_hint() {
     }));
 }
 
-/// Writes one failure to stderr and, in JSON mode, to stdout; a stop signal turns it into a cancellation.
 pub fn report_failure(
     output: OutputMode,
     out: &mut dyn Write,

@@ -1,25 +1,13 @@
-//! Policy: JVM tools must read JavaInfo classpaths only through
-//! `jvm_aux_jars`, which keeps compile-only (neverlink) jars. A tool that reads
-//! `transitive_runtime_jars` directly silently loses them.
-//!
-//! Scans `core/quality/*.bzl`, `core/quality/families/*.bzl`, `java/private/quality`,
-//! `kotlin/private/quality` and `scala/private/quality` (the data); JVM aspect
-//! code moved into another subpackage must extend the globs.
-
 use std::path::Path;
 
 use dx_testing::runfiles_root;
 
-/// Functions allowed to read JavaInfo classpaths. Add a function here only with
-/// a justification; prefer calling `jvm_aux_jars(java_info, owned)`.
 const ALLOWED_FUNCTIONS: &[&str] = &[
     "jvm_aux_jars",
     "_jacoco_runtime_jars",
-    // Dependency analysis reads the compile classpath to attribute used jars to owners.
     "_indirect_jars",
     "unused_deps_map",
     "_analyzer",
-    // Compiler and plugin jars come from toolchain targets.
     "_kotlinc_check",
     "_scalac_check",
     "scalac_toolchain_jars",
@@ -33,7 +21,6 @@ const FORBIDDEN: &[&str] = &[
     "compilation_info.compilation_classpath",
 ];
 
-/// Returns `(line, token)` for each forbidden token outside allowed functions.
 fn violations(src: &str) -> Vec<(usize, &'static str)> {
     let mut out = Vec::new();
     let mut allowed = false;

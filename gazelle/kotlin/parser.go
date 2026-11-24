@@ -12,8 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return kotlin.Language() })
 
-// topLevel returns the top-level nodes of the given type, looking inside
-// import_list for import headers.
 func topLevel(tree *treesitter.Tree, kind string) []*treesitter.Node {
 	var out []*treesitter.Node
 	if tree.Root == nil {
@@ -34,8 +32,6 @@ func topLevel(tree *treesitter.Tree, kind string) []*treesitter.Node {
 	return out
 }
 
-// dotted joins the simple identifier segments of an identifier node with dots,
-// dropping comments and the backticks around quoted segments.
 func dotted(tree *treesitter.Tree, n *treesitter.Node) string {
 	var segs []string
 	for _, c := range n.Children() {
@@ -55,9 +51,6 @@ func identifier(tree *treesitter.Tree, n *treesitter.Node) (string, bool) {
 	return "", false
 }
 
-// ParseImports returns the sorted, deduplicated import identities of content.
-// Imports before a syntax error are kept. Several imports on one line are all
-// recognized.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -85,8 +78,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// ParsePackage returns the package name, or an error when the file declares
-// more than one package.
 func ParsePackage(content []byte) (string, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -99,8 +90,6 @@ func ParsePackage(content []byte) (string, error) {
 			names = append(names, name)
 		}
 	}
-	// The grammar allows one package header; a second clause is not a node of
-	// its own and parses as an expression that starts with the identifier package.
 	for _, c := range tree.Root.Children() {
 		if tree.Type(c) != "package_header" && startsWithPackage(tree, c) {
 			names = append(names, "")
@@ -130,8 +119,6 @@ func startsWithPackage(tree *treesitter.Tree, n *treesitter.Node) bool {
 	return tree.Text(n) == "package"
 }
 
-// DefinesMain reports whether content has a top-level fun main, or a
-// @JvmStatic main inside an object or companion object.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -158,7 +145,6 @@ func DefinesMain(content []byte) bool {
 	return visit(tree.Root, false, false)
 }
 
-// isMain reports whether fn is named main and is not an extension function.
 func isMain(tree *treesitter.Tree, fn *treesitter.Node) bool {
 	name := false
 	for _, c := range fn.Children() {

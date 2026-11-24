@@ -50,7 +50,6 @@ pub(crate) fn push_version(pkgs: &mut crate::LockVersions, name: String, ver: St
     }
 }
 
-/// Reads a rules_dx JSON lock: the `name` and `version` of each entry of `packages`.
 pub(crate) fn lock_packages(path: &Path) -> Result<Vec<(String, Option<String>)>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
@@ -70,24 +69,16 @@ pub(crate) fn lock_packages(path: &Path) -> Result<Vec<(String, Option<String>)>
         .collect())
 }
 
-/// Lowercase-only package key (Go, JVM, .NET, JS/TS, Ruby, Rust).
 #[must_use]
 pub fn normalize_lower(name: &str) -> String {
     name.to_lowercase()
 }
 
-/// Lowercase package key with `-` folded to `_` (C/C++).
 #[must_use]
 pub fn normalize_snake(name: &str) -> String {
     name.to_lowercase().replace('-', "_")
 }
 
-/// Parses a paren-style lock (a paket or bundler lock): every 4-space
-/// indented `name (version)` line, keyed by `normalize_lower`.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_paren_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let re = regex::Regex::new(r"^    ([A-Za-z0-9_.\-]+) \(([^)]+)\)")

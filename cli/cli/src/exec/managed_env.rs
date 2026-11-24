@@ -310,7 +310,6 @@ mod tests {
         let replaced = stage_env_generation(&workspace, &id, &[env_entry("k", "v", &second)]);
         let linked = stage_env_generation(&workspace, &id, &[env_entry("fresh", "v", &second)]);
         set_mode(&dir.join("artifacts"), 0o755);
-        // Root may change a read-only directory, so for root both stages land.
         if dx_test_scratch::running_as_root() {
             replaced.expect("root replaces");
             linked.expect("root links");

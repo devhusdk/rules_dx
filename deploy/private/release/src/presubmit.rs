@@ -1,4 +1,3 @@
-/// Platforms of the machine this binary runs on, as named in presubmit.yml.
 #[must_use]
 pub fn host_platforms() -> &'static [&'static str] {
     if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
@@ -59,8 +58,6 @@ fn selected<'a>(tasks: &'a [Task], host: &'a [&str]) -> impl Iterator<Item = &'a
     })
 }
 
-/// The (verb, target) pairs of the tasks that run on `host`, in file order
-/// without duplicates. The verb is `run`, `test` or `build`.
 #[must_use]
 pub fn host_targets(presubmit: &str, host: &[&str]) -> Vec<(String, String)> {
     let tasks = tasks(presubmit);
@@ -87,7 +84,6 @@ pub fn host_targets(presubmit: &str, host: &[&str]) -> Vec<(String, String)> {
     pairs
 }
 
-/// The `run_flags` of the tasks that run on `host`.
 #[must_use]
 pub fn host_run_flags(presubmit: &str, host: &[&str]) -> Vec<String> {
     let tasks = tasks(presubmit);
@@ -102,7 +98,6 @@ pub fn host_run_flags(presubmit: &str, host: &[&str]) -> Vec<String> {
     flags
 }
 
-/// The `build_flags` of the tasks that run on `host` and build `target`.
 #[must_use]
 pub fn host_build_flags(presubmit: &str, host: &[&str], target: &str) -> Vec<String> {
     let tasks = tasks(presubmit);

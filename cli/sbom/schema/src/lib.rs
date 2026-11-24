@@ -1,14 +1,9 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! Test-only SBOM checks: the vendored official SPDX 2.3 and `CycloneDX` 1.6 JSON schemas plus the
-//! `dx_sbom` graph rules.
-
 use serde_json::Value;
 
-/// The SPDX 2.3 JSON schema (draft-07), vendored from spdx/spdx-spec at tag v2.3.
 pub const SPDX_2_3_SCHEMA: &str = include_str!("../spdx-schema.json");
 
-/// Returns every SPDX 2.3 JSON schema violation in `instance`, as `<path>: <message>` lines.
 #[must_use]
 pub fn schema_errors(instance: &Value) -> Vec<String> {
     let schema: Value = match serde_json::from_str(SPDX_2_3_SCHEMA) {
@@ -25,7 +20,6 @@ pub fn schema_errors(instance: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Checks SPDX JSON text against the 2.3 schema, then against [`dx_sbom::reference_errors`].
 #[must_use]
 pub fn spdx_errors(text: &str) -> Vec<String> {
     let value: Value = match serde_json::from_str(text) {
@@ -40,15 +34,12 @@ pub fn spdx_errors(text: &str) -> Vec<String> {
     errors
 }
 
-/// The `CycloneDX` 1.6 JSON schema (draft-07) and the two files it references, vendored from
-/// CycloneDX/specification at tag 1.6.
 pub const CYCLONEDX_1_6_SCHEMA: &str = include_str!("../bom-1.6.schema.json");
 
 const CYCLONEDX_SPDX_SCHEMA: &str = include_str!("../spdx.schema.json");
 
 const CYCLONEDX_JSF_SCHEMA: &str = include_str!("../jsf-0.82.schema.json");
 
-/// Returns every `CycloneDX` 1.6 JSON schema violation in `instance`, as `<path>: <message>` lines.
 #[must_use]
 pub fn cyclonedx_schema_errors(instance: &Value) -> Vec<String> {
     let parse = |text: &str| serde_json::from_str::<Value>(text).map_err(|error| error.to_string());
@@ -87,8 +78,6 @@ pub fn cyclonedx_schema_errors(instance: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Checks `CycloneDX` JSON text against the 1.6 schema, then against
-/// [`dx_sbom::cyclonedx::reference_errors`].
 #[must_use]
 pub fn cyclonedx_errors(text: &str) -> Vec<String> {
     let value: Value = match serde_json::from_str(text) {

@@ -19,19 +19,14 @@ import (
 
 const languageName = "ownership"
 
-// The quality wrapper of an oci_image is named after the image with ociQualitySuffix.
-// An appimage_package is named after its desktop entry with appimageSuffix.
 const (
 	appimageKind    = "appimage_package"
 	appimageSuffix  = "_appimage"
 	appimageVersion = "1.0"
 )
 
-// appimageNotices are the file names an appimage_package or msix_package takes as notice.
 var appimageNotices = []string{"COPYING", "LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE", "NOTICE.md", "NOTICE.txt"}
 
-// An msix_package is named after its binary with msixSuffix and reads
-// msixManifest.
 const (
 	msixKind     = "msix_package"
 	msixSuffix   = "_msix"
@@ -45,13 +40,11 @@ const (
 )
 
 type family struct {
-	kind     string
-	target   string
-	defs     string
-	isSource func(name string) bool
-	// sniff, when set, must also accept the first sniffBytes of the file.
-	sniff func(head []byte) bool
-	// buildable, when set, must accept the directory's matching files together.
+	kind      string
+	target    string
+	defs      string
+	isSource  func(name string) bool
+	sniff     func(head []byte) bool
 	buildable func(dir string, srcs []string) bool
 }
 
@@ -86,7 +79,6 @@ var families = []family{
 	{"fortran_library", "fortran", "fortran:defs.bzl", isFortran, isFortranModule, fortranSelfContained},
 }
 
-// isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
 func isDockerfile(name string) bool {
 	if strings.HasSuffix(name, ".dockerignore") {
 		return false
@@ -136,7 +128,6 @@ func isHelmChart(name string) bool {
 	return name == "Chart.yaml"
 }
 
-// isFortran matches the file_extensions in fortran/lang.json.
 func isFortran(name string) bool {
 	for _, suffix := range []string{".f", ".f03", ".f08", ".f90", ".f95"} {
 		if strings.HasSuffix(name, suffix) {
@@ -158,8 +149,6 @@ func isAPISpec(head []byte) bool { return apiSpecRoot.Match(head) }
 
 func isFortranModule(head []byte) bool { return !fortranProgram.Match(head) }
 
-// fortranSelfContained reports whether every use statement in srcs names an
-// intrinsic module.
 func fortranSelfContained(dir string, srcs []string) bool {
 	for _, name := range srcs {
 		data, err := os.ReadFile(filepath.Join(dir, name))
@@ -185,7 +174,6 @@ func fortranUsesOnlyIntrinsics(src []byte) bool {
 
 func isCloudFormation(head []byte) bool { return cfnTemplate.Match(head) }
 
-// matches reports whether the file belongs to the family.
 func (f family) matches(dir, name string) bool {
 	if !f.isSource(path.Base(name)) {
 		return false
@@ -284,7 +272,6 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	})
 }
 
-// appxManifest is the part of a Package.appxmanifest an msix_package takes.
 type appxManifest struct {
 	Identity struct {
 		Name      string `xml:"Name,attr"`
@@ -295,9 +282,6 @@ type appxManifest struct {
 	Logo        string `xml:"Properties>Logo"`
 }
 
-// msixRule returns an msix_package for a Package.appxmanifest whose identity
-// is complete and whose logo is a PNG path inside the package, when a notice
-// file sits beside it and the package has exactly one *_binary rule.
 func msixRule(args language.GenerateArgs) *rule.Rule {
 	if !slices.Contains(args.RegularFiles, msixManifest) {
 		return nil
@@ -335,21 +319,16 @@ func msixRule(args language.GenerateArgs) *rule.Rule {
 	return r
 }
 
-// handwrittenMsix reports whether the package already has an msix_package
-// under another name for the identity.
 func handwrittenMsix(file *rule.File, binary, identity string) bool {
 	return file != nil && slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
 		return r.Kind() == msixKind && r.Name() != binary+msixSuffix && r.AttrString("identity_name") == identity
 	})
 }
 
-// msixStale reports whether existing is a generated msix_package whose
-// Package.appxmanifest is gone.
 func msixStale(existing *rule.Rule, files []string) bool {
 	return existing.Kind() == msixKind && existing.Name() == strings.TrimPrefix(existing.AttrString("binary"), ":")+msixSuffix && !slices.Contains(files, msixManifest)
 }
 
-// noticeFiles lists the notice files among files, sorted.
 func noticeFiles(files []string) []string {
 	var notices []string
 	for _, name := range files {
@@ -361,9 +340,6 @@ func noticeFiles(files []string) []string {
 	return notices
 }
 
-// appimageRules returns an appimage_package for each <name>.desktop file that
-// has a <name>.png or <name>.svg icon and a notice file next to it, when the
-// package has exactly one *_binary rule.
 func appimageRules(args language.GenerateArgs) []*rule.Rule {
 	notices := noticeFiles(args.RegularFiles)
 	if len(notices) == 0 {
@@ -401,8 +377,6 @@ func appimageRules(args language.GenerateArgs) []*rule.Rule {
 	return out
 }
 
-// soleBinary names the one *_binary rule the package declares or another
-// language generates for it, or returns "" when there is not exactly one.
 func soleBinary(args language.GenerateArgs) string {
 	names := map[string]bool{}
 	add := func(r *rule.Rule) {
@@ -427,8 +401,6 @@ func soleBinary(args language.GenerateArgs) string {
 	return ""
 }
 
-// handwrittenAppimage reports whether the package already has an
-// appimage_package under another name for the desktop file.
 func handwrittenAppimage(file *rule.File, desktop string) bool {
 	want := strings.TrimSuffix(desktop, ".desktop") + appimageSuffix
 	return file != nil && slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
@@ -436,14 +408,11 @@ func handwrittenAppimage(file *rule.File, desktop string) bool {
 	})
 }
 
-// appimageStale reports whether existing is a generated appimage_package whose
-// desktop file is gone.
 func appimageStale(existing *rule.Rule, files []string) bool {
 	desktop := existing.AttrString("desktop")
 	return existing.Kind() == appimageKind && existing.Name() == strings.TrimSuffix(desktop, ".desktop")+appimageSuffix && !slices.Contains(files, desktop)
 }
 
-// ociImageNames lists the oci_image rules the BUILD file declares.
 func ociImageNames(file *rule.File) []string {
 	if file == nil {
 		return nil
@@ -458,8 +427,6 @@ func ociImageNames(file *rule.File) []string {
 	return names
 }
 
-// ociStale reports whether existing is a quality wrapper for an image the
-// package no longer declares.
 func ociStale(existing *rule.Rule, images []string) bool {
 	if existing.Kind() != ociQualityKind || !strings.HasSuffix(existing.Name(), ociQualitySuffix) {
 		return false
@@ -468,8 +435,6 @@ func ociStale(existing *rule.Rule, images []string) bool {
 	return existing.AttrString("image") == ":"+image && !slices.Contains(images, image)
 }
 
-// handwritten reports whether the package already has a rule of the kind under
-// another name that lists one of the files, which then owns them.
 func handwritten(file *rule.File, f family, srcs []string) bool {
 	return file != nil && slices.ContainsFunc(file.Rules, func(r *rule.Rule) bool {
 		return r.Kind() == f.kind && r.Name() != f.target && slices.ContainsFunc(r.AttrStrings("srcs"), func(s string) bool { return slices.Contains(srcs, s) })

@@ -1,5 +1,3 @@
-//! Test fixtures the prune tests share.
-
 use std::fs;
 use std::path::{Path, PathBuf};
 

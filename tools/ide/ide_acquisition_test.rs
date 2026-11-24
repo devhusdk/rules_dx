@@ -55,7 +55,6 @@ fn ide_acquisition_answers_version() {
     }
 }
 
-/// Child of `nonzero_exit_is_rejected`: prints a version then fails.
 #[test]
 fn fake_tool() {
     if std::env::var_os("DX_IDE_FAKE_TOOL").is_some() {

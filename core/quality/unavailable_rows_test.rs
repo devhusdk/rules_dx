@@ -1,9 +1,5 @@
-//! A tool whose alias resolves to `dx_unavailable_tool` on windows_arm64 must not be listed
-//! for that platform in any `families/*_tools.bzl` row.
-
 use dx_testing::runfiles_root;
 
-/// Names of `<name>_tool` and `<name>_source` aliases that select a `<name>_unsupported` stub on windows_arm64.
 fn unavailable_tools(build: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut name: Option<String> = None;
@@ -30,7 +26,6 @@ fn unavailable_tools(build: &str) -> Vec<String> {
     out
 }
 
-/// Lines of `rows` whose `tool(` row has `id` and a windows_arm64 platform entry.
 fn offending_rows(rows: &str, id: &str) -> Vec<String> {
     let mut current = String::new();
     let mut out = Vec::new();

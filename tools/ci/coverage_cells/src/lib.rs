@@ -1,17 +1,9 @@
-//! Aggregates per-cell `coverage` events into one required verdict.
-//!
-//! Each input line is a `dx coverage` NDJSON `coverage` event that the workflow
-//! extended with `sha` and `collector`. Every expected cell must report exactly
-//! once, at the expected SHA, with the same collector, and with covered equal to
-//! eligible over a non-empty denominator.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-/// Expected cell names from a `cells.txt` body (comments and blanks skipped).
 pub fn expected_cells(text: &str) -> Vec<String> {
     text.lines()
         .map(str::trim)
@@ -24,7 +16,6 @@ fn number(event: &Value, key: &str) -> Option<u64> {
     event.get(key).and_then(Value::as_u64)
 }
 
-/// Returns every reason the aggregate fails; empty means it passes.
 pub fn aggregate(expected: &[String], sha: &str, ndjson: &str) -> Vec<String> {
     let mut errors = Vec::new();
     let mut by_cell: BTreeMap<String, Vec<Value>> = BTreeMap::new();

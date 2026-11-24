@@ -1,6 +1,5 @@
 """Coverage source manifests from the instrumented files of top-level targets."""
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 DX_COVERAGE_SOURCES_OUTPUT_GROUP = "dx_coverage_sources"

@@ -201,7 +201,6 @@ fn dot_dot_names_are_refused_in_both_formats() {
     }
 }
 
-/// One tar entry of any type; `link` is the symlink or hardlink target.
 type TarEntry<'a> = (&'a str, tar::EntryType, &'a str, &'a [u8], u32);
 
 fn tar_entries(path: &Path, entries: &[TarEntry<'_>]) {
@@ -1007,7 +1006,6 @@ fn tar_stream_checks_member_names() {
     }
 }
 
-/// A ustar stream whose names and link targets go into the header verbatim, so `./` prefixes survive.
 fn raw_tar(entries: &[(&str, tar::EntryType, &str, &[u8])]) -> Vec<u8> {
     let mut builder = tar::Builder::new(Vec::new());
     for (name, kind, link, data) in entries {

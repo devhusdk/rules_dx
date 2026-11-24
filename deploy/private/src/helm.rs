@@ -1,5 +1,3 @@
-//! Helm chart publisher: chart staging, lint, package and the OCI push.
-
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, PUBLISH_TIMEOUT, deploy_build_mode, env_or_empty,
     exit_text, pages_redact, placeholder_refusal, resolve_version, scrubbed_command,
@@ -9,7 +7,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// One chart file: its path inside the chart and its runfiles location.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HelmFile {
@@ -17,7 +14,6 @@ pub struct HelmFile {
     pub rloc: String,
 }
 
-/// Everything a helm_chart_deploy target pins.
 pub struct HelmLaunch<'a> {
     pub deploy_name: &'a str,
     pub version: &'a str,
@@ -27,7 +23,6 @@ pub struct HelmLaunch<'a> {
     pub files: &'a [HelmFile],
 }
 
-/// Owner approval gate for helm_chart_deploy; it uses the OCI credentials.
 pub(crate) const HELM_GATE: OwnerGate = OwnerGate {
     tool: "helm_chart_deploy",
     action: "push",
@@ -43,7 +38,6 @@ fn chart_yaml_value(text: &str, key: &str) -> Option<String> {
     })
 }
 
-/// Why a chart cannot be staged or does not name a valid chart.
 #[derive(Debug)]
 pub enum HelmError {
     BadName { name: String },
@@ -87,7 +81,6 @@ impl std::error::Error for HelmError {
     }
 }
 
-/// Reads the chart name and version from a Chart.yaml document.
 pub fn helm_chart_identity(text: &str) -> Result<(String, String), HelmError> {
     let name = chart_yaml_value(text, "name").unwrap_or_default();
     let version = chart_yaml_value(text, "version").unwrap_or_default();
@@ -151,7 +144,6 @@ impl Helm {
         scrubbed_command(&self.program, &[PUBLISH_CHILD_ENV_KEEP], &extra)
     }
 
-    /// Runs helm with the given args and optional stdin; prints redacted output.
     fn run(&self, args: &[&std::ffi::OsStr], stdin: Option<&str>) -> bool {
         let mut command = self.command();
         command.args(args);
@@ -332,7 +324,6 @@ fn helm_main_with(
     i32::from(!pushed)
 }
 
-/// Runs the Helm chart deploy tool.
 pub fn helm_main(launch: &HelmLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "helm_chart_deploy",
@@ -373,7 +364,6 @@ mod tests {
         ));
     }
 
-    /// Writes a fake helm that records its args and writes the package.
     fn fake_helm(dir: &Path, exit: i32) -> PathBuf {
         let path = dir.join("helm");
         let log = dir.join("calls.txt");

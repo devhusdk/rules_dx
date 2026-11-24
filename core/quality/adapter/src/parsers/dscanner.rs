@@ -3,16 +3,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "dscanner";
 
-/// Findings from one batched `dscanner --styleCheck` run in the fixed tab-separated format.
-///
-/// Every stdout line must carry the format's sentinel and name one of `files`. D-Scanner exits 1
-/// exactly when it printed a diagnostic, so exit 0 with lines, exit 1 without lines and any other
-/// exit are errors, never a clean run. Syntax errors arrive as `error` lines with an empty check
-/// name and become the rule `syntax`. Positions are 1-based UTF-8 byte offsets.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dscanner(
     stdout: &[u8],
     code: Option<i32>,

@@ -1,13 +1,3 @@
-//! Converts a JVM doc adapter's "jvm api v1" JSON into one validated `DocIr` shard.
-//!
-//! Id rules: Kotlin top-level declarations use the Kotlin FQ name, never `FileKt`. An
-//! overload list holds erased simple types without `?` or generics. An extension's receiver
-//! type comes first, so `fun Circle.grow(by: Double)` is `grow(Circle,Double)`. A companion
-//! object is `Circle.Companion`. A Kotlin extension property carries a `receiver` type and gets
-//! `a.area@Circle`, so `val Circle.area` and `val Square.area` stay distinct. A Scala object
-//! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
-//! `property` are accepted only for the languages that have them.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -24,7 +14,6 @@ use serde_json::{Map, Value};
 const FORMAT: u64 = 1;
 const LANGUAGES: [&str; 3] = ["java", "kotlin", "scala"];
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -35,24 +24,17 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `jvm_convert` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("jvm_convert", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: jvm_convert --json FILE --language java|kotlin|scala --package NAME \
      --srcs-manifest FILE [--dep-shard FILE]... --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -82,11 +64,6 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     Ok(options)
 }
 
-/// Reads, converts, validates and writes one shard, leaving no output on failure.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let read = |path: &str| fs::read(path).map_err(|error| format!("cannot read {path}: {error}"));
     let json = String::from_utf8(read(&options.json)?)
@@ -190,7 +167,6 @@ fn kind_of(name: &str, language: &str, at: &str) -> Result<Kind, String> {
     Ok(Kind { kind, callable })
 }
 
-/// The reader-facing key of a symbol: `a.B.m(int,String)`.
 fn key_of(qualified: &str, overload: Option<&[String]>, receiver: Option<&str>) -> String {
     match (overload, receiver) {
         (Some(types), _) => format!("{qualified}({})", types.join(",")),
@@ -262,7 +238,6 @@ impl Resolver {
         self.keys.get(target.trim())
     }
 
-    /// Rewrites `[label](jvm:target)` links to `dx:` links or code spans.
     fn rewrite(&self, doc: &str) -> String {
         let mut out = String::with_capacity(doc.len());
         let mut opens: Vec<usize> = Vec::new();
@@ -465,11 +440,6 @@ fn record(
     })
 }
 
-/// Converts one adapter JSON document into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     language: &str,

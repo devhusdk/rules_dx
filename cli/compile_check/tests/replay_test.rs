@@ -1,9 +1,6 @@
-//! `dx compile_check` replays steps that are this binary started with `--fake`.
-
 use dx_testing::{path_text, scratch_dir};
 use std::path::{Path, PathBuf};
 
-/// Prints argv[0], then the file at argv[2] if one is named, to stderr and exits with argv[1].
 fn fake(args: &[String]) -> ! {
     eprintln!("{}", args[0]);
     if let Some(file) = args.get(2).filter(|f| !f.is_empty()) {

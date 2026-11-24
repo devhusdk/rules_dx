@@ -1,12 +1,3 @@
-//! Layer-2 matrix test executor: runs one quality runner case without host shell tooling.
-//!
-//! The Starlark rule writes one JSON manifest per case and runs this binary as
-//! the test executable. The harness resolves every input through its own
-//! runfiles, invokes the quality runner and the `print_result` printer as child
-//! processes, validates the result with `quality_result`, checks the printed
-//! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
-//! mkdir processes are launched.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -109,7 +100,6 @@ pub struct ManifestTool {
     pub path_tools: Vec<ManifestPathTool>,
 }
 
-/// A helper executable the tool finds by name on its child PATH.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ManifestPathTool {
@@ -132,10 +122,8 @@ pub struct Manifest {
     pub tools: BTreeMap<String, ManifestTool>,
     #[serde(default)]
     pub runner_failure: bool,
-    /// The golden leaves out each diagnostic's message text.
     #[serde(default)]
     pub drop_messages: bool,
-    /// Files planted in the directory the runner's scratch dirs live under, keyed by relative path.
     #[serde(default)]
     pub ambient_files: BTreeMap<String, String>,
     pub runner_key: String,
@@ -159,7 +147,6 @@ pub struct ResolvedTool {
     pub binary: Option<PathBuf>,
     pub files: Vec<(String, PathBuf)>,
     pub upstream: Vec<PathBuf>,
-    /// Name, binary and leading args of each helper on the tool's `PATH`.
     pub path_tools: Vec<(String, PathBuf, Vec<String>)>,
 }
 
@@ -172,11 +159,6 @@ fn lookup(resolver: &Resolver, key: &str) -> Result<PathBuf, HarnessError> {
         })
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn parse_manifest(bytes: &[u8], path: &str) -> Result<Manifest, HarnessError> {
     let manifest: Manifest =
         serde_json::from_slice(bytes).map_err(|error| HarnessError::BadManifest {
@@ -200,11 +182,6 @@ pub fn parse_manifest(bytes: &[u8], path: &str) -> Result<Manifest, HarnessError
     Ok(manifest)
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn resolve_manifest(resolver: &Resolver, manifest: Manifest) -> Result<Resolved, HarnessError> {
     let runner = lookup(resolver, &manifest.runner_key)?;
     let printer = lookup(resolver, &manifest.printer_key)?;
@@ -346,11 +323,6 @@ fn request_mappings(mappings: &[(String, PathBuf)]) -> Vec<RequestMapping> {
         .collect()
 }
 
-/// Encodes the resolved case as a `quality_runner` `--request` document.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn build_request(
     resolved: &Resolved,
     scratch_parent: &Path,
@@ -438,11 +410,6 @@ pub struct ChildOutput {
     pub stderr: String,
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn run_child(program: &Path, argv: &[String], role: &str) -> Result<ChildOutput, HarnessError> {
     let mut command = Command::new(program);
     command.args(argv);
@@ -475,11 +442,6 @@ fn capability_value(capability: &str) -> Option<i32> {
     }
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn validate_result(bytes: &[u8], manifest: &Manifest) -> Result<(), HarnessError> {
     let result = decode_validated(bytes).map_err(|error| HarnessError::InvalidResult {
         detail: error.to_string(),
@@ -542,11 +504,6 @@ fn body_rows(lines: &[&str], prefix: &str) -> usize {
         .count()
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn check_printed(text: &str, stages: usize) -> Result<(), HarnessError> {
     let lines: Vec<&str> = text.split('\n').collect();
     let body: Vec<&str> = if text.ends_with('\n') {
@@ -703,11 +660,6 @@ fn update_dir() -> PathBuf {
     PathBuf::from("/tmp")
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn stage_update(actual: &[u8], update_file: &str) -> Result<PathBuf, HarnessError> {
     let dir = update_dir();
     std::fs::create_dir_all(&dir).map_err(|error| HarnessError::UnwritableUpdate {
@@ -743,7 +695,6 @@ fn work_paths() -> Result<Paths, HarnessError> {
     })
 }
 
-/// Writes the manifest's ambient files under `parent`, refusing any key that could leave it.
 fn plant_ambient_files(
     parent: &Path,
     files: &BTreeMap<String, String>,
@@ -884,8 +835,6 @@ fn run() -> Result<(), HarnessError> {
     compare_golden(&plan, &name, &printer_out.stdout)
 }
 
-/// Cuts the message off each `initial` and `terminal` diagnostic row, keeping
-/// severity, tool, rule, path, byte span and `fixable`, which stay stable across tool versions.
 #[must_use]
 pub fn drop_messages(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
@@ -903,7 +852,6 @@ pub fn drop_messages(text: &str) -> String {
     out
 }
 
-/// The runner's error message without the log prefix, newline-terminated.
 #[must_use]
 pub fn runner_error_text(stderr: &str) -> Option<String> {
     const MARKER: &str = "quality_runner: ";
@@ -912,8 +860,6 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
     Some(format!("{}\n", message.trim_end()))
 }
 
-/// Replaces each per-run scratch directory under `scratch_parent` with a stable token,
-/// spelling the rest of the path with forward slashes.
 #[must_use]
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
     let flat = text.replace('\\', "/");
@@ -980,7 +926,6 @@ fn compare_golden(resolved: &Resolved, name: &str, actual: &[u8]) -> Result<(), 
     Ok(())
 }
 
-/// The failure text with every control character other than newline and tab escaped.
 pub fn printable_failure(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for ch in text.chars() {

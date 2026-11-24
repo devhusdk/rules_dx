@@ -71,7 +71,6 @@ fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String,
     }
 }
 
-/// The manifest of the set whose directory holds `file`, else the first one.
 fn manifest_for<'a>(manifests: &'a [String], file: &str) -> Option<&'a String> {
     manifests
         .iter()
@@ -140,8 +139,6 @@ fn plan(
     }))
 }
 
-/// Declares every imported but undeclared dependency of the resolved sets at its latest stable
-/// version. Every manifest is written before any lock is refreshed.
 pub(super) fn add_missing(
     workspace: &Path,
     resolved: &[ResolvedTarget],
@@ -154,9 +151,6 @@ pub(super) fn add_missing(
     declare(workspace, resolved, items, fetch, false)
 }
 
-/// Declares each `set:package` the selectors name but the set does not declare, at its latest
-/// stable version. Declared packages, manifests dx cannot edit and sets without a registry
-/// lookup are left to the selector path.
 pub(super) fn add_named(
     workspace: &Path,
     resolved: &[ResolvedTarget],

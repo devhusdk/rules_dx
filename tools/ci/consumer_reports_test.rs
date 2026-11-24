@@ -11,12 +11,10 @@ const UPLOAD_PIN: &str = "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f47
 
 const SUFFIX: &str = "${{ needs.validate.outputs.artifact_suffix }}";
 
-/// The checks that upload reports from the per-platform job.
 const REPORTING: &[&str] = &["lint", "typecheck", "test", "build", "coverage"];
 
 const JOB: &str = "checks";
 
-/// Jobs that upload no reports. Flip these when the follow-ups land.
 const UNREPORTED: &[&str] = &["security-audit"];
 
 fn uploads(name: &str) -> Vec<(usize, Value)> {

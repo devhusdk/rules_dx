@@ -1,19 +1,8 @@
-//! What the last `dx sync` of `.dx/local` saw, so a build knows without Bazel whether to sync again.
-//!
-//! The record is one file: `v1 <digest>`, then `ok` or `error <message>`, then `targets` and the
-//! sync's targets, then one `artifact <path>` or `source <path>` line per generated artifact and per
-//! workspace-relative codegen source or BUILD file. The digest covers the selected setup, the stats
-//! of the workspace files that steer the sync, of every artifact the selected generation links to,
-//! and of every recorded source with its directory, so a build that regenerates an artifact, an
-//! edited or added source and a new package under a recorded directory all change it.
-
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-/// Bump when the record layout or the digest inputs change.
 const VERSION: &str = "v2";
 
-/// Workspace files whose stats the digest covers.
 const INPUTS: [&str; 6] = [
     "MODULE.bazel",
     "MODULE.bazel.lock",
@@ -25,10 +14,8 @@ const INPUTS: [&str; 6] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Record {
-    /// The targets the sync ran with; empty for the whole repository.
     pub(crate) targets: Vec<String>,
     pub(crate) artifacts: Vec<PathBuf>,
-    /// Workspace-relative codegen sources and BUILD files.
     pub(crate) sources: Vec<PathBuf>,
 }
 
@@ -40,7 +27,6 @@ pub(crate) enum Check {
     SameFailed(String),
 }
 
-/// Records the inputs as they are now; `error` is the failure of a sync that did not commit.
 pub(crate) fn record(
     workspace: &Path,
     record: &Record,
@@ -262,8 +248,6 @@ mod tests {
             .and_then(|metadata| metadata.modified())
             .expect("mtime");
         std::fs::write(&source, "syntax = \"proto2\";\n").expect("edit");
-        // The digest reads size and mtime, and this edit keeps the size. A filesystem with coarse
-        // mtimes can stamp the edit with the recorded mtime, so move it on as a later edit would.
         std::fs::File::options()
             .write(true)
             .open(&source)

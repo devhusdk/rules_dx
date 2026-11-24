@@ -34,7 +34,6 @@ lang_unsupported(name = "php_unsupported")
 
 lang_unsupported(name = "qt_unsupported")
 
-# Select keys shared by language packages.
 config_setting(
     name = "coverage_linux",
     constraint_values = ["@platforms//os:linux"],

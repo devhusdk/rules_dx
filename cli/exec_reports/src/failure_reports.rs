@@ -146,12 +146,10 @@ fn document(bep: &Path, bazel_code: i32) -> (String, bool) {
         root.insert("problem".to_owned(), Value::String(problem));
     }
     root.insert("failures".to_owned(), Value::Array(records));
-    // a serde_json::Value always serializes
     let text = serde_json::to_string_pretty(&Value::Object(root)).unwrap_or_default();
     (text, complete)
 }
 
-/// Writes the planned failure reports and returns whether every one landed.
 pub fn write_failure_reports(
     invocation: &Invocation,
     workspace: &Path,

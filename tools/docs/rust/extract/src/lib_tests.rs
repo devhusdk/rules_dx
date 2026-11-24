@@ -1,5 +1,3 @@
-//! Tests for the rustdoc JSON converter.
-
 use serde_json::{Value, json};
 
 use super::{Options, Source, extract, map_source, mark_generated, parse, parse_sources, ty};
@@ -704,7 +702,6 @@ fn a_glob_of_a_foreign_module_becomes_one_glob_symbol() {
 
 #[test]
 fn glob_names_follow_rusts_shadowing_rules() {
-    // An explicit local item shadows a glob name.
     let shadowed = crate_json(
         vec![
             module_item(1, "m", &[2]),
@@ -720,7 +717,6 @@ fn glob_names_follow_rusts_shadowing_rules() {
             .relations
             .is_none_or(|r| r.reexported_as.is_empty())
     );
-    // Two globs that give one name make that name unusable.
     let ambiguous = crate_json(
         vec![
             module_item(1, "a", &[2]),

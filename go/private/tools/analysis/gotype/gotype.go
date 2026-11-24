@@ -186,8 +186,8 @@ func check(cfg *config) result {
 	}
 	var typed []diagnostic
 	collect := func(err error) {
-		terr, ok := err.(types.Error)
-		if !ok {
+		var terr types.Error
+		if !errors.As(err, &terr) {
 			typed = append(typed, diagnostic{Posn: "-:1:1", Message: err.Error()})
 			return
 		}

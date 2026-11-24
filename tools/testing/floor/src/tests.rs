@@ -1,7 +1,5 @@
 use super::*;
 
-/// Trimmed output of `bazel mod graph --output=json --verbose` from Bazel 9.2.0 on a
-/// `dx init` consumer; see `testdata/graph_bazel_9_2_0.json`.
 const GRAPH: &str = include_str!("../testdata/graph_bazel_9_2_0.json");
 
 fn table(pins: &[(&str, &str, &str)]) -> Table {

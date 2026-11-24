@@ -41,7 +41,6 @@ fn stale_repos(factor: &str) -> Vec<String> {
     ]
 }
 
-/// A lock as one platform job writes it: fresh for its own factor, stale for every other.
 fn platform_lock(own: &str, fact: &str) -> Value {
     let mut entries = serde_json::Map::new();
     for (_, factor) in PLATFORMS {
@@ -81,7 +80,6 @@ fn fresh_locks() -> Vec<(String, Value)> {
         .collect()
 }
 
-/// Runs `producers_bin --lock-merge` and returns the merged lock, or None when it fails.
 fn merge(locks: &[(String, Value)]) -> Option<Value> {
     let dir = dx_test_scratch::scratch("lock-merge").unwrap();
     let inputs = dir.path().join("locks");

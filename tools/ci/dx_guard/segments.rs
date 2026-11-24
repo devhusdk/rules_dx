@@ -1,6 +1,3 @@
-//! Source text split into code, comments and string literals, for guards that read words rather than an AST.
-
-/// What one stretch of a source file is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Piece {
     Code,
@@ -9,14 +6,12 @@ pub enum Piece {
     Doc,
 }
 
-/// One stretch of a source file: code, a comment without its marker, or a string without its quotes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Segment {
     pub piece: Piece,
     pub text: String,
 }
 
-/// Collects segments; every split point sits on an ASCII byte, so slices stay on char boundaries.
 struct Splitter<'a> {
     source: &'a str,
     bytes: &'a [u8],
@@ -52,7 +47,6 @@ impl<'a> Splitter<'a> {
         self.source.get(start..end).unwrap_or_default()
     }
 
-    /// The end of the line that holds byte `from`.
     fn line_end(&self, from: usize) -> usize {
         self.bytes
             .get(from..)
@@ -69,7 +63,6 @@ impl<'a> Splitter<'a> {
         }
     }
 
-    /// Ends the code run at `at`, adds `text` as `piece`, and starts the next code run at `resume`.
     fn piece(&mut self, at: usize, piece: Piece, text: &str, resume: usize) {
         let code = self.slice(self.code_start, at);
         self.push(Piece::Code, code);
@@ -84,7 +77,6 @@ impl<'a> Splitter<'a> {
     }
 }
 
-/// Splits Starlark into code, `#` comments and strings; a string is `Doc` when it is a docstring or a `doc =` value.
 pub fn starlark_segments(source: &str) -> Vec<Segment> {
     let mut split = Splitter::new(source);
     let (mut index, mut line_start) = (0, 0);
@@ -137,7 +129,6 @@ fn ident_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// The body of the raw string that opens at `index`, or `None` when no raw string opens there.
 fn raw_string(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
     let joined = index
         .checked_sub(1)
@@ -174,7 +165,6 @@ fn raw_string(bytes: &[u8], index: usize) -> Option<(usize, usize)> {
     Some((open + 1, bytes.len()))
 }
 
-/// The length of the char literal that opens at `index`, or `None` for a lifetime.
 fn char_literal(source: &str, index: usize) -> Option<usize> {
     let rest = source.get(index + 1..)?;
     if let Some(escaped) = rest.strip_prefix('\\') {
@@ -186,7 +176,6 @@ fn char_literal(source: &str, index: usize) -> Option<usize> {
         .then_some(first.len_utf8() + 2)
 }
 
-/// Splits Rust into code, comments and string literals.
 pub fn rust_segments(source: &str) -> Vec<Segment> {
     let mut split = Splitter::new(source);
     let mut index = 0;
@@ -238,7 +227,6 @@ pub fn rust_segments(source: &str) -> Vec<Segment> {
     split.finish()
 }
 
-/// How often `word` stands in `text` with no letter, digit or `_` on either side.
 pub fn count_word(text: &str, word: &str) -> usize {
     let bytes = text.as_bytes();
     let joined = |at: Option<usize>| {

@@ -11,13 +11,11 @@ use crate::{PrepareOptions, fetch_many};
 pub const CARGO_YANKED: &str = "cargo-yanked";
 pub const PYPI_YANKED: &str = "pypi-yanked";
 
-/// Where the cargo index is read from: the options value or the crates.io sparse index.
 #[must_use]
 pub fn index_base(options: &PrepareOptions) -> &str {
     options.cargo_index.as_deref().unwrap_or(DEFAULT_BASE)
 }
 
-/// Builds the yanked-version snapshot for the cargo locks of the workspace.
 pub fn prepare_cargo_yanked(options: &PrepareOptions) -> Result<PreparedSnapshot, PrepError> {
     let base = index_base(options).trim_end_matches('/').to_owned();
     let locked = locked_registry_crates(&options.workspace)?;
@@ -43,13 +41,11 @@ pub fn prepare_cargo_yanked(options: &PrepareOptions) -> Result<PreparedSnapshot
     yanked_snapshot(CARGO_YANKED, &base, &options.retrieved_at, "cargo", &yanked)
 }
 
-/// Where the `PyPI` JSON API is read from: the options value or pypi.org.
 #[must_use]
 pub fn pypi_base(options: &PrepareOptions) -> &str {
     options.pypi_index.as_deref().unwrap_or(PYPI_BASE)
 }
 
-/// Builds the yanked-version snapshot for the uv locks of the workspace.
 pub fn prepare_pypi_yanked(options: &PrepareOptions) -> Result<PreparedSnapshot, PrepError> {
     let base = pypi_base(options).trim_end_matches('/').to_owned();
     let locked = locked_pypi_packages(&options.workspace)?;
@@ -101,7 +97,6 @@ fn fetch_bodies(
         .collect()
 }
 
-/// Normalized package name to its locked versions, for packages from the `PyPI` index only.
 fn locked_pypi_packages(workspace: &Path) -> Result<BTreeMap<String, BTreeSet<String>>, PrepError> {
     let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for rel in set_locks(
@@ -127,7 +122,6 @@ fn locked_pypi_packages(workspace: &Path) -> Result<BTreeMap<String, BTreeSet<St
     Ok(out)
 }
 
-/// Crate name to its locked versions, for registry crates only.
 fn locked_registry_crates(
     workspace: &Path,
 ) -> Result<std::collections::BTreeMap<String, BTreeSet<String>>, PrepError> {
@@ -162,7 +156,6 @@ fn cargo_locks(workspace: &Path) -> Result<BTreeSet<String>, PrepError> {
     Ok(locks)
 }
 
-/// Lock files named `file` of the dependency sets of one ecosystem.
 fn set_locks(
     workspace: &Path,
     ecosystem: Ecosystem,

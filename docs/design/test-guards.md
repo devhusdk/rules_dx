@@ -54,10 +54,10 @@ The guards check the rules of `docs/design/tests.md`.
 - With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: a `query` lists the non-manual ones, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind is kept. The builds pass `--skip_incompatible_explicit_targets`.
 - The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` in seven shards with `--kinds --shard i/7`, which keeps every seventh top-level package of kind targets. Shards 0 to 3 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...` and `//msix/tests/...`; shards 5 and 6 split `//deploy/private/...` into `:all` and its subpackages.
 - Each build deletes its output base after `shutdown`.
-- A 40 min step cap keeps a slow shard's log. Cold build times: shards 1 to 3 570 s, shard 4 360 s, `//deploy/private/...` 1067 s.
+- A 40 min step cap keeps a slow shard's log.
 - Flags precede `--`, patterns follow, so `-//pkg/...` excludes.
 - Outputs match between the logs by path; `<label> <mnemonic>` only names the action. The job fails for an output that differs or is in one log only, and for a stale allowlist line.
-- `tools/ci/determinism_allowlist.txt` lists the actions that differ; `//tools/ci:determinism_allowlist_test` holds its cap.
+- `tools/ci/determinism_allowlist.txt` lists the actions that differ; `//tools/ci:determinism_allowlist_test` keeps it empty.
 
 ## Analysis scaling
 

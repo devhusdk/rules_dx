@@ -15,7 +15,6 @@ var mavenPackagingTypes = []string{
 	"maven-plugin", "orbit", "pom", "scala-jar", "so", "test-jar",
 }
 
-// mavenManifest maps each JVM package to the artifact targets that ship it.
 type mavenManifest struct {
 	packages map[string][]string
 }
@@ -45,8 +44,6 @@ func parseMavenManifest(content []byte, _ string) (externalManifest, error) {
 	return m, nil
 }
 
-// MavenTargetName is the versionless target rules_jvm_external gives a
-// group:artifact[:packaging[:classifier]] coordinate.
 func MavenTargetName(coord string) string {
 	parts := strings.Split(coord, ":")
 	if len(parts) < 2 {
@@ -70,7 +67,6 @@ func mavenEscape(s string) string {
 	return s
 }
 
-// Lookup tries the import itself, then its enclosing classes and own package.
 func (m *mavenManifest) Lookup(repo, name string) ([]label.Label, string) {
 	for _, key := range append([]string{name}, JVMCandidates(name)...) {
 		targets := m.packages[key]

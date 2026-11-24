@@ -5,7 +5,6 @@ use crate::ToolSeverity;
 
 const DIALECT: Dialect = Dialect {
     tool: "swiftc",
-    // swiftc columns count UTF-8 bytes of the line.
     encoding: ColumnEncoding::Utf8,
     severity: |word| match word {
         "error" => Some(Disposition::Report(ToolSeverity::Error)),
@@ -16,11 +15,6 @@ const DIALECT: Dialect = Dialect {
     bracket_rule: true,
 };
 
-/// `swiftc -typecheck` output. A nonzero exit that printed no diagnostic is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swiftc(
     output: &[u8],
     code: Option<i32>,

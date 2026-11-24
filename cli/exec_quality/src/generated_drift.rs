@@ -1,5 +1,3 @@
-//! `dx/generated-drift`: committed `.dx` files that differ from what the generator renders.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -12,8 +10,6 @@ const TOOL: &str = "dx";
 const DRIFT_RULE: &str = "dx/generated-drift";
 const PIN_RULE: &str = "dx/pin-mismatch";
 
-/// One finding per tracked `.dx` file that is not what the generator renders, and one for a
-/// `.dx/pins` version that is not this dx. `rewritten` is what the pre-command hook changed.
 pub(crate) fn findings(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -115,7 +111,6 @@ mod tests {
         }
     }
 
-    /// A workspace with a python file whose generated `.dx` is committed.
     fn committed() -> dx_test_scratch::TempDir {
         let scratch = dx_test_scratch::scratch("dx-drift-").unwrap();
         let root = scratch.path();

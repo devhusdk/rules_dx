@@ -10,7 +10,6 @@ import (
 
 const androidPlatform = "@platforms//os:android"
 
-// androidAttrs sets NDK linkopts, Android compatibility and alwayslink from the sources it reads.
 func androidAttrs(r *rule.Rule, _ []string, contents map[string][]byte) error {
 	names := make([]string, 0, len(contents))
 	for name := range contents {

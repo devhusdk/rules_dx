@@ -1,0 +1,54 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata", "dart_test")
+
+package(default_visibility = ["//visibility:public"])
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "greet",
+)
+
+dart_library(
+    name = "greet",
+    srcs = ["lib/greet.dart"],
+    package = ":pubspec-metadata",
+)
+
+dart_binary(
+    name = "greet_bin",
+    data = ["data/name.txt"],
+    defines = ["GREETING=hi"],
+    main = "bin/greet.dart",
+    deps = [
+        ":greet",
+        "//dart:runfiles",
+    ],
+)
+
+dart_test(
+    name = "greet_test",
+    data = ["data/name.txt"],
+    main = "test/greet_test.dart",
+    deps = [
+        ":greet",
+        "//dart:runfiles",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+dart_test(
+    name = "launcher_test",
+    data = [":greet_bin"],
+    main = "test/launcher_test.dart",
+    deps = [
+        "//dart:runfiles",
+        "@dx_dart_deps//:test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -161,7 +161,6 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
 
 const DIGEST_RECORD: &str = "tools/ci/starter_pin.sha256";
 
-/// Returns the recorded (path, digest) pairs, panicking on a malformed record.
 fn recorded_digests() -> Vec<(String, String)> {
     let mut records: Vec<(String, String)> = Vec::new();
     for line in read_runfiles(DIGEST_RECORD).lines() {
@@ -209,7 +208,6 @@ fn every_reusable_workflow_matches_the_digest_recorded_for_the_starter_pin() {
     }
 }
 
-/// Returns each `//` label in `text` that names no repository, with its 1-based line.
 fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
     let repo_char = |c: char| c.is_ascii_alphanumeric() || "_.+-".contains(c);
     let label_char = |c: char| c.is_ascii_alphanumeric() || "_.+@=,/:-".contains(c);

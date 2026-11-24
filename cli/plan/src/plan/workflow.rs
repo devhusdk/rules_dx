@@ -14,7 +14,6 @@ pub const COVERAGE_COMBINED_REPORT_FLAG: &str = "--combined_report=lcov";
 pub const COVERAGE_SOURCES_GROUP_FLAG: &str = "--output_groups=+dx_coverage_sources";
 pub const COVERAGE_ALL_TARGETS_FLAG: &str = "--build_tests_only=false";
 
-/// The flags that make `dx bench` run each tagged test once, alone, and uncached.
 pub const BENCH_FLAGS: [&str; 5] = [
     "--runs_per_test=1",
     "--nocache_test_results",
@@ -23,7 +22,6 @@ pub const BENCH_FLAGS: [&str; 5] = [
     "--test_env=DX_BENCH=1",
 ];
 
-/// The `--aspects` flag that writes the coverage source manifests.
 #[must_use]
 pub fn coverage_sources_aspect_flag() -> String {
     format!(
@@ -107,9 +105,6 @@ pub fn workflow_protected(verb: WorkflowVerb) -> Vec<ProtectedFlag> {
     protected
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_workflow(
     verb: WorkflowVerb,
     resolved: &ResolvedScope,

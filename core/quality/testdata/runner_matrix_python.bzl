@@ -70,6 +70,17 @@ PYTHON_CASES = [
         config = "//core/quality/tiers/ty:strict.toml",
     ),
     matrix_case(
+        name = "matrix_python_typecheck_strict_blanket_ignore",
+        capability = "typecheck",
+        tool = "ty",
+        binary = "@dx_tools//:ty",
+        source_class = "python",
+        generated = {
+            "matrix/blanket_ignore.py": "\"\"\"Matrix fixture.\"\"\"\n\nlabel: int = \"text\"  # ty: ignore\n",
+        },
+        config = "//core/quality/tiers/ty:strict.toml",
+    ),
+    matrix_case(
         name = "matrix_python_stub_lint_pass",
         capability = "lint",
         tool = ["pydoclint", "ruff"],

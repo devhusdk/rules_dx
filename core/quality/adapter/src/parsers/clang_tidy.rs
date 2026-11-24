@@ -2,7 +2,6 @@ use super::clang_syntax::{diagnostic, include_entry, split_rule};
 use super::{FileFinding, ParseError, finding, lines, missing, require_findings};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-// `1 warning generated.`, or for CUDA `2 warnings and 1 error generated when compiling for host.`
 fn is_count_trailer(line: &str) -> bool {
     let line = line.trim_end();
     let Some((counts, rest)) = line.split_once(" generated") else {
@@ -23,7 +22,6 @@ fn is_count_trailer(line: &str) -> bool {
         })
 }
 
-// clang-tidy prints the main file as an absolute path under the action's execroot.
 fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
     if let Some(file) = files.iter().copied().find(|f| *f == path) {
         return Some(file);
@@ -39,9 +37,6 @@ fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
         .find(|f| !f.starts_with('/') && path.ends_with(&format!("/{}", f.replace('\\', "/"))))
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clang_tidy(
     stderr: &[u8],
     code: Option<i32>,

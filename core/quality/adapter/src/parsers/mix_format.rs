@@ -9,11 +9,6 @@ const TOOL: &str = "mix_format";
 const UNFORMATTED_HEADER: &str = "The following files are not formatted:";
 const FAILED_PREFIX: &str = "mix format failed for file: ";
 
-/// Findings from `mix format --check-formatted`: listed unformatted files, or the one file it could not parse.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_mix_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -100,7 +95,6 @@ fn syntax_error(file: &str, reported: &str, rest: &[(bool, String)]) -> FileFind
     )
 }
 
-/// The line and column from a `** (Kind) ... on <path>:<line>:<column>:` header.
 fn position(header: &str, reported: &str) -> Option<(u64, u64)> {
     let marker = format!(" on {reported}:");
     let at = header.rfind(&marker)?;

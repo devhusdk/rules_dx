@@ -69,7 +69,6 @@ impl WorkflowVerb {
         }
     }
 
-    /// The Bazel command this verb runs; `bench` is `bazel test` over the tagged tests.
     #[must_use]
     pub fn bazel_command(self) -> &'static str {
         match self {
@@ -108,7 +107,6 @@ pub struct CommandMeta {
     pub labels: LabelsPolicy,
 }
 
-/// Per-command output capabilities. `streamed` means JSON events are written while the command runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OutputCaps {
     pub text: bool,
@@ -609,7 +607,6 @@ impl Command {
         self.meta().is_adoption
     }
 
-    /// The output formats the command offers.
     #[must_use]
     pub fn output_caps(self) -> OutputCaps {
         use Command::{
@@ -632,31 +629,26 @@ impl Command {
         }
     }
 
-    /// Whether `dx <command> --output json` is accepted.
     #[must_use]
     pub fn supports_json(self) -> bool {
         self.output_caps().json
     }
 
-    /// Whether the grammar lets `dx <command> --diff` parse.
     #[must_use]
     pub fn supports_diff(self) -> bool {
         super::grammar::accepts_long(self, "diff")
     }
 
-    /// Whether `--here` applies; watch passes it to the command it wraps.
     #[must_use]
     pub fn supports_here(self) -> bool {
         super::grammar::accepts_long(self, "here") && self != Command::Watch
     }
 
-    /// Whether the grammar lets `dx <command> --apply` parse.
     #[must_use]
     pub fn supports_apply(self) -> bool {
         super::grammar::accepts_long(self, "apply")
     }
 
-    /// Whether `--fail-on` applies; watch passes it to the command it wraps.
     #[must_use]
     pub fn supports_fail_on(self) -> bool {
         super::grammar::accepts_long(self, "fail-on")
@@ -673,7 +665,6 @@ impl Command {
         self.meta().usage
     }
 
-    /// The leading positionals the usage line spells with angle brackets, or none when it names none.
     #[must_use]
     pub fn required_slot(self) -> Option<&'static str> {
         let rest = self.usage().strip_prefix("Usage: dx ")?.split_once(' ')?.1;
@@ -716,7 +707,6 @@ impl Command {
     }
 }
 
-/// Explicit owner lists the tests pin parser behaviour against.
 #[cfg(test)]
 pub(crate) mod owners {
     use super::Command::{self, *};
@@ -1117,7 +1107,6 @@ mod tests {
         }
     }
 
-    /// The `dx_man` page ships one file; assert it sections every command.
     #[test]
     fn dx_man_page_sections_every_command() {
         use clap::ValueEnum;

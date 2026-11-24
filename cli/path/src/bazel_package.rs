@@ -1,11 +1,7 @@
-//! Bazel package detection by BUILD marker files.
-
 use std::path::Path;
 
-/// The file names that make a directory a Bazel package, in lookup order.
 pub const PACKAGE_FILES: [&str; 2] = ["BUILD.bazel", "BUILD"];
 
-/// Whether a directory entry is a BUILD marker that is a file after following symlinks.
 #[must_use]
 pub fn is_package_marker(entry: &std::fs::DirEntry) -> bool {
     let name = entry.file_name();
@@ -15,7 +11,6 @@ pub fn is_package_marker(entry: &std::fs::DirEntry) -> bool {
         && std::fs::metadata(entry.path()).is_ok_and(|meta| meta.is_file())
 }
 
-/// Whether a directory holds a BUILD marker that is a file under its exact name.
 pub fn is_package_dir(dir: &Path) -> bool {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;

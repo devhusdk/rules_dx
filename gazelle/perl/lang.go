@@ -65,7 +65,6 @@ func (l *perlLang) Before(ctx context.Context) {
 	l.SingleLang.Before(ctx)
 }
 
-// Imports indexes each library source under its module name.
 func (l *perlLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil
@@ -85,9 +84,6 @@ func (l *perlLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resol
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// generateRules emits one perl_library for the directory's modules and one
-// perl_test per t/*.t. Modules in lib below a directory without its own BUILD
-// file belong to the library, so those directories generate nothing.
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter, excludes []string) language.GenerateResult {
 	if ownedByAncestor(args) {
 		return language.GenerateResult{}
@@ -159,7 +155,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return common.MergeStaleOwned(args.File, result, kinds, ownsStale(args, libName))
 }
 
-// withoutOwned drops the srcs another perl_library in file already lists.
 func withoutOwned(file *rule.File, libName string, srcs []string) []string {
 	if file == nil {
 		return srcs
@@ -182,8 +177,6 @@ func withoutOwned(file *rule.File, libName string, srcs []string) []string {
 	return kept
 }
 
-// ownsStale reports whether generation could have produced r: it is the
-// library, or none of its srcs exist in the directory.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if r.Name() == libName {
@@ -218,9 +211,6 @@ func importsOf(args language.GenerateArgs, files []string, rep common.Reporter) 
 	return imports
 }
 
-// moduleSources lists the package-relative .pm files the library owns: the
-// directory's own modules plus every module under lib that no nested package
-// or exclude claims.
 func moduleSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	var srcs []string
 	for _, name := range args.RegularFiles {
@@ -262,7 +252,6 @@ func walkLib(args language.GenerateArgs, excludes []string, rel string, out *[]s
 	return nil
 }
 
-// testSources lists the t/*.t files directly under the package.
 func testSources(args language.GenerateArgs, excludes []string) ([]string, error) {
 	if claimed(args, excludes, testDir) {
 		return nil, nil
@@ -286,8 +275,6 @@ func testSources(args language.GenerateArgs, excludes []string) ([]string, error
 
 func hiddenDir(name string) bool { return strings.HasPrefix(name, ".") }
 
-// claimed reports whether the package-relative directory sub is excluded or
-// holds a BUILD file of its own.
 func claimed(args language.GenerateArgs, excludes []string, sub string) bool {
 	if excluded(args, excludes, sub) {
 		return true
@@ -324,9 +311,6 @@ func excluded(args language.GenerateArgs, excludes []string, sub string) bool {
 	return false
 }
 
-// ownedByAncestor reports whether args.Rel sits inside the lib or t tree of a
-// parent package, with no BUILD file from that tree's root down to the
-// directory itself.
 func ownedByAncestor(args language.GenerateArgs) bool {
 	if args.Rel == "" || args.Config == nil {
 		return false

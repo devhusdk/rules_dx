@@ -1,7 +1,3 @@
-//! The six-field NOTICE manifest wire format shared by every producer
-//! (`dx license`, `release_tool inventory`) and the release verifier.
-//! Depends only on `dx_digest` and `std`.
-
 use dx_error::DxError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -90,9 +86,6 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
     Ok(entries)
 }
 
-/// Checks that a manifest text path is a safe per-package relative path:
-/// '/'-separated, no leading '/', no '\\', and no empty, '.', or '..'
-/// components. Bare basenames are valid (the shortest suffix).
 pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
     if text_path.contains('\\') {
         return Err(DxError::failure("must use '/' separators, not '\\'"));
@@ -113,8 +106,6 @@ pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
     Ok(())
 }
 
-/// The sha256 of the body `render_notice` writes under an entry header
-/// (the words with trailing newlines replaced by exactly one `\n`).
 #[must_use]
 pub fn notice_text_sha256(words: &str) -> String {
     let mut body = words.trim_end_matches('\n').to_owned();
@@ -122,13 +113,6 @@ pub fn notice_text_sha256(words: &str) -> String {
     dx_digest::sha256_hex(body.as_bytes())
 }
 
-/// Renders the manifest: `header` as a `#` comment line, then one line per
-/// entry sorted by (package, set, version, license).
-///
-/// # Errors
-///
-/// Returns an error when the header or any field holds `|`, `\n` or `\r`,
-/// because `parse_notice_manifest` could not read that line back.
 pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> Result<String, DxError> {
     if let Some(bad) = field_separator(header) {
         return Err(DxError::failure(format!(
@@ -169,7 +153,6 @@ pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> Result<S
     Ok(out)
 }
 
-/// Names the first manifest separator (`|`, `\n` or `\r`) in `value`, if any.
 fn field_separator(value: &str) -> Option<&'static str> {
     if value.contains('|') {
         Some("'|'")

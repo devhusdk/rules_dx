@@ -50,7 +50,6 @@ fn ruff_position(
     })
 }
 
-/// Remaps Ruff's per-cell positions into notebook file positions.
 struct Mapper<'a> {
     notebooks: &'a [(&'a str, &'a str)],
     parsed: Vec<(&'a str, Notebook<'a>)>,
@@ -93,7 +92,6 @@ impl<'a> Mapper<'a> {
             .ok_or_else(inconsistent)
     }
 
-    /// Start, end and message of one diagnostic, in file coordinates.
     fn place(
         &mut self,
         tool: &'static str,
@@ -137,9 +135,6 @@ impl<'a> Mapper<'a> {
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ruff(
     stdout: &[u8],
     code: Option<i32>,
@@ -182,9 +177,6 @@ pub fn parse_ruff(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ruff_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -392,7 +384,6 @@ mod tests {
         let unused = &found[1].finding;
         assert_eq!(unused.rule_id, "F401");
         assert_eq!(unused.message, "cell 4, line 1: `os` imported but unused");
-        // The line holds `    "import os\n",` so `os` starts at scalar 13.
         assert_eq!(
             unused.start,
             TextPosition {

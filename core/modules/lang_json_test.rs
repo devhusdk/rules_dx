@@ -1,5 +1,3 @@
-//! Every language dir with a lang.json satisfies a lang.json that satisfies lang.schema.json.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

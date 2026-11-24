@@ -49,14 +49,6 @@ fn message(hint: &Hint) -> String {
     }
 }
 
-/// `hlint --json` prints one JSON array on stdout: `[]` and exit 0 when every file is clean, a
-/// non-empty array and exit 1 otherwise. A parse error is a hint with severity `Error`. A missing
-/// file or an undecodable file also exits 1 but prints no array, and a missing system library
-/// exits 127 with a loader message on stderr; all of those are errors here and never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_hlint(
     stdout: &[u8],
     stderr: &[u8],
@@ -199,23 +191,17 @@ mod tests {
 
     #[test]
     fn hlint_fails_closed() {
-        // Exit and array disagree.
         assert!(parse("[]", 1).is_err());
         assert!(parse(SYNTAX, 0).is_err());
-        // Unknown exits, including a usage error, a missing loader library and a signal.
         assert!(parse("[]", 2).is_err());
         assert!(parse(SYNTAX, 2).is_err());
         assert!(parse("", 127).is_err());
         assert!(parse_hlint(b"[]", b"", None, &FILES).is_err());
-        // A missing file or an undecodable file exits 1 without a report.
         assert!(parse("", 1).is_err());
         assert!(parse("Couldn't find file: x.hs", 1).is_err());
         assert!(parse_hlint(&[0xff, 0xfe], b"", Some(1), &FILES).is_err());
-        // A truncated report.
         assert!(matches!(SYNTAX.get(..60), Some(cut) if parse(cut, 1).is_err()));
-        // A finding in a file that was not passed.
         assert!(parse_hlint(SYNTAX.as_bytes(), b"", Some(1), &["/s/other.hs"]).is_err());
-        // A zero position.
         assert!(parse(&SYNTAX.replace("\"startLine\":3", "\"startLine\":0"), 1).is_err());
         assert!(
             parse(

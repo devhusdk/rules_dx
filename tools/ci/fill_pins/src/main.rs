@@ -1,8 +1,3 @@
-//! `fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE]...`
-//! fills or, with `--check`, checks `cli/prebuilt/pins.bzl` against a release.
-//! Repeated `--manifest` fills from local manifests without downloading or verifying them;
-//! together they must list every asset in `cli/prebuilt/tools.bzl` and nothing else.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};

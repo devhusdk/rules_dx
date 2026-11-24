@@ -1,9 +1,6 @@
 use super::{FileFinding, ParseError, check_output_size, sarif::parse_sarif};
 use crate::ColumnEncoding;
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pmd(
     stdout: &[u8],
     code: Option<i32>,

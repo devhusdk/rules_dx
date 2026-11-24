@@ -304,8 +304,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/evidence"
           read -ra patterns <<< "$DX_SCOPE"
           read -ra flags <<< "$DX_FLAGS"
-          DX_HERMETIC_BAZELISK="$(command -v bazel)"
-          export DX_HERMETIC_BAZELISK
           startup=()
           extra=(--notrack_incremental_state --nokeep_state_after_build)
           downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
@@ -358,12 +356,14 @@ jobs:
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" "--build_event_json_file=$RUNNER_TEMP/bep/$(basename "$log" .log).json" --nobuild_event_json_file_path_conversion --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" "--build_event_json_file=$RUNNER_TEMP/bep/$(basename "$log" .log).json" --nobuild_event_json_file_path_conversion --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task "$RUNNER_TEMP/evidence/evidence.log"
           if [ "$DX_RELOCATE" = true ] && [ "$DX_TASK" = build ]; then
-            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
+            bazel_bin="$(command -v bazel)"
+            [ "$RUNNER_OS" != Windows ] || bazel_bin="$(cygpath -w "$bazel_bin")"
+            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
           elif [ "$DX_RELOCATE" = true ]; then
             base="$RUNNER_TEMP/relocated-base"
             rm -rf "$base"

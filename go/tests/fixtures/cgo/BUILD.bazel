@@ -131,6 +131,7 @@ cgo_unsupported_toolchain_tests(
 
 cc_toolchain_test(
     name = "gcc_cgo_test",
+    size = "small",
     compiler = "gcc",
     target_compatible_with = ["@platforms//os:linux"],
     test = ":cgo_test",
@@ -138,6 +139,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_cxx_test",
+    size = "small",
     compiler = "gcc",
     target_compatible_with = ["@platforms//os:linux"],
     test = ":cxx_test",
@@ -145,6 +147,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_cgo_race_test",
+    size = "small",
     compiler = "gcc",
     target_compatible_with = ["@platforms//os:linux"],
     test = ":cgo_race_test",

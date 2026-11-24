@@ -162,6 +162,7 @@ rust_test(
         "DX_REPO_BAZEL_WRAPPER": "$(rootpath //tools:bazel)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
     },
+    shard_count = 2,
     visibility = VIS_CLI + [
         "//core/modules:__pkg__",
         "//tools/ci:__pkg__",

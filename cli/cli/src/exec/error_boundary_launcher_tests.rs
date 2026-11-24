@@ -248,7 +248,7 @@ impl Consumer {
         hang_up(reader.into_inner(), &probe);
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
         let output = child.wait_with_output().expect("dx stops");
-        drop(done.send(()));
+        done.send(()).unwrap_or_default();
         drop(dx_os_sys::process::signal(-pgid, SIGKILL));
         Outcome {
             status: output.status,

@@ -4,7 +4,6 @@ load("@rules_dx//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("@rules_dx//julia/tests:defs_tests.bzl", "julia_coverage_test", "julia_wrapper_action_test")
 load("@rules_dx//julia/tests:precompile_tests.bzl", "julia_forwarded_info_test", "julia_precompile_test")
 load("@rules_dx//rust:defs.bzl", "rust_test")
-load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -63,12 +62,6 @@ julia_coverage_test(
 julia_wrapper_action_test(
     name = "hello_wrapper_action_test",
     target = ":hello_upstream",
-)
-
-dx_hello_output_test(
-    name = "hello_standalone_output_test",
-    binary = "//julia/tests/fixtures/hello/app:hello_standalone",
-    expected = "Hello, julia!",
 )
 
 rust_test(

@@ -1,7 +1,6 @@
 use dx_site_check::rendered::asset;
 use std::path::Path;
-use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use dx_site_browser::{Browser, wait_for};
 
@@ -9,8 +8,7 @@ mod preview_server;
 use preview_server::{Server, firefox_binary, search_query, user_site};
 
 const DEPLOYED_URL: &str = "DX_PAGES_URL";
-const READINESS_ATTEMPTS: u32 = 10;
-const READINESS_PAUSE: Duration = Duration::from_secs(3);
+const READINESS_DEADLINE: Duration = Duration::from_secs(30);
 const PROBE_TIMEOUT: u64 = 15;
 const DESKTOP: (u64, u64) = (1280, 900);
 const REPRESENTATIVE_ROUTES: [&str; 4] = [
@@ -75,16 +73,16 @@ fn fetch(browser: &mut Browser, url: &str) -> Fetched {
 }
 
 fn waits_for(browser: &mut Browser, base: &str) -> bool {
-    for attempt in 0..READINESS_ATTEMPTS {
-        let probe = format!("{base}index.html");
+    let probe = format!("{base}index.html");
+    let deadline = Instant::now() + READINESS_DEADLINE;
+    loop {
         if browser.navigate(base).is_ok() && fetch(browser, &probe).status == 200 {
             return true;
         }
-        if attempt + 1 < READINESS_ATTEMPTS {
-            thread::sleep(READINESS_PAUSE);
+        if Instant::now() >= deadline {
+            return false;
         }
     }
-    false
 }
 
 fn asset_route(staged: &Path, logical: &str) -> String {
@@ -96,7 +94,8 @@ fn asset_route(staged: &Path, logical: &str) -> String {
 fn smoke(browser: &mut Browser, base: &str, staged: &Path) {
     assert!(
         waits_for(browser, base),
-        "the site at {base} answered no HTTP 200 within {READINESS_ATTEMPTS} attempts"
+        "the site at {base} answered no HTTP 200 within {}s",
+        READINESS_DEADLINE.as_secs()
     );
 
     let identity_routes = [

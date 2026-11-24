@@ -688,6 +688,7 @@ resources_processed_analysis_tests(name = "resources_processed_analysis")
 
 deploy_verify_test(
     name = "resources_demo_verify",
+    size = "small",
     data = [
         ":resources_demo_plain",
         ":resources_demo_processed",
@@ -867,6 +868,7 @@ helm_unit_tests(name = "helm_unit")
 
 deploy_verify_test(
     name = "oci_demo_verify",
+    size = "small",
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -883,6 +885,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "oci_demo_layout_verify",
+    size = "small",
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -904,6 +907,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "release_demo_verify",
+    size = "small",
     data = [
         ":release_demo_archive",
         ":release_demo_checksum",
@@ -921,6 +925,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "release_demo_debug_verify",
+    size = "small",
     data = [
         ":release_demo_debug_archive",
         ":release_demo_debug_checksum",
@@ -1113,6 +1118,7 @@ failure_test(
 
 deploy_verify_test(
     name = "github_demo_verify",
+    size = "small",
     data = [
         ":github_demo",
         ":github_demo_config",
@@ -1131,6 +1137,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "github_sbom_demo_verify",
+    size = "small",
     data = [
         "//deploy/private/sbom_demo:app_release",
         "//deploy/private/sbom_demo:app_release_config",
@@ -1152,6 +1159,7 @@ linux_package_unit_tests(name = "linux_package_unit")
 
 deploy_verify_test(
     name = "linux_package_demo_verify",
+    size = "small",
     data = [
         "//deploy/tests/fixtures/linux_package:demo",
         "//deploy/tests/fixtures/linux_package:demo_apk",
@@ -1213,6 +1221,7 @@ deploy_analysis_test(
 
 deploy_verify_test(
     name = "homebrew_demo_verify",
+    size = "small",
     data = [
         ":homebrew_demo",
         ":homebrew_demo_config",
@@ -1414,6 +1423,7 @@ pypi_deploy(
 
 deploy_verify_test(
     name = "pypi_native_verify",
+    size = "small",
     data = [
         ":dx_native_probe",
         ":dx_native_probe_config",
@@ -1472,6 +1482,7 @@ pypi_deploy(
 
 deploy_verify_test(
     name = "pypi_native_msvc_verify",
+    size = "small",
     data = [
         ":native_probe_msvc",
         ":native_probe_msvc_config",
@@ -1549,6 +1560,7 @@ pypi_deploy(
 
 deploy_verify_test(
     name = "pypi_native_linked_verify",
+    size = "small",
     data = [
         ":native_probe_linked",
         ":native_probe_linked_config",
@@ -1582,6 +1594,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "pypi_probe_verify",
+    size = "small",
     data = [
         ":dx_pypi_probe",
         ":dx_pypi_probe_config",
@@ -1679,6 +1692,7 @@ failure_test(
 
 deploy_verify_test(
     name = "cloudflare_demo_verify",
+    size = "small",
     data = [
         ":cloudflare_default_wrangler",
         ":cloudflare_default_wrangler_config",
@@ -1854,6 +1868,7 @@ deploy_analysis_test(
 
 deploy_verify_test(
     name = "rubygems_verify",
+    size = "small",
     data = [
         ":rubygems_demo",
         ":rubygems_demo_config",
@@ -2493,6 +2508,7 @@ standard_attrs_unit_tests(
 
 deploy_verify_test(
     name = "crates_demo_verify",
+    size = "small",
     data = [
         ":crates_demo",
         ":crates_demo_config",
@@ -2513,6 +2529,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "hex_demo_verify",
+    size = "small",
     data = [
         ":hex_demo",
         ":hex_demo_config",
@@ -2533,6 +2550,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "maven_demo_verify",
+    size = "small",
     data = [
         ":maven_demo",
         ":maven_demo_config",
@@ -2553,6 +2571,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "npm_demo_verify",
+    size = "small",
     data = [
         ":npm_demo",
         ":npm_demo_config",
@@ -2573,6 +2592,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "nuget_demo_verify",
+    size = "small",
     data = [
         ":nuget_demo",
         ":nuget_demo_config",
@@ -2593,6 +2613,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "octopus_demo_verify",
+    size = "small",
     data = [
         ":octopus_demo",
         ":octopus_demo_config",
@@ -2613,6 +2634,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "conan_demo_verify",
+    size = "small",
     data = [
         ":conan_demo",
         ":conan_demo_config",
@@ -2633,6 +2655,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "cpan_demo_verify",
+    size = "small",
     data = [
         ":cpan-demo",
         ":cpan-demo_config",
@@ -2653,6 +2676,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "hackage_demo_verify",
+    size = "small",
     data = [
         ":hackage-demo",
         ":hackage-demo_config",
@@ -2673,6 +2697,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "luarocks_demo_verify",
+    size = "small",
     data = [
         ":luarocks_demo",
         ":luarocks_demo_config",
@@ -2693,6 +2718,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "opam_demo_verify",
+    size = "small",
     data = [
         ":opam-demo",
         ":opam-demo_config",
@@ -2713,6 +2739,7 @@ deploy_verify_test(
 
 deploy_verify_test(
     name = "packagist_demo_verify",
+    size = "small",
     data = [
         ":packagist-demo",
         ":packagist-demo_config",

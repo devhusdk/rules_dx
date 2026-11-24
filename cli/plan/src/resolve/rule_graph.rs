@@ -660,12 +660,7 @@ mod tests {
     fn deployments_are_the_release_dx_deployment_rules_a_seed_reaches() {
         let graph = graph(&[
             graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
-            graph_rule_of_kind(
-                "//app:deploy",
-                "deployment",
-                &["//app:bin"],
-                &["release"],
-            ),
+            graph_rule_of_kind("//app:deploy", "deployment", &["//app:bin"], &["release"]),
             graph_rule_of_kind("//app:staging", "deployment", &["//app:bin"], &[]),
             graph_rule_of_kind(
                 "//app:prerelease",

@@ -2408,7 +2408,6 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         "rules_swift",
         &[],
     )?);
-    // `msvc_coverage.patch` lets `bazel coverage` configure the clang-cl toolchain.
     module.push_str(&write_root_patch_override(workspace, source, "llvm", &[])?);
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {

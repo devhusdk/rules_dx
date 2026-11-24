@@ -79,7 +79,10 @@ _compile_log_aspect = aspect(
 
 def _compile_log_impl(ctx):
     log = ctx.attr.target[0][_CompileLogInfo].log
-    return [DefaultInfo(files = depset([log]), runfiles = ctx.runfiles(files = [log]))]
+    return [
+        DefaultInfo(files = depset([log]), runfiles = ctx.runfiles(files = [log])),
+        coverage_common.instrumented_files_info(ctx, dependency_attributes = []),
+    ]
 
 compile_log = rule(
     implementation = _compile_log_impl,

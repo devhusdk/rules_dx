@@ -713,7 +713,6 @@ mod sh {
             &format!("BAZEL_REAL='{}' exec ./tools/bazel \"$@\"", real.display()),
         );
         repo.run_ok();
-        // A dx from before the bazel hook fails it with a usage error, as the copy and as bazel-bin.
         let old = "case \"$1 $2\" in\n'worktree hook') echo 'dx: worktree: want one of: create, remove, stop, guard' >&2; exit 2 ;;\nesac\necho old \"$@\"\n";
         shell_script(&state(&repo.root()).join("dx"), old);
         shell_script(&repo.root().join("bazel-bin/cli/cli/dx"), old);
@@ -984,7 +983,6 @@ mod sh {
 
     #[test]
     fn a_refused_bazel_hook_runs_the_built_dx_instead_of_a_build() {
-        // A dx from before the refusal exit code refuses with 2.
         for (code, stderr, builds) in [
             (77, "dx: refused: no Bazel in the main checkout here", 1),
             (2, "dx: refused: no Bazel in the main checkout here", 1),
@@ -2855,7 +2853,6 @@ mod cmd {
 
     #[test]
     fn cmd_a_refused_bazel_hook_runs_the_dx_that_refused() {
-        // 2 is the refusal of a dx from before the refusal exit code.
         for (copy_answers, exit) in [(true, 77), (true, 2), (false, 77)] {
             let repo = source_repo("dx-launcher-cmd-refused-");
             let root = repo.root();

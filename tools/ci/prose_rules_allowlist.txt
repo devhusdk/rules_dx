@@ -1,4 +1,3 @@
-.github/workflows/README.md issue-number 1
 AGENTS.md history-word 2
 core/quality/policy.bzl link-chain 1
 docs/AGENTS.md history-word 1

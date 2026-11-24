@@ -341,6 +341,10 @@ strict_flags_test(
 cuda_library(
     name = "warnings_allowed",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
+    hdrs = [
+        "//cuda/tests/fixtures/saxpy:saxpy.cuh",
+        "//cuda/tests/fixtures/saxpy:saxpy.h",
+    ],
     gpu_archs = ["sm_89"],
     tags = ["manual"],
     warnings_as_errors = False,

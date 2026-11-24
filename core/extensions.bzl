@@ -183,10 +183,6 @@ def _dx_toolchains_impl(mctx):
     hub_repo(name = "dx_toolchains", files = files)
     return mctx.extension_metadata(reproducible = True)
 
-# One hub for every toolchain() rules_dx declares itself. Registering a hub
-# fetches it and the load closure of its extension, and dx_pins already loads
-# this file, so these toolchains cost every consumer one repository and no
-# ruleset (cuda/extensions.bzl, for one, loads rules_cuda).
 dx_toolchains = module_extension(
     implementation = _dx_toolchains_impl,
     doc = "Declares the `dx_toolchains` hub that rules_dx registers for consumers: one package per `package` tag.",

@@ -8,7 +8,7 @@ This page fixes which tests may run Bazel inside a test, and how they run.
 - An analysis test checks providers, actions and failures of a rule.
 - An in-graph fixture is a target in the main module that the default test set builds and runs.
 - A nested test starts a Bazel server inside a test.
-- A nested test is allowed only for a claim about a consumer workspace that the main module cannot make: module resolution of a consumer, a release archive, `dx init` plus `dx generate` on a tree with no BUILD files.
+- A nested test is only for a claim about a consumer workspace the main module cannot make: module resolution of a consumer, a release archive, `dx init` plus `dx generate` on a tree with no BUILD files.
 - A claim about what a rule builds is an analysis test or an in-graph fixture.
 - A claim about what `dx` passes to Bazel is a unit test.
 - What Bazel does with a flag is not tested here.
@@ -43,7 +43,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//tools/testing/hermetic:cuda_gpu_nested_test` | A GPU test runs through a consumer | Deleted. `cuda_gpu_facts_test` stays |
 | `//tools/testing:nested_bazel_harness_test` | The harness runs the pinned Bazel offline and stops its server | Stays nested |
 | `//core/quality/tests:quality_check_smoke_test` | `dx check` reports each phase and diagnostic | Unit test for the events, in-graph fixtures for the diagnostics |
-| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart (`dx init` with `--no-generate`) and `bcr_test_module` run, every `dx` command runs against one consumer, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One sharded target. Stays nested, on the harness |
+| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override: the README quickstart (`dx init --no-generate`), `bcr_test_module`, every `dx` command on one consumer, and a Swift package on BCR rules_swift (Linux x86_64) | One sharded target. Stays nested, on the harness |
 | `//examples/adopt-polyglot:consumer_test` | `dx init` and `dx generate` adopt a tree with no BUILD files, twice with no change | Stays nested, on the harness |
 
 - `tools/docs/support_matrix` lists the in-graph test of a language once its nested test is converted.
@@ -67,9 +67,9 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - The test sets `PATH=/dx_no_path` and inherits no host variable but `DX_NESTED_SHARED`. `NESTED_BAZEL_ENV_INHERIT` is deleted.
 - `HOME`, the output user root and every workspace are under `TEST_TMPDIR`.
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
-- The nested Bazel reads one rc file that the harness writes. It reads no home, system or workspace rc of the host.
+- The nested Bazel reads one rc file that the harness writes. It reads no host home, system or workspace rc.
 - The nested Bazel uses no remote cache.
-- setup-bazel exports `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, least recently used first, sparing what running tests hold.
+- setup-bazel exports `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, oldest first, sparing what running tests hold.
 - `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 
@@ -84,11 +84,11 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - A nested test declares one cache set with `nested_bazel_test(cache = "<set>")`.
 - The downloader config blocks every host, `bcr.bazel.build` included.
 - A missing entry fails with the URL.
-- `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, one record per shard for a sharded test, and the tool merges them into `tools/testing/nested_cache` as `--from` does.
+- `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, one record per shard for a sharded test, and the tool merges them into `tools/testing/nested_cache` as `--from` does.
 - Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
-- Each case that ends rewrites the record from every workspace registered so far, so a failing test still uploads its record. The exit hook rewrites it once more and fails on a missing lock.
-- `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two digests, fails when the locks of one stem differ, and writes the result to `tools/testing/nested_cache`.
+- Each ending case rewrites the record from every workspace registered so far, so a failing test still uploads it. The exit hook rewrites it once more and fails on a missing lock.
+- `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails on a URL with two digests or on differing locks of one stem, and writes `tools/testing/nested_cache`.
 - A full re-record is one `lock-refresh.yml` dispatch with `nested=true` and `pr=<number>` on the pull request branch. It records the nested tests on linux_x86_64, macos_arm64 and windows_x86_64, merges the three hosts with `--from` and pushes `tools/testing/nested_cache` to that branch with the root lock.
 - The list is the registry files, module archives, patches and overlays of the lock, and every checksummed download in the Bazel workspace rules log. None is hand-edited.
 - `//core/modules:consumer_deps_test` fails a PR that bumps a registry `bazel_dep` until the same PR re-records every nested cache set.

@@ -375,12 +375,7 @@ fn run_scrubs_unset_variables() {
     .unwrap();
     let launcher = dx_testing::env_file("DX_EXEC_LAUNCHER");
     let app = dir.join("app.exe");
-    let copied = std::process::Command::new("cp")
-        .arg(&launcher)
-        .arg(&app)
-        .status()
-        .unwrap();
-    assert!(copied.success(), "cp the launcher: {copied}");
+    dx_testing::copy_executable(&launcher, &app);
     let status = std::process::Command::new(&app)
         .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
         .status()

@@ -10,7 +10,6 @@ cli/cli/tests/agents/tests/dev_launcher.rs spawn-by-name 2
 cli/cli/tests/uv_sets/tests/uv_sets.rs env-path 1
 cli/output/src/clap_errors.rs spawn-by-name 1
 cli/process/src/capture.rs spawn-by-name 1
-cli/process/src/lifecycle_tests.rs spawn-by-name 1
 cli/process/src/procs.rs spawn-by-name 1
 cli/process/src/procs_tests.rs spawn-by-name 3
 cli/shim/src/protocol.rs env-path 1

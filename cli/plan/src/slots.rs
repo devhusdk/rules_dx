@@ -1528,7 +1528,11 @@ impl Gate {
             &mut |holder: &str, reason: WaitReason| {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
-                let message = format!("{}{}", wait_message(holder), reaped_suffix(reaped.unwrap_or(0)));
+                let message = format!(
+                    "{}{}",
+                    wait_message(holder),
+                    reaped_suffix(reaped.unwrap_or(0))
+                );
                 dx_output::write_stderr(&mut **err, format_args!("dx: {message}\n"));
                 if json {
                     let mut event = notice_event(
@@ -2040,8 +2044,6 @@ impl<W: Write> Write for AfterFirstLine<W> {
 #[cfg(test)]
 const SETTLE_LIMIT: Duration = Duration::from_secs(5);
 
-/// Waits for `count` slots to come free, since a forked child can briefly hold a released slot's lock.
-/// See `a_child_forked_while_a_slot_is_held_keeps_it_until_exec` for why.
 #[cfg(test)]
 fn slot_settles_free(dir: &Path, count: usize) -> bool {
     (0..count).all(|index| {

@@ -58,7 +58,6 @@ fn lf(text: &str) -> String {
     text.replace("\r\n", "\n").replace("\\r\\n", "\\n")
 }
 
-/// Parses a lock as a JSON object.
 fn parse_lock(origin: &str, text: &str) -> Result<Json, String> {
     match serde_json::from_str(text) {
         Ok(serde_json::Value::Object(lock)) => Ok(lock),
@@ -67,7 +66,6 @@ fn parse_lock(origin: &str, text: &str) -> Result<Json, String> {
     }
 }
 
-/// Returns the `moduleExtensions` object of a lock, empty when it has none.
 fn extensions(lock: &Json) -> Json {
     match lock.get("moduleExtensions") {
         Some(serde_json::Value::Object(map)) => map.clone(),
@@ -75,10 +73,8 @@ fn extensions(lock: &Json) -> Json {
     }
 }
 
-/// The body line range of one extension in a lock and its `(key, lines)` entries.
 type Entries<'a> = (std::ops::Range<usize>, Vec<(String, Vec<&'a str>)>);
 
-/// Finds the entries of `extension` in a Bazel-written lock.
 fn extension_entries<'a>(lines: &[&'a str], extension: &str) -> Result<Entries<'a>, String> {
     let name = serde_json::to_string(extension).map_err(|error| error.to_string())?;
     let header = format!("    {name}: {{");
@@ -106,8 +102,6 @@ fn extension_entries<'a>(lines: &[&'a str], extension: &str) -> Result<Entries<'
     Err(format!("{extension} is not closed"))
 }
 
-/// Merges the hosts' locks. Every field must match, except that an extension Bazel evaluates per
-/// host (keys like `os:linux,arch:amd64`) keeps each host's entry, sorted by key as Bazel writes them.
 fn merge_locks(locks: &[(String, String)]) -> Result<String, String> {
     let locks: Vec<(String, String)> = locks
         .iter()

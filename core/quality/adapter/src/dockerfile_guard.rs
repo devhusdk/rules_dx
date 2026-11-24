@@ -1,5 +1,3 @@
-//! Dockerfile patterns that the strict tier fails on.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::parsers::FileFinding;
@@ -7,22 +5,17 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "hadolint";
 
-/// A `# hadolint ignore=` pragma with no `# reason` after its rule list.
 pub const REASONLESS_IGNORE: &str = "guard/reasonless_ignore";
-/// A `FROM` image with no `@sha256:` digest.
 pub const UNPINNED_IMAGE: &str = "guard/unpinned_image";
-/// `curl -k`, `curl --insecure` or `wget --no-check-certificate` in `RUN`.
 pub const TLS_OFF: &str = "guard/tls_off";
 
 const DIGEST: &str = "@sha256:";
 
-/// One instruction with its continuation lines joined.
 struct Instruction {
     line: u64,
     text: String,
 }
 
-/// Returns a finding for each banned pattern in one Dockerfile.
 #[must_use]
 pub fn dockerfile_guard(file: &str, source: &str) -> Vec<FileFinding> {
     let mut findings = Vec::new();
@@ -46,7 +39,6 @@ pub fn dockerfile_guard(file: &str, source: &str) -> Vec<FileFinding> {
         };
         let rest: Vec<&str> = words.collect();
         match keyword.to_ascii_uppercase().as_str() {
-            // Only an ARG before the first FROM can name a base image.
             "ARG" if !seen_from => {
                 for arg in &rest {
                     if let Some((name, value)) = arg.split_once('=') {
@@ -94,7 +86,6 @@ pub fn dockerfile_guard(file: &str, source: &str) -> Vec<FileFinding> {
     findings
 }
 
-/// Splits the source into instructions and returns the line and column of each reasonless ignore.
 fn split(source: &str) -> (Vec<Instruction>, Vec<(u64, u64)>) {
     let escape = escape_char(source);
     let mut instructions = Vec::new();
@@ -149,7 +140,6 @@ fn push_text(instruction: &mut Instruction, text: &str) {
     instruction.text.push_str(text);
 }
 
-/// The `# escape=` parser directive, which must come before any other line.
 fn escape_char(source: &str) -> char {
     for line in source.lines() {
         let Some(directive) = line.trim().strip_prefix('#') else {
@@ -165,7 +155,6 @@ fn escape_char(source: &str) -> char {
     '\\'
 }
 
-/// The terminators of the heredocs an instruction opens, such as `EOF` in `RUN <<EOF`.
 fn heredoc_ends(text: &str) -> Vec<String> {
     text.split("<<")
         .skip(1)
@@ -181,7 +170,6 @@ fn heredoc_ends(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether a comment body, after `#`, is a hadolint ignore with no `# reason` after its rules.
 fn reasonless_ignore(comment: &str) -> bool {
     let Some(rest) = comment.trim_start().strip_prefix("hadolint") else {
         return false;
@@ -198,7 +186,6 @@ fn reasonless_ignore(comment: &str) -> bool {
         .is_none_or(|reason| reason.trim().is_empty())
 }
 
-/// Whether a FROM image is `scratch`, an earlier stage, or carries a digest once global ARGs expand.
 fn pinned(image: &str, args: &BTreeMap<String, String>, stages: &BTreeSet<String>) -> bool {
     let image = expand(image, args);
     let lower = image.to_ascii_lowercase();
@@ -207,7 +194,6 @@ fn pinned(image: &str, args: &BTreeMap<String, String>, stages: &BTreeSet<String
         || (!image.contains('$') && image.contains(DIGEST))
 }
 
-/// Replaces `$NAME`, `${NAME}` and `${NAME:-default}` with ARG defaults; unknown names stay.
 fn expand(word: &str, args: &BTreeMap<String, String>) -> String {
     let mut out = String::new();
     let mut rest = word;
@@ -232,7 +218,6 @@ fn expand(word: &str, args: &BTreeMap<String, String>) -> String {
         };
         match args.get(name).map(String::as_str).or(fallback) {
             Some(value) if !value.is_empty() => out.push_str(value),
-            // Keep the reference as written, so an unresolved image still shows a `$`.
             _ => {
                 out.push('$');
                 out.push_str(tail.strip_suffix(after).unwrap_or(tail));
@@ -248,7 +233,6 @@ fn unquote(value: &str) -> &str {
     value.trim_matches(['"', '\''])
 }
 
-/// The first flag that turns off TLS verification in a curl or wget call, if any.
 fn tls_off(words: &[&str]) -> Option<String> {
     let mut command: Option<&str> = None;
     for raw in words {
@@ -303,8 +287,9 @@ fn finding(file: &str, line: u64, column: u64, rule: &str, message: String) -> F
 mod tests {
     use super::*;
 
-    const PINNED: &str =
-        "busybox:1.36@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662";
+    fn pinned_image() -> String {
+        format!("busybox:1.36@sha256:{}", "0".repeat(64))
+    }
 
     fn rules(source: &str) -> Vec<(String, u64)> {
         dockerfile_guard("Dockerfile", source)
@@ -319,9 +304,10 @@ mod tests {
 
     #[test]
     fn clean_source_has_no_findings() {
+        let pinned = pinned_image();
         let source = format!(
             "# hadolint ignore=DL3018 # apk pins drift weekly\n\
-             FROM {PINNED} AS build\n\
+             FROM {pinned} AS build\n\
              RUN apk add curl && curl -fsSL https://example.com/a -o /a\n\
              FROM build\n\
              FROM scratch\n\
@@ -332,24 +318,25 @@ mod tests {
 
     #[test]
     fn an_ignore_needs_a_reason() {
+        let pinned = pinned_image();
         assert_eq!(
-            rules(&format!("# hadolint ignore=DL3007\nFROM {PINNED}\n")),
+            rules(&format!("# hadolint ignore=DL3007\nFROM {pinned}\n")),
             one(REASONLESS_IGNORE, 1)
         );
         assert_eq!(
             rules(&format!(
-                "FROM {PINNED}\n  # hadolint global ignore=DL3007,DL3008 #\n"
+                "FROM {pinned}\n  # hadolint global ignore=DL3007,DL3008 #\n"
             )),
             one(REASONLESS_IGNORE, 2)
         );
         assert_eq!(
             rules(&format!(
-                "# hadolint global ignore=DL3007 # base moves with releases\nFROM {PINNED}\n"
+                "# hadolint global ignore=DL3007 # base moves with releases\nFROM {pinned}\n"
             )),
             []
         );
         assert_eq!(
-            rules(&format!("# hadolint shell=bash\nFROM {PINNED}\n")),
+            rules(&format!("# hadolint shell=bash\nFROM {pinned}\n")),
             []
         );
     }
@@ -366,8 +353,9 @@ mod tests {
 
     #[test]
     fn global_args_expand_in_from() {
-        assert_eq!(rules(&format!("ARG BASE={PINNED}\nFROM ${{BASE}}\n")), []);
-        assert_eq!(rules(&format!("FROM ${{BASE:-{PINNED}}}\n")), []);
+        let pinned = pinned_image();
+        assert_eq!(rules(&format!("ARG BASE={pinned}\nFROM ${{BASE}}\n")), []);
+        assert_eq!(rules(&format!("FROM ${{BASE:-{pinned}}}\n")), []);
         assert_eq!(
             rules("ARG BASE=busybox\nFROM $BASE\n"),
             one(UNPINNED_IMAGE, 2)
@@ -377,13 +365,14 @@ mod tests {
 
     #[test]
     fn insecure_downloads_fail() {
-        let run = |cmd: &str| rules(&format!("FROM {PINNED}\nRUN {cmd}\n"));
+        let pinned = pinned_image();
+        let run = |cmd: &str| rules(&format!("FROM {pinned}\nRUN {cmd}\n"));
         assert_eq!(run("curl -k https://x"), one(TLS_OFF, 2));
         assert_eq!(
             run("apk add curl && curl -fsSLk https://x"),
             one(TLS_OFF, 2)
         );
-        assert_eq!(run("/usr/bin/curl --insecure https://x"), one(TLS_OFF, 2));
+        assert_eq!(run("/opt/tools/curl --insecure https://x"), one(TLS_OFF, 2));
         assert_eq!(
             run("wget --no-check-certificate https://x"),
             one(TLS_OFF, 2)
@@ -391,7 +380,7 @@ mod tests {
         assert_eq!(run("[\"curl\", \"-k\", \"https://x\"]"), one(TLS_OFF, 2));
         assert_eq!(
             rules(&format!(
-                "FROM {PINNED}\nRUN set -e; \\\n    curl \\\n    -k https://x\n"
+                "FROM {pinned}\nRUN set -e; \\\n    curl \\\n    -k https://x\n"
             )),
             one(TLS_OFF, 2)
         );
@@ -401,14 +390,16 @@ mod tests {
 
     #[test]
     fn heredoc_bodies_are_not_instructions() {
+        let pinned = pinned_image();
         let source =
-            format!("FROM {PINNED}\nRUN <<EOF\nFROM busybox\ncurl -k https://x\nEOF\nRUN true\n");
+            format!("FROM {pinned}\nRUN <<EOF\nFROM busybox\ncurl -k https://x\nEOF\nRUN true\n");
         assert_eq!(rules(&source), one(TLS_OFF, 2));
     }
 
     #[test]
     fn the_escape_directive_changes_the_continuation() {
-        let source = format!("# escape=`\nFROM {PINNED}\nRUN curl `\n  -k https://x\n");
+        let pinned = pinned_image();
+        let source = format!("# escape=`\nFROM {pinned}\nRUN curl `\n  -k https://x\n");
         assert_eq!(rules(&source), one(TLS_OFF, 3));
     }
 }

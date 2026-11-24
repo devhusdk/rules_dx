@@ -81,11 +81,8 @@ fn pretty(value: &Value) -> Result<String, String> {
     Ok(text)
 }
 
-/// The keys a core aspect manifest row carries about its file family.
 const CORE_FAMILY_KEYS: [&str; 3] = ["owner", "classes", "defaults"];
 
-/// The file families of the core aspect manifest, keyed by `family`, with each row's owner, classes
-/// and defaults.
 fn core_families(core: &Value) -> Result<Map<String, Value>, String> {
     let rows = core["quality"]
         .as_array()
@@ -126,7 +123,6 @@ fn core_families(core: &Value) -> Result<Map<String, Value>, String> {
     Ok(families)
 }
 
-/// `NAME = json.decode("""...""")` for a value with no escapes or triple quotes.
 fn json_decode_line(name: &str, value: Value) -> Result<String, String> {
     let body = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
     if body.contains('\\') || body.contains("\"\"\"") {

@@ -31,7 +31,6 @@ impl Host {
         }
     }
 
-    /// Runs a copy of the wrapper from `tools` next to a `dx.cmd` with `body`.
     fn with_dx(mut self, body: &str) -> Host {
         let tools = self.path("tools");
         std::fs::create_dir_all(&tools).unwrap();
@@ -168,7 +167,6 @@ fn the_bazel_exit_code_passes_through() {
     assert_eq!(output.status.code(), Some(3));
 }
 
-/// A `dx.cmd` that prints to stdout and exits with `code` for the bazel hook.
 fn hook(code: u8) -> String {
     format!("@echo off\nif not \"%1 %2 %3 %4\"==\"worktree hook bazel --\" exit /b 9\necho hook-out\nexit /b {code}\n")
 }

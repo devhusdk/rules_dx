@@ -1,5 +1,3 @@
-# Needs rubocop, rubocop-performance, rubocop-rspec, rubocop-minitest and
-# rubocop-sorbet in the Gemfile that has rubocop.
 plugins:
   - rubocop-performance
   - rubocop-rspec
@@ -52,8 +50,6 @@ Minitest/SkipEnsure:
   Enabled: true
 Minitest/NoAssertions:
   Enabled: true
-# Sorbet cops contradict each other (ForbidSig and EnforceSignatures), so only
-# the guards below are on.
 Sorbet:
   Enabled: false
 Sorbet/StrictSigil:

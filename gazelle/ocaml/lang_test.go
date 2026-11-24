@@ -11,8 +11,6 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-// repoConfig returns the config Gazelle passes to GenerateRules for a
-// repository rooted at root.
 func repoConfig(root string) *config.Config {
 	c := config.New()
 	c.RepoRoot = root

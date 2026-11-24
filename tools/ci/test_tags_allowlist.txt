@@ -5,10 +5,10 @@ tools/testing/hermetic/BUILD.bazel no-cache 2
 tools/testing/hermetic/BUILD.bazel no-remote 2
 tools/testing/hermetic/BUILD.bazel no-sandbox 2
 tools/testing/hermetic/BUILD.bazel requires-network 2
-tools/testing/hermetic/defs.bzl exclusive 2
-tools/testing/hermetic/defs.bzl manual 2
-tools/testing/hermetic/defs.bzl no-cache 2
-tools/testing/hermetic/defs.bzl no-remote 2
-tools/testing/hermetic/defs.bzl no-sandbox 2
-tools/testing/hermetic/defs.bzl requires-network 3
+tools/testing/hermetic/defs.bzl exclusive 1
+tools/testing/hermetic/defs.bzl manual 1
+tools/testing/hermetic/defs.bzl no-cache 1
+tools/testing/hermetic/defs.bzl no-remote 1
+tools/testing/hermetic/defs.bzl no-sandbox 1
+tools/testing/hermetic/defs.bzl requires-network 2
 tools/testing/nested_bazel.bzl requires-network 1

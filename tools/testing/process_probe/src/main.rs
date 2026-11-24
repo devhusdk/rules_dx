@@ -374,14 +374,8 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
 }
 
 fn wait_for_lock(path: &str) -> Result<(), String> {
-    let deadline = std::time::Instant::now() + Duration::from_secs(10);
-    while !std::path::Path::new(path).exists() {
-        if std::time::Instant::now() >= deadline {
-            return Err(format!("the descendant never took {path}"));
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    Ok(())
+    dx_test_scratch::wait::path_appears(std::path::Path::new(path), Duration::from_secs(10))
+        .map_err(|error| format!("the descendant never took {path}: {error}"))
 }
 
 fn hold_alive_lock(path: &str) -> io::Result<std::fs::File> {
@@ -502,10 +496,10 @@ fn sleep_until_gate(plan: &Plan) {
         std::thread::sleep(plan.sleep);
         return;
     };
-    let deadline = std::time::Instant::now() + plan.sleep;
-    while !std::path::Path::new(gate).exists() && std::time::Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    drop(dx_test_scratch::wait::path_appears(
+        std::path::Path::new(gate),
+        plan.sleep,
+    ));
 }
 
 struct Failure {

@@ -102,7 +102,7 @@ fn rust_project_definition_resolves_through_selected_features() {
             }),
         )
         .expect("rust-analyzer opens the fixture");
-    let result = poll_definition(
+    let result = quiescent_definition(
         &mut session,
         &fixture.lib_uri,
         &fixture.lib_text,
@@ -175,7 +175,7 @@ fn rust_project_hides_feature_gated_items_without_the_feature() {
             }),
         )
         .expect("rust-analyzer opens the fixture");
-    let result = poll_definition(
+    let result = quiescent_definition(
         &mut session,
         &fixture.lib_uri,
         &fixture.lib_text,

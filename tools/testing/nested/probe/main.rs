@@ -1,6 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::io::Write;
+use std::io::{Read as _, Write};
 use std::process::ExitCode;
 
 fn code(arg: Option<&String>) -> ExitCode {
@@ -33,27 +33,25 @@ fn run(args: &[String]) -> Result<ExitCode, String> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        Some("sleep") => {
-            std::thread::sleep(std::time::Duration::from_secs(
-                args.get(1).and_then(|secs| secs.parse().ok()).unwrap_or(60),
-            ));
+        Some("hold") => {
+            std::io::stdin()
+                .read_to_end(&mut Vec::new())
+                .map_err(|error| format!("hold: {error}"))?;
             Ok(ExitCode::SUCCESS)
         }
         Some("emit") => {
             eprintln!("{}", args.get(1).map_or("", String::as_str));
             Ok(code(args.get(2)))
         }
-        Some("heartbeat") => {
-            let file = args.get(1).ok_or("heartbeat file")?;
-            loop {
-                std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(file)
-                    .and_then(|mut out| out.write_all(b"x\n"))
-                    .map_err(|error| format!("heartbeat: {error}"))?;
-                std::thread::sleep(std::time::Duration::from_millis(20));
+        Some("echo") => {
+            let mut out = std::io::stdout().lock();
+            for line in std::io::stdin().lines() {
+                let line = line.map_err(|error| format!("echo: {error}"))?;
+                writeln!(out, "{line}")
+                    .and_then(|()| out.flush())
+                    .map_err(|error| format!("echo: {error}"))?;
             }
+            Ok(ExitCode::SUCCESS)
         }
         Some("exit") => Ok(code(args.get(1))),
         Some(other) => {

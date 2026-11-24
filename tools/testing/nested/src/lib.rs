@@ -925,14 +925,14 @@ fn servers_from(processes: &Processes, user_root: &Path) -> Vec<u32> {
 }
 
 fn wait_gone(pids: &[u32], limit: Duration) -> Vec<u32> {
-    let started = Instant::now();
-    loop {
-        let left: Vec<u32> = pids.iter().copied().filter(|pid| alive(*pid)).collect();
-        if left.is_empty() || started.elapsed() >= limit {
-            return left;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
+    let deadline = Instant::now() + limit;
+    pids.iter()
+        .copied()
+        .filter(|pid| {
+            let left = deadline.saturating_duration_since(Instant::now());
+            !dx_os_sys::exit::wait_gone(*pid, left).unwrap_or(false) && alive(*pid)
+        })
+        .collect()
 }
 
 fn workspace_prefixes(workspaces: &Path) -> Vec<String> {
@@ -1263,6 +1263,7 @@ const REAP_ENV: &str = "DX_NESTED_REAP";
 
 /// Names the file in the slot home that receives the reaper's stderr.
 const REAPER_LOG: &str = "reaper.log";
+const REAPER_WAITING: &str = "nested bazel reaper: waiting for owner";
 
 /// Starts a detached shim that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
@@ -1315,8 +1316,16 @@ fn reap(owner: &str, workspaces: &Path) -> i32 {
         eprintln!("nested bazel shim: {REAP_ENV} is not a pid");
         return 2;
     };
-    while alive(owner) {
-        std::thread::sleep(Duration::from_secs(1));
+    eprintln!("{REAPER_WAITING} {owner}");
+    loop {
+        match dx_os_sys::exit::wait_gone(owner, Duration::from_secs(3600)) {
+            Ok(true) => break,
+            Ok(false) => {}
+            Err(error) => {
+                eprintln!("nested bazel reaper: cannot wait for owner {owner}: {error}");
+                return 2;
+            }
+        }
     }
     let real = std::fs::canonicalize(workspaces).unwrap_or_else(|_| workspaces.to_path_buf());
     eprintln!(
@@ -2294,6 +2303,44 @@ fn probe_command(args: &[&str]) -> Command {
 }
 
 #[cfg(test)]
+#[track_caller]
+fn reaper_waiting(home: &Path) {
+    let log = home.join(REAPER_LOG);
+    let waiting = || std::fs::read_to_string(&log).is_ok_and(|text| text.contains(REAPER_WAITING));
+    if let Err(error) = dx_test_scratch::wait::watch_until(
+        &log,
+        "the reaper waiting",
+        Duration::from_secs(30),
+        waiting,
+    ) {
+        panic!("{error}");
+    }
+}
+
+#[cfg(all(test, unix))]
+#[track_caller]
+fn exited_unreaped(pid: u32) {
+    let raw = i32::try_from(pid).expect("pid");
+    let waited =
+        dx_test_scratch::wait::within("the child exiting", Duration::from_secs(10), move || {
+            dx_os_sys::process::await_exit_unreaped(raw)
+        });
+    match waited {
+        Ok(Ok(())) => {}
+        Ok(Err(error)) => panic!("waitid {pid}: {error}"),
+        Err(error) => panic!("{error}"),
+    }
+}
+
+#[cfg(test)]
+fn held(args: &[&str]) -> Child {
+    probe_command(&[&["hold"][..], args].concat())
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn a held probe")
+}
+
+#[cfg(test)]
 #[cfg(unix)]
 mod tests {
     use super::*;
@@ -2717,14 +2764,8 @@ mod tests {
     #[test]
     fn a_process_is_owned_only_when_its_command_line_names_the_user_root() {
         let root = Path::new("/nested/owned/root");
-        let mut child = probe_command(&["sleep", "30", &root.to_string_lossy()])
-            .spawn()
-            .expect("spawn");
+        let mut child = held(&[&root.to_string_lossy()]);
         let pid = child.id();
-        let started = Instant::now();
-        while !owned_by(pid, root) && started.elapsed() < Duration::from_secs(5) {
-            std::thread::sleep(Duration::from_millis(20));
-        }
         let owned = owned_by(pid, root);
         let other = owned_by(pid, Path::new("/nested/other/root"));
         let unrelated = owned_by(std::process::id(), root);
@@ -3036,24 +3077,16 @@ mod tests {
     }
 
     fn stand_in(workspace: &Path) -> Child {
-        probe_command(&[
-            "sleep",
-            "60",
+        held(&[
             &format!("--workspace_directory={}", workspace.display()),
             "--output_base=/home/u/.cache/bazel/_bazel_u/abc",
         ])
-        .spawn()
-        .expect("spawn stand-in server")
     }
 
-    fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
-        let started = Instant::now();
-        while !done() {
-            assert!(
-                started.elapsed() < Duration::from_secs(15),
-                "timed out waiting for {what}"
-            );
-            std::thread::sleep(Duration::from_millis(50));
+    #[track_caller]
+    fn gone(pid: u32) {
+        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(15)) {
+            panic!("{error}");
         }
     }
 
@@ -3070,10 +3103,8 @@ mod tests {
         let mut stray = stand_in(&workspaces.join("consumer"));
         let other = stand_in(&outside_root.join("consumer"));
         let (stray_pid, other_pid) = (stray.id(), other.id());
-        wait_until("both stand-ins", || {
-            servers_in_workspaces(&workspaces) == vec![stray_pid]
-                && servers_in_workspaces(&outside_root) == vec![other_pid]
-        });
+        assert_eq!(servers_in_workspaces(&workspaces), vec![stray_pid]);
+        assert_eq!(servers_in_workspaces(&outside_root), vec![other_pid]);
         assert_eq!(kill_servers_in_workspaces(&workspaces), [] as [u32; 0]);
         drop(stray.wait());
         assert!(!alive(stray_pid));
@@ -3087,7 +3118,7 @@ mod tests {
         let mut server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         let mut stray = stand_in(&server.home().join("w/consumer"));
         let pid = stray.id();
-        wait_until("the stand-in", || server.servers() == vec![pid]);
+        assert_eq!(server.servers(), vec![pid]);
         assert_eq!(server.shutdown(), [] as [u32; 0]);
         drop(stray.wait());
         assert!(!alive(pid));
@@ -3099,7 +3130,7 @@ mod tests {
         let server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         let mut stray = stand_in(&server.home().join("w/consumer"));
         let pid = stray.id();
-        wait_until("the stand-in", || server.servers() == vec![pid]);
+        assert_eq!(server.servers(), vec![pid]);
         drop(server);
         drop(stray.wait());
         assert!(!alive(pid));
@@ -3112,9 +3143,7 @@ mod tests {
         std::fs::create_dir_all(&workspace).expect("mkdir");
         let mut stray = stand_in(&workspace);
         let pid = stray.id();
-        wait_until("the stand-in", || {
-            servers_in_workspaces(&dir.path().join("w")) == vec![pid]
-        });
+        assert_eq!(servers_in_workspaces(&dir.path().join("w")), vec![pid]);
         let server = Server::acquire(config(dir.path(), &probe())).expect("acquire");
         drop(stray.wait());
         assert!(!alive(pid));
@@ -3128,18 +3157,16 @@ mod tests {
         let home = dir.path().to_path_buf();
         let workspaces = home.join("w");
         std::fs::create_dir_all(&workspaces).expect("mkdir");
-        let mut owner = probe_command(&["sleep", "60"]).spawn().expect("owner");
+        let mut owner = held(&[]);
         let mut stray = stand_in(&workspaces.join("consumer"));
         let pid = stray.id();
-        wait_until("the stand-in", || {
-            servers_in_workspaces(&workspaces) == vec![pid]
-        });
+        assert_eq!(servers_in_workspaces(&workspaces), vec![pid]);
         let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
-        std::thread::sleep(Duration::from_millis(1500));
+        reaper_waiting(&home);
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         drop(owner.wait());
-        wait_until("the reaper to stop the stand-in", || !alive(pid));
+        gone(pid);
         drop(stray.wait());
         drop(reaper.wait());
     }
@@ -3151,9 +3178,10 @@ mod tests {
         let workspaces = dir.path().join("w");
         let child = stand_in(&workspaces.join("consumer"));
         let pid = child.id();
-        wait_until("stand-in in the table", || {
-            servers_in_workspaces_from(&Processes::snapshot(), &workspaces) == vec![pid]
-        });
+        assert_eq!(
+            servers_in_workspaces_from(&Processes::snapshot(), &workspaces),
+            vec![pid]
+        );
         stop(child, &workspaces);
     }
 
@@ -3162,7 +3190,8 @@ mod tests {
     fn snapshot_treats_zombies_as_gone() {
         let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn true");
         let pid = child.id();
-        wait_until("zombie", || dx_process::procs::zombie(pid));
+        exited_unreaped(pid);
+        assert!(dx_process::procs::zombie(pid));
         assert!(!Processes::snapshot().alive(pid));
         drop(child.wait());
     }
@@ -3369,10 +3398,7 @@ mod portable_tests {
     fn alive_treats_an_unreaped_child_as_dead() {
         let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn");
         let pid = child.id();
-        let start = Instant::now();
-        while alive(pid) && start.elapsed() < Duration::from_secs(10) {
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        exited_unreaped(pid);
         assert!(!alive(pid), "exited but unreaped child counted as alive");
         child.wait().expect("reap");
     }
@@ -3443,27 +3469,13 @@ mod portable_tests {
             "--workspace_directory={}",
             workspaces.join("consumer").display()
         );
-        let mut owner = probe_command(&["sleep", "60"]).spawn().expect("owner");
-        let mut stray = probe_command(&["sleep", "60", &flag])
-            .spawn()
-            .expect("stray");
+        let mut owner = held(&[]);
+        let mut stray = held(&[&flag]);
         let pid = stray.id();
-        let wait_until = |what: &str, done: &dyn Fn() -> bool| {
-            let started = Instant::now();
-            while !done() {
-                assert!(
-                    started.elapsed() < Duration::from_secs(30),
-                    "timed out waiting for {what}"
-                );
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        };
-        wait_until("the stand-in", &|| {
-            servers_in_workspaces(&workspaces).contains(&pid)
-        });
+        assert!(servers_in_workspaces(&workspaces).contains(&pid));
         let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
         let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
-        std::thread::sleep(Duration::from_millis(1500));
+        reaper_waiting(&home);
         let early = reaper.try_wait();
         assert!(
             matches!(early, Ok(None)),
@@ -3473,17 +3485,13 @@ mod portable_tests {
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         let _: std::io::Result<std::process::ExitStatus> = owner.wait();
-        let started = Instant::now();
-        while alive(pid) {
-            if started.elapsed() >= Duration::from_secs(30) {
-                panic!(
-                    "timed out waiting for the reaper to stop the stand-in\nreaper: {:?}\nreaper.log:\n{}\nservers_in_workspaces: {:?}",
-                    reaper.try_wait(),
-                    log(),
-                    servers_in_workspaces(&workspaces)
-                );
-            }
-            std::thread::sleep(Duration::from_millis(50));
+        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30)) {
+            panic!(
+                "the reaper did not stop the stand-in: {error}\nreaper: {:?}\nreaper.log:\n{}\nservers_in_workspaces: {:?}",
+                reaper.try_wait(),
+                log(),
+                servers_in_workspaces(&workspaces)
+            );
         }
         let _: std::io::Result<std::process::ExitStatus> = stray.wait();
         let _: std::io::Result<std::process::ExitStatus> = reaper.wait();
@@ -3495,16 +3503,8 @@ mod portable_tests {
         let scratch = tempfile::tempdir().expect("tempdir");
         let workspace = scratch.path().join("ws");
         let flag = format!("--workspace_directory={}", workspace.display());
-        let mut child = probe_command(&["sleep", "30", &flag])
-            .spawn()
-            .expect("spawn");
+        let mut child = held(&[&flag]);
         let pid = child.id();
-        let started = Instant::now();
-        while !servers_in_workspaces(scratch.path()).contains(&pid)
-            && started.elapsed() < Duration::from_secs(5)
-        {
-            std::thread::sleep(Duration::from_millis(20));
-        }
         let found = servers_in_workspaces(scratch.path()).contains(&pid);
         let elsewhere = servers_in_workspaces(&scratch.path().join("other")).contains(&pid);
         child.kill().expect("kill");
@@ -3519,63 +3519,110 @@ mod suspend_tests {
     use super::*;
     use std::time::Duration;
 
-    fn heartbeat(file: &Path) -> Child {
-        let mut command = probe_command(&["heartbeat", &file.to_string_lossy()]);
-        command.spawn().expect("spawn heartbeat")
+    struct Echo {
+        child: Child,
+        input: std::process::ChildStdin,
+        replies: std::sync::mpsc::Receiver<String>,
     }
 
-    fn size(file: &Path) -> u64 {
-        std::fs::metadata(file).map_or(0, |meta| meta.len())
-    }
-
-    fn wait_for_growth(file: &Path, from: u64) -> bool {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        while Instant::now() < deadline {
-            if size(file) > from {
-                return true;
+    impl Echo {
+        fn start() -> Echo {
+            let mut child = probe_command(&["echo"])
+                .stdin(std::process::Stdio::piped())
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .expect("spawn echo");
+            let input = child.stdin.take().expect("echo stdin");
+            let output = child.stdout.take().expect("echo stdout");
+            let (sender, replies) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let lines = std::io::BufRead::lines(std::io::BufReader::new(output));
+                for line in lines.map_while(Result::ok) {
+                    if sender.send(line).is_err() {
+                        break;
+                    }
+                }
+            });
+            Echo {
+                child,
+                input,
+                replies,
             }
-            std::thread::sleep(Duration::from_millis(50));
         }
-        false
+
+        fn send(&mut self, text: &str) {
+            use std::io::Write as _;
+            writeln!(self.input, "{text}")
+                .and_then(|()| self.input.flush())
+                .expect("write to echo");
+        }
+
+        #[track_caller]
+        fn reply(&self) -> String {
+            self.replies
+                .recv_timeout(Duration::from_secs(10))
+                .expect("the echo child answers within 10s")
+        }
+    }
+
+    impl Drop for Echo {
+        fn drop(&mut self) {
+            drop(self.child.kill());
+            drop(self.child.wait());
+        }
+    }
+
+    #[track_caller]
+    fn stopped(pid: u32) {
+        #[cfg(unix)]
+        {
+            let raw = i32::try_from(pid).expect("pid");
+            let stop = dx_test_scratch::wait::within(
+                "the child stopping",
+                Duration::from_secs(10),
+                move || dx_os_sys::process::await_stop(raw),
+            );
+            assert!(
+                matches!(stop, Ok(Ok(Some(_)))),
+                "the child never stopped: {stop:?}"
+            );
+        }
+        #[cfg(not(unix))]
+        let _: u32 = pid;
     }
 
     #[test]
     fn suspend_stops_a_child_and_resume_restarts_it() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let file = dir.path().join("beat");
-        let mut child = heartbeat(&file);
-        assert!(wait_for_growth(&file, 0));
-        let mut frozen = suspend(child.id()).expect("suspend");
-        std::thread::sleep(Duration::from_millis(200));
-        let held = size(&file);
-        std::thread::sleep(Duration::from_millis(500));
-        assert_eq!(size(&file), held, "the child kept running while suspended");
+        let mut echo = Echo::start();
+        echo.send("before");
+        assert_eq!(echo.reply(), "before");
+        let mut frozen = suspend(echo.child.id()).expect("suspend");
+        stopped(echo.child.id());
+        echo.send("during");
+        assert!(
+            echo.replies.try_recv().is_err(),
+            "the child answered while suspended"
+        );
         assert!(frozen.resume());
-        assert!(wait_for_growth(&file, held), "the child did not restart");
-        drop(child.kill());
-        drop(child.wait());
+        assert_eq!(echo.reply(), "during", "the child did not restart");
     }
 
     #[test]
     fn dropping_the_guard_resumes_the_child() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let file = dir.path().join("beat");
-        let mut child = heartbeat(&file);
-        assert!(wait_for_growth(&file, 0));
-        let frozen = suspend(child.id()).expect("suspend");
-        std::thread::sleep(Duration::from_millis(200));
-        let held = size(&file);
+        let mut echo = Echo::start();
+        echo.send("before");
+        assert_eq!(echo.reply(), "before");
+        let frozen = suspend(echo.child.id()).expect("suspend");
+        stopped(echo.child.id());
+        echo.send("during");
         drop(frozen);
-        assert!(wait_for_growth(&file, held), "the child did not restart");
-        drop(child.kill());
-        drop(child.wait());
+        assert_eq!(echo.reply(), "during", "the child did not restart");
     }
 
     #[test]
     fn suspending_a_dead_pid_fails() {
-        let mut child = heartbeat(&std::env::temp_dir().join("nested-suspend-dead"));
+        let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn");
         let pid = child.id();
-        drop(child.kill());
         drop(child.wait());
         assert!(suspend(pid).is_err());
     }

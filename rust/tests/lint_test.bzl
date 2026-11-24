@@ -25,17 +25,17 @@ def _lint_impl(ctx):
     ]
 
 _ATTRS = {
+    "_checker": attr.label(
+        default = Label("//rust/private/tools/clippy_findings"),
+        executable = True,
+        cfg = "target",
+    ),
     "targets": attr.label_list(
         doc = "Rust crates and tests to lint.",
         allow_empty = False,
         aspects = [dx_clippy_aspect],
         mandatory = True,
         providers = [[rust_common.crate_info], [rust_common.test_crate_info]],
-    ),
-    "_checker": attr.label(
-        default = "//rust/private/tools/clippy_findings",
-        executable = True,
-        cfg = "target",
     ),
 }
 

@@ -157,16 +157,20 @@ To change a rule, edit the tool's root config file. See
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
 | `astro` | `prettier` | `typos` | `tsc` |
+| `bicep` | `bicep` | `bicep`, `trivy_config`, `typos` | disabled |
 | `cc` | `clang_format` | `clang_tidy`, `typos` | disabled |
+| `cloudformation` | disabled | `cfn_lint`, `trivy_config`, `typos` | disabled |
 | `core` | `yamlfmt` | `actionlint`, `zizmor` | disabled |
 | `dockerfile` | disabled | `hadolint`, `typos` | disabled |
 | `go` | `gofumpt` | `errcheck`, `govet`, `staticcheck`, `typos` | `gotype` |
 | `graphql` | `prettier` | `typos` | disabled |
+| `helm` | disabled | `helm`, `trivy_config`, `typos` | disabled |
 | `html` | `prettier` | `typos` | disabled |
 | `java` | `google_java_format` | `pmd`, `spotbugs`, `typos` | `javac` |
 | `javascript` | `biome` | `biome`, `typos` | disabled |
 | `json` | `biome` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
+| `kubernetes` | disabled | `kubeconform`, `trivy_config`, `typos` | disabled |
 | `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
 | `mdx` | `remark` | `lychee`, `typos` | disabled |
 | `objc` | `clang_format` | `typos` | `clang_syntax` |
@@ -377,7 +381,7 @@ With warnings as errors on, `erlc` compiles with `-Werror`, `+warn_untyped_recor
 | `tflint` | Lint Terraform | |
 | `bicep` | Format and lint Bicep | |
 | `cfn_lint` | Lint CloudFormation | |
-| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations; opt-in | |
+| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations at every severity under the strict tier, `HIGH` and `CRITICAL` under the standard tier | |
 | `trivy_image_config` | Lint the user, healthcheck and secrets in the image config of an `oci_image_from_binary` image, offline | |
 | `container_structure_test` | Typecheck the config, files and licenses of an `oci_image_from_binary` image against its `structure_tests` configs with the tar driver, without a container runtime | |
 | `nixfmt` | Format Nix | `macos_arm64`, `windows_x86_64`, `windows_arm64` |
@@ -551,7 +555,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `swift_lint` | catalog | `*.swift-format`, `*.json` | none | dx |  |
 | `taplo` | curated | `.taplo.toml` | override copy | dx |  |
 | `tflint` | catalog | `*.hcl` | none | dx |  |
-| `trivy_config` | catalog | `*.txt` | none | dx |  |
+| `trivy_config` | curated | `*.txt` | none | dx |  |
 | `tsc` | curated | `tsconfig.json` | extends | dx |  |
 | `ty` | curated | `*.toml` | none | dx |  |
 | `typos` | curated | `typos.toml` | override copy | dx |  |

@@ -761,6 +761,7 @@
           ],
           "lint": [
             "bicep",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -927,6 +928,7 @@
           "format": [],
           "lint": [
             "cfn_lint",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -1622,6 +1624,7 @@
           "format": [],
           "lint": [
             "helm",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -1942,6 +1945,7 @@
           "format": [],
           "lint": [
             "kubeconform",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []

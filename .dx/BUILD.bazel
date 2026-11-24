@@ -94,6 +94,7 @@ dx_generated_policy(
             "format": ["bicep"],
             "lint": [
                 "bicep",
+                "trivy_config",
                 "typos",
             ],
         },
@@ -205,6 +206,7 @@ dx_generated_policy(
             ],
             "lint": [
                 "helm",
+                "trivy_config",
                 "typos",
             ],
         },

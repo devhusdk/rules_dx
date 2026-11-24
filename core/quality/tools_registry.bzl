@@ -43,8 +43,15 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ansible_lint",
       "severity": {
         "categories": {
+          "command-instead-of-module": "error",
           "internal-error": "error",
+          "latest": "error",
           "load-failure": "error",
+          "no-changed-when": "error",
+          "no-log-password": "error",
+          "package-latest": "error",
+          "risky-file-permissions": "error",
+          "risky-shell-pipe": "error",
           "syntax-check": "error"
         },
         "default": "warning",
@@ -4590,6 +4597,12 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "severity": {
         "categories": {
           "DL1": "error",
+          "DL3002": "error",
+          "DL3006": "error",
+          "DL3007": "error",
+          "DL3008": "error",
+          "DL3018": "error",
+          "DL4006": "error",
           "guard/": "error"
         },
         "default": "warning",
@@ -10149,6 +10162,9 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "tflint",
       "severity": {
         "categories": {
+          "terraform_module_pinned_source": "error",
+          "terraform_required_providers": "error",
+          "terraform_required_version": "error",
           "tflint-diagnostic": "error"
         },
         "default": "warning",

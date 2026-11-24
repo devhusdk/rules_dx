@@ -1,0 +1,15 @@
+producer //core/quality/testdata:matrix_dockerfile_lint_guard_strict
+capability LINT
+stages 1
+stage hadolint classes=dockerfile sources=matrix/hadolint_guard/Dockerfile
+completed_rounds 1
+convergence STABLE
+initial 3
+initial ERROR hadolint DL3007 matrix/hadolint_guard/Dockerfile 0 0 fixable=false "Using latest is prone to errors if the image will ever update. Pin the version explicitly to a release tag"
+initial WARNING hadolint DL3066 matrix/hadolint_guard/Dockerfile 19 19 fixable=false "Non-numeric user-id may not be resolvable by host system"
+initial ERROR hadolint DL3002 matrix/hadolint_guard/Dockerfile 19 19 fixable=false "Last USER should not be root"
+terminal 3
+terminal ERROR hadolint DL3007 matrix/hadolint_guard/Dockerfile 0 0 fixable=false "Using latest is prone to errors if the image will ever update. Pin the version explicitly to a release tag"
+terminal WARNING hadolint DL3066 matrix/hadolint_guard/Dockerfile 19 19 fixable=false "Non-numeric user-id may not be resolvable by host system"
+terminal ERROR hadolint DL3002 matrix/hadolint_guard/Dockerfile 19 19 fixable=false "Last USER should not be root"
+replacements 0

@@ -5,6 +5,7 @@ load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
 
 BUILD_SCRIPT_CC_ENV = {
     "CFLAGS": "$(DX_BS_CFLAGS)",
@@ -21,6 +22,13 @@ BUILD_SCRIPT_CC_ENV = {
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
 _FILE_PREFIX_MAP = "-ffile-prefix-map=${pwd}=."
+_FILE_PREFIX_MAP_FLAGS = {
+    "clang-cl": "/clang:" + _FILE_PREFIX_MAP,
+    "msvc": "",
+}
+
+def _file_prefix_map(cc_toolchain):
+    return _FILE_PREFIX_MAP_FLAGS.get(cc_compiler_identity(cc_toolchain.compiler, "").family, _FILE_PREFIX_MAP)
 
 _PATH_PLACEHOLDERS = [
     apple_support.path_placeholders.xcode(),
@@ -148,9 +156,10 @@ def _build_script_cc_env_impl(ctx):
         host_cflags = ""
         host_cxxflags = ""
     msvc = rust.target_triple.str.endswith("-windows-msvc")
+    prefix_map = _file_prefix_map(cc_toolchain)
     variables = {
-        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
-        "DX_BS_CXXFLAGS": "" if msvc else _FILE_PREFIX_MAP,
+        "DX_BS_CFLAGS": " ".join([flag for flag in [_UNDEF_ISO_STDIO if coverage and msvc else "", prefix_map] if flag]),
+        "DX_BS_CXXFLAGS": prefix_map,
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

@@ -156,12 +156,20 @@ pub fn bazel_argv(
         required_options,
         labels,
     )?;
+    let mut guards = protected.to_vec();
+    if PATTERN_FILE_VERBS.contains(&bazel_command) {
+        guards.push(ProtectedFlag {
+            name: "target_pattern_file".to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        });
+    }
     bazel_argv_in(
         rules_dx_repo(),
         bazel_command,
         user_options,
         &required,
-        protected,
+        &guards,
         labels,
         startup_options,
         layer_sets_diagnostics(),
@@ -361,6 +369,18 @@ mod tests {
             let text = std::fs::read_to_string(path).expect("pattern file");
             assert_eq!(text.lines().collect::<Vec<_>>(), labels);
         }
+    }
+
+    #[test]
+    fn a_user_target_pattern_file_conflicts_with_the_dx_scope() {
+        let user = vec!["--target_pattern_file=mine.txt".to_owned()];
+        let labels = vec!["//a:b".to_owned()];
+        let error = super::bazel_argv("build", &user, &[], &[], &labels, &[]).expect_err("guard");
+        assert!(
+            error.message().contains("target_pattern_file"),
+            "{}",
+            error.message()
+        );
     }
 
     #[test]

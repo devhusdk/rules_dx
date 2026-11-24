@@ -247,7 +247,14 @@ fn selected_plan(
     if selection.unsafe_fixes {
         required.push("--aspects_parameters=unsafe_fixes=true".to_owned());
     }
-    shaped_plan(command, resolved, bazel_options, startup_options, &required)
+    shaped_plan(
+        command,
+        resolved,
+        bazel_options,
+        startup_options,
+        &required,
+        &[],
+    )
 }
 
 pub fn plan_docs(
@@ -266,17 +273,16 @@ pub fn plan_docs(
         "{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP},{DOCS_SHARD_OUTPUT_GROUP},{DOCS_TOOLS_OUTPUT_GROUP},dx_docs_tool_files"
     );
     let required = shaped_options(&aspects, &groups, bazel_options, bep_path);
-    let mut plan = shaped_plan(
+    shaped_plan(
         Command::Docs,
         resolved,
         bazel_options,
         startup_options,
         &required,
-    )?;
-    plan.argv.push(rules_dx_label(dx_families::repo_relative(
-        dx_families::DOCS_SCOPE_TOOLS,
-    )));
-    Ok(plan)
+        &[rules_dx_label(dx_families::repo_relative(
+            dx_families::DOCS_SCOPE_TOOLS,
+        ))],
+    )
 }
 
 pub fn plan_probe(
@@ -327,6 +333,7 @@ pub fn plan_shared_probe(
             bazel_options,
             bep_path,
         ),
+        &[],
     )
     .map(Some)
 }
@@ -337,9 +344,11 @@ fn shaped_plan(
     bazel_options: &[String],
     startup_options: &[String],
     required: &[String],
+    extra_labels: &[String],
 ) -> Result<BuildPlan, DxError> {
     let protected = protected_flags(required)?;
-    let (scope, labels) = workflow_bazel_labels(resolved);
+    let (scope, mut labels) = workflow_bazel_labels(resolved);
+    labels.extend(extra_labels.iter().cloned());
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
     options.extend(bazel_options.iter().cloned());
     let argv = bazel_argv(

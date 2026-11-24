@@ -317,7 +317,7 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
     // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
     case.write(
         "BUILD.bazel",
-        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
+        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"TAXONOMY\")\n\nfilegroup(name = \"all\", tags = [str(len(TAXONOMY))])\n",
     );
     case.build_fails_with("//:all", &["is not visible for loading"]);
 }

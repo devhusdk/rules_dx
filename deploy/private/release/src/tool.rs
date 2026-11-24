@@ -715,6 +715,10 @@ mod tests {
 
     #[test]
     fn missing_input_or_unwritable_output_exits_one() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let blocker = dir.path().join("blocker");
+        std::fs::write(&blocker, b"").expect("blocker");
+        let unwritable = blocker.join("out.source.json");
         for argv in [
             argv_of(&[
                 PROG,
@@ -734,7 +738,7 @@ mod tests {
             argv_of(&[
                 PROG,
                 "bcr-source",
-                "/definitely/missing/dir/out.source.json",
+                unwritable.to_str().expect("utf-8 path"),
                 "rules_dx",
                 "1.2.3",
             ]),

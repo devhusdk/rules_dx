@@ -10,9 +10,7 @@ fn hub_violations(source: &str) -> Vec<String> {
         Ok(module) => module,
         Err(error) => return vec![error.to_string()],
     };
-    let is_dev = |call: &dx_module_bazel::Call| {
-        matches!(call.arg("dev_dependency"), Some(Value::Ident(value)) if value == "True")
-    };
+    let is_dev = |call: &dx_module_bazel::Call| matches!(call.arg("dev_dependency"), Some(Value::Ident(value)) if value == "True");
     let dev_proxies: Vec<&str> = module
         .calls_named("use_extension")
         .filter(|call| is_dev(call))
@@ -40,7 +38,12 @@ fn collect(dir: &Path, root: &Path, found: &mut Vec<String>) {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
             if text.contains("\"name\": \"dx-node-tools\"") {
                 let rel = path.strip_prefix(root).expect("under root");
-                found.push(rel.parent().expect("parent").display().to_string());
+                found.push(
+                    rel.parent()
+                        .expect("parent")
+                        .to_string_lossy()
+                        .replace('\\', "/"),
+                );
             }
         }
     }

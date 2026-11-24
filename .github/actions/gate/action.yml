@@ -8,13 +8,49 @@ inputs:
     description: Where dx coverage writes its lcov report.
     required: false
     default: ""
+  baseline:
+    description: Name for this job's failing labels, such as check-linux_x86_64. A push reads and writes main-baseline-<name>; a pull request writes failing-<name>.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
+    - name: Find the last main baseline
+      id: previous
+      if: ${{ inputs.baseline != '' && github.event_name == 'push' }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        NAME: main-baseline-${{ inputs.baseline }}
+        HEAD_SHA: ${{ github.sha }}
+      shell: bash
+      run: |
+        candidates="$(gh api "repos/$REPO/actions/artifacts?name=$NAME&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | reverse | .[:10][] | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
+        while read -r id run sha; do
+          [ -n "$id" ] || continue
+          status="$(gh api "repos/$REPO/compare/$sha...$HEAD_SHA" --jq .status)"
+          case "$status" in ahead | identical) ;; *) echo "gate: skip $NAME from run $run, $sha is $status of HEAD"; continue ;; esac
+          echo "gate: $NAME from run $run at $sha"
+          { echo "id=$id"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
+          if [ "$status" = ahead ]; then
+            git fetch --no-tags --depth=1 origin "$sha"
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+        done <<<"$candidates"
+        echo "gate: no $NAME artifact from an ancestor of HEAD yet"
+    - name: Download the last main baseline
+      if: ${{ steps.previous.outputs.id != '' }}
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        artifact-ids: ${{ steps.previous.outputs.id }}
+        run-id: ${{ steps.previous.outputs.run }}
+        github-token: ${{ github.token }}
+        path: ${{ runner.temp }}/baseline-previous
     - name: Pin the affected base
       env:
         EVENT_NAME: ${{ github.event_name }}
-        PUSH_BEFORE: ${{ github.event.before }}
+        PUSH_BEFORE: ${{ steps.previous.outputs.sha || github.event.before }}
         MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
       shell: bash
       run: |
@@ -35,9 +71,12 @@ runs:
           tags=-no-coverage,-dx-no-coverage-collector,$tags
         fi
         report=()
+        if [ "$COMMAND" = check ]; then
+          report=(--max-findings 0)
+        fi
         if [ -n "$LCOV" ]; then
           mkdir -p "$(dirname "$LCOV")"
-          report=(--report "lcov=$LCOV")
+          report+=(--report "lcov=$LCOV")
         fi
         bazel build "$@" @rules_dx//:dx
         built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
@@ -52,6 +91,45 @@ runs:
         # shellcheck disable=SC2086
         set -- $BAZEL_CONFIG $BB_ARGS
         bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
+    - name: Record the failing labels
+      id: failing
+      if: ${{ !cancelled() && inputs.baseline != '' }}
+      env:
+        NAME: ${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        OUTCOME: ${{ steps.check.outcome }}
+      shell: bash
+      run: |
+        out="$RUNNER_TEMP/failing/$NAME.json"
+        mkdir -p "${out%/*}"
+        previous=""
+        if [ -d "$RUNNER_TEMP/baseline-previous" ]; then
+          previous="$(find "$RUNNER_TEMP/baseline-previous" -name '*.json' -print -quit)"
+        fi
+        if [ "$OUTCOME" = success ] && [ -z "$previous" ]; then
+          echo '{"labels":[]}' > "$out"
+          exit 0
+        fi
+        args=(--failing-labels --out "$out" --dx "$RUNNER_TEMP/gate.json")
+        if [ -n "$previous" ]; then
+          args+=(--previous "$previous")
+        fi
+        # shellcheck disable=SC2086
+        set -- $BAZEL_CONFIG $BB_ARGS
+        bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- "${args[@]}"
+    - name: Check the failing labels hold no secret
+      id: scan-failing
+      if: ${{ !cancelled() && steps.failing.outcome == 'success' }}
+      uses: ./.github/actions/assert-no-secret
+      with:
+        path: ${{ runner.temp }}/failing
+    - name: Upload the failing labels
+      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'push' && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure'))) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        path: ${{ runner.temp }}/failing
+        retention-days: ${{ github.event_name == 'push' && 30 || 7 }}
+        overwrite: true
     - name: Verify the base dx compared against
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
       shell: bash

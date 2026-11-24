@@ -7,6 +7,7 @@
 mod blocker_refs;
 mod evidence;
 mod evidence_inputs;
+mod failing_labels;
 mod lock_merge;
 mod release_cell;
 mod review_paths;
@@ -22,6 +23,7 @@ fn main() -> Result<(), String> {
     match args.split_first().map(|(mode, rest)| (mode.as_str(), rest)) {
         Some(("--evidence", rest)) => return evidence::append(rest),
         Some(("--evidence-inputs", rest)) => return evidence_inputs::check(rest),
+        Some(("--failing-labels", rest)) => return failing_labels::write(rest),
         Some(("--table", rest)) => return table::print(rest),
         Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
         Some(("--test-log-tails", rest)) => return test_log_tails::print(rest),

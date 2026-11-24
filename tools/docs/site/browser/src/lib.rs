@@ -18,8 +18,9 @@ const LAUNCH_BUDGET: Duration = Duration::from_secs(90);
 const LAUNCH_ATTEMPTS: u32 = 3;
 const STEP_TIMEOUT: Duration = Duration::from_secs(45);
 const LOG_TAIL_LINES: usize = 40;
-const POLL: Duration = Duration::from_millis(50);
+const WAIT_SLICE: Duration = Duration::from_secs(20);
 const ACTIVE_PORT_FILE: &str = "MarionetteActivePort";
+const STDERR_CLOSED: &str = "stderr.closed";
 
 /// Why the browser cannot be started or driven.
 #[derive(Debug)]
@@ -186,6 +187,8 @@ impl Browser {
         )
         .map_err(profile_error)?;
         let log = home.join("browser.log");
+        let mut log_file = std::fs::File::create(&log)
+            .map_err(|error| Launch::Fatal(BrowserError::OpenLog(error)))?;
         let mut child = Command::new(firefox)
             .arg("--headless")
             .arg("--marionette")
@@ -198,10 +201,7 @@ impl Browser {
             .env_remove("DISPLAY")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(
-                std::fs::File::create(&log)
-                    .map_err(|error| Launch::Fatal(BrowserError::OpenLog(error)))?,
-            )
+            .stderr(Stdio::piped())
             .spawn()
             .map_err(|source| {
                 Launch::Fatal(BrowserError::Spawn {
@@ -209,6 +209,14 @@ impl Browser {
                     source,
                 })
             })?;
+        let stderr = child.stderr.take();
+        let closed = home.join(STDERR_CLOSED);
+        thread::spawn(move || {
+            if let Some(mut stderr) = stderr {
+                drop(io::copy(&mut stderr, &mut log_file));
+            }
+            drop(std::fs::File::create(closed));
+        });
         let control = match wait_for_control(&mut child, &home, &log, deadline) {
             Ok(control) => control,
             Err(error) => {
@@ -351,6 +359,13 @@ impl Browser {
         })
     }
 
+    fn until_frame(&mut self, source: &str, slice: Duration) -> Result<Value, BrowserError> {
+        self.call(
+            "WebDriver:ExecuteAsyncScript",
+            serde_json::json!({ "script": frame_wait_script(source, slice), "args": [] }),
+        )
+    }
+
     fn call(&mut self, name: &str, params: Value) -> Result<Value, BrowserError> {
         self.next_id += 1;
         let message =
@@ -489,30 +504,47 @@ fn wait_for_control(
     log: &Path,
     deadline: Instant,
 ) -> Result<(TcpStream, u16), Launch> {
+    use notify::Watcher as _;
+    let closed = home.join(STDERR_CLOSED);
+    let (wake, woken) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+    let watcher = notify::recommended_watcher(wake).and_then(|mut watcher| {
+        watcher
+            .watch(home, notify::RecursiveMode::NonRecursive)
+            .map(|()| watcher)
+    });
     loop {
-        if let Ok(Some(status)) = child.try_wait() {
+        let mut exited = child.try_wait().ok().flatten();
+        if exited.is_none() && closed.exists() {
+            exited = child.wait().ok();
+        }
+        if let Some(status) = exited {
             return Err(Launch::Fatal(BrowserError::Exited {
                 status,
                 report: format!("{}{}", missing_libraries(log), log_tail(log)),
             }));
         }
-        let last = match active_port(home) {
-            Ok(port) => match TcpStream::connect(("127.0.0.1", port)) {
-                Ok(stream) => {
-                    drop(stream.set_nodelay(true));
-                    return Ok((stream, port));
-                }
-                Err(error) => error,
-            },
+        let connected = active_port(home)
+            .and_then(|port| TcpStream::connect(("127.0.0.1", port)).map(|stream| (stream, port)));
+        let last = match connected {
+            Ok((stream, port)) => {
+                drop(stream.set_nodelay(true));
+                return Ok((stream, port));
+            }
             Err(error) => error,
         };
-        if Instant::now() >= deadline {
+        let last = match &watcher {
+            Ok(_) => woken
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .err()
+                .map(|_| last),
+            Err(error) => Some(io::Error::other(error.to_string())),
+        };
+        if let Some(last) = last {
             return Err(Launch::Retry(BrowserError::NoControlPort {
                 last,
                 tail: log_tail(log),
             }));
         }
-        thread::sleep(POLL);
     }
 }
 
@@ -559,7 +591,7 @@ fn log_tail(log: &Path) -> String {
         .join("\n")
 }
 
-/// Polls one script until it reads as yes, or reports how long it waited.
+/// Checks one script on each animation frame until it reads as yes, or reports that it never did.
 ///
 /// # Errors
 ///
@@ -570,11 +602,34 @@ pub fn wait_for(browser: &mut Browser, source: &str, seconds: u64) -> Result<boo
         if browser.truthy(source)? {
             return Ok(true);
         }
-        if Instant::now() >= deadline {
+        let slice = deadline
+            .saturating_duration_since(Instant::now())
+            .min(WAIT_SLICE);
+        if slice.is_zero() {
             return Ok(false);
         }
-        thread::sleep(POLL);
+        match browser.until_frame(source, slice) {
+            Ok(_) | Err(BrowserError::Failed { .. }) => {}
+            Err(error) => return Err(error),
+        }
     }
+}
+
+fn frame_wait_script(source: &str, slice: Duration) -> String {
+    format!(
+        "const done = arguments[arguments.length - 1];\n\
+         const met = () => {{ {source}\n}};\n\
+         let over = false;\n\
+         const stop = setTimeout(() => {{ over = true; done(false); }}, {});\n\
+         const tick = () => {{\n\
+         if (over) {{ return; }}\n\
+         let yes = true;\n\
+         try {{ yes = Boolean(met()); }} catch (error) {{}}\n\
+         if (yes) {{ over = true; clearTimeout(stop); done(true); }} else {{ requestAnimationFrame(tick); }}\n\
+         }};\n\
+         requestAnimationFrame(tick);",
+        slice.as_millis()
+    )
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
 pub mod console;
 #[cfg(unix)]
 pub mod errno;
+pub mod exit;
 #[cfg(unix)]
 pub mod fd;
 #[cfg(any(unix, windows))]
@@ -38,6 +39,9 @@ pub mod win32;
 #[cfg(test)]
 #[path = "console_tests.rs"]
 mod console_tests;
+#[cfg(all(test, any(target_os = "linux", target_os = "macos", windows)))]
+#[path = "exit_tests.rs"]
+mod exit_tests;
 #[cfg(test)]
 #[path = "job_object_tests.rs"]
 mod job_object_tests;

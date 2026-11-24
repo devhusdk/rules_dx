@@ -14,6 +14,7 @@ This repository uses Bazel.
 - No comments in any language, Rust `///`/`//!` and Go doc comments included. Use names and tests instead. Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
 - Kept: tool directives, shebangs, license headers, lines tools parse (`# Why:`, `# Upstream:`, `# dx:`), `LCOV_EXCL_*`, `# floor:`, `// SAFETY:`, one Starlark docstring line per item, one clap `--help` line per flag.
 - `//tools/ci:comment_budget_test` caps comments per file. Never raise a budget; `tools/dx run //tools/ci:comment_budget_update` lowers it.
+- `//tools/ci:sleep_budget_test` caps fixed sleeps per test file. Wait on the event with a deadline instead; never raise a budget; `tools/dx run //tools/ci:sleep_budget_update` lowers it.
 - Nothing is released, so write no compatibility code: no deprecated attr, in-module `alias`, re-export `.bzl` file, version conditional, or name that says so. `//tools/ci:zero_compat_test` checks it.
 - Rules that choose what to build for take `platforms`, a string list; `target_compatible_with` only marks compatibility.
 - Write plain and human, like you are showing a colleague. Short sentences, everyday words, commands first. In docs, one line on what a thing does and when to use it is welcome. Leave out design backstory, except the "What rules_dx replaces" section in `README.md`.

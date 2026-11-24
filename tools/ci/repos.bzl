@@ -65,7 +65,7 @@ def _code(path, name):
         return True
     return path == ".bazelrc" or (path.startswith(".dx/bazelrc/") and name.endswith(".bazelrc"))
 
-_OTHER_CODE = (".go", ".py", ".sh", ".js", ".mjs", ".ts", ".cc", ".h", ".yml", ".yaml")
+_OTHER_CODE = (".go", ".py", ".sh", ".js", ".mjs", ".ts", ".cc", ".h", ".yml", ".yaml", ".erl", ".ex", ".exs", ".java", ".kt")
 
 def consumer_fixture_file(path, langs):
     """True when the path is a text file under the tests/consumer directory of one of the language directories."""
@@ -104,7 +104,7 @@ def patch_header(text):
     return "\n".join(lines)
 
 def _test_tags_sources_impl(rctx):
-    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, lock_scan.json, the non-test Go files and the module fragment and fixture files, patch_headers.json, the header above the diff of every patches/ .patch file, and other_code.json, every .go, .py, .sh, .js, .mjs, .ts, .cc, .h, .yml and .yaml file, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template, Windows script and rc files, and paths.json, every path under a language directory."""
+    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, lock_scan.json, the non-test Go files and the module fragment and fixture files, patch_headers.json, the header above the diff of every patches/ .patch file, and other_code.json, every .go, .py, .sh, .js, .mjs, .ts, .cc, .h, .yml, .yaml, .erl, .ex, .exs, .java and .kt file, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template, Windows script and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):

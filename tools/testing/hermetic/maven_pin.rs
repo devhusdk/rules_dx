@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{ExitCode, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const PIN_DEADLINE: Duration = Duration::from_mins(30);
 
@@ -47,24 +47,17 @@ fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
     let mut child = command
         .spawn()
         .map_err(|error| format!("cannot start the pin: {error}"))?;
-    let started = Instant::now();
-    let status = loop {
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|error| format!("cannot wait for the pin: {error}"))?
-        {
-            break status;
-        }
-        if started.elapsed() > PIN_DEADLINE {
-            drop(child.kill());
-            drop(child.wait());
+    let status = match dx_test_scratch::wait::exit_within(child, PIN_DEADLINE)
+        .map_err(|error| format!("cannot wait for the pin: {error}"))?
+    {
+        dx_test_scratch::wait::Exit::Exited(status) => status,
+        dx_test_scratch::wait::Exit::Killed(_) => {
             return Err(format!(
                 "pin exceeded {}s; last output:\n{}",
                 PIN_DEADLINE.as_secs(),
                 tail(&log_path)
             ));
         }
-        std::thread::sleep(Duration::from_secs(5));
     };
     if !status.success() {
         return Err(tail(&log_path));

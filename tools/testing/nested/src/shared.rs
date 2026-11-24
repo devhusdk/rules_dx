@@ -242,25 +242,25 @@ fn dirs(parent: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// When `path` was last used: its own mtime when `own`, else the newest of it and its children.
+/// When `path` was last used: its own mtime when `own`, else that of its newest entry, or its own when it is empty.
 ///
 /// The Bazel client stamps an install base directory at each start but its files in the future, so an
 /// install base passes `own`; future stamps count as now.
 fn last_used(path: &Path, own: bool) -> SystemTime {
     let now = SystemTime::now();
     let modified = |meta: std::fs::Metadata| meta.modified().ok().map(|time| time.min(now));
-    let itself = std::fs::symlink_metadata(path).ok().and_then(modified);
-    let children = std::fs::read_dir(path)
-        .into_iter()
-        .filter(|_| !own)
-        .flatten()
-        .flatten()
-        .filter_map(|entry| entry.metadata().ok().and_then(modified));
-    itself
-        .into_iter()
-        .chain(children)
-        .max()
-        .unwrap_or(SystemTime::UNIX_EPOCH)
+    let itself = || std::fs::symlink_metadata(path).ok().and_then(modified);
+    let newest = if own {
+        None
+    } else {
+        std::fs::read_dir(path)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .filter_map(|entry| entry.metadata().ok().and_then(modified))
+            .max()
+    };
+    newest.or_else(itself).unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
 #[cfg(test)]
@@ -349,10 +349,27 @@ mod tests {
         file.set_len(100).expect("size");
         file.set_modified(SystemTime::now() + DAY * 3650)
             .expect("mtime");
+        drop(file);
         backdate(&install, DAY * 3);
         let fresh = entry(root, "repo-contents/new", 100, Duration::ZERO);
         evict(root, 100, &[], "t");
         assert!(!install.exists() && fresh.exists());
+    }
+
+    #[test]
+    fn a_repository_ages_by_its_files_not_its_directory() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = dir.path();
+        let recent = entry(root, "repo-contents/recent", 100, DAY);
+        let stale = root.join("repo-contents/stale");
+        std::fs::create_dir_all(&stale).expect("mkdir");
+        let file = File::create(stale.join("f")).expect("create");
+        file.set_len(100).expect("size");
+        file.set_modified(SystemTime::now() - DAY * 3)
+            .expect("mtime");
+        drop(file);
+        evict(root, 100, &[], "t");
+        assert!(!stale.exists() && recent.exists());
     }
 
     #[test]

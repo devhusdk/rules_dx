@@ -6,9 +6,7 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::PathBuf;
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const MODULE: &str = "module(name = \"acme_renamed\", version = \"1.2.3\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx_rust\", version = \"0.0.0\")\n";
 
@@ -226,11 +224,11 @@ impl Consumer {
             .spawn()
             .expect("dx starts");
         let pgid = i32::try_from(child.id()).expect("pid fits i32");
-        let done = Arc::new(AtomicBool::new(false));
-        let watchdog = Arc::clone(&done);
+        let (done, watchdog) = std::sync::mpsc::channel::<()>();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_secs(90));
-            if !watchdog.load(Ordering::SeqCst) {
+            if watchdog.recv_timeout(Duration::from_secs(90))
+                == Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+            {
                 drop(dx_os_sys::process::signal(-pgid, SIGKILL));
             }
         });
@@ -245,15 +243,12 @@ impl Consumer {
                 break;
             }
         }
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while !started.exists() {
-            assert!(Instant::now() < deadline, "bazel never reached the gate");
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        let reached = dx_test_scratch::wait::path_appears(&started, Duration::from_secs(20));
+        assert!(reached.is_ok(), "bazel never reached the gate: {reached:?}");
         hang_up(reader.into_inner(), &probe);
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
         let output = child.wait_with_output().expect("dx stops");
-        done.store(true, Ordering::SeqCst);
+        drop(done.send(()));
         drop(dx_os_sys::process::signal(-pgid, SIGKILL));
         Outcome {
             status: output.status,
@@ -273,11 +268,8 @@ impl Consumer {
             .process_group(0)
             .spawn()
             .expect("dx starts");
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while !started.exists() {
-            assert!(Instant::now() < deadline, "bazel never started");
-            std::thread::sleep(Duration::from_millis(20));
-        }
+        let reached = dx_test_scratch::wait::path_appears(&started, Duration::from_secs(20));
+        assert!(reached.is_ok(), "bazel never started: {reached:?}");
         let pgid = i32::try_from(child.id()).expect("pid fits i32");
         dx_os_sys::process::signal(-pgid, signo).expect("signal delivered");
         let output = child.wait_with_output().expect("dx stops");

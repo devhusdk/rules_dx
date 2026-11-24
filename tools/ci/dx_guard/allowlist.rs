@@ -88,6 +88,47 @@ pub fn differences(found: &Counts, allowed: &Counts, fix: &str) -> Vec<String> {
     out
 }
 
+fn budget_of(budget: &Counts, key: &(String, String)) -> usize {
+    budget.get(key).copied().unwrap_or(0)
+}
+
+pub fn over_budget(found: &Counts, budget: &Counts, unit: &str) -> Vec<String> {
+    found
+        .iter()
+        .filter(|&(key, count)| *count > budget_of(budget, key))
+        .map(|(key, count)| {
+            format!(
+                "{}: {count} {unit}, budget {}",
+                key.0,
+                budget_of(budget, key)
+            )
+        })
+        .collect()
+}
+
+pub fn under_budget(found: &Counts, budget: &Counts, unit: &str) -> Vec<String> {
+    budget
+        .iter()
+        .filter_map(|(key, limit)| {
+            let count = budget_of(found, key);
+            (count < *limit).then(|| format!("{}: {count} {unit}, budget {limit}", key.0))
+        })
+        .collect()
+}
+
+pub fn lowered(found: &Counts, budget: &Counts) -> Counts {
+    let mut counts = Counts::new();
+    for (key, limit) in budget {
+        add(
+            &mut counts,
+            &key.0,
+            &key.1,
+            budget_of(found, key).min(*limit),
+        );
+    }
+    counts
+}
+
 pub fn check(found: &Counts, text: &str, kinds: &[&str], fix: &str) -> Vec<String> {
     let (allowed, mut problems) = parse(text, kinds);
     problems.extend(differences(found, &allowed, fix));

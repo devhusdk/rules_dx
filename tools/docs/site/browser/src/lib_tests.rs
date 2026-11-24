@@ -8,8 +8,8 @@ use super::{
 };
 
 fn running_child() -> std::process::Child {
-    Command::new("sleep")
-        .arg("30")
+    Command::new("cat")
+        .stdin(std::process::Stdio::piped())
         .spawn()
         .expect("a running child")
 }

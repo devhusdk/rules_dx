@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use dx_guard::allowlist::{Counts, add};
+use dx_guard::allowlist::{self, Counts, add};
+
+pub use dx_guard::allowlist::lowered;
 
 pub const BUDGET: &str = "tools/ci/comment_budget.txt";
 
@@ -649,43 +651,10 @@ pub fn found(files: &BTreeMap<String, String>) -> Counts {
     counts
 }
 
-fn budget_of(budget: &Counts, key: &(String, String)) -> usize {
-    budget.get(key).copied().unwrap_or(0)
-}
-
 pub fn over_budget(found: &Counts, budget: &Counts) -> Vec<String> {
-    found
-        .iter()
-        .filter(|&(key, count)| *count > budget_of(budget, key))
-        .map(|(key, count)| {
-            format!(
-                "{}: {count} comment lines, budget {}",
-                key.0,
-                budget_of(budget, key)
-            )
-        })
-        .collect()
+    allowlist::over_budget(found, budget, "comment lines")
 }
 
 pub fn under_budget(found: &Counts, budget: &Counts) -> Vec<String> {
-    budget
-        .iter()
-        .filter_map(|(key, limit)| {
-            let count = budget_of(found, key);
-            (count < *limit).then(|| format!("{}: {count} comment lines, budget {limit}", key.0))
-        })
-        .collect()
-}
-
-pub fn lowered(found: &Counts, budget: &Counts) -> Counts {
-    let mut counts = Counts::new();
-    for (key, limit) in budget {
-        add(
-            &mut counts,
-            &key.0,
-            &key.1,
-            budget_of(found, key).min(*limit),
-        );
-    }
-    counts
+    allowlist::under_budget(found, budget, "comment lines")
 }

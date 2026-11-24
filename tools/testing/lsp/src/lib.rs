@@ -5,7 +5,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, TryRecvError};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -148,7 +148,13 @@ pub struct Session {
     next_id: i64,
     child: Child,
     log: RefCell<Vec<serde_json::Value>>,
-    stderr: Arc<Mutex<Vec<u8>>>,
+    stderr: Arc<StderrLog>,
+}
+
+#[derive(Default)]
+struct StderrLog {
+    bytes: Mutex<Vec<u8>>,
+    grew: Condvar,
 }
 
 const STDERR_KEEP_BYTES: usize = 64 * 1024;
@@ -182,7 +188,7 @@ impl Session {
         let stdin = child.stdin.take().ok_or_else(|| piped("stdin"))?;
         let stdout = child.stdout.take().ok_or_else(|| piped("stdout"))?;
         let mut stderr = child.stderr.take().ok_or_else(|| piped("stderr"))?;
-        let stderr_log = Arc::new(Mutex::new(Vec::new()));
+        let stderr_log = Arc::new(StderrLog::default());
         let stderr_sink = Arc::clone(&stderr_log);
         thread::spawn(move || {
             let mut chunk = [0u8; 4096];
@@ -190,12 +196,17 @@ impl Session {
                 if read == 0 {
                     break;
                 }
-                let mut kept = stderr_sink.lock().unwrap_or_else(PoisonError::into_inner);
+                let mut kept = stderr_sink
+                    .bytes
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner);
                 kept.extend(chunk.iter().take(read));
                 if kept.len() > STDERR_KEEP_BYTES {
                     let excess = kept.len() - STDERR_KEEP_BYTES;
                     kept.drain(..excess);
                 }
+                drop(kept);
+                stderr_sink.grew.notify_all();
             }
         });
         let (sender, events) = mpsc::channel();
@@ -260,6 +271,7 @@ impl Session {
     fn stderr_tail(&self) -> String {
         let bytes = self
             .stderr
+            .bytes
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone();
@@ -401,22 +413,46 @@ impl Session {
         what: &str,
         deadline: Instant,
     ) -> Result<String, Error> {
+        self.drain()?;
+        let mut kept = self
+            .stderr
+            .bytes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
         loop {
-            self.drain()?;
-            let text = String::from_utf8_lossy(
-                &self.stderr.lock().unwrap_or_else(PoisonError::into_inner),
-            )
-            .into_owned();
+            let text = String::from_utf8_lossy(&kept).into_owned();
             if text.contains(needle) {
+                drop(kept);
+                self.drain()?;
                 return Ok(text);
             }
-            if Instant::now() >= deadline {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                drop(kept);
                 return Err(Error::Timeout(format!(
                     "{what}; stderr: {}",
                     self.stderr_tail()
                 )));
             }
-            thread::sleep(Duration::from_millis(25));
+            kept = self
+                .stderr
+                .grew
+                .wait_timeout(kept, left)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+    }
+
+    pub fn wait_quiescent(&self, what: &str, deadline: Instant) -> Result<(), Error> {
+        self.drain()?;
+        let latest = self.log.borrow().iter().rev().find_map(server_quiescent);
+        if latest == Some(true) {
+            return Ok(());
+        }
+        loop {
+            if server_quiescent(&self.next_event(what, deadline)?) == Some(true) {
+                return Ok(());
+            }
         }
     }
 
@@ -445,7 +481,7 @@ impl Session {
             serde_json::json!({
                 "processId": null,
                 "rootUri": root_uri,
-                "capabilities": {},
+                "capabilities": {"experimental": {"serverStatusNotification": true}},
                 "initializationOptions": null,
             }),
         )?;
@@ -460,20 +496,12 @@ impl Session {
             self.wait_response(id, "shutdown", Instant::now() + Duration::from_secs(15))?;
         ok_result(&response)?;
         self.notify("exit", serde_json::Value::Null)?;
-        let deadline = Instant::now() + Duration::from_secs(15);
-        loop {
-            match self
-                .child
-                .try_wait()
-                .map_err(|err| Error::Transport(format!("cannot reap lsp server: {err}")))?
-            {
-                Some(_) => return Ok(()),
-                None if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
-                None => {
-                    drop(self.child.kill());
-                    drop(self.child.wait());
-                    return Err(Error::Timeout("lsp server exit".to_owned()));
-                }
+        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(15)) {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                drop(self.child.kill());
+                drop(self.child.wait());
+                Err(Error::Timeout(format!("lsp server exit: {error}")))
             }
         }
     }
@@ -584,7 +612,7 @@ pub fn definition_uri(
     ok_result(&response)
 }
 
-pub fn poll_definition(
+pub fn quiescent_definition(
     session: &mut Session,
     file_uri: &str,
     text: &str,
@@ -592,28 +620,19 @@ pub fn poll_definition(
     what: &str,
     deadline: Instant,
 ) -> Result<serde_json::Value, Error> {
-    let mut last = serde_json::Value::Null;
-    loop {
-        match definition_uri(
-            session,
-            file_uri,
-            text,
-            needle,
-            what,
-            Instant::now() + Duration::from_secs(15),
-        ) {
-            Ok(result) if result != serde_json::Value::Null && result != serde_json::json!([]) => {
-                return Ok(result);
-            }
-            Ok(result) => last = result,
-            Err(Error::Timeout(_)) => {}
-            Err(err) => return Err(err),
-        }
-        if Instant::now() >= deadline {
-            return Ok(last);
-        }
-        thread::sleep(Duration::from_secs(5));
+    session.wait_quiescent(&format!("{what}: the server settling"), deadline)?;
+    definition_uri(session, file_uri, text, needle, what, deadline)
+}
+
+fn server_quiescent(message: &serde_json::Value) -> Option<bool> {
+    if message.get("method").and_then(serde_json::Value::as_str)
+        != Some("experimental/serverStatus")
+    {
+        return None;
     }
+    message
+        .pointer("/params/quiescent")
+        .and_then(serde_json::Value::as_bool)
 }
 
 pub fn first_location(result: &serde_json::Value, what: &str) -> Result<serde_json::Value, Error> {
@@ -747,7 +766,7 @@ mod tests {
             .expect("frame is utf8")
         };
         let script = format!(
-            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; sleep 5",
+            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; exec cat >/dev/null",
             publish(serde_json::json!([])),
             publish(serde_json::json!([{"message": "bad"}])),
         );

@@ -1,6 +1,6 @@
 //! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk, a locked consumer resolves `rules_dx` extensions from its repository cache sets, and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed, which the probe proves the guard catches, a consumer cannot load an internal `.bzl`, and a root-only extension warns about the tags a dependency sets.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use dx_nested as nested;
 use dx_testing::{read_runfiles, resolve_runfiles, run};
@@ -587,12 +587,7 @@ fn without_a_shared_root_a_test_extracts_fetches_and_stops_its_server() {
         .trim()
         .parse()
         .unwrap_or_else(|_| panic!("probe printed no server pid: {}", probe.combined()));
-    let started = Instant::now();
-    while nested::alive(pid) && started.elapsed() < Duration::from_secs(3) {
-        std::thread::sleep(Duration::from_millis(100));
+    if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(3)) {
+        panic!("nested Bazel server {pid} outlived its test binary: {error}");
     }
-    assert!(
-        !nested::alive(pid),
-        "nested Bazel server {pid} outlived its test binary"
-    );
 }

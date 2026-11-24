@@ -43,9 +43,8 @@ fn locked_deps(lock: &str) -> String {
 }
 
 fn fetched(case: &nested::Case) -> Result<Vec<String>, String> {
-    case.use_lock("harness");
-    let lock = std::fs::read_to_string(case.join("MODULE.bazel.lock"))
-        .map_err(|error| format!("read MODULE.bazel.lock: {error}"))?;
+    let lock = nested::checked_in_lock("harness");
+    case.write("MODULE.bazel.lock", &lock);
     std::fs::write(
         case.join("MODULE.bazel"),
         format!("{MODULE}{}", locked_deps(&lock)),

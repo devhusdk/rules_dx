@@ -1862,6 +1862,28 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     )
 }
 
+/// The text of the checked-in lock `stem` from `DX_NESTED_LOCKS`, in record mode too.
+///
+/// # Panics
+///
+/// Panics when `DX_NESTED_LOCKS` is not set or has no lock `stem`.
+#[must_use]
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
+pub fn checked_in_lock(stem: &str) -> String {
+    let name = format!("{stem}.MODULE.bazel.lock");
+    let locks = std::env::var(LOCKS_ENV).unwrap_or_else(|_| {
+        panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)")
+    });
+    for key in locks.split_whitespace() {
+        let path = resolve_runfile(LOCKS_ENV, key).unwrap_or_else(|error| panic!("{error}"));
+        if path.file_name().is_some_and(|file| *file == *name) {
+            return dx_testing::read_text(&path);
+        }
+    }
+    panic!("{LOCKS_ENV} has no {name}");
+}
+
 impl Case {
     /// Puts the checked-in lock `stem` into the workspace; in record mode removes it and records the workspace.
     ///
@@ -1869,7 +1891,6 @@ impl Case {
     ///
     /// Panics when the operation fails.
     #[track_caller]
-    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
     pub fn use_lock(&self, stem: &str) {
         if recording() {
             dx_atomic_fs::discard_file(self.root.join("MODULE.bazel.lock"));
@@ -1880,18 +1901,7 @@ impl Case {
             }
             return;
         }
-        let name = format!("{stem}.MODULE.bazel.lock");
-        let locks = std::env::var(LOCKS_ENV).unwrap_or_else(|_| {
-            panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)")
-        });
-        for key in locks.split_whitespace() {
-            let path = resolve_runfile(LOCKS_ENV, key).unwrap_or_else(|error| panic!("{error}"));
-            if path.file_name().is_some_and(|file| *file == *name) {
-                self.write("MODULE.bazel.lock", &dx_testing::read_text(&path));
-                return;
-            }
-        }
-        panic!("{LOCKS_ENV} has no {name}");
+        self.write("MODULE.bazel.lock", &checked_in_lock(stem));
     }
 
     /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the `rules_dx` checkout.

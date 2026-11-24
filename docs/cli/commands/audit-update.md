@@ -709,7 +709,7 @@ use_repo(crate, "crates")
 - Set `lockfile` and list it in `locks`. Without it, the hub always repins and the check ends in `check_wrote`.
 - One `Cargo.toml` must sit beside `Cargo.lock`. The tag must be imported with `use_repo`, renamed or not, or the set is unsupported (exit `1`).
 - `--apply` runs `bazel fetch --repo=@<visible hub name>` with `CARGO_BAZEL_REPIN=workspace`, `REPIN=workspace`, `CARGO_BAZEL_REPIN_ONLY=<hub name>` and `CARGO_BAZEL_ISOLATED=true`.
-- A check sets both repin variables to `false`, so a shell `REPIN` cannot turn a check into a write. It sets `CARGO_BAZEL_DIGEST_CHECK=1` so crate_universe verifies `cargo-bazel-lock.json` against its inputs. A stale lock fails with `updater exited <code>`.
+- A check sets no repin variable, because cargo-bazel reads `CARGO_BAZEL_REPIN=false` as a crate named `false`. A shell `REPIN` that rewrites a lock during a check is restored and fails with `check_wrote`. A check sets `CARGO_BAZEL_DIGEST_CHECK=1` so crate_universe verifies `cargo-bazel-lock.json` against its inputs. A stale lock fails with `updater exited <code>`.
 - `--apply <set>:<crate>` repins one crate. Select one crate per cargo set per run. Repin-mode names (`all`, `workspace`, `false`, `0`, `off`) are refused. A crate with several locked versions fails with `updater exited <code>`. A check with a package is unsupported.
 - Bazel evaluates every `crate.from_cargo` hub together, so one stale hub fails the check and update of every cargo set. Update the stale set first.
 - `dx security` matches `Cargo.lock` crates against the `cargo` snapshot. `dx license` reads licenses from the declared `*.json` lock; `[[inventory]]` with `set = "cargo"` overrides them.

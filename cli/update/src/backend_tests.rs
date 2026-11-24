@@ -1994,16 +1994,16 @@ fn cargo_set(name: &str, dir: &str, repository: &str) -> ResolvedSet {
 }
 
 fn cargo_env_expected(repin: &str, repository: &str) -> Vec<(String, String)> {
-    let mut env = vec![
-        ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+    let isolated = ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned());
+    if repin == "false" {
+        return vec![isolated, ("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned())];
+    }
+    vec![
+        isolated,
         ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
         ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
         ("REPIN".to_owned(), repin.to_owned()),
-    ];
-    if repin == "false" {
-        env.push(("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()));
-    }
-    env
+    ]
 }
 
 fn cargo_fetch(head: &dx_process::BazelHead, args: &[&str]) -> Vec<String> {

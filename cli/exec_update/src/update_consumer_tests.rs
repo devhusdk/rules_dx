@@ -24,12 +24,22 @@ fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
 #[test]
 fn consumer_cargo_env_forces_both_repin_triggers() {
     assert_eq!(
+        cargo_env("workspace", "crates"),
+        vec![
+            ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+            ("CARGO_BAZEL_REPIN".to_owned(), "workspace".to_owned()),
+            ("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned()),
+            ("REPIN".to_owned(), "workspace".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn consumer_cargo_check_env_sets_no_repin_variable() {
+    assert_eq!(
         cargo_env("false", "crates"),
         vec![
             ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
-            ("CARGO_BAZEL_REPIN".to_owned(), "false".to_owned()),
-            ("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned()),
-            ("REPIN".to_owned(), "false".to_owned()),
             ("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()),
         ]
     );

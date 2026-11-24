@@ -574,6 +574,7 @@ fn run() -> i32 {
         Ok(run) => run,
         Err(code) => return code,
     };
+    dx_plan::plan::set_pattern_dir(temp_dir.path());
     let inherit_stdout = matches!(invocation.output, OutputMode::Text { .. })
         && !invocation
             .reports

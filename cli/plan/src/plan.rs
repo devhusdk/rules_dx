@@ -7,7 +7,8 @@ pub mod run_temp;
 pub mod workflow;
 
 use dx_error::DxError;
-use std::path::Path;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use dx_process::ProtectedFlag;
@@ -47,6 +48,18 @@ const RULES_DX: &str = "rules_dx";
 static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
 static LAYER_SETS_DIAGNOSTICS: OnceLock<bool> = OnceLock::new();
+
+static PATTERN_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Labels past this many bytes go to a file; Windows caps a command line at 32767 characters.
+const PATTERN_FILE_BYTES: usize = 4096;
+
+const PATTERN_FILE_VERBS: [&str; 3] = ["build", "test", "coverage"];
+
+/// Sets the directory that holds target pattern files for long label lists.
+pub fn set_pattern_dir(dir: &Path) {
+    drop(PATTERN_DIR.set(dir.to_owned()));
+}
 
 pub fn set_rules_dx_repo(workspace: &Path) {
     let repo = dx_module_bazel::rules_dx_repo(workspace);
@@ -137,16 +150,57 @@ pub fn bazel_argv(
     labels: &[String],
     startup_options: &[String],
 ) -> Result<Vec<String>, DxError> {
+    let (required, labels) = target_pattern_file(
+        PATTERN_DIR.get().map(PathBuf::as_path),
+        bazel_command,
+        required_options,
+        labels,
+    )?;
+    let mut guards = protected.to_vec();
+    if PATTERN_FILE_VERBS.contains(&bazel_command) {
+        guards.push(ProtectedFlag {
+            name: "target_pattern_file".to_owned(),
+            required: None,
+            allowed: Vec::new(),
+        });
+    }
     bazel_argv_in(
         rules_dx_repo(),
         bazel_command,
         user_options,
-        required_options,
-        protected,
+        &required,
+        &guards,
         labels,
         startup_options,
         layer_sets_diagnostics(),
     )
+}
+
+fn target_pattern_file<'a>(
+    dir: Option<&Path>,
+    bazel_command: &str,
+    required_options: &'a [String],
+    labels: &'a [String],
+) -> Result<(Cow<'a, [String]>, &'a [String]), DxError> {
+    let long = labels.iter().map(|label| label.len() + 1).sum::<usize>() > PATTERN_FILE_BYTES;
+    let Some(dir) = dir.filter(|_| long && PATTERN_FILE_VERBS.contains(&bazel_command)) else {
+        return Ok((Cow::Borrowed(required_options), labels));
+    };
+    let path = dir.join(format!("dx-targets-{}.txt", run_temp::run_nonce()));
+    let mut text = labels.join("\n");
+    text.push('\n');
+    dx_atomic_fs::write_scratch(&path, text.as_bytes()).map_err(|error| {
+        DxError::from_io(
+            format!(
+                "target pattern file {} not written: {error}",
+                path.display()
+            ),
+            &error,
+        )
+    })?;
+    let mut required = required_options.to_vec();
+    required.push(format!("--target_pattern_file={}", path.display()));
+    Ok((Cow::Owned(required), &[]))
 }
 
 #[expect(
@@ -290,8 +344,62 @@ pub struct BuildPlan {
 mod tests {
     use super::{
         BAZEL_SETTINGS, bazel_argv_in, correctness_layer_imported, rules_dx_label,
-        rules_dx_repo_of, settings_for,
+        rules_dx_repo_of, settings_for, target_pattern_file,
     };
+
+    fn many_labels() -> Vec<String> {
+        let mut labels: Vec<String> = (0..400).map(|n| format!("//pkg{n}:target")).collect();
+        labels.push("-//pkg0:target".to_owned());
+        labels
+    }
+
+    #[test]
+    fn a_long_label_list_goes_through_a_target_pattern_file() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let required = vec!["--keep_going".to_owned()];
+        let labels = many_labels();
+        for verb in ["build", "test", "coverage"] {
+            let (options, left) =
+                target_pattern_file(Some(dir.path()), verb, &required, &labels).expect("plan");
+            assert!(left.is_empty(), "{left:?}");
+            assert_eq!(options[0], "--keep_going");
+            let path = options[1]
+                .strip_prefix("--target_pattern_file=")
+                .expect("pattern file flag");
+            let text = std::fs::read_to_string(path).expect("pattern file");
+            assert_eq!(text.lines().collect::<Vec<_>>(), labels);
+        }
+    }
+
+    #[test]
+    fn a_user_target_pattern_file_conflicts_with_the_dx_scope() {
+        let user = vec!["--target_pattern_file=mine.txt".to_owned()];
+        let labels = vec!["//a:b".to_owned()];
+        let error = super::bazel_argv("build", &user, &[], &[], &labels, &[]).expect_err("guard");
+        assert!(
+            error.message().contains("target_pattern_file"),
+            "{}",
+            error.message()
+        );
+    }
+
+    #[test]
+    fn short_lists_and_single_target_verbs_keep_their_labels_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let short = vec!["//a:b".to_owned()];
+        let long = many_labels();
+        for (dir, verb, labels) in [
+            (Some(dir.path()), "build", &short),
+            (Some(dir.path()), "run", &long),
+            (Some(dir.path()), "cquery", &long),
+            (None, "build", &long),
+        ] {
+            let (options, left) = target_pattern_file(dir, verb, &[], labels).expect("plan");
+            assert!(options.is_empty(), "{verb}: {options:?}");
+            assert_eq!(left, labels.as_slice(), "{verb}");
+        }
+        assert_eq!(std::fs::read_dir(dir.path()).expect("dir").count(), 0);
+    }
 
     fn workspace(rc: &str, layer: Option<&str>) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");

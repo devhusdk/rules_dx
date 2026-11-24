@@ -908,22 +908,20 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
-fn remote_repo_contents_cache_comes_from_the_preset() {
-    let flag = "startup --experimental_remote_repo_contents_cache";
+fn remote_repo_contents_cache_stays_off() {
+    let flag = "--experimental_remote_repo_contents_cache";
     let performance = preset_layer(dx_preset::Layer::Performance);
-    assert!(
-        performance.contains(flag),
-        "the preset no longer sets {flag}"
-    );
     for path in [
         ".github/workflows/evidence.yml",
         ".github/workflows/reusable-consumer.yml",
+        ".bazelrc",
     ] {
-        assert!(
-            !read_runfiles(path).contains(flag),
-            "{path} echoes {flag} again"
-        );
+        assert!(!read_runfiles(path).contains(flag), "{path} sets {flag}");
     }
+    assert!(
+        !performance.contains(flag),
+        "the preset sets {flag}, which blocks every repository fetch on the remote cache"
+    );
     assert!(
         !read_runfiles(".github/workflows/evidence.yml").contains("build --jobs=64"),
         "evidence.yml passes build --jobs=64 again"

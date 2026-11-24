@@ -1,5 +1,6 @@
 """Clippy for dx lint that reports unused crate dependencies."""
 
+load("@bazel_skylib//lib:structs.bzl", "structs")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "use_cc_toolchain")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_action", "rust_common")
 load("@rules_rust//rust/private:clippy.bzl", "ClippyFlagsInfo")
@@ -54,6 +55,11 @@ def _dx_clippy_aspect_impl(target, ctx):
         return [DxClippyInfo(diagnostics = [])]
 
     diagnostics = ctx.actions.declare_file(ctx.label.name + ".dx_clippy.diagnostics", sibling = crate_info.output)
+
+    # rustc writes into --out-dir, and a forwarded crate's own output directory may not exist.
+    fields = structs.to_dict(crate_info)
+    fields["output"] = diagnostics
+    crate_info = rust_common.create_crate_info(**fields)
     use_clippy_error_format = ctx.attr._incompatible_change_clippy_error_format[IncompatibleFlagInfo].enabled
     error_format = get_error_format(ctx.attr, "_clippy_error_format" if use_clippy_error_format else "_error_format")
     flags = ctx.attr._clippy_flags[ClippyFlagsInfo].clippy_flags + ctx.attr._clippy_flag[ClippyFlagsInfo].clippy_flags

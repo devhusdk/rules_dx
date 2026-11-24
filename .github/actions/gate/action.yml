@@ -75,7 +75,7 @@ runs:
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
         targets=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx)
         bazel build "$@" "${targets[@]}"
-        built="$(bazel cquery "$@" --output=files "${targets[@]}" | grep -E '/(gate_base_bin|dx)(\.exe)?$')"
+        built="$(bazel cquery "$@" --output=files "set(${targets[*]})" | grep -E '/(gate_base_bin|dx)(\.exe)?$')"
         root="$(bazel info "$@" execution_root)"
         bin="${RUNNER_TEMP:-/tmp}/dx-bin"
         mkdir -p "$bin"

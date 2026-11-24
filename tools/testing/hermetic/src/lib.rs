@@ -936,7 +936,7 @@ impl Isolation {
             "exec unshare --user --map-user={} --map-group={} -- \"$@\"",
             self.uid, self.gid
         ));
-        lines.join("\n") + "\n"
+        format!("{}\n", lines.join("\n"))
     }
 
     /// Wraps one command in fresh user, mount and, when denied, network namespaces.
@@ -2884,7 +2884,7 @@ fn isolation_check_script(
     }
     lines.push("echo DONE".to_owned());
     lines.push("exit /b 0".to_owned());
-    Ok(lines.join("\r\n") + "\r\n")
+    Ok(format!("{}\r\n", lines.join("\r\n")))
 }
 
 /// Turns the output of the isolation check script into the first failure it reports.

@@ -12,15 +12,14 @@ permissions:
   contents: read
 
 env:
-  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
+  BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && '--config=ci --config=ci-pr' || '--config=ci') || '' }}
   BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
   # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  # A newer push cancels the older run; a dispatched run on main only replaces a queued one.
   group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -74,12 +73,15 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
         with:
-          cache-save: false
+          cache-save: ${{ runner.os == 'Windows' && env.BUILDBUDDY_API_KEY != '' }}
           disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: ./.github/actions/gate
         with:
           command: check
           baseline: check-${{ matrix.platform }}
+      - name: Stop the Bazel server
+        if: ${{ always() && runner.os == 'Windows' }}
+        run: bazel shutdown
       - name: Check generated files across the repo
         if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' && github.event_name != 'pull_request' }}
         run: |
@@ -126,6 +128,9 @@ jobs:
           command: coverage
           lcov: ${{ runner.temp }}/coverage/lcov.info
           baseline: coverage-${{ matrix.platform }}
+      - name: Stop the Bazel server
+        if: ${{ always() && runner.os == 'Windows' }}
+        run: bazel shutdown
       - name: Check the upload holds no secret
         id: scan-coverage
         if: ${{ always() }}

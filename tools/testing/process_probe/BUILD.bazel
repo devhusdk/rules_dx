@@ -26,6 +26,7 @@ rust_binary(
         "//cli/os_sys:dx_os_sys",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
     ],
 )
 

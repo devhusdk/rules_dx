@@ -440,19 +440,16 @@ impl Drop for Release {
 
 #[cfg(unix)]
 fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        let bytes = std::fs::read(log).expect("log");
-        if bytes.len() >= expected {
-            return bytes;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the probe logged {} of {expected} SIGINTs",
-            bytes.len()
-        );
-        std::thread::sleep(Duration::from_millis(10));
+    let logged = || std::fs::read(log).expect("log");
+    let what = format!("the probe logging {expected} SIGINTs");
+    if let Err(error) =
+        dx_test_scratch::wait::watch_until(log, &what, Duration::from_secs(10), || {
+            logged().len() >= expected
+        })
+    {
+        panic!("{error}; it logged {}", logged().len());
     }
+    logged()
 }
 
 #[cfg(unix)]
@@ -475,11 +472,7 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
             .spawn()
             .expect("probe starts"),
     );
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !log.exists() {
-        assert!(Instant::now() < deadline, "probe never armed");
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    dx_testing::wait_armed(&log);
     for n in 1..=2 {
         // SAFETY: kill takes plain integers and has no memory preconditions.
         assert_eq!(unsafe { kill(i32::try_from(child.0.id()).unwrap(), 2) }, 0);
@@ -492,17 +485,8 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     );
     assert_eq!(std::fs::read(&log).expect("log"), b"II");
     std::fs::write(&gate, b"").expect("release the probe");
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let status = loop {
-        if let Some(status) = child.0.try_wait().expect("probe status") {
-            break status;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the probe did not exit after its gate opened"
-        );
-        std::thread::sleep(Duration::from_millis(10));
-    };
+    let status = dx_test_scratch::wait::child_exits(&mut child.0, Duration::from_secs(10))
+        .unwrap_or_else(|error| panic!("the probe did not exit after its gate opened: {error}"));
     assert_eq!(status.code(), Some(0), "the probe must exit cleanly");
 }
 
@@ -547,11 +531,7 @@ fn an_alive_lock_is_held_until_the_probe_dies() {
         .arg("--sleep-ms=30000")
         .spawn()
         .expect("probe starts");
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !lock.exists() {
-        assert!(Instant::now() < deadline, "probe never armed");
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    dx_testing::wait_armed(&lock);
     assert!(
         dx_testing::alive_lock_held(&lock),
         "a live probe must hold its lock"

@@ -97,13 +97,13 @@ fn captured_text(buffer: &Captured) -> String {
 }
 
 fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
-    let end = std::time::Instant::now() + limit;
-    while !handle.is_finished() && std::time::Instant::now() < end {
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    if handle.is_finished() {
-        drop(handle.join());
-    }
+    drop(dx_test_scratch::wait::within(
+        "the output reader",
+        limit,
+        move || {
+            drop(handle.join());
+        },
+    ));
 }
 
 pub fn run_within(
@@ -132,22 +132,10 @@ pub fn run_command(
         child.stdout.take().map(|pipe| drain(pipe, out.clone())),
         child.stderr.take().map(|pipe| drain(pipe, err.clone())),
     ];
-    let deadline = std::time::Instant::now() + limit;
-    let mut status = None;
-    while status.is_none() {
-        status = child.try_wait()?;
-        if status.is_none() {
-            if std::time::Instant::now() >= deadline {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-    }
-    let timed_out = status.is_none();
-    if timed_out {
-        drop(child.kill());
-        status = Some(child.wait()?);
-    }
+    let (status, timed_out) = match dx_test_scratch::wait::exit_within(child, limit)? {
+        dx_test_scratch::wait::Exit::Exited(status) => (status, false),
+        dx_test_scratch::wait::Exit::Killed(status) => (status, true),
+    };
     let grace = if timed_out {
         std::time::Duration::from_secs(2)
     } else {
@@ -157,7 +145,7 @@ pub fn run_command(
         wait_for(reader, grace);
     }
     let run = Run {
-        status: status.ok_or_else(|| std::io::Error::other("child has no exit status"))?,
+        status,
         stdout: captured_text(&out),
         stderr: captured_text(&err),
     };
@@ -330,8 +318,14 @@ fn existing(runfiles: &runfiles::Runfiles, key: &str) -> Option<PathBuf> {
         .filter(|path| path.exists())
 }
 
+fn opened_runfiles() -> &'static Result<runfiles::Runfiles, String> {
+    static OPENED: std::sync::OnceLock<Result<runfiles::Runfiles, String>> =
+        std::sync::OnceLock::new();
+    OPENED.get_or_init(|| runfiles::Runfiles::create().map_err(|error| error.to_string()))
+}
+
 pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
-    let opened = runfiles::Runfiles::create();
+    let opened = opened_runfiles();
     if let Some(found) = opened
         .as_ref()
         .ok()
@@ -345,7 +339,7 @@ pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
             return Ok(found);
         }
     }
-    let detail = match opened {
+    let detail = match opened.as_ref() {
         Ok(_) => format!("{key} is not in {}", runfiles_source()),
         Err(error) => format!("cannot open {} for {key}: {error}", runfiles_source()),
     };
@@ -733,45 +727,33 @@ pub fn empty_git_repo(dir: &Path) {
     std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
 }
 
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed wait fails the test")]
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while alive_lock_held(lock) {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "an owned process survived: {}",
-            lock.display()
-        );
-        std::thread::sleep(std::time::Duration::from_millis(20));
+    if let Err(error) = dx_test_scratch::wait::lock_free(lock, std::time::Duration::from_secs(10)) {
+        panic!("an owned process survived: {error}");
     }
 }
 
+#[track_caller]
+#[expect(clippy::panic, reason = "test helper: a failed wait fails the test")]
 pub fn wait_armed(lock: &Path) {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-    while !lock.exists() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "probe never armed: {}",
-            lock.display()
-        );
-        std::thread::sleep(std::time::Duration::from_millis(10));
+    if let Err(error) =
+        dx_test_scratch::wait::path_appears(lock, std::time::Duration::from_secs(10))
+    {
+        panic!("probe never armed: {error}");
     }
 }
 
+#[track_caller]
 pub fn assert_still_held(lock: &Path) {
     wait_armed(lock);
-    let end = std::time::Instant::now() + std::time::Duration::from_secs(2);
-    loop {
-        assert!(
-            alive_lock_held(lock),
-            "the detached server died with the run: {}",
-            lock.display()
-        );
-        if std::time::Instant::now() >= end {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    assert!(
+        alive_lock_held(lock),
+        "the detached server died with the run: {}",
+        lock.display()
+    );
 }
 
 #[must_use]

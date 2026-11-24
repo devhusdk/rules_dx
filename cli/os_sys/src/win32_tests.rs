@@ -17,16 +17,19 @@ pub(crate) fn child(code: Option<i32>) -> Command {
         .args(["--exact", "win32_tests::child_main"])
         .env(
             CHILD,
-            code.map_or_else(|| "sleep".to_owned(), |code| code.to_string()),
+            code.map_or_else(|| "block".to_owned(), |code| code.to_string()),
         )
-        .stdin(Stdio::null());
+        .stdin(code.map_or_else(Stdio::piped, |_| Stdio::null()));
     command
 }
 
 #[test]
 fn child_main() {
     match std::env::var(CHILD).as_deref() {
-        Ok("sleep") => std::thread::sleep(Duration::from_secs(30)),
+        Ok("block") => drop(std::io::Read::read_to_end(
+            &mut std::io::stdin(),
+            &mut Vec::new(),
+        )),
         Ok(code) => std::process::exit(code.parse().expect("exit code")),
         Err(_) => {}
     }

@@ -12,6 +12,7 @@ rust_library(
     srcs = [
         "src/console.rs",
         "src/errno.rs",
+        "src/exit.rs",
         "src/fd.rs",
         "src/fs.rs",
         "src/job.rs",
@@ -44,6 +45,8 @@ rust_test(
         "src/console.rs",
         "src/console_tests.rs",
         "src/errno.rs",
+        "src/exit.rs",
+        "src/exit_tests.rs",
         "src/fd.rs",
         "src/fs.rs",
         "src/job.rs",

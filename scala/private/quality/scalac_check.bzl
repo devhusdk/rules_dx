@@ -13,6 +13,19 @@ SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"
 # The scalac driver supports Scala 2.13 and Scala 3.3 or newer (-Wunused does not exist before 3.3); targets on other versions get no result.
 _SCALAC_VERSION_PREFIX = "2.13."
 
+_SCALA2_GUARDS = [
+    "-Wunused:_",
+    "-Wvalue-discard",
+    "-Wnonunit-statement",
+    "-Xlint:missing-interpolator,nonlocal-return",
+]
+
+_SCALA3_GUARDS = [
+    "-Wunused:all",
+    "-Wvalue-discard",
+    "-Wnonunit-statement",
+]
+
 def _is_scala3(version):
     parts = version.split(".")
     return len(parts) >= 2 and parts[0] == "3" and parts[1].isdigit() and int(parts[1]) >= 3
@@ -126,7 +139,8 @@ def _scalac_check(target, ctx, attrs):
     srcjars = [f for f in ctx.rule.files.srcs if f.extension == "srcjar"]
     if not [f for f in sources if f.extension == "scala"] and not srcjars:
         return []
-    options = ["-Wunused:all" if jars.scala3 else "-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
+    guards = _SCALA3_GUARDS if jars.scala3 else _SCALA2_GUARDS
+    options = guards + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
     # rules_scala loads the semanticdb plugin itself; this compile does not, and
     # scalac rejects options for a plugin it has not loaded.

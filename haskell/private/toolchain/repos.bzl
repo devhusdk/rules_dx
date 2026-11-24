@@ -167,6 +167,8 @@ BUNDLED_FLAGS = ["C compiler flags", "C++ compiler flags", "C compiler link flag
 
 MINGW_ROOT = "$topdir/../mingw/"
 
+MINGW_LINK_FLAGS = "-Wl,--no-insert-timestamp"
+
 SETTINGS = {
     "C compiler command": NO_HOST_TOOL,
     "C compiler flags": "",
@@ -341,6 +343,11 @@ def ghc_settings(source, cc_target = ""):
         key = stripped[2:stripped.index("\"", 2)]
         if key in SETTINGS:
             seen.append(key)
+            if key == "C compiler link flags" and MINGW_ROOT in source:
+                bundled = stripped[stripped.index(",") + 1:].strip().rstrip(")").strip().strip("\"")
+                line = line[:line.index("(")] + "(" + repr(key) + ", " + repr((bundled + " " + MINGW_LINK_FLAGS).strip()) + ")"
+                lines.append(line)
+                continue
             if (key in BUNDLED_FLAGS and MINGW_ROOT in source) or (key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped)):
                 lines.append(line)
                 continue

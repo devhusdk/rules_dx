@@ -1,0 +1,89 @@
+Upstream: none (not yet sent upstream)
+diff --git a/haskell/private/cabal_wrapper.py b/haskell/private/cabal_wrapper.py
+--- a/haskell/private/cabal_wrapper.py
++++ b/haskell/private/cabal_wrapper.py
+@@ -259,6 +259,11 @@
+     rel_execroot = os.path.relpath(execroot)
+     cfg_execroot = rel_execroot if not is_windows else execroot
+     cfg_pkgroot = os.path.join(cfg_execroot, rel_pkgroot)
++    # Cabal cannot build relocatable packages on Windows, so it bakes the
++    # install dirs into Paths_<pkg> objects. Cabal wants them absolute, so root
++    # them on a fixed drive there; copy --destdir drops the drive and installs
++    # under the execroot. No output then holds the output base.
++    install_prefix = "C:\\" + os.path.normpath(rel_pkgroot) if is_windows else pkgroot
+ 
+     if deps_package_db:
+         # We merge databases of dependencies together assuming that they each contain only one package
+@@ -289,7 +294,7 @@
+             dynlibdir = os.path.basename(dynlibdir),
+             bindir = os.path.basename(bindir),
+             datadir = os.path.basename(datadir),
+-            pkgroot = pkgroot,
++            pkgroot = install_prefix,
+             workspace = toolchain_info["workspace"],
+         )
+         if not os.path.exists(paths_file):
+@@ -355,17 +360,17 @@
+         # intermediate template Haskell outputs. `cc_wrapper` should improved
+         # in that regard.
+         "--builddir=" + (os.path.relpath(distdir) if not is_windows else distdir), \
+-        "--prefix=" + pkgroot, \
+-        "--libdir=" + libdir, \
+-        "--dynlibdir=" + dynlibdir, \
++        "--prefix=" + install_prefix, \
++        "--libdir=" + os.path.join(install_prefix, os.path.basename(libdir)), \
++        "--dynlibdir=" + os.path.join(install_prefix, os.path.basename(dynlibdir)), \
+         "--libsubdir=", \
+-        "--bindir=" + bindir, \
+-        "--datadir=" + datadir, \
++        "--bindir=" + os.path.join(install_prefix, os.path.basename(bindir)), \
++        "--datadir=" + os.path.join(install_prefix, os.path.basename(datadir)), \
+         # Note, setting --datasubdir is required to work around
+         #   https://github.com/haskell/cabal/issues/6235
+         "--datasubdir=", \
+-        "--haddockdir=" + haddockdir, \
+-        "--htmldir=" + htmldir, \
++        "--haddockdir=" + os.path.join(install_prefix, os.path.basename(haddockdir)), \
++        "--htmldir=" + os.path.join(install_prefix, os.path.basename(htmldir)), \
+         "--package-db=clear", \
+         "--package-db=global", \
+         ] + \
+@@ -381,7 +386,7 @@
+     # package files and then manually register the package configuration in the
+     # package-db.
+     # See https://github.com/haskell/cabal/issues/1317#issuecomment-1025942396
+-    run([runghc] + runghc_args + [setup, "copy", "--verbose=0", "--builddir=" + distdir])
++    run([runghc] + runghc_args + [setup, "copy", "--verbose=0", "--builddir=" + distdir] + (["--destdir=" + execroot] if is_windows else []))
+     if component.startswith("lib"):
+         run([runghc] + runghc_args + [setup, "register", "--gen-pkg-config=" + os.path.join(package_database, name + ".conf"), "--verbose=0", "--builddir=" + distdir])
+     # Bazel builds are not sandboxed on Windows and can be non-sandboxed on
+@@ -420,6 +425,29 @@
+     # These paths are invalid in the package configuration.
+     #
+     # Replace each occurrence of either kind of path by one relative to ${pkgroot}.
++    if is_windows:
++        # Cabal writes Windows paths with doubled backslashes, so match the
++        # execroot with any run of separators, in any case.
++        parts = [re.escape(part) for part in re.split(r'[\\/]+', cfg_execroot) if part]
++        pattern = r'[\\/]+'.join(parts) + r'[^\s"]*'
++
++        def windows_relative_to_pkgroot(matchobj):
++            oldpath = re.sub(r'[\\/]+', '/', matchobj.group(0))
++            rel_to_pkgroot = os.path.relpath(oldpath, start=cfg_pkgroot)
++            return "${pkgroot}/" + rel_to_pkgroot.replace("\\", "/")
++
++        line = re.sub(pattern, windows_relative_to_pkgroot, line, flags=re.IGNORECASE)
++
++        # The install dirs sit on a fixed drive, relative to the execroot.
++        rel_parts = [re.escape(part) for part in re.split(r'[\\/]+', rel_pkgroot) if part]
++        rel_pattern = r'(?<![\w\\/.:${}+-])(?:[A-Za-z]:[\\/]+)?' + r'[\\/]+'.join(rel_parts) + r'(?![\w.+-])[^\s"]*'
++
++        def windows_install_dir_to_pkgroot(matchobj):
++            oldpath = re.sub(r'[\\/]+', '/', re.sub(r'^[A-Za-z]:', '', matchobj.group(0))).lstrip('/')
++            rel_to_pkgroot = os.path.relpath(oldpath, start=rel_pkgroot)
++            return "${pkgroot}/" + rel_to_pkgroot.replace("\\", "/")
++
++        return re.sub(rel_pattern, windows_install_dir_to_pkgroot, line, flags=re.IGNORECASE)
+     line = re.sub(re.escape(cfg_execroot) + r'\S*', make_relative_to_pkgroot, line)
+     return line
+ 

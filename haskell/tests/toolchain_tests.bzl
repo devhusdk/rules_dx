@@ -186,7 +186,7 @@ def _checks():
         expect_false("windows settings keep bundled mingw paths", host_path(windows_settings)),
         expect_contains("windows settings keep the bundled windres", windows_settings, "(\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\")"),
         expect_contains("windows settings keep the bundled merge objects tool", windows_settings, "(\"Merge objects command\", \"\")"),
-        expect_contains("windows settings keep the bundled link flags", windows_settings, "(\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\")"),
+        expect_contains("windows settings keep the bundled link flags without a PE timestamp", windows_settings, "(\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT -Wl,--no-insert-timestamp\")"),
         expect_contains("windows settings keep the bundled ar", windows_settings, "(\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\")"),
         expect_true("a drive path is a host path", host_path("(\"ar command\", \"C:\\\\tools\\\\ar.exe\")")),
         expect_true("an absolute path is a host path", host_path("(\"ar command\", \"/usr/bin/ar\")")),

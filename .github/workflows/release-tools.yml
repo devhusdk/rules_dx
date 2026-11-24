@@ -373,9 +373,9 @@ jobs:
                 ;;
             esac
           done
-          case "$HOST" in
-            linux-*) bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "${targets[@]}" ;;
-          esac
+          bazel_bin="$(command -v bazel)"
+          case "$HOST" in windows-*) bazel_bin="$(cygpath -w "$bazel_bin")" ;; esac
+          bazel run //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "${targets[@]}"
           check="$RUNNER_TEMP/weeder-check"
           case "$HOST" in windows-*) check="$check.exe" ;; esac
           cp "$out/dx-weeder-$HOST" "$check"
@@ -477,7 +477,6 @@ jobs:
                 echo "$asset is dynamically linked" >&2
                 exit 1
               fi
-              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
               ;;
             macos-*)
               if otool -L "$out/$asset" | grep -q libHS; then
@@ -487,6 +486,9 @@ jobs:
               codesign --verify "$out/$asset" 2>/dev/null || codesign --force -s - "$out/$asset"
               ;;
           esac
+          bazel_bin="$(command -v bazel)"
+          case "$HOST" in windows-*) bazel_bin="$(cygpath -w "$bazel_bin")" ;; esac
+          bazel run //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
           "$out/$asset" --version
           if test "$HOST" = "linux-arm64"; then
             package="$(jq -c --arg tool "$TOOL" '.packages[] | select(.name == $tool) | {version, archive: .archives[0]}' "$LOCK")"

@@ -617,6 +617,23 @@ fn the_gate_builds_its_tools_in_one_bazel_build_with_the_dx_flags() {
 }
 
 #[test]
+fn every_gate_query_passes_its_labels_as_one_expression() {
+    let action = document(GATE_ACTION).unwrap();
+    let queries: Vec<&str> = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .flat_map(str::lines)
+        .filter(|line| line.contains("bazel cquery") || line.contains("bazel query"))
+        .collect();
+    assert!(!queries.is_empty(), "the gate must find its tools with a query");
+    for line in queries {
+        assert!(!line.contains("[@]}"), "{line}");
+    }
+}
+
+#[test]
 fn the_gate_pushes_build_on_the_last_main_baseline() {
     let action = document(GATE_ACTION).unwrap();
     let steps = action["runs"]["steps"].as_array().expect("gate steps");

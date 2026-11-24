@@ -73,7 +73,8 @@ runs:
         root="$(bazel info "$@" execution_root)"
         bin="${RUNNER_TEMP:-/tmp}/dx-bin"
         mkdir -p "$bin"
-        bazel cquery "$@" --output=files "${tools[@]}" | grep -E '/(gate_base_bin|dx|producers_bin)(\.exe)?$' | while read -r built; do
+        query="$(printf ' + %s' "${tools[@]}")"
+        bazel cquery "$@" --output=files "${query# + }" | grep -E '/(gate_base_bin|dx|producers_bin)(\.exe)?$' | while read -r built; do
           cp -L "$root/$built" "$bin/${built##*/}"
         done
     - name: Pin the affected base

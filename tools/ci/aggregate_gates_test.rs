@@ -384,24 +384,26 @@ fn every_matrix_cell_records_its_runner_image() {
 }
 
 #[test]
-fn one_run_per_ref_and_only_pull_requests_and_pushes_cancel() {
+fn one_run_per_ref_and_only_pull_requests_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
         json!(
-            "ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}"
+            "ci-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'main-' || '' }}${{ github.ref }}"
         ),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' || github.event_name == 'push' }}")
+        json!("${{ github.event_name == 'pull_request' }}")
     );
 }
 
 #[test]
-fn ci_runs_on_push_only_for_main() {
+fn main_runs_when_the_audit_dispatches_it_not_on_push() {
     let on = triggers(CI_WORKFLOW).unwrap();
-    assert_eq!(on["push"], json!({"branches": ["main"]}));
+    assert!(on.get("push").is_none(), "{on}");
+    let run = ci_workflow::scripts(AUDIT_WORKFLOW, "dispatch").unwrap();
+    assert!(run.contains("gh workflow run ci.yml"), "{run}");
 }
 
 #[test]
@@ -610,7 +612,7 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
     assert_eq!(
         step("Upload the failing labels")["with"]["name"],
         json!(
-            "${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
+            "${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
         )
     );
 }

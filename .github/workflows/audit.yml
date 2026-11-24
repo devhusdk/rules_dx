@@ -548,7 +548,7 @@ jobs:
             fi
           done
   dispatch:
-    name: dispatch (advisory-publish daily, dx-update on Mondays)
+    name: dispatch (ci and advisory-publish daily, dx-update on Mondays)
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-slim
     timeout-minutes: 5
@@ -562,6 +562,7 @@ jobs:
           REF: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          gh workflow run ci.yml --ref "$REF"
           gh workflow run advisory-publish.yml --ref "$REF"
           if [ "$(date -u +%u)" = 1 ]; then
             gh workflow run dx-update.yml --ref "$REF"

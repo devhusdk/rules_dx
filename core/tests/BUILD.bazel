@@ -181,6 +181,7 @@ starlark_test(
         "//julia/private:defs.bzl": "dx_warnings_flags(",
         "//kotlin/private:defs.bzl": "dx_warnings_as_errors(",
         "//ocaml/private:defs.bzl": "dx_warnings_as_errors(",
+        "//python/private:defs.bzl": "dx_warnings_flags(",
         "//rust/private:defs.bzl": "dx_warnings_flags(",
         "//scala/private:validate.bzl": "dx_warnings_as_errors(",
         "//swift/private:defs.bzl": "dx_warnings_flags(",

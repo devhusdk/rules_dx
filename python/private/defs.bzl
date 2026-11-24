@@ -7,7 +7,7 @@ load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _DX_PY_LIBRARY_PROVIDES = [
@@ -131,7 +131,7 @@ _python_runner_plugin = dx_private_dep_rule(
 )
 
 def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility = None, **kwargs):
-    """Wrapper over py_pytest_test, or py_test for the plain runner."""
+    """Wrapper over py_pytest_test, or py_test for the plain runner. The interpreter runs with -Werror unless warnings_as_errors is False."""
     if main != None:
         kwargs["main"] = main
     rejection = python_test_rejection(runner, kwargs)
@@ -144,6 +144,7 @@ def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility
         visibility = ["//visibility:private"],
     )
     kwargs["deps"] = kwargs.get("deps", []) + [":" + name + "_sitecustomize"]
+    kwargs = dx_warnings_flags(kwargs, "interpreter_options", ["-Werror"])
     if runner == "plain":
         upstream_kwargs = _python_main_kwargs("python_test", name, srcs, kwargs)
         dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, quality_srcs = dx_entry_quality_srcs(main if main != None else python_main(name, srcs), srcs), **kwargs)

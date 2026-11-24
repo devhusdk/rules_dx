@@ -522,6 +522,7 @@ fn fallback_inputs() -> [&'static str; 8] {
 struct ModuleInputPaths {
     paths: BTreeSet<String>,
     routed: BTreeSet<String>,
+    readers: BTreeMap<String, BTreeSet<(String, String)>>,
     fallback: bool,
 }
 
@@ -554,6 +555,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     let mut inputs = ModuleInputPaths {
         paths: BTreeSet::new(),
         routed: BTreeSet::new(),
+        readers: BTreeMap::new(),
         fallback: true,
     };
     if let Ok(scanned) = dx_adopt::module_inputs(workspace) {
@@ -563,6 +565,24 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
                 match hubs_of(&workspace.join(&file.path)) {
                     Some(found) => hubs.extend(found),
                     None => segments_ok = false,
+                }
+            }
+            if let Some(extension) = &file.extension {
+                let dir = file
+                    .path
+                    .strip_suffix(file_name_of(&file.path))
+                    .unwrap_or_default();
+                let siblings = if file_name_of(&file.path) == Ecosystem::Go.manifest_name() {
+                    vec![format!("{dir}{}", Ecosystem::Go.lockfile())]
+                } else {
+                    Vec::new()
+                };
+                for path in siblings.into_iter().chain([file.path.clone()]) {
+                    inputs
+                        .readers
+                        .entry(path)
+                        .or_default()
+                        .insert(extension.clone());
                 }
             }
             if is_crate_lock_input(file.extension.as_ref(), &file.tag) {
@@ -794,13 +814,7 @@ fn module_change(
             .iter()
             .any(|scope| scope.owner() != extension_scope::ROOT)
     {
-        let caches = dx_process::repository_caches(
-            &|name| std::env::var(name).ok(),
-            workspace,
-            &|path| std::fs::read_to_string(path).ok(),
-            startup_options,
-        );
-        let read = |hash: &str| module_inputs::cached(&caches, hash);
+        let read = module_cache(workspace, startup_options);
         let graph = module_inputs::module_graph(
             &module_inputs::registry_files(&head_lock)?,
             &read,
@@ -851,10 +865,22 @@ fn module_change(
                     scope.display()
                 )));
             }
+            for known in [&graph, &old_graph] {
+                if let Some(reason) = module_inputs::other_user(known, scope, &affected) {
+                    return Err(dx_error::DxError::failure(reason));
+                }
+            }
+        }
+        let mut patched = affected.clone();
+        if scopes
+            .iter()
+            .any(|scope| scope.owner() != extension_scope::ROOT)
+        {
+            patched.extend(graph.deps.keys().cloned());
         }
         let read_patch = |rel: &str| read_head(rel).ok();
         if let Some(reason) =
-            module_inputs::overrides_that_widen(&head_files, &affected, &read_patch)
+            module_inputs::overrides_that_widen(&head_files, &patched, &read_patch)
         {
             return Err(dx_error::DxError::failure(reason));
         }
@@ -945,6 +971,69 @@ fn module_change(
         scopes,
         loads: loads.into_iter().collect(),
     })
+}
+
+fn lock_repos(
+    path: &str,
+    readers: &BTreeSet<(String, String)>,
+    workspace: &Path,
+    startup_options: &[String],
+) -> Result<Vec<String>, dx_error::DxError> {
+    let read_head = |rel: &str| {
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| format!("workspace input {rel}: {error}"))
+    };
+    let text = read_head(ROOT_MODULE).map_err(dx_error::DxError::failure)?;
+    let (_, files) = module_files(&text, &read_head)?;
+    let names = Names::of(&files, extension_scope::ROOT);
+    let mut scopes = BTreeSet::new();
+    for (bzl, name) in readers {
+        scopes.insert(names.extension(bzl, name).ok_or_else(|| {
+            dx_error::DxError::failure(format!("{path} feeds extension {name} of {bzl}"))
+        })?);
+    }
+    if scopes.is_empty() {
+        return Err(dx_error::DxError::failure(format!(
+            "{path} feeds no extension dx can name"
+        )));
+    }
+    if scopes
+        .iter()
+        .any(|scope| scope.owner() != extension_scope::ROOT)
+    {
+        let lock = read_head(ROOT_LOCK).map_err(dx_error::DxError::failure)?;
+        let read = module_cache(workspace, startup_options);
+        let graph = module_inputs::module_graph(
+            &module_inputs::registry_files(&lock)?,
+            &read,
+            &names.multiple,
+        )?;
+        for scope in &scopes {
+            if let Some(reason) = module_inputs::other_user(&graph, scope, &BTreeSet::new()) {
+                return Err(dx_error::DxError::failure(reason));
+            }
+        }
+        let every: BTreeSet<String> = graph.deps.keys().cloned().collect();
+        let read_patch = |rel: &str| read_head(rel).ok();
+        if let Some(reason) = module_inputs::overrides_that_widen(&files, &every, &read_patch) {
+            return Err(dx_error::DxError::failure(reason));
+        }
+    }
+    Ok(module_diff::imported(&files, extension_scope::ROOT)
+        .into_iter()
+        .filter(|(_, repo)| scopes.iter().any(|scope| module_diff::covers(scope, repo)))
+        .map(|(name, _)| name)
+        .collect())
+}
+
+fn module_cache(workspace: &Path, startup_options: &[String]) -> impl Fn(&str) -> Option<String> {
+    let caches = dx_process::repository_caches(
+        &|name| std::env::var(name).ok(),
+        workspace,
+        &|path| std::fs::read_to_string(path).ok(),
+        startup_options,
+    );
+    move |hash: &str| module_inputs::cached(&caches, hash)
 }
 
 const SHOWN_REPOS: usize = 5;
@@ -1313,6 +1402,20 @@ pub fn resolve_affected(
                 reason.message().to_owned(),
             ),
             Ok(narrowing) => {
+                let readers = inputs.readers.get(&path).cloned().unwrap_or_default();
+                let repos = match lock_repos(&path, &readers, workspace, startup_options) {
+                    Ok(repos) => repos,
+                    Err(reason) => {
+                        push_widened(
+                            &mut widened,
+                            "//...".to_owned(),
+                            reason.message().to_owned(),
+                        );
+                        continue;
+                    }
+                };
+                let impact = dx_adopt::repo_impact(workspace, &repos, aspect_labels);
+                widen_impact(impact, "@", &mut widened, &mut extensions);
                 match cache.file_label(workspace, &path, &path) {
                     Ok(label) => candidates.push((path.clone(), label, Fallback::Keep)),
                     Err(ResolveError::NotAPackage { .. }) => {}
@@ -2272,7 +2375,7 @@ mod tests {
 
     fn crate_module() -> String {
         format!(
-            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:{}\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n",
+            "bazel_dep(name = \"rules_rust\", version = \"1.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:{}\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n",
             Ecosystem::Cargo.lockfile()
         )
     }
@@ -2334,8 +2437,11 @@ mod tests {
         write(workspace, "a/BUILD.bazel", "").unwrap();
         write(workspace, "b/BUILD.bazel", "").unwrap();
         write(workspace, Ecosystem::Cargo.lockfile(), &cargo_lock("1.0.2")).unwrap();
+        write_registry(workspace, &[RULES_RUST]);
         scratch
     }
+
+    const RULES_RUST: (&str, &str) = ("rules_rust", "module(name = \"rules_rust\")\n");
 
     fn crate_graph() -> QueryResult {
         graph(&[
@@ -2829,21 +2935,7 @@ register_toolchains(\"//tc:all\")\n";
         registry_edit(prefix, GO_MODULE, head, &[GAZELLE])
     }
 
-    fn registry_edit(
-        prefix: &str,
-        before: &str,
-        head: &str,
-        registry: &[(&str, &str)],
-    ) -> (AffectedSelection, usize) {
-        let scratch = dx_test_scratch::scratch(prefix).unwrap();
-        let workspace = scratch.path();
-        write(workspace, "MODULE.bazel", head).unwrap();
-        write(
-            workspace,
-            "go.mod",
-            "module m\n\nrequire github.com/x/y v1.0.0\n",
-        )
-        .unwrap();
+    fn write_registry(workspace: &Path, registry: &[(&str, &str)]) {
         write(
             workspace,
             ".bazelrc",
@@ -2863,6 +2955,24 @@ register_toolchains(\"//tc:all\")\n";
             &serde_json::json!({"lockFileVersion": 24, "registryFileHashes": hashes}).to_string(),
         )
         .unwrap();
+    }
+
+    fn registry_edit(
+        prefix: &str,
+        before: &str,
+        head: &str,
+        registry: &[(&str, &str)],
+    ) -> (AffectedSelection, usize) {
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", head).unwrap();
+        write(
+            workspace,
+            "go.mod",
+            "module m\n\nrequire github.com/x/y v1.0.0\n",
+        )
+        .unwrap();
+        write_registry(workspace, registry);
         let query = FakeQuery::new(vec![FakeQuery::ok(before), go_graph()]);
         let selection = resolve_affected(
             &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
@@ -2906,11 +3016,12 @@ use_repo(dev, \"com_github_rhysd_actionlint\")\n"
     const RULES_GO: (&str, &str) = (
         "rules_go",
         "module(name = \"rules_go\")\n\
+bazel_dep(name = \"gazelle\", version = \"1.0\")\n\
 go_sdk = use_extension(\"//go:extensions.bzl\", \"go_sdk\")\n\
 use_repo(go_sdk, \"go_toolchains\")\n\
 register_toolchains(\"@go_toolchains//:all\")\n\
 go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n\
-use_repo(go_deps, \"org_golang_x_tools\")\n",
+use_repo(go_deps, \"org_golang_google_protobuf\")\n",
     );
 
     #[test]
@@ -2938,7 +3049,49 @@ go_sdk.download(version = \"1.25.0\")\n"
             &head,
             &[GAZELLE, RULES_GO],
         );
-        assert_eq!(selection.targets, strings(&EVERY_GO_DEPS_USER));
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "module rules_go also uses @@gazelle++go_deps+*"
+        );
+    }
+
+    #[test]
+    fn repo_passed_to_another_tag_widens() {
+        let base = format!(
+            "{GO_MODULE}bazel_dep(name = \"rules_rust\", version = \"1.0\")\n\
+http_file = use_repo_rule(\"@bazel_tools//tools/build_defs/repo:http.bzl\", \"http_file\")\n\
+http_file(name = \"protoc_bin\", sha256 = \"a\", urls = [\"https://example.com/protoc\"])\n\
+http_file(name = \"plain_bin\", sha256 = \"a\", urls = [\"https://example.com/plain\"])\n\
+crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\n\
+crate.annotation(crate = \"prost-build\", build_script_data = [\"@protoc_bin//file\"])\n"
+        );
+        let head = base.replace(
+            "name = \"protoc_bin\", sha256 = \"a\"",
+            "name = \"protoc_bin\", sha256 = \"b\"",
+        );
+        let (selection, _) = registry_edit(
+            "dx-changed-passed-repo-",
+            &base,
+            &head,
+            &[GAZELLE, RULES_RUST],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "MODULE.bazel call names @protoc_bin"
+        );
+        let head = base.replace(
+            "name = \"plain_bin\", sha256 = \"a\"",
+            "name = \"plain_bin\", sha256 = \"b\"",
+        );
+        let (selection, _) = registry_edit(
+            "dx-changed-plain-repo-",
+            &base,
+            &head,
+            &[GAZELLE, RULES_RUST],
+        );
+        assert_eq!(selection.targets, Vec::<String>::new());
     }
 
     #[test]
@@ -3019,6 +3172,7 @@ use_repo(pip, \"pypi\")\n"
         let scratch = dx_test_scratch::scratch("dx-changed-go-sum-").unwrap();
         let workspace = scratch.path();
         write(workspace, "MODULE.bazel", GO_MODULE).unwrap();
+        write_registry(workspace, &[GAZELLE]);
         write(
             workspace,
             "go.mod",
@@ -3053,6 +3207,57 @@ use_repo(pip, \"pypi\")\n"
                 reason: format!("changed Go modules in {}", Ecosystem::Go.lockfile()),
                 repos: strings(&["@@*+go_deps+*"]),
             }]
+        );
+    }
+
+    #[test]
+    fn go_sum_update_widens_when_another_module_uses_go_deps() {
+        let scratch = dx_test_scratch::scratch("dx-changed-go-sum-shared-").unwrap();
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            &format!("{GO_MODULE}bazel_dep(name = \"rules_go\", version = \"1.0\")\n"),
+        )
+        .unwrap();
+        write_registry(workspace, &[GAZELLE, RULES_GO]);
+        write(
+            workspace,
+            "go.mod",
+            "module m\n\nrequire google.golang.org/protobuf v1.36.0\n",
+        )
+        .unwrap();
+        let sum = "google.golang.org/protobuf v1.36.0 h1:a\n";
+        write(
+            workspace,
+            Ecosystem::Go.lockfile(),
+            &sum.replace("v1.36.0 h1:a", "v1.36.1 h1:b"),
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(sum),
+            graph_with_kinds(&[(
+                "//proto:foo_go_proto",
+                "go_proto_library",
+                &["@@rules_go+//proto:go_proto"],
+            )]),
+        ]);
+        let selection = resolve_affected(
+            &[change(
+                Ecosystem::Go.lockfile(),
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("go.sum widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "module rules_go also uses @@gazelle++go_deps+*"
         );
     }
 
@@ -3212,6 +3417,7 @@ use_repo(pip, \"pypi\")\n"
             workspace,
             "MODULE.bazel",
             &[
+                "bazel_dep(name = \"aspect_rules_js\", version = \"1.0\")\n".to_owned(),
                 "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n"
                     .to_owned(),
                 format!(
@@ -3222,6 +3428,10 @@ use_repo(pip, \"pypi\")\n"
             .concat(),
         )
         .unwrap();
+        write_registry(
+            workspace,
+            &[("aspect_rules_js", "module(name = \"aspect_rules_js\")\n")],
+        );
         write(workspace, "BUILD.bazel", "").unwrap();
         let lock = |lodash: &str| {
             format!(

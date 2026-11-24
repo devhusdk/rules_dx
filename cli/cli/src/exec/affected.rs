@@ -1411,9 +1411,29 @@ mod tests {
             root,
             "MODULE.bazel",
             &format!(
-                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"
+                "bazel_dep(name = \"rules_rust\", version = \"1.0\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"
             ),
         ).unwrap();
+        let rules_rust = "module(name = \"rules_rust\")\n";
+        let hash = dx_digest::sha256_hex(rules_rust.as_bytes());
+        write(
+            root,
+            &format!("cache/content_addressable/sha256/{hash}/file"),
+            rules_rust,
+        )
+        .unwrap();
+        write(
+            root,
+            ".bazelrc",
+            &format!("common --repository_cache={}/cache\n", root.display()),
+        )
+        .unwrap();
+        write(
+            root,
+            "MODULE.bazel.lock",
+            &json!({"registryFileHashes": {"https://bcr.bazel.build/modules/rules_rust/1.0/MODULE.bazel": hash}}).to_string(),
+        )
+        .unwrap();
         write(root, lock, &cargo_lock("1.0.1")).unwrap();
         dx_test_scratch::git(root, root, &["add", "."]).unwrap();
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]).unwrap();

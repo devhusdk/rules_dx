@@ -353,7 +353,9 @@ pub(crate) fn module_graph(
         }
         let mut names = Names::of(std::slice::from_ref(&module), &file.name);
         names.multiple.clone_from(multiple);
-        for call in module.calls_named("use_extension") {
+        for call in module.calls_named("use_extension").filter(
+            |call| !matches!(call.arg("dev_dependency"), Some(Value::Ident(dev)) if dev == "True"),
+        ) {
             let bzl = binding_label(call, "extension_bzl_file");
             let name = match call
                 .positional
@@ -381,6 +383,27 @@ pub(crate) fn module_graph(
         }
     }
     Ok(graph)
+}
+
+pub(crate) fn other_user(
+    graph: &ModuleGraph,
+    scope: &Scope,
+    allowed: &BTreeSet<String>,
+) -> Option<String> {
+    graph
+        .usages
+        .iter()
+        .find(|(module, used)| {
+            !allowed.contains(*module) && used.iter().any(|known| known.overlaps(scope))
+        })
+        .map(|(module, _)| format!("module {module} also uses {}", scope.display()))
+        .or_else(|| {
+            graph
+                .opaque
+                .iter()
+                .find(|module| !allowed.contains(*module))
+                .map(|module| format!("module {module} uses an extension dx cannot name"))
+        })
 }
 
 pub(crate) fn closure(
@@ -792,7 +815,10 @@ mod tests {
                 "user",
                 "bazel_dep(name = \"leaf\", version = \"1\")\ne = use_extension(\"@leaf//:e.bzl\", \"e\")\nx = use_extension(\"@nobody//:x.bzl\", \"x\")\n",
             ),
-            ("top", "bazel_dep(name = \"user\", version = \"1\")\n"),
+            (
+                "top",
+                "bazel_dep(name = \"user\", version = \"1\")\nbazel_dep(name = \"leaf\", version = \"1\")\ne = use_extension(\"@leaf//:e.bzl\", \"e\", dev_dependency = True)\n",
+            ),
             ("other", "register_toolchains(\"//:t\")\n"),
         ]
         .into_iter()
@@ -820,6 +846,19 @@ mod tests {
             ])
         );
         assert_eq!(graph.opaque, set(&["user"]));
+        let e = Scope::extension("leaf+", "e");
+        assert_eq!(
+            other_user(&graph, &e, &BTreeSet::new()).as_deref(),
+            Some("module leaf also uses @@leaf++e+*")
+        );
+        assert_eq!(
+            other_user(&graph, &e, &set(&["leaf", "user"])).as_deref(),
+            None
+        );
+        assert_eq!(
+            other_user(&graph, &Scope::extension("top+", "x"), &set(&["leaf"])).as_deref(),
+            Some("module user uses an extension dx cannot name")
+        );
         assert_eq!(
             closure(&set(&["leaf"]), &graph.deps),
             set(&["leaf", "top", "user"])

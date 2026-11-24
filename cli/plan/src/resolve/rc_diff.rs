@@ -27,7 +27,6 @@ const NO_BUILD_EFFECT: &[&str] = &[
     "max_idle_secs",
     "progress_report_interval",
     "remote_cache",
-    "remote_header",
     "remote_max_connections",
     "remote_retries",
     "remote_timeout",
@@ -134,6 +133,7 @@ mod tests {
             "build --copt=-O1\nbuild --copt=-O2\ntry-import %workspace%/user.bazelrc\n",
             "build --copt=-O1\nbuild --copt=-O2\nbuild:ci --jobs 4 opt\n",
             "build --copt=-O1\nbuild --copt=-O2\nbuild\n",
+            "build --copt=-O1\nbuild --copt=-O2\nbuild --remote_header=x-buildbuddy-platform.os=linux\n",
         ] {
             assert!(changes_builds(base, head), "{head}");
         }

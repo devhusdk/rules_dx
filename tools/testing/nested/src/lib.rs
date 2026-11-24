@@ -2335,7 +2335,7 @@ fn reaper_waiting(reaper: &mut Child) -> std::thread::JoinHandle<String> {
             .map_while(Result::ok)
         {
             if line.contains(REAPER_WAITING) {
-                drop(waiting.try_send(()));
+                let _: Result<(), std::sync::mpsc::TrySendError<()>> = waiting.try_send(());
             }
             log.push_str(&line);
             log.push('\n');

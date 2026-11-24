@@ -63,7 +63,9 @@ fn findings(text: &str) -> Result<Vec<String>, String> {
         if level != "warning" && level != "error" {
             continue;
         }
-        let code = value.get("code").map_or("", |code| text_field(code, "code"));
+        let code = value
+            .get("code")
+            .map_or("", |code| text_field(code, "code"));
         if code == UNUSED_CRATE_DEPENDENCIES {
             continue;
         }

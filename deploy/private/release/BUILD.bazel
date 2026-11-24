@@ -183,14 +183,11 @@ rust_test(
         "DX_SBOM_PROVENANCE": "$(rootpath :sbom_demo_provenance)",
         "DX_SBOM_SPDX": "$(rootpath :sbom_demo_spdx)",
     },
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
         "//tools/testing:dx_testing",
+        "@crates//:tempfile",
     ],
 )
 
@@ -211,15 +208,13 @@ rust_test(
 rust_test(
     name = "candidate_identity_test",
     srcs = ["candidate_test.rs"],
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
     ],
 )
 

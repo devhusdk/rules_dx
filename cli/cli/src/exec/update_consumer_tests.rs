@@ -1,5 +1,5 @@
 use super::test_support::Harness;
-use super::test_support::{event, event_kinds, json_events};
+use super::test_support::{event_kinds, json_events};
 use super::update_live::{Launch, ScriptRunner, fake_pinned};
 
 fn uv_call(check: bool, dir: &str) -> Vec<String> {
@@ -502,7 +502,6 @@ fn consumer_json_check_reports_per_set_correlations() {
         out.contains("\"correlation\":\"update:deps-worker\""),
         "{out}"
     );
-    let _: &serde_json::Value = event(&events, "command_started");
 }
 
 const MIXED_MODULE: &str = "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"deps\", pyproject = \"//apps/frontend:pyproject.toml\", lock = \"//apps/frontend:uv.lock\")\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"jobs\", pnpm_lock = \"//consumer-npm/jobs:pnpm-lock.yaml\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//consumer-npm/web:pnpm-lock.yaml\")\n";

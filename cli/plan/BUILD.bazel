@@ -236,7 +236,6 @@ rust_test(
         "//cli/generation_result",
         "//cli/lcov:dx_lcov",
         "//cli/module_bazel:dx_module_bazel",
-        "//cli/os_sys:dx_os_sys",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
@@ -261,7 +260,10 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
-    ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+    }),
 )
 
 rust_bench(

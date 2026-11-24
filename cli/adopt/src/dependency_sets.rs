@@ -1557,6 +1557,15 @@ pub fn maven_resolver_set(workspace: &Path, set: &ResolvedSet) -> bool {
         && !pinned_by_rules_jvm_external(workspace, &set.locks)
 }
 
+#[must_use]
+pub fn flutter_pub_set(workspace: &Path, ecosystem: Ecosystem, manifests: &[String]) -> bool {
+    ecosystem == Ecosystem::Pub
+        && manifests.first().is_some_and(|manifest| {
+            std::fs::read_to_string(workspace.join(manifest))
+                .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
+        })
+}
+
 const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
 
 #[derive(Clone, Debug, Eq, PartialEq)]

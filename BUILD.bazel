@@ -683,6 +683,7 @@ filegroup(
         "//dotnet/private:module_srcs",
         "//dotnet/private/coverage:module_srcs",
         "//dotnet/private/quality:module_srcs",
+        "//dotnet/private/tools/coverage:module_srcs",
         "//dx:module_srcs",
         "//dx/advisory_prep:module_srcs",
         "//elixir:module_srcs",

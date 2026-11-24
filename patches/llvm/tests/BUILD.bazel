@@ -82,8 +82,10 @@ rust_test(
 
 cc_library(
     name = "mingw_coff",
+    testonly = True,
     srcs = ["mingw_coff.c"],
     target_compatible_with = ["@platforms//os:windows"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

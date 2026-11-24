@@ -50,7 +50,6 @@ windows_js_tool_launcher = rule(
 
 def js_build_tool(name, tool, tags = None, testonly = False, visibility = None):
     """Defines `name` as `tool`, wrapped in `windows_js_tool_launcher` on Windows; the launcher also gets `manual`."""
-    extra = {"testonly": True} if testonly else {}
     launcher_tags = list(tags or [])
     if "manual" not in launcher_tags:
         launcher_tags.append("manual")
@@ -58,8 +57,8 @@ def js_build_tool(name, tool, tags = None, testonly = False, visibility = None):
         name = name + "_windows",
         tool = tool,
         tags = launcher_tags,
+        testonly = testonly,
         visibility = visibility,
-        **extra
     )
     native.alias(
         name = name,
@@ -68,6 +67,6 @@ def js_build_tool(name, tool, tags = None, testonly = False, visibility = None):
             "//conditions:default": tool,
         }),
         tags = tags,
+        testonly = testonly,
         visibility = visibility,
-        **extra
     )

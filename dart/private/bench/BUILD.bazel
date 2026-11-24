@@ -3,7 +3,7 @@ load("//dart:defs.bzl", "dart_library", "dart_package_metadata")
 
 dart_package_metadata(
     name = "pubspec-metadata",
-    package_name = "dx_bench",
+    package_name = "dx_dart_bench",
 )
 
 # gazelle:dx_external pub dart/private/bench/pubspec.lock dx_dart_bench_deps
@@ -18,8 +18,8 @@ exports_files([
 # keep
 dart_library(
     name = "bench",
-    package = ":pubspec-metadata",
     srcs = ["lib/dx_bench.dart"],
+    package = ":pubspec-metadata",
     deps = ["@dx_dart_bench_deps//:benchmark_harness"],
 )
 

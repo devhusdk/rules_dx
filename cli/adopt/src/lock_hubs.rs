@@ -178,6 +178,9 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
         if set.ecosystem.name() == "maven" && pinned_by_rules_jvm_external(root, &set.locks) {
             continue;
         }
+        if crate::dependency_sets::flutter_pub_set(root, set.ecosystem, &set.manifests) {
+            continue;
+        }
         let dir = crate::dependency_sets::manifest_dir(&set.manifests);
         if root_match(&root.join(&dir), &hub.manifest).is_some() {
             out.push(ResolverSet {
@@ -1154,6 +1157,7 @@ mod tests {
             lock_stanza("composer", "web", "php"),
             lock_stanza("composer", "gone", "old"),
             lock_stanza("pub", "dart", "dart"),
+            lock_stanza("pub", "app", "app"),
             "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n"
                 .to_owned(),
             maven_stanza("jvm"),
@@ -1162,6 +1166,12 @@ mod tests {
         .concat();
         write(dir.path(), MODULE_FILE, &module).unwrap();
         write(dir.path(), &format!("dart/{}", t("{pub:manifest}")), "").unwrap();
+        write(
+            dir.path(),
+            &format!("app/{}", t("{pub:manifest}")),
+            "dependencies:\n  flutter:\n    sdk: flutter\n",
+        )
+        .unwrap();
         write(
             dir.path(),
             &format!("php/{}", t("{composer:manifest}")),

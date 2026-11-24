@@ -159,6 +159,7 @@ fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
             "query",
             "--color=no",
             "--curses=no",
+            "--repo_contents_cache=",
             "--output=label",
             "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
         ],

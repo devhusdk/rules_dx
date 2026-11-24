@@ -120,7 +120,6 @@ nested_bazel_test(
     name = "network_test",
     size = "small",
     srcs = ["network_test.rs"],
-    caches = "private",
     crate_name = "network_test",
     crate_root = "network_test.rs",
     # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.

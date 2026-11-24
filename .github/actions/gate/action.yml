@@ -5,7 +5,7 @@ inputs:
     description: The dx command, such as check, coverage or test, or several separated by spaces, which run in order.
     required: true
   scopes:
-    description: Space-separated target patterns that narrow the affected targets, such as one shard's top-level packages. dx generate ignores them, because it covers the whole repo.
+    description: Space-separated target patterns that narrow the affected targets, such as one shard's packages. dx generate ignores them, because it covers the whole repo.
     required: false
     default: ""
   lcov:

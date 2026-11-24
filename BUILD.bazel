@@ -895,6 +895,7 @@ filegroup(
         "//rust/private/quality/tools:module_srcs",
         "//rust/private/toolchain:module_srcs",
         "//rust/private/tools/bench_report:module_srcs",
+        "//rust/private/tools/clippy_findings:module_srcs",
         "//rust/private/tools/msvc_paths:module_srcs",
         "//rust/private/tools/progenitor:module_srcs",
         "//rust/private/tools/shard_runner:module_srcs",

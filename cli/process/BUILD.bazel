@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust/tests:lint_test.bzl", "lint_test")
 load("//rust/tests:defs_tests.bzl", "rust_test_srcs_split_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 
@@ -110,6 +111,15 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
+    ],
+)
+
+lint_test(
+    name = "lint_test",
+    size = "small",
+    targets = [
+        ":dx_process",
+        ":dx_process_test",
     ],
 )
 

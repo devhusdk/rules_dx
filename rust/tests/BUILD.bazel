@@ -6,6 +6,7 @@ load(":cargo_bazel_generator_tests.bzl", "cargo_bazel_generator_test")
 load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test", "raw_build_script_coverage_env_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
+load(":lint_test.bzl", "lint_binary")
 load(":musl_toolchain_tests.bzl", "musl_toolchain_tests")
 load(":platform_config_tests.bzl", "rust_platform_config_test")
 load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
@@ -24,6 +25,7 @@ real_source_target(
         "crate_build_script_tests.bzl",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
+        "lint_test.bzl",
         "musl_toolchain_tests.bzl",
         "platform_config_tests.bzl",
         "rust_clippy_tests.bzl",
@@ -93,6 +95,35 @@ musl_toolchain_tests(
 rust_clippy_test_suite(
     name = "rust_clippy_tests",
     size = "small",
+)
+
+lint_binary(
+    name = "lint_dirty_findings",
+    testonly = True,
+    targets = ["//rust/tests/conformance:lint_dirty"],
+)
+
+filegroup(
+    name = "lint_dirty_diagnostics",
+    testonly = True,
+    srcs = [":lint_dirty_findings"],
+    output_group = "clippy_diagnostics",
+)
+
+rust_test(
+    name = "lint_test_fails_test",
+    size = "small",
+    srcs = ["lint_test_fails_test.rs"],
+    crate_root = "lint_test_fails_test.rs",
+    data = [
+        ":lint_dirty_diagnostics",
+        ":lint_dirty_findings",
+    ],
+    env = {
+        "DX_CLIPPY_DIAGNOSTICS": "$(rlocationpaths :lint_dirty_diagnostics)",
+        "DX_LINT_BINARY": "$(rlocationpath :lint_dirty_findings)",
+    },
+    deps = ["//tools/testing:dx_testing"],
 )
 
 build_test(

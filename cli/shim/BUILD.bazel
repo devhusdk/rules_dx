@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust/tests:lint_test.bzl", "lint_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -165,6 +166,20 @@ rust_test(
         "//cli/digest:dx_digest",
         "//tools/testing:dx_testing",
         "@crates//:tempfile",
+    ],
+)
+
+lint_test(
+    name = "lint_test",
+    size = "small",
+    targets = [
+        ":dx_shim",
+        ":dx_shim_bin",
+        ":dx_shim_test",
+        ":e2e_test",
+        ":fake_dx",
+        ":fetch_test",
+        ":interop_test",
     ],
 )
 

@@ -1,14 +1,9 @@
-//! Prints the findings in clippy JSON diagnostics files and fails when there is one.
-//!
-//! The files come from the space-separated runfiles keys in `DX_CLIPPY_DIAGNOSTICS`.
-
 use std::process::ExitCode;
 
 use serde_json::Value;
 
 const DIAGNOSTICS_ENV: &str = "DX_CLIPPY_DIAGNOSTICS";
 
-/// Forced to a warning by the dx clippy aspect; `dx lint` checks it against the deps attribute.
 const UNUSED_CRATE_DEPENDENCIES: &str = "unused_crate_dependencies";
 
 fn main() -> ExitCode {
@@ -50,7 +45,6 @@ fn run() -> Result<usize, String> {
     Ok(count)
 }
 
-/// Returns one report per warning or error diagnostic that points into a source file.
 fn findings(text: &str) -> Result<Vec<String>, String> {
     let mut found = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {

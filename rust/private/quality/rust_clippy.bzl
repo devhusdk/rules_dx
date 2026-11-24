@@ -56,7 +56,6 @@ def _dx_clippy_aspect_impl(target, ctx):
 
     diagnostics = ctx.actions.declare_file(ctx.label.name + ".dx_clippy.diagnostics", sibling = crate_info.output)
 
-    # rustc writes into --out-dir, and a forwarded crate's own output directory may not exist.
     fields = structs.to_dict(crate_info)
     fields["output"] = diagnostics
     crate_info = rust_common.create_crate_info(**fields)

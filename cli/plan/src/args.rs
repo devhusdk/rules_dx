@@ -58,6 +58,8 @@ pub enum ArgsError {
     SinceNeedsAffected,
     #[error("option \"--base\" requires \"--affected\"")]
     BaseNeedsAffected,
+    #[error("option \"--lint-scope\" requires \"--affected\"")]
+    LintScopeNeedsAffected,
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,
     #[error("option \"--coverage\" requires \"--affected\"")]

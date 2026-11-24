@@ -118,16 +118,17 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LintScope {
+pub(crate) enum LintScope {
     DirectUsers,
     Dependents,
 }
 
-fn lint_scope(selection: &AffectedSelection) -> LintScope {
-    if selection
-        .widened
-        .iter()
-        .any(|entry| !entry.repos.is_empty())
+fn lint_scope(selection: &AffectedSelection, requested: LintScope) -> LintScope {
+    if requested == LintScope::Dependents
+        || selection
+            .widened
+            .iter()
+            .any(|entry| !entry.repos.is_empty())
     {
         LintScope::Dependents
     } else {
@@ -142,6 +143,7 @@ fn scope_to_graph(
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    requested_lint: LintScope,
 ) -> Result<(), PlanError> {
     let secrets_scan = command == Command::Security;
     if selection.targets.is_empty() {
@@ -175,7 +177,7 @@ fn scope_to_graph(
         Vec::new()
     };
     owners.retain(|rule| !exclude::covered(&excludes, rule));
-    let mut lint = if quality && lint_scope(selection) == LintScope::Dependents {
+    let mut lint = if quality && lint_scope(selection, requested_lint) == LintScope::Dependents {
         rules.clone()
     } else if quality {
         graph.own_sources_and_direct_users(&selection.targets)
@@ -215,6 +217,7 @@ pub(crate) fn plan(
     runner: &dyn QueryRunner,
     startup_options: &[String],
     base: String,
+    lint: LintScope,
 ) -> Result<AffectedPlan, PlanError> {
     let git = PathBuf::from("git");
     let mut changes = collect_range(&git, workspace, runner, &base, "HEAD")
@@ -300,6 +303,7 @@ pub(crate) fn plan(
         workspace,
         runner,
         startup_options,
+        lint,
     )?;
     Ok(plan)
 }
@@ -488,6 +492,11 @@ fn resolve_plan(
         query_runner,
         &invocation.bazel_startup_options,
         base,
+        if invocation.lint_closure {
+            LintScope::Dependents
+        } else {
+            LintScope::DirectUsers
+        },
     )?;
     if !invocation.targets.is_empty() && !plan.empty() {
         let scope = resolve(
@@ -873,9 +882,18 @@ mod tests {
     }
 
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
+        run_linting(root, command, LintScope::DirectUsers, answers)
+    }
+
+    fn run_linting(
+        root: &Path,
+        command: Command,
+        lint: LintScope,
+        answers: &[&str],
+    ) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
         let base = affected_base(root, &runner, None).expect("base");
-        let plan = plan(command, root, &runner, &[], base).expect("plan");
+        let plan = plan(command, root, &runner, &[], base, lint).expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
     }
@@ -1165,7 +1183,15 @@ mod tests {
         let base = since_base(root, &runner, "HEAD~1").expect("base");
         let graph = graph();
         let runner = GitRunner::new(&[&graph]);
-        let plan = plan(Command::Build, root, &runner, &[], base.clone()).expect("plan");
+        let plan = plan(
+            Command::Build,
+            root,
+            &runner,
+            &[],
+            base.clone(),
+            LintScope::DirectUsers,
+        )
+        .expect("plan");
         assert_eq!(plan.changed_files, ["a/b.txt"]);
         assert_eq!(plan.base, base);
         let (all, _) = run(root, Command::Build, &[&graph]);
@@ -1449,6 +1475,27 @@ mod tests {
         assert_eq!(plan.lint, ["//a:bin", "//a:lib", "//a:unit"]);
         let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
         assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:unit"]);
+    }
+
+    #[test]
+    fn closure_lint_scope_reaches_users_two_hops_from_a_change() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:a", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//b:b", "ruleInput": ["//a:a"]}),
+            json!({"name": "//c:c", "ruleInput": ["//b:b"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b"]);
+        let (plan, _) = run_linting(dir.path(), Command::Lint, LintScope::Dependents, &[&graph]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b", "//c:c"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.lint, ["//a:a", "//b:b"]);
+        let (plan, _) = run_linting(dir.path(), Command::Check, LintScope::Dependents, &[&graph]);
+        assert_eq!(plan.format, ["//a:a"]);
+        assert_eq!(plan.lint, ["//a:a", "//b:b", "//c:c"]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b", "//c:c"]);
     }
 
     #[test]

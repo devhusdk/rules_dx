@@ -16,7 +16,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## Usage
 
 ```text
-dx check [--here] [--affected [--since <ref>|--base <ref>] [--coverage]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif|lcov|sources=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>|--base <ref>] [--coverage] [--lint-scope direct|closure]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif|lcov|sources=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Args after `--` go to Bazel.
@@ -33,6 +33,7 @@ Args after `--` go to Bazel.
 | `--coverage` | With `--affected`, run the tests that take coverage under coverage. Without `--affected` or with `--apply`, exits `2`. |
 | `--since <ref>` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
 | `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
+| `--lint-scope direct\|closure` | With `--affected`: the lint phase adds the direct dependents (`direct`, the default) or every dependent (`closure`). Without `--affected`, exits `2`. |
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
@@ -54,7 +55,7 @@ Args after `--` go to Bazel.
 A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel target), a pattern such as `//pkg/...` (every target in `pkg` and below), or a workspace file or directory. With no scope, dx checks `//...`, every target in the workspace.
 
 - `--here` uses the current directory tree.
-- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. The format phase uses only the targets that read a changed file. The lint phase adds the targets that depend on them directly, or every target that depends on them when a dependency version changes. A format or lint phase with no affected targets prints `no affected targets` and runs nothing.
+- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. The format phase uses only the targets that read a changed file. The lint phase adds the targets that depend on them directly. It adds every target that depends on them with `--lint-scope closure` or when a dependency version changes. A format or lint phase with no affected targets prints `no affected targets` and runs nothing.
 - `--here` does not combine with scopes or `--affected`.
 - `--affected` with scopes keeps only the affected targets inside them.
 - With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.

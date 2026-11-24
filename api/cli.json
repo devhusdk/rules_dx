@@ -424,6 +424,15 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--lint-scope",
+          "values": [
+            "direct",
+            "closure"
+          ]
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--max-findings",
           "values": []
         },
@@ -1781,6 +1790,15 @@
           "defaults": [],
           "name": "--include-edits",
           "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
+          "name": "--lint-scope",
+          "values": [
+            "direct",
+            "closure"
+          ]
         },
         {
           "aliases": [],

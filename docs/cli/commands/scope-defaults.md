@@ -42,7 +42,7 @@ Changes are the diff from the merge-base with the base branch, plus staged, unst
 Each changed file maps to its owning targets, then to their reverse dependencies in `//...`: the targets that depend on them. Targets tagged `manual` are left out.
 
 - `format` and the format phase of `check` keep only the targets that read a changed file: the rules that own it, the rules that use a `filegroup` or `genrule` that owns it or a file such a rule generates, and the rules that take one of those, or an `alias` of one, as `crate`, `upstream`, `beam`, `beam_files_dir`, `dx_tfm_variants`, or `aspect_hints`, such as a Rust test of a library.
-- `lint` and the lint phase of `check` keep those targets plus the targets that depend on them directly. They keep all reverse dependencies when a dependency version changes. A lint or format phase with no targets prints `no affected targets` and runs nothing. `typecheck` and the test phase of `check` keep all reverse dependencies.
+- `lint` and the lint phase of `check` keep those targets plus the targets that depend on them directly. They keep all reverse dependencies with `--lint-scope closure` or when a dependency version changes. A lint or format phase with no targets prints `no affected targets` and runs nothing. `typecheck` and the test phase of `check` keep all reverse dependencies.
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.
 - `check --affected` runs the checks, then the affected tests. `check --apply --affected` skips the tests.

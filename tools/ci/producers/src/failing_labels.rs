@@ -8,11 +8,13 @@ use crate::test_log_tails::PASSING_OUTCOMES;
 const USAGE: &str =
     "usage: producers_bin --failing-labels --out FILE [--dx FILE] [--previous FILE]";
 
+const NOT_RUN_OUTCOMES: [&str; 3] = ["skipped", "filtered", "cancelled"];
+
 const PHASE_SKIPPED: &str = "umbrella_phase_skipped";
 
 const FAILING_SEVERITIES: [&str; 2] = ["warning", "error"];
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Run {
     failing: BTreeSet<String>,
     covered: Vec<String>,
@@ -44,14 +46,21 @@ pub fn write(args: &[String]) -> Result<(), String> {
         None => Run::default(),
     };
     let previous = match previous {
-        Some(path) => read_labels(
-            &std::fs::read_to_string(path)
-                .map_err(|error| format!("read {}: {error}", path.display()))?,
-        )
-        .map_err(|error| format!("{}: {error}", path.display()))?,
-        None => BTreeSet::new(),
+        Some(path) => Some(
+            read_labels(
+                &std::fs::read_to_string(path)
+                    .map_err(|error| format!("read {}: {error}", path.display()))?,
+            )
+            .map_err(|error| format!("{}: {error}", path.display()))?,
+        ),
+        None => None,
     };
-    let labels = merge(&previous, &run);
+    if previous.is_some() && run.exit_code.is_none() {
+        return Err(
+            "failing-labels: dx did not finish, so the last main baseline stays".to_owned(),
+        );
+    }
+    let labels = merge(&previous.unwrap_or_default(), &run);
     let carried = labels.difference(&failing_keys(&run)).count();
     let text = format!("{}\n", json!({ "labels": labels }));
     dx_atomic_fs::write_scratch(out, text.as_bytes())
@@ -100,7 +109,9 @@ fn read_run(text: &str) -> Run {
             }
             Some("test_outcome") => {
                 let outcome = event["outcome"].as_str().unwrap_or("unknown");
-                if event["final"].as_bool() != Some(false) && !PASSING_OUTCOMES.contains(&outcome) {
+                let ran_and_failed =
+                    !PASSING_OUTCOMES.contains(&outcome) && !NOT_RUN_OUTCOMES.contains(&outcome);
+                if event["final"].as_bool() != Some(false) && ran_and_failed {
                     run.failing.extend(event["target"].as_str().map(label));
                 }
             }
@@ -166,11 +177,8 @@ fn failing_keys(run: &Run) -> BTreeSet<String> {
 }
 
 fn merge(previous: &BTreeSet<String>, run: &Run) -> BTreeSet<String> {
-    let reached: &[String] = if run.exit_code.is_some() && !run.skipped_phase {
-        &run.covered
-    } else {
-        &[]
-    };
+    let complete = run.exit_code.is_some() && !run.skipped_phase && run.errors.is_empty();
+    let reached: &[String] = if complete { &run.covered } else { &[] };
     previous
         .iter()
         .filter(|key| key.starts_with("//") && !reached.iter().any(|p| covers(p, key)))
@@ -223,6 +231,9 @@ mod tests {
                 r#"{"event":"test_outcome","target":"@@//a:test","outcome":"failed"}"#,
                 r#"{"event":"test_outcome","target":"//a:old","outcome":"failed","final":false}"#,
                 r#"{"event":"test_outcome","target":"//a:ok","outcome":"passed_after_retry"}"#,
+                r#"{"event":"test_outcome","target":"//a:tagged","outcome":"filtered"}"#,
+                r#"{"event":"test_outcome","target":"//a:skip","outcome":"skipped"}"#,
+                r#"{"event":"test_outcome","target":"//a:slow","outcome":"timeout"}"#,
                 r#"{"event":"build_failure","target":"//b:bin","count":2,"targets":["//b:bin","//b:other"]}"#,
                 r#"{"event":"build_failure","target":"unknown"}"#,
                 r#"{"event":"diagnostic","severity":"error","path":"a/x.rs","origins":[{"target":"//a:lib"}]}"#,
@@ -240,6 +251,7 @@ mod tests {
             run.failing,
             set(&[
                 "//a:test",
+                "//a:slow",
                 "//b:bin",
                 "//b:other",
                 "//a:lib",
@@ -283,10 +295,18 @@ mod tests {
         assert_eq!(merge(&previous, &whole), set(&[]));
         let stopped = Run {
             skipped_phase: true,
-            ..whole
+            ..whole.clone()
         };
         assert_eq!(
             merge(&previous, &stopped),
+            set(&["//a:red", "//b/c:red", "//z:red"])
+        );
+        let errored = Run {
+            errors: set(&["incomplete_results"]),
+            ..whole.clone()
+        };
+        assert_eq!(
+            merge(&previous, &errored),
             set(&["//a:red", "//b/c:red", "//z:red"])
         );
         let unfinished = Run {

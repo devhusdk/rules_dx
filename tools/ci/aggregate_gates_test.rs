@@ -541,6 +541,11 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
         step("Pin the affected base")["env"]["PUSH_BEFORE"],
         json!("${{ steps.previous.outputs.sha || github.event.before }}")
     );
+    let find = step("Find the last main baseline")["run"]
+        .as_str()
+        .expect("find run");
+    assert!(find.contains("compare/$sha...$HEAD_SHA"), "{find}");
+    assert!(find.contains("ahead | identical"), "{find}");
     let record = step("Record the failing labels");
     let run = record["run"].as_str().expect("record run");
     assert!(
@@ -548,6 +553,13 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
         "{run}"
     );
     assert!(run.contains("--previous \"$previous\""), "{run}");
+    let upload = step("Upload the failing labels")["if"]
+        .as_str()
+        .expect("upload if");
+    assert!(
+        upload.contains("steps.previous.outcome == 'success'"),
+        "{upload}"
+    );
     assert_eq!(
         step("Upload the failing labels")["with"]["name"],
         json!(

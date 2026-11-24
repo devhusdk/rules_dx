@@ -25,14 +25,20 @@ runs:
         HEAD_SHA: ${{ github.sha }}
       shell: bash
       run: |
-        found="$(gh api "repos/$REPO/actions/artifacts?name=$NAME&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | last // empty | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
-        [ -n "$found" ] || { echo "gate: no $NAME artifact yet"; exit 0; }
-        read -r id run sha <<<"$found"
-        echo "gate: $NAME from run $run at $sha"
-        { echo "id=$id"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
-        if [ "$sha" != "$HEAD_SHA" ] && git fetch --no-tags --depth=1 origin "$sha"; then
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-        fi
+        candidates="$(gh api "repos/$REPO/actions/artifacts?name=$NAME&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | reverse | .[:10][] | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
+        while read -r id run sha; do
+          [ -n "$id" ] || continue
+          status="$(gh api "repos/$REPO/compare/$sha...$HEAD_SHA" --jq .status)"
+          case "$status" in ahead | identical) ;; *) echo "gate: skip $NAME from run $run, $sha is $status of HEAD"; continue ;; esac
+          echo "gate: $NAME from run $run at $sha"
+          { echo "id=$id"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
+          if [ "$status" = ahead ]; then
+            git fetch --no-tags --depth=1 origin "$sha"
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+        done <<<"$candidates"
+        echo "gate: no $NAME artifact from an ancestor of HEAD yet"
     - name: Download the last main baseline
       if: ${{ steps.previous.outputs.id != '' }}
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -117,7 +123,7 @@ runs:
       with:
         path: ${{ runner.temp }}/failing
     - name: Upload the failing labels
-      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'push' || github.event_name == 'pull_request') }}
+      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'push' && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure'))) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}

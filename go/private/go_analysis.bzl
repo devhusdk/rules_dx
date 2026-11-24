@@ -138,8 +138,11 @@ def _go_analysis_impl(target, ctx):
             import_map[data.importpath] = data.importmap
     stdlib = ctx.attr._go_stdlib[GoStdLib]
     toolchain = ctx.toolchains[GO_TOOLCHAIN_TYPE]
+    cgo_dirs = [data.cgo_out_dir for data in own if data.importpath == importpath] if is_test else [archive.data.cgo_out_dir]
+    cgo_go_srcs = None if mode.pure or not cgo_dirs else cgo_dirs[0]
     config = {
         "Cgo": not mode.pure,
+        "CgoGoSrcs": cgo_go_srcs.path if cgo_go_srcs else "",
         "GOARCH": mode.goarch,
         "GOOS": mode.goos,
         "GoFiles": [f.path for f in sources],
@@ -162,7 +165,7 @@ def _go_analysis_impl(target, ctx):
             progress_message = tool + " %{label}",
             executable = getattr(ctx.attr, _DRIVERS[tool]).files_to_run,
             arguments = ["-out", report.path, config_file.path] + extra_args,
-            inputs = depset(sources + [config_file], transitive = [depset(exports), stdlib.libs, extra_inputs]),
+            inputs = depset(sources + [config_file] + ([cgo_go_srcs] if cgo_go_srcs else []), transitive = [depset(exports), stdlib.libs, extra_inputs]),
             outputs = [report],
             resource_set = dx_heavy_resources,
             toolchain = None,

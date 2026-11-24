@@ -1,5 +1,6 @@
 """Serves the launchers of a downloaded tool bundle as executables."""
 
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "rlocation_path")
 
 visibility("public")
@@ -33,16 +34,6 @@ dx_bundle_tree = rule(
     },
 )
 
-_WRAPPER = """#!/bin/sh
-for root in "$0.runfiles" "${{RUNFILES_DIR:-}}"; do
-  if [ -n "$root" ] && [ -x "$root/{launcher}" ]; then
-    exec "$root/{launcher}" "$@"
-  fi
-done
-echo "{label}: cannot find {launcher} in the runfiles of $0" >&2
-exit 1
-"""
-
 def _dx_bundle_tool_impl(ctx):
     bundle = ctx.attr.tree[DxBundleInfo]
     launcher = bundle.launchers.get(ctx.attr.launcher)
@@ -54,16 +45,15 @@ def _dx_bundle_tool_impl(ctx):
     runfiles = ctx.runfiles(files = [link], transitive_files = bundle.files)
     if launcher.extension == "cmd":
         return [DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles)]
-    wrapper = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(wrapper, _WRAPPER.format(label = ctx.label, launcher = rlocation_path(ctx, link)), is_executable = True)
-    return [DefaultInfo(executable = wrapper, files = depset([wrapper]), runfiles = runfiles.merge(ctx.runfiles(files = [wrapper])))]
+    wrapper, _, launcher_runfiles = write_native_launcher(ctx, "program=" + rlocation_path(ctx, link) + "\n")
+    return [DefaultInfo(executable = wrapper, files = depset([wrapper]), runfiles = runfiles.merge(launcher_runfiles))]
 
 dx_bundle_tool = rule(
     implementation = _dx_bundle_tool_impl,
     doc = "Runs one bin/ launcher of a dx_bundle_tree.",
     executable = True,
-    attrs = {
+    attrs = dict({
         "launcher": attr.string(doc = "The launcher's path in the bundle, such as bin/yamllint.", mandatory = True),
         "tree": attr.label(doc = "The dx_bundle_tree the launcher runs from.", mandatory = True, providers = [DxBundleInfo]),
-    },
+    }, **NATIVE_LAUNCHER_ATTRS),
 )

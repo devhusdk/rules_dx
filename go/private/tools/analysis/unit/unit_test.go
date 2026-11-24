@@ -226,3 +226,23 @@ func TestExternalTestPackageIsSeparatePass(t *testing.T) {
 		t.Fatalf("want one finding in each package, got %s", raw)
 	}
 }
+
+func TestCgoFilesAreCheckedOnTheirProcessedSources(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.MkdirAll(filepath.Join("pkg", "b.a.cgo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	plain := write(t, "pkg", "a.go", "package p\n\nfunc Worse() int { return Bad() }\n")
+	cgo := write(t, "pkg", "b.go", "package p\n\nimport \"C\"\n\nfunc Bad() int { return int(C.one()) }\n")
+	processed := filepath.Join("pkg", "b.a.cgo")
+	write(t, processed, "b.cgo1.go", "//line "+cgo+":1:1\npackage p\n\nimport _ \"unsafe\"\n\nfunc Bad() int { return /*line :5:26*/_Cfunc_one() }\n")
+	write(t, processed, "_cgo_gotypes.go", "package p\n\nfunc _Cfunc_one() int { return 1 }\n\nfunc BadGenerated() {}\n")
+	got, raw := runUnit(t, unit.Config{GoFiles: []string{plain, cgo}, OwnedFiles: []string{plain, cgo}, Cgo: true, CgoGoSrcs: processed})
+	var list []map[string]string
+	if err := json.Unmarshal(got["example.com/p"]["badfunc"], &list); err != nil {
+		t.Fatalf("%s: %v", raw, err)
+	}
+	if len(list) != 1 || list[0]["posn"] != cgo+":5:1" {
+		t.Fatalf("want one finding at %s:5:1, got %s", cgo, raw)
+	}
+}

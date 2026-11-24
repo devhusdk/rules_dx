@@ -97,12 +97,16 @@ fn resolve(index_path: &str) -> Result<String, String> {
     Ok(json!({ "packages": listed }).to_string())
 }
 
+fn park_forever() -> ! {
+    loop {
+        std::thread::park();
+    }
+}
+
 fn main() -> ExitCode {
     let index = std::env::args().nth(1).unwrap_or_default();
     if index == "--hang" {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(60));
-        }
+        park_forever();
     }
     match resolve(&index) {
         Ok(resolution) => {

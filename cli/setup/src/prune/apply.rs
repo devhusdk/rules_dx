@@ -337,14 +337,8 @@ mod tests {
     }
 
     fn wait_for(path: &Path, what: &str) {
-        let start = std::time::Instant::now();
-        while !path.exists() {
-            assert!(
-                start.elapsed() <= Duration::from_secs(30),
-                "timed out waiting for {what}"
-            );
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        dx_test_scratch::wait::path_appears(path, Duration::from_secs(30))
+            .unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
     #[test]
@@ -411,6 +405,14 @@ mod tests {
         fs::write(workspace.join("child-release"), b"go").expect("release the reader");
         let status = child.wait().expect("reap the reader");
         assert!(status.success(), "the reader exits cleanly");
+        let lease = dx_atomic_fs::lease::lease_path(
+            &dx_path::state::local_dir(&workspace),
+            dx_atomic_fs::lease::GenerationUse::Generated,
+            &stale_gen,
+        )
+        .expect("lease path");
+        dx_test_scratch::wait::lock_free(&lease, Duration::from_secs(30))
+            .expect("the reader's lease comes free");
         let outcome = apply_plan(&workspace, &plan).expect("re-apply");
         assert_eq!(
             outcome.skipped_leased_generations,

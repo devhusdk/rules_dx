@@ -628,16 +628,44 @@ mod tests {
     #[derive(Default)]
     struct Counting {
         asked: std::sync::Mutex<Vec<String>>,
-        in_flight: AtomicUsize,
-        peak: AtomicUsize,
+        flight: std::sync::Mutex<Flight>,
+        changed: std::sync::Condvar,
+        overlap: usize,
+    }
+
+    #[derive(Default)]
+    struct Flight {
+        now: usize,
+        peak: usize,
+    }
+
+    impl Counting {
+        fn overlapping(overlap: usize) -> Self {
+            Self {
+                overlap,
+                ..Self::default()
+            }
+        }
+
+        fn peak(&self) -> usize {
+            self.flight.lock().expect("flight").peak
+        }
     }
 
     impl Fetch for Counting {
         fn sha256(&self, url: &str) -> Result<String, Error> {
-            let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
-            self.peak.fetch_max(now, Ordering::SeqCst);
-            std::thread::sleep(std::time::Duration::from_millis(20));
-            self.in_flight.fetch_sub(1, Ordering::SeqCst);
+            let mut flight = self.flight.lock().expect("flight");
+            flight.now += 1;
+            flight.peak = flight.peak.max(flight.now);
+            self.changed.notify_all();
+            let (mut flight, _) = self
+                .changed
+                .wait_timeout_while(flight, std::time::Duration::from_secs(10), |flight| {
+                    flight.peak < self.overlap
+                })
+                .expect("flight");
+            flight.now -= 1;
+            drop(flight);
             self.asked.lock().expect("asked").push(url.to_owned());
             if url.ends_with("/missing") {
                 return Err(Error::new("HTTP 404"));
@@ -674,9 +702,9 @@ mod tests {
             .map(|n| package(&format!("p{n}"), &format!("https://example.com/p{n}")))
             .collect();
         let mut lock = lock_of(packages, BTreeMap::new());
-        let fetch = Counting::default();
+        let fetch = Counting::overlapping(2);
         fill_all_digests(&mut lock, None, &fetch).expect("filled");
-        let peak = fetch.peak.load(Ordering::SeqCst);
+        let peak = fetch.peak();
         assert!((2..=FETCH_JOBS).contains(&peak), "peak {peak}");
         for entry in &lock.packages {
             for archive in &entry.archives {

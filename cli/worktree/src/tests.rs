@@ -3937,7 +3937,7 @@ mod hooks {
         for command in [
             "echo dx test",
             "cat tools/dx",
-            "timeout 5 sleep 1",
+            "timeout 5 true",
             "bash -c 'echo dx'",
             "bash -euo pipefail script.sh",
             "bash -o pipefail -c 'echo hi'",

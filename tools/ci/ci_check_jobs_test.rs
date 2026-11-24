@@ -3,9 +3,9 @@ use input_validation::PLATFORMS;
 
 const WORKFLOW: &str = ".github/workflows/ci.yml";
 const GATE_ACTION: &str = "./.github/actions/gate";
-const JOB: &str = "test";
+const JOB: &str = "check";
 const LCOV: &str = "${{ runner.temp }}/coverage/lcov.info";
-const GATE: &str = "${{ matrix.platform != 'linux_x86_64' && 'test' || matrix.shard == 0 && 'generate format lint typecheck coverage' || 'format lint typecheck test' }}";
+const GATE: &str = "${{ matrix.platform == 'linux_x86_64' && 'check coverage' || 'check' }}";
 
 fn table() -> Vec<(String, String)> {
     PLATFORMS
@@ -32,7 +32,7 @@ fn workflow_runs_on_pull_requests_and_in_the_merge_queue() {
 }
 
 #[test]
-fn the_test_job_runs_every_shard_on_every_platform() {
+fn the_check_job_runs_on_every_platform() {
     let job = job(WORKFLOW, JOB).unwrap();
     let pairs: Vec<(String, String)> = job["strategy"]["matrix"]["include"]
         .as_array()
@@ -46,25 +46,12 @@ fn the_test_job_runs_every_shard_on_every_platform() {
         })
         .collect();
     assert_eq!(pairs, table(), "{JOB} matrix drifted from PLATFORMS");
-    let shards = job["strategy"]["matrix"]["shard"]
-        .as_array()
-        .expect("shard list");
-    let steps = steps(WORKFLOW, JOB).unwrap();
-    let pick = steps
-        .iter()
-        .find(|step| step["id"].as_str() == Some("shard"))
-        .expect("shard step");
-    assert_eq!(
-        pick["env"]["SHARDS"].as_u64(),
-        Some(shards.len() as u64),
-        "the shard step must split the repo into one part per shard"
-    );
     assert_eq!(job["runs-on"].as_str(), Some("${{ matrix.runner }}"));
     assert_eq!(job["strategy"]["fail-fast"].as_bool(), Some(false));
 }
 
 #[test]
-fn the_test_job_runs_dx_affected_through_the_gate_action() {
+fn the_check_job_runs_dx_affected_through_the_gate_action() {
     let steps = steps(WORKFLOW, JOB).unwrap();
     let checkout = steps
         .iter()
@@ -79,21 +66,17 @@ fn the_test_job_runs_dx_affected_through_the_gate_action() {
     assert!(fetch.contains("--depth=2"), "{fetch}");
     let with = &steps[gate]["with"];
     assert_eq!(with["command"].as_str(), Some("${{ env.GATE }}"));
-    assert_eq!(
-        with["scopes"].as_str(),
-        Some("${{ steps.shard.outputs.scopes }}")
-    );
     assert_eq!(with["lcov"].as_str(), Some(LCOV));
 }
 
 #[test]
-fn only_linux_x86_64_checks_sources_and_only_its_first_shard_generates_and_measures_coverage() {
+fn only_linux_x86_64_measures_coverage() {
     let job = job(WORKFLOW, JOB).unwrap();
     assert_eq!(job["env"]["GATE"].as_str(), Some(GATE));
 }
 
 #[test]
-fn the_test_job_verifies_every_generated_file_on_one_shard() {
+fn the_check_job_verifies_every_generated_file_on_one_platform() {
     let step = steps(WORKFLOW, JOB)
         .unwrap()
         .into_iter()
@@ -106,13 +89,13 @@ fn the_test_job_verifies_every_generated_file_on_one_shard() {
     assert_eq!(
         step["if"].as_str(),
         Some(
-            "${{ !cancelled() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 && github.event_name != 'pull_request' }}"
+            "${{ !cancelled() && matrix.platform == 'linux_x86_64' && github.event_name != 'pull_request' }}"
         )
     );
 }
 
 #[test]
-fn the_coverage_shard_uploads_the_lcov() {
+fn the_coverage_platform_uploads_the_lcov() {
     let steps = steps(WORKFLOW, JOB).unwrap();
     let scan = steps
         .iter()

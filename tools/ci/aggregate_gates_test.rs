@@ -47,7 +47,7 @@ fn needs_of(workflow: &str, job: &str) -> Vec<String> {
 fn the_outer_gate_requires_every_declared_dependency() {
     let document = document(CI_WORKFLOW).unwrap();
     let wanted = json!([
-        "test",
+        "check",
         "coverage-cells",
         "dogfood",
         "analysis-scaling",
@@ -411,10 +411,9 @@ fn every_gate_job_records_its_failing_labels() {
             .iter()
             .find(|step| step["uses"] == "./.github/actions/gate")
             .unwrap_or_else(|| panic!("{id} has no gate step"));
-        let baseline = gate["with"]["baseline"].as_str().unwrap_or_default();
-        assert!(
-            baseline.starts_with(&format!("{id}-${{{{ matrix.platform }}}}")),
-            "{id} baseline {baseline:?} must name the job and the platform"
+        assert_eq!(
+            gate["with"]["baseline"],
+            json!(format!("{id}-${{{{ matrix.platform }}}}"))
         );
         assert_eq!(job["permissions"]["actions"], json!("read"), "{id}");
     }
@@ -609,28 +608,16 @@ fn reported_contexts(id: &str, job: &Value) -> Vec<String> {
     if !name.contains("${{ matrix.platform }}") {
         return vec![name.to_owned()];
     }
-    let matrix = &job["strategy"]["matrix"];
-    let shards: Vec<String> = match matrix["shard"].as_array() {
-        Some(shards) if name.contains("${{ matrix.shard }}") => {
-            shards.iter().map(Value::to_string).collect()
-        }
-        _ => vec![String::new()],
-    };
-    matrix["include"]
+    job["strategy"]["matrix"]["include"]
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|cell| cell["platform"].as_str())
-        .flat_map(|platform| {
-            shards.iter().map(move |shard| {
-                name.replace("${{ matrix.platform }}", platform)
-                    .replace("${{ matrix.shard }}", shard)
-            })
-        })
+        .map(|platform| name.replace("${{ matrix.platform }}", platform))
         .collect()
 }
 
-const GATE_JOBS: [&str; 1] = ["test"];
+const GATE_JOBS: [&str; 1] = ["check"];
 
 fn required_contexts() -> Vec<String> {
     let document = document(CI_WORKFLOW).unwrap();
@@ -641,7 +628,7 @@ fn required_contexts() -> Vec<String> {
 }
 
 #[test]
-fn the_ruleset_requires_every_test_shard_and_queues_merges() {
+fn the_ruleset_requires_every_check_job_and_queues_merges() {
     let ruleset = document(RULESET).unwrap();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
@@ -660,7 +647,7 @@ fn the_ruleset_requires_every_test_shard_and_queues_merges() {
     );
     assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
     let contexts = required_contexts();
-    assert_eq!(contexts.len(), 40, "{contexts:?}");
+    assert_eq!(contexts.len(), 5, "{contexts:?}");
     let wanted: Vec<Value> = contexts
         .iter()
         .map(|context| json!({"context": context, "integration_id": 15368}))

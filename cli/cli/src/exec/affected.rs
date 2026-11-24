@@ -454,30 +454,11 @@ fn resolve_plan(
 }
 
 fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
-    plan.targets = within(&plan.targets, scope);
-    plan.tests = within(&plan.tests, scope);
-    plan.format = within(&plan.format, scope);
+    let inside = |label: &String| exclude::covered(scope, label);
+    plan.targets.retain(inside);
+    plan.tests.retain(inside);
+    plan.format.retain(inside);
     plan.generate = dx_plan::plan::generate_package_scope_within(&plan.generate, scope);
-}
-
-fn within(selected: &[String], scope: &[String]) -> Vec<String> {
-    let mut kept: Vec<String> = Vec::new();
-    for entry in selected {
-        let narrowed: Vec<&String> = if exclude::covered(scope, entry) {
-            vec![entry]
-        } else {
-            scope
-                .iter()
-                .filter(|inner| exclude::covered(std::slice::from_ref(entry), inner))
-                .collect()
-        };
-        for label in narrowed {
-            if !kept.contains(label) {
-                kept.push(label.clone());
-            }
-        }
-    }
-    kept
 }
 
 fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
@@ -1495,30 +1476,6 @@ mod tests {
         assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());
-    }
-
-    #[test]
-    fn scopes_narrow_a_widened_plan_to_themselves() {
-        let labels = |items: &[&str]| -> Vec<String> {
-            items.iter().map(|item| (*item).to_owned()).collect()
-        };
-        let whole = labels(&["//..."]);
-        let mut plan = AffectedPlan {
-            base: "b".to_owned(),
-            changed_files: labels(&["MODULE.bazel"]),
-            targets: whole.clone(),
-            tests: whole.clone(),
-            generate: whole.clone(),
-            format: whole,
-            widened: Vec::new(),
-            unscoped: false,
-        };
-        let scope = labels(&["//:all", "//svc/...", "//web:app"]);
-        narrow_to_scope(&mut plan, &scope);
-        assert_eq!(plan.targets, scope);
-        assert_eq!(plan.tests, scope);
-        assert_eq!(plan.format, scope);
-        assert!(!plan.empty());
     }
 
     #[test]

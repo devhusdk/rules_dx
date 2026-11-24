@@ -17,163 +17,23 @@
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           {
-            "context": "test (linux_x86_64, 0)",
+            "context": "check (linux_x86_64)",
             "integration_id": 15368
           },
           {
-            "context": "test (linux_x86_64, 1)",
+            "context": "check (linux_arm64)",
             "integration_id": 15368
           },
           {
-            "context": "test (linux_x86_64, 2)",
+            "context": "check (macos_arm64)",
             "integration_id": 15368
           },
           {
-            "context": "test (linux_x86_64, 3)",
+            "context": "check (windows_x86_64)",
             "integration_id": 15368
           },
           {
-            "context": "test (linux_x86_64, 4)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_x86_64, 5)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_x86_64, 6)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_x86_64, 7)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 0)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 1)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 2)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 3)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 4)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 5)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 6)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (linux_arm64, 7)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 0)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 1)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 2)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 3)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 4)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 5)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 6)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (macos_arm64, 7)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 0)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 1)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 2)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 3)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 4)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 5)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 6)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_x86_64, 7)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 0)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 1)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 2)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 3)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 4)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 5)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 6)",
-            "integration_id": 15368
-          },
-          {
-            "context": "test (windows_arm64, 7)",
+            "context": "check (windows_arm64)",
             "integration_id": 15368
           }
         ]

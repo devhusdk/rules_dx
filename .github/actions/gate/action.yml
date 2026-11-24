@@ -1,19 +1,15 @@
 name: gate
-description: Run dx check, dx coverage, dx test or other dx commands with --affected against the pinned base.
+description: Run dx check, dx coverage or both with --affected against the pinned base.
 inputs:
   command:
-    description: The dx command, such as check, coverage or test, or several separated by spaces, which run in order.
+    description: The dx command, check or coverage, or both separated by a space, which run in order.
     required: true
-  scopes:
-    description: Space-separated target patterns that narrow the affected targets, such as one shard's packages. dx generate ignores them, because it covers the whole repo.
-    required: false
-    default: ""
   lcov:
     description: Where dx coverage writes its lcov report.
     required: false
     default: ""
   baseline:
-    description: Name for this job's failing labels on main, such as test-linux_x86_64-0. A dispatched run on main reads and writes main-baseline-<name>.
+    description: Name for this job's failing labels on main, such as check-linux_x86_64. A dispatched run on main reads and writes main-baseline-<name>.
     required: false
     default: ""
 runs:
@@ -82,14 +78,12 @@ runs:
       env:
         COMMANDS: ${{ inputs.command }}
         LCOV: ${{ inputs.lcov }}
-        SCOPES: ${{ inputs.scopes }}
       shell: bash
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
         pr_tags=-network-consumer,-audit
         tags=-manual,-resources:nested_bazel:1,$pr_tags
-        read -ra scopes <<<"$SCOPES"
         bazel build "$@" @rules_dx//:dx
         built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
         dx="${RUNNER_TEMP:-/tmp}/dx-bin/${built##*/}"
@@ -99,25 +93,24 @@ runs:
         : > "$out"
         status=0
         for COMMAND in $COMMANDS; do
-          filters=("--test_tag_filters=$tags")
+          filters=()
           report=()
-          targets=("${scopes[@]}")
           case "$COMMAND" in
-            generate) targets=() ;;
-            check | format | lint | typecheck) report=(--max-findings 0) ;;
-            coverage) filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags") ;;
-            test)
-              filters=()
+            check)
+              report=(--max-findings 0)
               if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
                 filters=("--test_tag_filters=$pr_tags")
               fi
               ;;
+            coverage)
+              filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags")
+              if [ -n "$LCOV" ]; then
+                mkdir -p "$(dirname "$LCOV")"
+                report=(--report "lcov=$LCOV")
+              fi
+              ;;
           esac
-          if [ "$COMMAND" = coverage ] && [ -n "$LCOV" ]; then
-            mkdir -p "$(dirname "$LCOV")"
-            report+=(--report "lcov=$LCOV")
-          fi
-          "$dx" "$COMMAND" --affected --output=json "${report[@]}" "${targets[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
+          "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
         done
         exit "$status"
     - name: Save the dx rule graph

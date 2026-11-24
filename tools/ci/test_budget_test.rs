@@ -477,7 +477,7 @@ fn unselected(
         })
         .map(|label| {
             format!(
-                "{label}: the pull request test job skips it and no audit job runs it; drop its \
+                "{label}: the pull request check job skips it and no audit job runs it; drop its \
                  manual, {} tag, tag it {}, or name it in {AUDIT_WORKFLOW}",
                 PR_SKIPPED_TAGS.join(" or "),
                 AUDIT_TAGS.join(" or ")
@@ -633,7 +633,7 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
         .any(|line| line.trim() == filter)
     {
         problems.push(format!(
-            "{GATE_ACTION} lacks `{filter}`, so the pull request test job runs the tests audit owns"
+            "{GATE_ACTION} lacks `{filter}`, so the pull request check job runs the tests audit owns"
         ));
     }
     assert!(

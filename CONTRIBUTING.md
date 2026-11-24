@@ -66,7 +66,7 @@ It dispatches the run and replies with its URL. Each run posts the commit status
 gh pr checks <n> --watch
 ```
 
-A second run for the same platform, task and scope on one commit replaces the status. In the merge queue, the `test` jobs fail when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
+A second run for the same platform, task and scope on one commit replaces the status. In the merge queue, the `check` jobs fail when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
 
 ## Refresh the locks on a pull request
 

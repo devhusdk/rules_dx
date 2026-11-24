@@ -2871,7 +2871,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "typos",
       "severity": {
         "categories": {},
-        "default": null,
+        "default": "warning",
         "floor": null
       },
       "support": [
@@ -10358,9 +10358,11 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "vale",
       "severity": {
-        "categories": {},
+        "categories": {
+          "Dx.": "error"
+        },
         "default": null,
-        "floor": null
+        "floor": "warning"
       },
       "support": [
         {

@@ -270,6 +270,10 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
+`vale` in the strict tier runs the `Vale`, `write-good` and `Dx` styles at `MinAlertLevel = warning`, with `write-good.Passive` and `write-good.E-Prime` off and spelling left to `typos`. `Dx` findings are errors: the markers `TODO`, `FIXME`, `TBD` and `XXX`; the placeholders `lorem ipsum`, `your-*-here`, `<placeholder>` and `as an AI`; and the filler words `it is worth noting`, `delve`, `seamless`, `robust`, `leverage`, `comprehensive` and `game-changer`. Other `vale` findings are warnings.
+
+`typos` in the strict tier checks file names and contents in the `en-us` locale, includes hidden files, and skips lockfiles and generated files.
+
 `hlint` takes its tier from `core/quality/tiers/hlint/`. Standard ignores the naming, section, lambda-case, tuple-section and bracket hints. Strict turns on the `extra`, `generalise` and `future` groups and bans the functions `head`, `tail`, `init`, `last`, `fromJust`, `!!`, `read`, `error`, `undefined`, `unsafePerformIO`, `unsafeCoerce`, `trace`, `traceShow`, `traceM`, `foldl1`, `foldr1`, `maximum`, `minimum` and `genericIndex`, the modules `Debug.Trace`, `System.IO.Unsafe` and `Unsafe.Coerce`, and every `OPTIONS_GHC` flag; set compiler flags in `ghcopts`. These bans and the hints `Use fromMaybe`, `Unused LANGUAGE pragma`, `Redundant bracket`, `Redundant $`, `Redundant id`, `Use null`, `Use isNothing` and `Use isJust` are errors.
 
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.

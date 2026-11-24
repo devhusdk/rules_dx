@@ -1,6 +1,6 @@
 """Quality tool rows for the text family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 visibility(["//tools/..."])
 
@@ -50,6 +50,7 @@ TOOLS = [
             references = ["ini:StylesPath"],
             tier_active = True,
         ),
+        severity = severity(categories = {"Dx.": "error"}, floor = "warning"),
         support = [
             row(
                 capability = "lint",

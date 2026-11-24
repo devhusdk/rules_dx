@@ -716,6 +716,22 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "typos",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
+        "vale",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            floor: Some(crate::ToolSeverity::Warning),
+            categories: &[("Dx.", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
         "weeder",
         crate::severity::ToolSeverityMap {
             default: None,

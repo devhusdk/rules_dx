@@ -1,0 +1,10 @@
+extends: existence
+message: "Replace the placeholder '%s'."
+level: error
+ignorecase: true
+nonword: true
+tokens:
+  - '\blorem ipsum\b'
+  - '\byour-[a-z0-9-]+-here\b'
+  - '<placeholder>'
+  - '\bas an AI\b'

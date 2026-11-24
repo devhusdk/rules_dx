@@ -101,6 +101,7 @@ jobs:
           read -ra targets <<< "$TARGETS"
           bazel test --noshow_progress --test_env=DX_NESTED_BAZEL_NETWORK=1 --nocache_test_results --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 --test_tag_filters= --build_tag_filters= "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "${targets[@]}"
       - name: Collect the records
+        if: ${{ !cancelled() }}
         env:
           TARGETS: ${{ matrix.targets }}
         run: |
@@ -116,12 +117,13 @@ jobs:
                 mkdir -p "$out/$rel/${shard##*/}"
                 cp -RL "$dir/." "$out/$rel/${shard##*/}/"
               done
-            else
+            elif [ -d "bazel-testlogs/$rel/test.outputs/nested_cache" ]; then
               mkdir -p "$out/$rel"
               cp -RL "bazel-testlogs/$rel/test.outputs/nested_cache/." "$out/$rel/"
             fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
         with:
           name: nested-${{ matrix.platform }}
           path: ${{ runner.temp }}/nested

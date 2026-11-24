@@ -298,11 +298,7 @@ rust_test(
         "//deploy:module_srcs",
         "//erlang:module_srcs",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_testing"],
+    deps = [":dx_testing"],
 )
 
 rust_test(

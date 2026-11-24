@@ -44,7 +44,7 @@ fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
                 .map_err(|error| format!("no pin log: {error}"))?,
         ))
         .stderr(Stdio::from(log));
-    let mut child = command
+    let child = command
         .spawn()
         .map_err(|error| format!("cannot start the pin: {error}"))?;
     let status = match dx_test_scratch::wait::exit_within(child, PIN_DEADLINE)

@@ -1,9 +1,10 @@
 """Run a test or build a binary under an explicitly selected C++ toolchain."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
-load("//core:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
 load("//core:native_coverage.bzl", "dx_gcov_tool")
 load("//core:platform.bzl", "platforms_transition")
+load("//core:wrapper.bzl", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
+load(":bindings.bzl", "CC_COMPILERS", "cc_compiler_identity")
 
 _COMPILER = str(Label("//cc:compiler"))
 
@@ -34,8 +35,10 @@ def _impl(settings, attr, _platforms):
     for t in settings[_EXTRA_TOOLCHAINS]:
         if t not in extra_toolchains:
             extra_toolchains.append(t)
+    compiler = attr.compiler or settings[_COMPILER]
     out = {
-        _COMPILER: attr.compiler or settings[_COMPILER],
+        _COMPILER: compiler,
+        _COVERAGE: settings[_COVERAGE] and cc_compiler_identity(CC_COMPILERS[compiler], "").coverage != "",
         _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
         _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
@@ -46,8 +49,8 @@ def _impl(settings, attr, _platforms):
 
 toolchain_transition = platforms_transition(
     _impl,
-    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
-    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
+    inputs = [_COMPILER, _COVERAGE, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
+    outputs = [_COMPILER, _COVERAGE, _EXTRA_TOOLCHAINS, _FEATURES, _MODE] + _LLVM_SANITIZERS.values(),
 )
 
 def _test_impl(ctx):

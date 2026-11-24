@@ -13,7 +13,9 @@ cli/http/src/lib_tests.rs sleep 1
 cli/launcher/src/launch_tests.rs sleep 1
 cli/lock/src/lib.rs sleep 1
 cli/lock/tests/fixture_resolver.rs sleep 1
+cli/os_sys/src/process_tests.rs sleep 2
 cli/os_sys/src/signals_tests.rs sleep 1
+cli/os_sys/src/spawn_tests.rs sleep 1
 cli/os_sys/src/win32_tests.rs sleep 1
 cli/plan/src/slots.rs sleep 1
 cli/plan/src/slots_tests.rs sleep 7
@@ -26,7 +28,7 @@ cli/setup/src/prune/hold_tests.rs sleep 3
 cli/shim/tests/e2e.rs sleep 1
 cli/shim/tests/support/mod.rs sleep 1
 cli/test_scratch/src/lib.rs sleep 1
-cli/worktree/src/host.rs sleep 1
+cli/worktree/src/host.rs sleep 2
 cli/worktree/src/tests.rs sleep 1
 elixir/tests/fixtures/elixir_app/stock/test/ledger_test.exs sleep 1
 erlang/tests/fixtures/erlang_app/store/test/kv_store_SUITE.erl sleep 1

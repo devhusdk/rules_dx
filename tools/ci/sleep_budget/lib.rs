@@ -55,7 +55,8 @@ fn sleep_at(line: &str, at: usize) -> bool {
         return false;
     };
     let after = rest.strip_prefix("sleep").unwrap_or(rest);
-    let quoted = before.ends_with("new(\"") || before.ends_with("[\"");
+    let program = before.ends_with("\"/bin/") || before.ends_with("\"/usr/bin/");
+    let quoted = program || before.ends_with("new(\"") || before.ends_with("[\"");
     if before.ends_with("start-") || (quoted && after.starts_with('"')) {
         return true;
     }

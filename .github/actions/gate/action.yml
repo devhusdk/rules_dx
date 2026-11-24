@@ -30,12 +30,16 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        tags=-manual,-resources:nested_bazel:1,-starter-consumer,-network-consumer
+        if [ "$COMMAND" = coverage ]; then
+          tags=-no-coverage,-dx-no-coverage-collector,$tags
+        fi
         report=()
         if [ -n "$LCOV" ]; then
           mkdir -p "$(dirname "$LCOV")"
           report=(--report "lcov=$LCOV")
         fi
-        bazel run "$@" @rules_dx//:dx -- "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --config=gate < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+        bazel run "$@" @rules_dx//:dx -- "$COMMAND" --affected --output=json "${report[@]}" -- "$@" "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash

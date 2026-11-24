@@ -1,6 +1,6 @@
 .github/actionlint.yaml comment 1
 .github/workflows/api-label.yml comment 2
-.github/workflows/ci.yml comment 8
+.github/workflows/ci.yml comment 6
 .github/workflows/docs.yml comment 5
 .github/workflows/dx-update.yml comment 8
 .github/workflows/license-terms.yml comment 3

@@ -9,4 +9,5 @@ name = "dx_site_browser"
 path = "src/lib.rs"
 
 [dependencies]
+notify = "8"
 serde_json = "1"

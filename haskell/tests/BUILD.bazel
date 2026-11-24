@@ -78,7 +78,10 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "user ghcopts keep the library tier warnings",
-            type(haskell_upstream_kwargs({"ghcopts": ["-O2"]}, library = True)["ghcopts"]),
+            type(haskell_upstream_kwargs(
+                {"ghcopts": ["-O2"]},
+                library = True,
+            )["ghcopts"]),
             "select",
         ),
         expect_equal(

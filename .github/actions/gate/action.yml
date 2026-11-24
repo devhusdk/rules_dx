@@ -64,7 +64,6 @@ runs:
         key: ${{ steps.graph-key.outputs.key }}
         restore-keys: ${{ steps.graph-key.outputs.prefix }}
     - name: Pin the affected base
-      id: pin
       env:
         EVENT_NAME: ${{ github.event_name }}
         PUSH_BEFORE: ${{ steps.previous.outputs.sha || github.event.before }}
@@ -72,28 +71,13 @@ runs:
       shell: bash
       run: |
         # shellcheck disable=SC2086
-        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-        targets=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx)
-        bazel build "$@" "${targets[@]}"
-        built="$(bazel cquery "$@" --output=files "set(${targets[*]})" | grep -E '/(gate_base_bin|dx)(\.exe)?$')"
-        root="$(bazel info "$@" execution_root)"
-        bin="${RUNNER_TEMP:-/tmp}/dx-bin"
-        mkdir -p "$bin"
-        while read -r file; do
-          cp -L "$root/$file" "$bin/${file##*/}"
-        done <<<"$built"
-        exe=""
-        if [ "$RUNNER_OS" = Windows ]; then
-          exe=.exe
-        fi
-        "$bin/gate_base_bin$exe"
-        echo "dx=$bin/dx$exe" >> "$GITHUB_OUTPUT"
+        set -- $BAZEL_CONFIG $BB_ARGS
+        bazel run "$@" @rules_dx//tools/ci/gate_base:gate_base_bin
     - name: dx ${{ inputs.command }} --affected
       id: check
       env:
         COMMAND: ${{ inputs.command }}
         LCOV: ${{ inputs.lcov }}
-        DX: ${{ steps.pin.outputs.dx }}
       shell: bash
       run: |
         # shellcheck disable=SC2086
@@ -110,7 +94,12 @@ runs:
           mkdir -p "$(dirname "$LCOV")"
           report+=(--report "lcov=$LCOV")
         fi
-        "$DX" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+        bazel build "$@" @rules_dx//:dx
+        built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
+        dx="${RUNNER_TEMP:-/tmp}/dx-bin/${built##*/}"
+        mkdir -p "${dx%/*}"
+        cp -L "$(bazel info "$@" execution_root)/$built" "$dx"
+        "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Save the dx rule graph
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' && steps.graph.outputs.cache-hit != 'true' && hashFiles('.dx/local/rule_graph') != '' }}
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

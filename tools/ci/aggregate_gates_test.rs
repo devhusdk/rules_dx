@@ -384,7 +384,7 @@ fn every_matrix_cell_records_its_runner_image() {
 }
 
 #[test]
-fn one_run_per_ref_and_only_pull_requests_cancel() {
+fn one_run_per_ref_and_only_pull_requests_and_pushes_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
@@ -394,7 +394,7 @@ fn one_run_per_ref_and_only_pull_requests_cancel() {
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}")
+        json!("${{ github.event_name == 'pull_request' || github.event_name == 'push' }}")
     );
 }
 
@@ -561,33 +561,16 @@ fn the_gate_action_runs_dx_with_the_lock_check_and_forwards_bazel_options() {
 #[test]
 fn the_gate_runs_a_copy_of_dx_that_bazel_cannot_rewrite_under_it() {
     let action = document(GATE_ACTION).unwrap();
-    let steps = action["runs"]["steps"].as_array().expect("gate steps");
-    let pin = steps
+    let run = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
         .iter()
-        .find(|step| step["name"] == "Pin the affected base")
-        .expect("pin step");
-    let build = pin["run"].as_str().expect("pin run");
-    assert!(
-        build.contains(
-            "targets=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx)\nbazel build \"$@\" \"${targets[@]}\""
-        ),
-        "{build}"
-    );
-    assert_eq!(build.matches("bazel build").count(), 1, "{build}");
-    assert!(build.contains("bin=\"${RUNNER_TEMP:-/tmp}/"), "{build}");
-    assert!(!build.contains("bazel run"), "{build}");
-    let dx = steps
-        .iter()
-        .find(|step| {
-            step["run"]
-                .as_str()
-                .is_some_and(|run| run.contains("\"$COMMAND\" --affected"))
-        })
+        .filter_map(|step| step["run"].as_str())
+        .find(|run| run.contains("\"$COMMAND\" --affected"))
         .expect("dx step");
-    assert_eq!(dx["env"]["DX"], json!("${{ steps.pin.outputs.dx }}"));
-    let run = dx["run"].as_str().expect("dx run");
-    assert!(run.contains("\"$DX\" \"$COMMAND\" --affected"), "{run}");
-    assert!(!run.contains("bazel build"), "{run}");
+    assert!(run.contains("bazel build \"$@\" @rules_dx//:dx"), "{run}");
+    assert!(run.contains("dx=\"${RUNNER_TEMP:-/tmp}/"), "{run}");
+    assert!(run.contains("\"$dx\" \"$COMMAND\" --affected"), "{run}");
     assert!(!run.contains("bazel run"), "{run}");
 }
 

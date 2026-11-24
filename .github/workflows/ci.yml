@@ -18,8 +18,9 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
+  # A newer push cancels the older run; a dispatched run on main only replaces a queued one.
   group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   check:

@@ -74,7 +74,9 @@ fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
         .map_or(0, |elapsed| elapsed.as_nanos());
     let staging = dst.with_file_name(format!(".file.{}.{nanos}.{n}.tmp", std::process::id()));
     let placed = match link(src, &staging) {
-        Ok(()) => std::fs::rename(&staging, dst).inspect_err(|_| dx_atomic_fs::discard_file(&staging)),
+        Ok(()) => {
+            std::fs::rename(&staging, dst).inspect_err(|_| dx_atomic_fs::discard_file(&staging))
+        }
         Err(error) if cfg!(unix) => Err(error),
         // A hard link cannot cross volumes; the copy is staged and renamed the same way.
         Err(_) => dx_atomic_fs::copy_scratch(src, dst),

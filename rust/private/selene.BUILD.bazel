@@ -1,7 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
-# Upstream release binaries lack the lua52/lua53/lua54 features; roblox and tracy stay off.
-
 rust_library(
     name = "selene_lib",
     srcs = glob(["selene-lib/src/**/*.rs"]),

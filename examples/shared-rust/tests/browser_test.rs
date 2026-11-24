@@ -1,5 +1,3 @@
-//! Loads the relocated release browser build in a real Firefox and drives it.
-
 use std::io::{BufRead, BufReader};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};

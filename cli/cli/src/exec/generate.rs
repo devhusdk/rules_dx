@@ -16,6 +16,7 @@ use dx_plan::plan::{
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolvedScope, resolve_for_generate};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -134,10 +135,26 @@ fn lock_sets(
         .iter()
         .map(|(name, value)| (name.as_str(), value.as_str()))
         .collect();
+    let mut runs_here = std::collections::BTreeMap::new();
+    let mut built: HashMap<&str, Option<String>> = HashMap::new();
     for set in sets {
         if (set.dir == "." && unlocked.contains(&set.manifest))
             || !generate_scope_visits(resolved, &set.dir)
         {
+            continue;
+        }
+        if !*runs_here.entry(set.resolver).or_insert_with(|| {
+            resolver_runs_here(env.query_runner, env.workspace, &head, set.resolver)
+        }) {
+            wiring.info(
+                env.err,
+                format!(
+                    "lock of {} not {}: {} is incompatible with this platform",
+                    set.name,
+                    if apply { "written" } else { "checked" },
+                    set.resolver
+                ),
+            );
             continue;
         }
         let path = env.workspace.join(&set.dir);
@@ -148,6 +165,26 @@ fn lock_sets(
             );
             continue;
         };
+        let done = if apply { "written" } else { "checked" };
+        let unbuilt = built.entry(set.resolver).or_insert_with(|| {
+            let argv = dx_update::backend::resolver_build_argv(&head, set.resolver);
+            match env.runner.run(&argv, env.workspace, &run_env) {
+                Ok(status) if status.code == Some(0) => None,
+                Ok(status) => Some(format!(
+                    "{} did not build: bazel exited {}",
+                    set.resolver,
+                    exit_text(status.code)
+                )),
+                Err(error) => Some(format!("{} did not build: {error}", set.resolver)),
+            }
+        });
+        if let Some(detail) = unbuilt {
+            wiring.failed(
+                env.err,
+                format!("lock of {} not {done}: {detail}", set.name),
+            );
+            continue;
+        }
         let mut argv = dx_update::backend::resolver_run_argv(&head, set.resolver, dir);
         if !apply {
             argv.push("--check".to_owned());
@@ -161,24 +198,41 @@ fn lock_sets(
             Ok(status) => wiring.failed(
                 env.err,
                 format!(
-                    "lock of {} not {}: {} exited {}",
+                    "lock of {} not {done}: {} exited {}",
                     set.name,
-                    if apply { "written" } else { "checked" },
                     set.resolver,
-                    status
-                        .code
-                        .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+                    exit_text(status.code)
                 ),
             ),
             Err(error) => wiring.failed(
                 env.err,
-                format!(
-                    "lock of {} not checked: {}: {error}",
-                    set.name, set.resolver
-                ),
+                format!("lock of {} not {done}: {}: {error}", set.name, set.resolver),
             ),
         }
     }
+}
+
+fn exit_text(code: Option<i32>) -> String {
+    code.map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+}
+
+/// False only when Bazel reports the resolver incompatible; any other answer lets the run report.
+fn resolver_runs_here(
+    query: &dyn dx_plan::resolve::QueryRunner,
+    workspace: &Path,
+    head: &dx_process::BazelHead,
+    resolver: &str,
+) -> bool {
+    let mut argv = head.argv("cquery");
+    argv.extend([
+        "--output=starlark".to_owned(),
+        "--starlark:expr='IncompatiblePlatformProvider' in (providers(target) or {})".to_owned(),
+        resolver.to_owned(),
+    ]);
+    !matches!(
+        query.run_query(&argv, workspace),
+        Ok(result) if result.code == Some(0) && result.stdout.trim_ascii() == b"True"
+    )
 }
 
 fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
@@ -1063,6 +1117,7 @@ mod tests {
             .borrow()
             .iter()
             .filter(|argv| argv.iter().any(|arg| arg == resolver))
+            .filter(|argv| argv.iter().any(|arg| arg == "--dir"))
             .cloned()
             .collect()
     }
@@ -1093,6 +1148,37 @@ mod tests {
                 .any(|argv| argv.iter().any(|arg| arg == "fetch")),
             "{code}"
         );
+    }
+
+    #[test]
+    fn check_skips_a_resolver_that_is_incompatible_with_the_platform() {
+        let (mut harness, hub) = composer_set("check-lock-incompatible");
+        harness.app_code = Some(1);
+        harness.query.script_stdout("True\n");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (code, out, err) = harness.run(&["check"]);
+        assert!(resolver_runs(&harness, resolver).is_empty(), "{out}{err}");
+        let calls = harness.query.calls.borrow();
+        assert_eq!(calls.len(), 1, "{calls:?}");
+        assert!(calls[0].iter().any(|arg| arg == "cquery"), "{calls:?}");
+        assert_eq!(calls[0].last().map(String::as_str), Some(resolver));
+        assert!(
+            err.contains(&format!(
+                "dx: lock of web not checked: {resolver} is incompatible with this platform"
+            )),
+            "{err}"
+        );
+        assert!(!err.contains("is stale"), "{code}{err}");
+    }
+
+    #[test]
+    fn check_runs_a_resolver_that_bazel_reports_compatible() {
+        let (harness, hub) = composer_set("check-lock-compatible");
+        harness.query.script_stdout("False\n");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (_, out, err) = harness.run(&["check"]);
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1, "{out}{err}");
+        assert!(!err.contains("incompatible"), "{err}");
     }
 
     #[test]
@@ -1154,6 +1240,24 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("lock of web not checked:"), "{err}");
         assert!(err.contains("exited 2"), "{err}");
+    }
+
+    #[test]
+    fn a_resolver_that_does_not_build_fails_the_check_instead_of_calling_the_lock_stale() {
+        let (mut harness, hub) = composer_set("generate-lock-unbuilt");
+        harness.bazel_code = 1;
+        harness.app_code = Some(1);
+        let (code, out, err) = harness.run(&["check"]);
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(!err.contains("stale"), "{err}");
+        assert!(
+            err.contains(&format!(
+                "lock of web not checked: {resolver} did not build: bazel exited 1"
+            )),
+            "{err}"
+        );
+        assert!(resolver_runs(&harness, resolver).is_empty(), "{err}");
     }
 
     #[test]

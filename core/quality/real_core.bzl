@@ -7,7 +7,7 @@ load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requiremen
 load("//core/quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//core/quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "holds_workspace_source", "is_workspace_file", "upstream_source_class")
 load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
@@ -329,6 +329,15 @@ def real_policy_error(cfg, policy, capability, what):
             return what + ": " + error
     return ""
 
+def _workspace_sources(direct_sources):
+    """Drops files from other repositories; only main-repository sources get checked."""
+    kept = {}
+    for class_id, files in direct_sources.items():
+        own = [f for f in files.to_list() if is_workspace_file(f)]
+        if len(own) > 0:
+            kept[class_id] = depset(own)
+    return kept
+
 def real_upstream_direct_sources(recognizers, target, ctx):
     """Derives directly owned sources for an ordinary upstream native target."""
     recognized = False
@@ -339,6 +348,9 @@ def real_upstream_direct_sources(recognizers, target, ctx):
             continue
         recognized = True
         if found.error != "":
+            # A rule that holds no checkable file anywhere owns nothing to check.
+            if not holds_workspace_source(ctx.rule.files):
+                continue
             return (True, {}, found.error)
         files.extend(found.files)
     if not recognized:
@@ -379,7 +391,7 @@ def real_resolved_stages(cfg, target, ctx, capability, what):
         if not recognized:
             return ([], None, None)
         direct_sources = derived
-    direct_sources = cfg.harness_sources(target, capability, direct_sources)
+    direct_sources = _workspace_sources(cfg.harness_sources(target, capability, direct_sources))
     if len(direct_sources) == 0:
         return ([], None, None)
 

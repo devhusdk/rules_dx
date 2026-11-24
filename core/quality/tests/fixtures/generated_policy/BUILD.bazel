@@ -28,6 +28,15 @@ dx_generated_policy(
             ],
             "typecheck": ["ty"],
         },
+        "rust": {
+            "disabled": ["audit"],
+            "format": ["rustfmt"],
+            "lint": [
+                "clippy",
+                "typos",
+            ],
+            "typecheck": ["rustc"],
+        },
     },
     tier = "strict",
 )

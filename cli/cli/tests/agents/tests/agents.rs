@@ -420,6 +420,15 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             build.stderr
         );
     }
+    let hook = run_with(
+        launcher,
+        &["worktree", "hook", "bazel", "--", "build", "//..."],
+        &root,
+        &env,
+        "",
+    );
+    assert_eq!(hook.code, 77, "{}{}", hook.stdout, hook.stderr);
+    assert!(hook.stderr.contains("dx: refused: "), "{}", hook.stderr);
     let no_git = env.base.join("no-git");
     std::fs::create_dir_all(&no_git).expect("empty PATH dir");
     let dx = env_file("DX_BIN");

@@ -177,7 +177,6 @@ fn versions_from_response(url: &str, response: &str) -> Result<Vec<String>, Stri
         .ok_or_else(|| format!("{url}: curl printed no status"))?;
     match status {
         "200" => unyanked(body),
-        // A module that was never published has no metadata.json.
         "404" => Ok(Vec::new()),
         other => Err(format!("{url}: HTTP {other}")),
     }

@@ -20,7 +20,6 @@ NvccSyntaxInfo = provider(
 
 _MNEMONICS = ["CudaCompile"]
 
-# Other nvcc phase flags: a command line that already selects one cannot be turned into -cuda.
 _PHASES = ["-dc", "-dw", "-E", "-cuda", "-ptx", "-cubin", "-fatbin", "-dlink", "-lib", "-link", "-run", "--device-c", "--device-w", "--preprocess", "--ptx", "--cubin", "--fatbin", "--device-link", "--lib", "--link", "--run", "--cuda", "--compile"]
 _OUTPUT = ["-o", "--output-file"]
 _DROP = ["-MD", "-MMD", "-keep", "--keep", "-save-temps", "--save-temps", "--generate-dependencies-with-compile", "--generate-nonsystem-dependencies-with-compile"]

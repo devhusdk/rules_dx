@@ -2,14 +2,12 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(["pins.json"])
 
-# Rust runtime, built from the pinned flatbuffers archive.
 alias(
     name = "runtime_rust",
     actual = "@dx_flatbuffers_rust//:flatbuffers",
     visibility = ["//visibility:public"],
 )
 
-# Java runtime, built from the pinned flatbuffers archive (Maven lags the flatc version).
 alias(
     name = "runtime_java",
     actual = "@dx_flatbuffers_java//:flatbuffers",

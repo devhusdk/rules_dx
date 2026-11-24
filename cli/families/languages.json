@@ -13,7 +13,8 @@
         "aspects": {
           "format": [
             "real_format_aspect",
-            "real_biome_format_aspect"
+            "real_biome_format_aspect",
+            "real_docstrfmt_format_aspect"
           ],
           "lint": [
             "real_lint_aspect",
@@ -24,7 +25,27 @@
             "real_typecheck_aspect"
           ]
         },
-        "bzl": "core/quality:families/core.bzl"
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "github_workflow"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "yamlfmt"
+          ],
+          "lint": [
+            "actionlint",
+            "zizmor"
+          ],
+          "typecheck": []
+        },
+        "family": "core",
+        "file_extensions": [
+          ".yaml",
+          ".yml"
+        ],
+        "owner": "other"
       },
       {
         "bzl": "core/quality:families/core_probe.bzl",
@@ -49,7 +70,12 @@
             "real_cue_typecheck_aspect"
           ]
         },
-        "bzl": "core/quality:families/cue.bzl"
+        "bzl": "core/quality:families/cue.bzl",
+        "classes": [
+          "cue"
+        ],
+        "family": "cue",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -60,7 +86,12 @@
             "real_html_template_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/html_template.bzl"
+        "bzl": "core/quality:families/html_template.bzl",
+        "classes": [
+          "html_template"
+        ],
+        "family": "html_template",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -71,7 +102,12 @@
             "real_jsonnet_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/jsonnet.bzl"
+        "bzl": "core/quality:families/jsonnet.bzl",
+        "classes": [
+          "jsonnet"
+        ],
+        "family": "jsonnet",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -82,7 +118,12 @@
             "real_latex_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/latex.bzl"
+        "bzl": "core/quality:families/latex.bzl",
+        "classes": [
+          "latex"
+        ],
+        "family": "latex",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -93,7 +134,24 @@
             "real_nix_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/nix.bzl"
+        "bzl": "core/quality:families/nix.bzl",
+        "classes": [
+          "nix"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "deadnix",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "nix",
+        "file_extensions": [
+          ".nix"
+        ],
+        "owner": "core"
       },
       {
         "aspects": {
@@ -104,7 +162,22 @@
             "real_oci_image_typecheck_aspect"
           ]
         },
-        "bzl": "core/quality:families/oci_image.bzl"
+        "bzl": "core/quality:families/oci_image.bzl",
+        "classes": [
+          "oci_image"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "trivy_image_config"
+          ],
+          "typecheck": [
+            "container_structure_test"
+          ]
+        },
+        "family": "oci_image",
+        "owner": "deploy"
       },
       {
         "aspects": {
@@ -115,7 +188,12 @@
             "real_pkl_typecheck_aspect"
           ]
         },
-        "bzl": "core/quality:families/pkl.bzl"
+        "bzl": "core/quality:families/pkl.bzl",
+        "classes": [
+          "pkl"
+        ],
+        "family": "pkl",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -126,7 +204,27 @@
             "real_shell_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/shell.bzl"
+        "bzl": "core/quality:families/shell.bzl",
+        "classes": [
+          "shell"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "shfmt"
+          ],
+          "lint": [
+            "shellcheck",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "shell",
+        "file_extensions": [
+          ".bash",
+          ".sh"
+        ],
+        "owner": "other"
       },
       {
         "aspects": {
@@ -134,7 +232,24 @@
             "real_text_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/text.bzl"
+        "bzl": "core/quality:families/text.bzl",
+        "classes": [
+          "text"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "keep_sorted",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "text",
+        "file_extensions": [
+          ".txt"
+        ],
+        "owner": "other"
       },
       {
         "aspects": {
@@ -145,7 +260,12 @@
             "real_typst_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/typst.bzl"
+        "bzl": "core/quality:families/typst.bzl",
+        "classes": [
+          "typst"
+        ],
+        "family": "typst",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -153,7 +273,12 @@
             "real_xml_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/xml.bzl"
+        "bzl": "core/quality:families/xml.bzl",
+        "classes": [
+          "xml"
+        ],
+        "family": "xml",
+        "owner": "core"
       },
       {
         "aspects": {
@@ -164,7 +289,245 @@
             "real_yaml_lint_aspect"
           ]
         },
-        "bzl": "core/quality:families/yaml.bzl"
+        "bzl": "core/quality:families/yaml.bzl",
+        "classes": [
+          "yaml"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "yamlfmt"
+          ],
+          "lint": [
+            "yamllint"
+          ],
+          "typecheck": []
+        },
+        "family": "yaml",
+        "file_extensions": [
+          ".yaml",
+          ".yml"
+        ],
+        "owner": "core"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "css",
+          "less",
+          "scss"
+        ],
+        "family": "css",
+        "owner": "javascript"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "gherkin"
+        ],
+        "family": "gherkin",
+        "owner": "core"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "go_module"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "modfmt"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "go_module",
+        "owner": "other"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "graphql"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "prettier"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "graphql",
+        "file_extensions": [
+          ".gql",
+          ".graphql"
+        ],
+        "owner": "javascript"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "html"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "prettier"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "html",
+        "file_extensions": [
+          ".htm",
+          ".html"
+        ],
+        "owner": "javascript"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "json",
+          "json5",
+          "jsonc"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "biome"
+          ],
+          "lint": [
+            "biome"
+          ],
+          "typecheck": []
+        },
+        "family": "json",
+        "file_extensions": [
+          ".json"
+        ],
+        "owner": "other"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "jupyter"
+        ],
+        "family": "jupyter",
+        "owner": "core"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "markdown"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "lychee",
+            "markdown_check",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "markdown",
+        "file_extensions": [
+          ".md"
+        ],
+        "owner": "other"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "objc",
+          "objcpp"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "clang_format"
+          ],
+          "lint": [
+            "typos"
+          ],
+          "typecheck": [
+            "clang_syntax"
+          ]
+        },
+        "family": "objc",
+        "owner": "cc"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "protobuf"
+        ],
+        "family": "protobuf",
+        "owner": "other"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "rst"
+        ],
+        "family": "rst",
+        "owner": "rst"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "starlark"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "buildifier"
+          ],
+          "lint": [
+            "buildifier",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "starlark",
+        "file_extensions": [
+          ".bazel",
+          ".bzl",
+          ".star"
+        ],
+        "file_names": [
+          "BUILD",
+          "WORKSPACE"
+        ],
+        "owner": "other"
+      },
+      {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "toml"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "taplo"
+          ],
+          "lint": [
+            "taplo",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "family": "toml",
+        "file_extensions": [
+          ".toml"
+        ],
+        "owner": "other"
       }
     ]
   },
@@ -398,6 +761,7 @@
           ],
           "lint": [
             "bicep",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -564,6 +928,7 @@
           "format": [],
           "lint": [
             "cfn_lint",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -1259,6 +1624,7 @@
           "format": [],
           "lint": [
             "helm",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []
@@ -1579,6 +1945,7 @@
           "format": [],
           "lint": [
             "kubeconform",
+            "trivy_config",
             "typos"
           ],
           "typecheck": []

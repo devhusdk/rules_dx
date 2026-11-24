@@ -4,7 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//python/tests:sdist_cargo_vendor.bzl", _sdist_cargo_vendor = "sdist_cargo_vendor")
 load(":nested_repository_cache.bzl", "digest_integrity", "nested_cache_file", "nested_repository_cache_set", "parse_cache_list")
 
-_PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]
+_PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-arm64", "windows-x86_64"]
 
 _RELEASE = "https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}{s}"
 
@@ -30,7 +30,7 @@ def _nested_bazel_impl(mctx):
     """Declares one pinned Bazel binary per platform."""
     version = mctx.read(Label("//:.bazelversion")).strip()
     shas = mctx.facts.get(version)
-    if not shas:
+    if not shas or not all([p in shas for p in _PLATFORMS]):
         shas = _fetch_shas(mctx, version)
     for platform in _PLATFORMS:
         http_file(

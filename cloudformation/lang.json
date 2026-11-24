@@ -32,6 +32,7 @@
       "format": [],
       "lint": [
         "cfn_lint",
+        "trivy_config",
         "typos"
       ],
       "typecheck": []

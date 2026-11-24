@@ -33,9 +33,6 @@ def _jest_config_impl(ctx):
         fail(str(ctx.attr._config.label) + ": a framework jest config must be exactly one file")
     out = ctx.actions.declare_file(ctx.label.name + ".cjs")
 
-    # rules_jest anchors rootDir at a config that sits in the test's package, so
-    # coverage globs resolve against the test's sources. This file sits there and
-    # loads the shared config the same way rules_jest loads user configs.
     ctx.actions.write(out, "\n".join([
         "\"use strict\";",
         "const path = require(\"node:path\");",
@@ -78,8 +75,6 @@ def dx_framework_jest_files(name, transform):
         srcs = [transform],
     )
 
-    # The transform rides in the config's runfiles, not the test's data, so
-    # coverage of a test in the same package as the forwarder never instruments it.
     native.filegroup(
         name = name,
         srcs = [":" + name + "_file"],

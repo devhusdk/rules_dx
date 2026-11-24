@@ -1,95 +1,14 @@
 """Curated quality defaults."""
 
-load("//core/modules:langs.bzl", "LANGS")
+load("//core/modules:langs.bzl", "CORE_FAMILIES", "LANGS")
 load(":tool_defs.bzl", "is_canonical_token")
 
 visibility("private")
 
-OTHER_DEFAULTS = {
-    "core": {
-        "audit": [],
-        "format": ["yamlfmt"],
-        "lint": ["actionlint", "zizmor"],
-        "typecheck": [],
-    },
-    "go_module": {
-        "audit": [],
-        "format": ["modfmt"],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
-    "graphql": {
-        "audit": [],
-        "format": ["prettier"],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
-    "html": {
-        "audit": [],
-        "format": ["prettier"],
-        "lint": ["typos"],
-        "typecheck": [],
-    },
-    "json": {
-        "audit": [],
-        "format": ["biome"],
-        "lint": ["biome"],
-        "typecheck": [],
-    },
-    "markdown": {
-        "audit": [],
-        "format": [],
-        "lint": ["lychee", "markdown_check", "typos"],
-        "typecheck": [],
-    },
-    "nix": {
-        "audit": [],
-        "format": [],
-        "lint": ["deadnix", "typos"],
-        "typecheck": [],
-    },
-    "objc": {
-        "audit": [],
-        "format": ["clang_format"],
-        "lint": ["typos"],
-        "typecheck": ["clang_syntax"],
-    },
-    "oci_image": {
-        "audit": [],
-        "format": [],
-        "lint": ["trivy_image_config"],
-        "typecheck": ["container_structure_test"],
-    },
-    "shell": {
-        "audit": [],
-        "format": ["shfmt"],
-        "lint": ["shellcheck", "typos"],
-        "typecheck": [],
-    },
-    "starlark": {
-        "audit": [],
-        "format": ["buildifier"],
-        "lint": ["buildifier", "typos"],
-        "typecheck": [],
-    },
-    "text": {
-        "audit": [],
-        "format": [],
-        "lint": ["keep_sorted", "typos"],
-        "typecheck": [],
-    },
-    "toml": {
-        "audit": [],
-        "format": ["taplo"],
-        "lint": ["taplo", "typos"],
-        "typecheck": [],
-    },
-    "yaml": {
-        "audit": [],
-        "format": ["yamlfmt"],
-        "lint": ["yamllint"],
-        "typecheck": [],
-    },
+CORE_DEFAULTS = {
+    family: row["defaults"]
+    for family, row in CORE_FAMILIES.items()
+    if "defaults" in row
 }
 
 LANG_JSON_DEFAULTS = {
@@ -98,7 +17,7 @@ LANG_JSON_DEFAULTS = {
     if "defaults" in row.get("quality", {})
 }
 
-_ROWS = OTHER_DEFAULTS | LANG_JSON_DEFAULTS
+_ROWS = CORE_DEFAULTS | LANG_JSON_DEFAULTS
 
 CURATED_DEFAULTS = {family: _ROWS[family] for family in sorted(_ROWS.keys())}
 
@@ -108,6 +27,7 @@ CROSS_FAMILY_TOOLS = [
     "lychee",
     "markdown_check",
     "prettier",
+    "trivy_config",
     "tsc",
     "typos",
     "yamlfmt",

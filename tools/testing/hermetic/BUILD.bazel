@@ -18,8 +18,8 @@ exports_files(
         "consumers/cuda/module_fragment.bazel",
         "consumers/cuda_unaccepted/module_fragment.bazel",
         "defs.bzl",
+        "harness_qualification_test.rs",
         "manifest_golden_test.rs",
-        "qualification_test.rs",
     ],
     visibility = VIS_TOOLS_CLI_TEST,
 )
@@ -129,7 +129,10 @@ rust_binary(
     crate_name = "verify",
     crate_root = "verify.rs",
     target_compatible_with = LINUX_MACOS_WINDOWS,
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+    ) + [
         ":hermetic",
         "//tools/testing:dx_testing",
     ],
@@ -150,7 +153,12 @@ rust_test(
         "consumers/**/*BUILD.bazel",
         "consumers/*/module_fragment.bazel",
     ]),
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":hermetic",
         "//cli/module_bazel:dx_module_bazel",
         "//cli/path:dx_path",
         "//tools/testing:dx_testing",
@@ -827,7 +835,12 @@ rust_test(
     ),
     crate_name = "cuda_gpu_facts_test",
     crate_root = "cuda_gpu_test.rs",
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/testing/hermetic",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":hermetic",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

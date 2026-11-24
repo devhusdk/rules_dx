@@ -1,5 +1,3 @@
-//! cpansa_dump prints the CPANSA-DB version line, then the database as a JSON object.
-
 use dx_testing::{env_file, run};
 
 #[test]

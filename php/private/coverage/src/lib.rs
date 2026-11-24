@@ -1,6 +1,3 @@
-//! Runs `PHPUnit` with PCOV loaded and turns the Clover report it writes into the LCOV file Bazel collects.
-//!
-//! Arguments: `<tree> <pcov> <php> [<php flag>...] -- <phpunit> [<phpunit argument>...]`.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -15,7 +12,6 @@ use std::process::{self, Command};
 
 const DROPPED: [&str; 2] = ["vendor/", "external/"];
 
-/// Keeps the records of sources below `marker` and rewrites their paths relative to it.
 fn rebase(lcov: &str, marker: &str) -> String {
     let mut out = String::new();
     let mut keep = false;
@@ -47,7 +43,6 @@ fn convert(clover: &Path, output: &Path, marker: &str) -> Result<(), String> {
         .map_err(|err| format!("write {}: {err}", output.display()))
 }
 
-/// What the launcher asks for: the autoload tree, PCOV, PHP with its flags and `PHPUnit` with its arguments.
 #[derive(Debug, PartialEq, Eq)]
 struct Request {
     tree: PathBuf,
@@ -80,7 +75,6 @@ fn joined(prefix: &str, value: &std::ffi::OsStr) -> OsString {
     out
 }
 
-/// The arguments PHP gets: PCOV on `tree`, a Clover report at `clover`.
 fn php_args(request: &Request, tree: &Path, clover: &Path) -> Vec<OsString> {
     let mut args = request.flags.clone();
     args.extend([
@@ -100,13 +94,11 @@ fn php_args(request: &Request, tree: &Path, clover: &Path) -> Vec<OsString> {
     args
 }
 
-/// The marker that ends the tree in every source path of the report.
 fn marker(tree: &Path) -> String {
     let name = tree.file_name().unwrap_or_default().to_string_lossy();
     format!("/{name}/")
 }
 
-/// The directory the files of `tree` resolve into, also when the runfiles link each file on its own.
 fn real_tree(tree: &Path) -> Result<PathBuf, String> {
     let autoload = tree.join("vendor").join("autoload.php");
     let resolved = autoload
@@ -115,7 +107,6 @@ fn real_tree(tree: &Path) -> Result<PathBuf, String> {
     tree_above(&resolved)
 }
 
-/// The tree two levels above a resolved `vendor/autoload.php`, spelled without a verbatim prefix.
 fn tree_above(autoload: &Path) -> Result<PathBuf, String> {
     autoload
         .parent()
@@ -141,7 +132,6 @@ fn run(request: &Request) -> Result<i32, String> {
     Ok(status.code().unwrap_or(1))
 }
 
-/// Runs PHPUnit under PCOV with the command line arguments and writes its LCOV report.
 pub fn main() -> std::process::ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     let Some(request) = request(&args) else {

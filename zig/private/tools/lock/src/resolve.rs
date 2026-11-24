@@ -1,4 +1,3 @@
-//! Resolves a Zig package set from the `.dependencies` of its manifest and the archives they name.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
@@ -6,20 +5,15 @@ use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 
-/// Downloads archives.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Github(HttpFetch);
 
 impl Github {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -38,7 +32,6 @@ impl Download for Github {
     }
 }
 
-/// The root files tried for the module of a package, best first.
 #[must_use]
 pub fn main_candidates(name: &str) -> Vec<String> {
     vec![
@@ -51,14 +44,10 @@ pub fn main_candidates(name: &str) -> Vec<String> {
     ]
 }
 
-/// One entry of a `.dependencies` block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Dependency {
-    /// The dependency name.
     pub name: String,
-    /// The archive URL.
     pub url: String,
-    /// The `.hash` field.
     pub hash: String,
 }
 
@@ -87,7 +76,6 @@ fn strip_comments(text: &str) -> String {
         .join("\n")
 }
 
-/// The index of the `}` that closes the brace opened just before `start`.
 fn matching_brace(text: &str, start: usize) -> usize {
     let mut depth = 1;
     let mut quoted = false;
@@ -144,8 +132,6 @@ fn dependency_name(head: &str) -> String {
         .unwrap_or_else(|| head.to_owned())
 }
 
-/// The URL-and-hash dependencies of a manifest, by name; path dependencies are skipped.
-///
 /// # Errors
 /// Fails on a dependency without a URL or hash, or with a URL that is not HTTPS.
 pub fn parse_dependencies(text: &str) -> Result<BTreeMap<String, Dependency>, Error> {
@@ -195,13 +181,11 @@ pub fn parse_dependencies(text: &str) -> Result<BTreeMap<String, Dependency>, Er
     Ok(deps)
 }
 
-/// The resolver of the zig ecosystem.
 pub struct Zig<'a> {
     manifest: String,
     download: &'a dyn Download,
 }
 
-/// What one downloaded archive holds.
 struct Described {
     dependency: Dependency,
     sha256: String,
@@ -211,7 +195,6 @@ struct Described {
 }
 
 impl<'a> Zig<'a> {
-    /// A resolver that downloads with `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -220,7 +203,6 @@ impl<'a> Zig<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -295,7 +277,6 @@ impl<'a> Zig<'a> {
     }
 }
 
-/// The most bytes read from one archive member.
 const MEMBER_LIMIT: u64 = 8 << 20;
 
 #[derive(Clone, Copy)]
@@ -321,14 +302,12 @@ fn archive_kind(url: &str) -> Option<Kind> {
     }
 }
 
-/// The regular files of an archive and the contents of those named `<top>/<wanted>` or `<wanted>`.
 struct Members {
     names: BTreeSet<String>,
     files: BTreeMap<String, Vec<u8>>,
 }
 
 impl Members {
-    /// The `dx_archive::visit` callback that records one entry.
     fn add(
         &mut self,
         wanted: &[String],
@@ -359,7 +338,6 @@ const LIMITS: dx_archive::Limits = dx_archive::Limits {
 
 const XZ_TAR_LIMIT: u64 = 2 * LIMITS.max_total_bytes;
 
-/// The decompressed tar of an xz archive, refusing writes past `XZ_TAR_LIMIT`.
 struct CappedTar {
     bytes: Vec<u8>,
     exceeded: bool,
@@ -425,7 +403,6 @@ fn read_members(bytes: &[u8], kind: Kind, wanted: &[String]) -> Result<Members, 
     Ok(members)
 }
 
-/// The names of the dependencies a package's manifest lists, each of which the root lists with the same hash.
 fn nested_dependencies(
     manifest: &str,
     text: &str,
@@ -452,7 +429,6 @@ fn nested_dependencies(
     Ok(names)
 }
 
-/// The package of `old` that has the name, version and archive URL of `dependency`.
 fn unchanged<'l>(old: &'l Lock, dependency: &Dependency) -> Option<&'l Package> {
     old.packages.iter().find(|package| {
         package.name == dependency.name
@@ -528,8 +504,6 @@ impl Resolver for Zig<'_> {
     }
 }
 
-/// Runs the zig lock step on `args`, the arguments after `dx zig_lock`: 0 when the lock is
-/// fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("zig") else {
         eprintln!("zig has no registry entry");

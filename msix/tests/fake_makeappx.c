@@ -1,4 +1,3 @@
-/* Portable stand-in for MakeAppx.exe used by pack_test on every host. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

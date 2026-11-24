@@ -9,7 +9,6 @@ import remarkGfm from "remark-gfm";
 const require = createRequire(import.meta.url);
 const { runTsc } = require("@volar/typescript/lib/quickstart/runTsc");
 
-// The language service skips MDX that does not parse, so compile every listed document first.
 async function parseErrors() {
   const flag = process.argv.indexOf("--project");
   if (flag < 0) return [];

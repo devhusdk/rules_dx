@@ -351,7 +351,7 @@ Source: dx. Native file: `.hlint.yaml`.
 ```diff
 --- a/core/quality/tiers/hlint/strict.yaml
 +++ b/core/quality/tiers/hlint/strict.yaml
-@@ -1,6 +1,3 @@
+@@ -1,6 +1,41 @@
 -- ignore: {name: Use camelCase}
 -- ignore: {name: Use section}
 -- ignore: {name: Use lambda-case}
@@ -361,6 +361,44 @@ Source: dx. Native file: `.hlint.yaml`.
 +- group: {name: extra, enabled: true}
 +- group: {name: generalise, enabled: true}
 +- group: {name: future, enabled: true}
++- functions:
++  - {name: head, within: []}
++  - {name: tail, within: []}
++  - {name: init, within: []}
++  - {name: last, within: []}
++  - {name: fromJust, within: []}
++  - {name: "!!", within: []}
++  - {name: read, within: []}
++  - {name: error, within: []}
++  - {name: undefined, within: []}
++  - {name: unsafePerformIO, within: []}
++  - {name: unsafeCoerce, within: []}
++  - {name: trace, within: []}
++  - {name: traceShow, within: []}
++  - {name: traceM, within: []}
++  - {name: foldl1, within: []}
++  - {name: foldr1, within: []}
++  - {name: maximum, within: []}
++  - {name: minimum, within: []}
++  - {name: genericIndex, within: []}
++- modules:
++  - {name: Debug.Trace, within: []}
++  - {name: System.IO.Unsafe, within: []}
++  - {name: Unsafe.Coerce, within: []}
++- flags:
++  - default: false
++- error: {name: Use fromMaybe}
++- error: {name: Avoid restricted function}
++- error: {name: Avoid restricted module}
++- error: {name: Avoid restricted extensions}
++- error: {name: Avoid restricted flags}
++- error: {name: Unused LANGUAGE pragma}
++- error: {name: Redundant bracket}
++- error: {name: Redundant $}
++- error: {name: Redundant id}
++- error: {name: Use null}
++- error: {name: Use isNothing}
++- error: {name: Use isJust}
 ```
 
 ### lychee
@@ -1565,7 +1603,34 @@ Source: dx. Native file: `tsconfig.json`.
 
 Source: dx. Native file: `typos.toml`.
 
-Same as the standard tier.
+```diff
+--- a/core/quality/tiers/typos/strict.toml
++++ b/core/quality/tiers/typos/strict.toml
+@@ -1,5 +1,21 @@
+ [default]
+-locale = "en"
++locale = "en-us"
++check-filename = true
++check-file = true
+ 
+ [files]
+-extend-exclude = ["*.lock", "*.min.js", "*.svg"]
++ignore-hidden = false
++extend-exclude = [
++    ".git/",
++    "*.lock",
++    "*.min.css",
++    "*.min.js",
++    "*.map",
++    "*.pb.go",
++    "*.svg",
++    "*_pb2.py",
++    "go.sum",
++    "package-lock.json",
++    "pnpm-lock.yaml",
++    "yarn.lock",
++]
+```
 
 ### yamlfmt
 

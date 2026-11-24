@@ -63,7 +63,6 @@ filegroup(
 
 _CREDO_ROOT = '"../../../../"'
 
-# elixirc runs outside Mix, so Credo's Mix and cwd reads are pinned to literals.
 CREDO_REWRITES = {
     "bunt": {
         "lib/bunt.ex": [("@version Mix.Project.config()[:version]", '@version "{version}"')],

@@ -1,4 +1,3 @@
-//! A scripted runner and the helpers the tests share.
 #![expect(dead_code, reason = "each test uses a subset of the helpers")]
 
 use std::cell::RefCell;
@@ -21,7 +20,6 @@ impl Fake {
         }
     }
 
-    /// The recorded calls as `args` joined by spaces.
     pub fn log(&self) -> Vec<String> {
         self.calls
             .borrow()

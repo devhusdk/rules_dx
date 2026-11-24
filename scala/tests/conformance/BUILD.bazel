@@ -3,8 +3,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
-# The dirty fixtures stay in their own manual targets; gazelle would merge them
-# into the clean library.
 # gazelle:exclude FormatDirty.scala
 # gazelle:exclude LintDirty.scala
 

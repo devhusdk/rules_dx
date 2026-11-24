@@ -49,7 +49,6 @@ cuda_windows_static_runtime(
     target_compatible_with = ["@platforms//os:windows"],
 )
 
-# Every platform links the static CUDA runtime.
 alias(
     name = "runtime",
     actual = select({

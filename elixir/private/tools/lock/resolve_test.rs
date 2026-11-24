@@ -1,5 +1,3 @@
-//! The hex lock step writes the golden lock from a `mix.lock` or `rebar.lock` with an empty `PATH` and no network.
-
 use dx_lock::{Args, Error, Outcome, Spec, run};
 use dx_lock_testing::NoFetch;
 use hex_lock::Hex;

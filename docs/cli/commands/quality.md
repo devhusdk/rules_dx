@@ -157,16 +157,20 @@ To change a rule, edit the tool's root config file. See
 | Family | Format | Lint | Typecheck |
 | --- | --- | --- | --- |
 | `astro` | `prettier` | `typos` | `tsc` |
+| `bicep` | `bicep` | `bicep`, `trivy_config`, `typos` | disabled |
 | `cc` | `clang_format` | `clang_tidy`, `typos` | disabled |
+| `cloudformation` | disabled | `cfn_lint`, `trivy_config`, `typos` | disabled |
 | `core` | `yamlfmt` | `actionlint`, `zizmor` | disabled |
 | `dockerfile` | disabled | `hadolint`, `typos` | disabled |
 | `go` | `gofumpt` | `errcheck`, `govet`, `staticcheck`, `typos` | `gotype` |
 | `graphql` | `prettier` | `typos` | disabled |
+| `helm` | disabled | `helm`, `trivy_config`, `typos` | disabled |
 | `html` | `prettier` | `typos` | disabled |
 | `java` | `google_java_format` | `pmd`, `spotbugs`, `typos` | `javac` |
 | `javascript` | `biome` | `biome`, `typos` | disabled |
 | `json` | `biome` | `biome` | disabled |
 | `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
+| `kubernetes` | disabled | `kubeconform`, `trivy_config`, `typos` | disabled |
 | `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
 | `mdx` | `remark` | `lychee`, `typos` | disabled |
 | `objc` | `clang_format` | `typos` | `clang_syntax` |
@@ -266,6 +270,12 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
+`vale` in the strict tier runs the `Vale`, `write-good` and `Dx` styles at `MinAlertLevel = warning`, with `write-good.Passive` and `write-good.E-Prime` off and spelling left to `typos`. `Dx` findings are errors: the markers `TODO`, `FIXME`, `TBD` and `XXX`; the placeholders `lorem ipsum`, `your-*-here`, `<placeholder>` and `as an AI`; and the filler words `it is worth noting`, `delve`, `seamless`, `robust`, `leverage`, `comprehensive` and `game-changer`. Other `vale` findings are warnings.
+
+`typos` in the strict tier checks file names and contents in the `en-us` locale, includes hidden files, and skips lockfiles and generated files.
+
+`hlint` takes its tier from `core/quality/tiers/hlint/`. Standard ignores the naming, section, lambda-case, tuple-section and bracket hints. Strict turns on the `extra`, `generalise` and `future` groups and bans the functions `head`, `tail`, `init`, `last`, `fromJust`, `!!`, `read`, `error`, `undefined`, `unsafePerformIO`, `unsafeCoerce`, `trace`, `traceShow`, `traceM`, `foldl1`, `foldr1`, `maximum`, `minimum` and `genericIndex`, the modules `Debug.Trace`, `System.IO.Unsafe` and `Unsafe.Coerce`, and every `OPTIONS_GHC` flag; set compiler flags in `ghcopts`. These bans and the hints `Use fromMaybe`, `Unused LANGUAGE pragma`, `Redundant bracket`, `Redundant $`, `Redundant id`, `Use null`, `Use isNothing` and `Use isJust` are errors.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 `credo` takes its tier from `core/quality/tiers/credo/`. Standard runs the warning and refactor checks, including `IoInspect`, `Dbg`, `IoPuts`, `UnsafeToAtom`, `UnsafeExec`, `MixEnv` and `LeakyEnvironment`. Strict runs Credo in strict mode and adds the readability and design checks, including `Specs`, `ImplTrue`, `WithCustomTaggedTuple`, `SkipTestWithoutComment`, `TagTODO`, `TagFIXME` and `UnusedVariableNames`.
@@ -277,6 +287,10 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 With warnings as errors on, `erlc` compiles with `-Werror`, `+warn_untyped_record`, `+warn_unused_import` and `+warn_export_all`. Test apps, `testonly` bytecode and Common Test suites get `+nowarn_export_all` in its place. An `erlang_app` that lists `srcs`, as Gazelle writes them, compiles with the upstream rules_erlang defaults and gets none of these flags. Third-party Hex apps build with `warnings_as_errors = False`. `warnings_as_errors = False` on a target, or `--@rules_dx//config:warnings_as_errors=false`, turns all of them off.
 
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`, plus `bodyclose`, `errorlint`, `exhaustive`, `noctx` and `sqlclosecheck`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
+
+`fortitude` takes its tier from `core/quality/tiers/fortitude/`. Standard runs a fixed list of correctness, obsolescence and portability rules. Strict runs every stable rule with a 100-column line limit and leaves out `C021`, `C022`, `C031`, `C032`, `C183`, `MOD001`, `MOD002`, `S082`, `S102` to `S105`, `S211`, `S212`, `S221`, `S251` to `S255`, `S271`, `S901` and `S902`. Its `C`, `OB` and `PORT` findings are errors; the rest are warnings.
+
+`ty` takes its tier from `core/quality/tiers/ty/`. Standard uses the ty default rule levels. Strict sets every rule to `error` except `division-by-zero`, so a blanket `# ty: ignore`, an unused suppression comment and `disjoint-cast` fail, and `error-on-warning` fails the run on any warning.
 
 ### JVM and .NET
 
@@ -373,7 +387,7 @@ With warnings as errors on, `erlc` compiles with `-Werror`, `+warn_untyped_recor
 | `tflint` | Lint Terraform | |
 | `bicep` | Format and lint Bicep | |
 | `cfn_lint` | Lint CloudFormation | |
-| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations; opt-in | |
+| `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations at every severity under the strict tier, `HIGH` and `CRITICAL` under the standard tier | |
 | `trivy_image_config` | Lint the user, healthcheck and secrets in the image config of an `oci_image_from_binary` image, offline | |
 | `container_structure_test` | Typecheck the config, files and licenses of an `oci_image_from_binary` image against its `structure_tests` configs with the tar driver, without a container runtime | |
 | `nixfmt` | Format Nix | `macos_arm64`, `windows_x86_64`, `windows_arm64` |
@@ -547,7 +561,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `swift_lint` | catalog | `*.swift-format`, `*.json` | none | dx |  |
 | `taplo` | curated | `.taplo.toml` | override copy | dx |  |
 | `tflint` | catalog | `*.hcl` | none | dx |  |
-| `trivy_config` | catalog | `*.txt` | none | dx |  |
+| `trivy_config` | curated | `*.txt` | none | dx |  |
 | `tsc` | curated | `tsconfig.json` | extends | dx |  |
 | `ty` | curated | `*.toml` | none | dx |  |
 | `typos` | curated | `typos.toml` | override copy | dx |  |

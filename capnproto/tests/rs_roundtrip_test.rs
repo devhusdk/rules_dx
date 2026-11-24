@@ -1,5 +1,3 @@
-//! Builds a Shape whose origin type comes from the base crate and reads it back.
-
 use api_rs::kind_capnp::Kind;
 use api_rs::shape_capnp::shape;
 
@@ -24,7 +22,6 @@ fn shape_round_trips_through_the_generated_crates() {
         shape.get_name().expect("name").to_str().expect("utf8"),
         "circle"
     );
-    // The origin is the base crate's type, not a copy inside api_rs.
     let origin: base_rs::common_capnp::point::Reader = shape.get_origin().expect("origin");
     assert_eq!(origin.get_x(), 1.5);
     assert_eq!(origin.get_y(), -2.0);

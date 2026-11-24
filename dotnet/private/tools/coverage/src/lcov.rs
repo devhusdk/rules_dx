@@ -1,5 +1,3 @@
-//! Rewrites LCOV source paths to workspace-relative form; language-neutral.
-
 fn workspace_relative(path: &str, prefixes: &[String]) -> Option<String> {
     let mut path = path.replace('\\', "/");
     for prefix in prefixes {
@@ -23,7 +21,6 @@ fn workspace_relative(path: &str, prefixes: &[String]) -> Option<String> {
     Some(path)
 }
 
-/// Returns the report with workspace-relative SF: paths, dropping foreign records, and the kept record count.
 pub fn normalize(report: &str, prefixes: &[String]) -> (String, usize) {
     let mut out = String::new();
     let mut kept = 0;

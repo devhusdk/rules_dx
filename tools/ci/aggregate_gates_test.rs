@@ -54,16 +54,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "analysis-scaling",
         "in-graph-prebuilt-guard",
         "devcontainer-check",
-        "gcc-cross-build",
-        "gcc-cross-run-arm64",
         "launch-heavy",
-        "llvm-cross-build-macos",
-        "llvm-cross-build-windows",
-        "llvm-cross-run-macos-arm64",
-        "llvm-cross-run-windows",
-        "msvc-cross-build",
-        "msvc-cross-run-arm64",
-        "native-lint",
         "preflight",
         "quality-matrix",
         "starter-consumer",
@@ -503,14 +494,29 @@ fn the_gate_action_runs_dx_with_the_lock_check_and_forwards_bazel_options() {
         .expect("gate steps")
         .iter()
         .filter_map(|step| step["run"].as_str())
-        .find(|run| run.contains("@rules_dx//:dx --"))
+        .find(|run| run.contains("\"$COMMAND\" --affected"))
         .expect("dx step");
     assert!(
         run.contains("set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS"),
         "{run}"
     );
-    assert!(run.contains("\"$COMMAND\" --affected"), "{run}");
     assert!(run.contains("-- \"$@\""), "{run}");
+}
+
+#[test]
+fn the_gate_runs_a_copy_of_dx_that_bazel_cannot_rewrite_under_it() {
+    let action = document(GATE_ACTION).unwrap();
+    let run = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .find(|run| run.contains("\"$COMMAND\" --affected"))
+        .expect("dx step");
+    assert!(run.contains("bazel build \"$@\" @rules_dx//:dx"), "{run}");
+    assert!(run.contains("dx=\"${RUNNER_TEMP:-/tmp}/"), "{run}");
+    assert!(run.contains("\"$dx\" \"$COMMAND\" --affected"), "{run}");
+    assert!(!run.contains("bazel run"), "{run}");
 }
 
 #[test]

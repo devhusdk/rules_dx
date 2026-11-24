@@ -8,8 +8,7 @@ load(":text.bzl", "qt_package_path", "qt_relative", "qt_stem")
 
 _CXX_QT_FILES = Label("//qt/private/tools/rust:cxx_qt_runtime_files")
 
-# cxx-qt formats the C++ it writes with the clang-format this names, read
-# in-process. Empty means none, so a host clang-format never changes the output.
+# Empty keeps a host clang-format from rewriting the C++ cxx-qt generates.
 _BRIDGE_ENV = QT_TOOL_ENV | {"CLANG_FORMAT_BINARY": ""}
 
 def _generator(ctx):
@@ -126,8 +125,6 @@ qt_rust_runtime_files = rule(
 
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 
-# Qt links against the dynamic MSVC CRT (/MD). A +crt-static crate would pull
-# /MT objects, such as cxx.cc from the cxx build script, into the same binary.
 def _dynamic_crt_impl(settings, _attr):
     return {_EXTRA_RUSTC_FLAG: [flag for flag in settings[_EXTRA_RUSTC_FLAG] if not msvc_crt_static_flag(flag)]}
 

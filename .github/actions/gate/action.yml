@@ -39,7 +39,12 @@ runs:
           mkdir -p "$(dirname "$LCOV")"
           report=(--report "lcov=$LCOV")
         fi
-        bazel run "$@" @rules_dx//:dx -- "$COMMAND" --affected --output=json "${report[@]}" -- "$@" "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+        bazel build "$@" @rules_dx//:dx
+        built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
+        dx="${RUNNER_TEMP:-/tmp}/dx-bin/${built##*/}"
+        mkdir -p "${dx%/*}"
+        cp -L "$(bazel info "$@" execution_root)/$built" "$dx"
+        "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash

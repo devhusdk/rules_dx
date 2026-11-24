@@ -1,4 +1,3 @@
-// Shared pieces of the component metadata launchers.
 import fs from "node:fs";
 import Module, { createRequire } from "node:module";
 import path from "node:path";
@@ -102,7 +101,7 @@ export function readConfig(ts, tsconfigPath) {
     readDirectory: () => [],
   };
   const parsed = ts.parseJsonConfigFileContent(read.config, host, path.dirname(path.resolve(tsconfigPath)), {}, path.resolve(tsconfigPath));
-  const errors = parsed.errors.filter((e) => e.code !== 18003); // no inputs found
+  const errors = parsed.errors.filter((e) => e.code !== 18003);
   if (errors.length > 0) {
     throw new Failure(1, errors.map((e) => ts.flattenDiagnosticMessageText(e.messageText, "\n")).join("\n"));
   }

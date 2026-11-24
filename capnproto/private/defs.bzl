@@ -6,7 +6,6 @@ load(":providers.bzl", "CapnpStdInfo", "CapnprotoInfo")
 
 _STD_MARKER = "/src/capnp/"
 
-# capnpc-java ships java.capnp under compiler/src/main/schema/capnp/.
 _STD_JAVA_MARKER = "/schema/capnp/"
 
 def std_import_path(short_path):

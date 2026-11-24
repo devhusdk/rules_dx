@@ -55,6 +55,7 @@
       ],
       "lint": [
         "bicep",
+        "trivy_config",
         "typos"
       ],
       "typecheck": []

@@ -317,7 +317,7 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
     // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
     case.write(
         "BUILD.bazel",
-        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
+        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"TAXONOMY\")\n\nfilegroup(name = \"all\", tags = [str(len(TAXONOMY))])\n",
     );
     case.build_fails_with("//:all", &["is not visible for loading"]);
 }
@@ -369,17 +369,24 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
     }
     let (case, _) = locked_consumer("undeclared");
     let rules_py = "4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd";
-    let entry = nested::cache::entry(&case.repository_cache(), rules_py);
-    let kept = entry.with_extension("kept");
-    std::fs::rename(&entry, &kept).expect("hide the rules_py archive");
+    // A private cache without the archive, so a shared cache root stays whole for other tests.
+    let config = nested::Config::from_env().unwrap_or_else(|error| panic!("config: {error}"));
+    let declared: Vec<_> = config
+        .cache
+        .into_iter()
+        .filter(|download| download.digest != rules_py)
+        .collect();
+    let private = tmpdir().join("undeclared-cache");
+    nested::cache::install(&private, &declared).expect("install the private cache");
+    let cache_flag = format!("--repository_cache={}", private.display());
     let mut query = nested::HARNESS_QUERY.to_vec();
     query.insert(1, "--repo_contents_cache=");
+    query.insert(1, &cache_flag);
     let message =
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| case.bazel(&query))) {
             Ok(run) => panic!("no panic: {}", run.combined()),
             Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
         };
-    std::fs::rename(&kept, &entry).expect("restore the rules_py archive");
     assert!(
         message.contains("https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"),
         "{message}"
@@ -446,28 +453,140 @@ fn nested_bazel_runs_the_pinned_binary_without_bazelisk() {
     );
 }
 
-#[test]
-fn nested_servers_stop_when_their_test_binary_exits() {
+fn tmpdir() -> std::path::PathBuf {
+    std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"))
+}
+
+/// Runs the probe as its own test binary in a fresh `TEST_TMPDIR` with `shared` as the shared cache root.
+fn probe(shared: &str) -> dx_testing::Run {
+    probe_within(shared, "")
+}
+
+/// Runs the probe with `shared` as the shared cache root and `limit` as its byte limit.
+fn probe_within(shared: &str, limit: &str) -> dx_testing::Run {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
-    let probe_tmp = dx_test_scratch::scratch("probe").unwrap();
+    let probe_tmp = dx_test_scratch::scratch("probe").unwrap().keep();
     let probe = run(
         &resolve_runfiles(&rel),
         &[],
         &[
             ("DX_PROBE_BAZEL_VERSION", version.trim()),
-            ("TEST_TMPDIR", &probe_tmp.path().to_string_lossy()),
+            ("TEST_TMPDIR", &probe_tmp.to_string_lossy()),
+            (nested::SHARED_ENV, shared),
+            (nested::CACHES_ENV, ""),
+            (nested::SHARED_LIMIT_ENV, limit),
         ],
     )
     .unwrap_or_else(|error| panic!("run probe: {error}"));
     assert!(probe.status.success(), "{}", probe.combined());
-    let pid: u32 = probe
+    probe
+}
+
+fn probe_line<'a>(probe: &'a dx_testing::Run, key: &str) -> &'a str {
+    probe
         .stdout
         .lines()
-        .find_map(|line| line.strip_prefix("server_pid="))
-        .and_then(|pid| pid.trim().parse().ok())
-        .unwrap_or_else(|| panic!("probe printed no server pid: {}", probe.combined()));
+        .find_map(|line| line.strip_prefix(key)?.strip_prefix('='))
+        .unwrap_or_else(|| panic!("probe printed no {key}: {}", probe.combined()))
+}
+
+#[test]
+fn a_shared_root_extracts_the_install_base_once_and_reuses_a_repository() {
+    let shared = tmpdir().join("shared");
+    let shared = shared.to_string_lossy();
+    let first = probe(&shared);
+    assert_eq!(
+        probe_line(&first, "extracted"),
+        "true",
+        "{}",
+        first.combined()
+    );
+    assert!(
+        probe_line(&first, "fetched").contains("dx_probe"),
+        "{}",
+        first.combined()
+    );
+    let second = probe(&shared);
+    assert_eq!(
+        probe_line(&second, "extracted"),
+        "false",
+        "{}",
+        second.combined()
+    );
+    assert_eq!(probe_line(&second, "fetched"), "", "{}", second.combined());
+}
+
+#[test]
+fn a_shared_root_over_its_limit_evicts_the_least_recently_used_entry_first() {
+    let shared = tmpdir().join("bounded");
+    let root = shared.to_string_lossy();
+    probe(&root);
+    let stale = shared.join("repo-contents").join("stale");
+    std::fs::create_dir_all(&stale).expect("mkdir");
+    let payload = std::fs::File::create(stale.join("payload")).expect("create");
+    payload.set_len(8 << 20).expect("size");
+    payload
+        .set_modified(std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(1 << 30))
+        .expect("mtime");
+    drop(payload);
+    let limit = nested::shared::usage(&shared) - (4 << 20);
+    let bounded = probe_within(&root, &limit.to_string());
+    assert!(!stale.exists(), "{}", bounded.combined());
+    assert_eq!(
+        probe_line(&bounded, "extracted"),
+        "false",
+        "{}",
+        bounded.combined()
+    );
+    assert_eq!(
+        probe_line(&bounded, "fetched"),
+        "",
+        "{}",
+        bounded.combined()
+    );
+}
+
+#[test]
+fn an_eviction_stopped_mid_delete_leaves_the_repositories_whole_and_its_trash_is_emptied() {
+    let shared = tmpdir().join("interrupted");
+    let root = shared.to_string_lossy();
+    probe(&root);
+    let half = shared.join(nested::shared::TRASH).join("1-2-0");
+    std::fs::create_dir_all(half.join("external")).expect("mkdir");
+    std::fs::File::create(half.join("external").join("BUILD.bazel"))
+        .and_then(|file| file.set_len(1 << 20))
+        .expect("half-deleted entry");
+    let rerun = probe(&root);
+    assert!(!half.exists(), "{}", rerun.combined());
+    assert_eq!(
+        probe_line(&rerun, "extracted"),
+        "false",
+        "{}",
+        rerun.combined()
+    );
+    assert_eq!(probe_line(&rerun, "fetched"), "", "{}", rerun.combined());
+}
+
+#[test]
+fn without_a_shared_root_a_test_extracts_fetches_and_stops_its_server() {
+    let probe = probe("");
+    assert_eq!(
+        probe_line(&probe, "extracted"),
+        "true",
+        "{}",
+        probe.combined()
+    );
+    assert!(
+        probe_line(&probe, "fetched").contains("dx_probe"),
+        "{}",
+        probe.combined()
+    );
+    let pid: u32 = probe_line(&probe, "server_pid")
+        .trim()
+        .parse()
+        .unwrap_or_else(|_| panic!("probe printed no server pid: {}", probe.combined()));
     let started = Instant::now();
     while nested::alive(pid) && started.elapsed() < Duration::from_secs(3) {
         std::thread::sleep(Duration::from_millis(100));

@@ -1,12 +1,31 @@
 """Validators for the image deploy rule."""
 
+# Single-platform repos, so the base matches the image platform rather than the build host.
 IMAGE_BASES = {
-    "cc": "@distroless_cc",
-    "dotnet": "@dotnet_runtime",
-    "java": "@distroless_java",
-    "node": "@distroless_nodejs",
-    "python": "@distroless_python",
-    "static": "@distroless_static",
+    "cc": {
+        "linux/amd64": "@distroless_cc_linux_amd64",
+        "linux/arm64": "@distroless_cc_linux_arm64_v8",
+    },
+    "dotnet": {
+        "linux/amd64": "@dotnet_runtime_linux_amd64",
+        "linux/arm64": "@dotnet_runtime_linux_arm64",
+    },
+    "java": {
+        "linux/amd64": "@distroless_java_linux_amd64",
+        "linux/arm64": "@distroless_java_linux_arm64_v8",
+    },
+    "node": {
+        "linux/amd64": "@distroless_nodejs_linux_amd64",
+        "linux/arm64": "@distroless_nodejs_linux_arm64_v8",
+    },
+    "python": {
+        "linux/amd64": "@distroless_python_linux_amd64",
+        "linux/arm64": "@distroless_python_linux_arm64_v8",
+    },
+    "static": {
+        "linux/amd64": "@distroless_static_linux_amd64",
+        "linux/arm64": "@distroless_static_linux_arm64_v8",
+    },
 }
 
 IMAGE_RUNTIMES = {

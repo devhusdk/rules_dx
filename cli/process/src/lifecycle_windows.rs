@@ -50,7 +50,7 @@ impl Job {
     }
 
     fn terminate(&self) {
-        let _: io::Result<()> = self.job.terminate(1);
+        drop(self.job.terminate(1));
     }
 
     fn stop_attached(&self) -> bool {
@@ -58,7 +58,7 @@ impl Job {
         let console = console::process_ids();
         let targets = super::attached_targets(std::process::id(), members.as_deref(), &console);
         for pid in targets.iter().flatten() {
-            let _: io::Result<()> = self.job.terminate_member(*pid);
+            drop(self.job.terminate_member(*pid));
         }
         targets.is_some()
     }
@@ -121,8 +121,8 @@ pub fn spawn_owned(command: &mut Command, descendants: Descendants) -> io::Resul
     if let Err(err) = job.start(&child) {
         // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         job.terminate();
-        let _: io::Result<()> = child.kill();
-        let _: io::Result<ExitStatus> = child.wait();
+        drop(child.kill());
+        drop(child.wait());
         return Err(err);
         // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
@@ -147,8 +147,8 @@ pub fn spawn_streamed(
     if let Err(err) = job.start(&child) {
         // LCOV_EXCL_START - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
         job.terminate();
-        let _: io::Result<()> = child.kill();
-        let _: io::Result<ExitStatus> = child.wait();
+        drop(child.kill());
+        drop(child.wait());
         return Err(err);
         // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
@@ -161,7 +161,7 @@ pub fn terminate_graceful(owned: &mut OwnedChild) {
 
 pub fn terminate_forced(owned: &mut OwnedChild) {
     owned.job.stop();
-    let _: io::Result<()> = owned.child.kill();
+    drop(owned.child.kill());
 }
 
 pub fn termination_signal(_status: &ExitStatus) -> Option<i32> {
@@ -177,7 +177,7 @@ pub fn send(_target: i32, _signo: i32) {}
 pub fn send_kill(_target: i32) {}
 
 pub fn force_stream(child: &mut Child, _target: i32) {
-    let _: io::Result<()> = child.kill();
+    drop(child.kill());
 }
 
 pub fn tree_alive(_target: i32) -> bool {

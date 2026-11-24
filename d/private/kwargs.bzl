@@ -10,13 +10,11 @@ PLATFORM_SUPPORT = cells_support("//d/private:defs.bzl", "D_COMPATIBLE_WITH", LD
 
 D_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
-# ldc2 takes each flag with one or two dashes.
 _UNCHECKED_DOPTS = ["-release", "--release", "-boundscheck=off", "--boundscheck=off"]
 
 def d_unchecked_dopts(dopts):
     """Returns the dopts that turn off bounds, assert or contract checks."""
 
-    # A select() hides its branches from the macro, so only a plain list is checked.
     if type(dopts) != "list":
         return []
     return [flag for flag in dopts if flag in _UNCHECKED_DOPTS]

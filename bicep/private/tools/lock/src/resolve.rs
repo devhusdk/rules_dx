@@ -1,33 +1,24 @@
-//! Resolves the `br:` module references of the `*.bicep` files of a set to their OCI manifests and layers.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
-/// The media type of a Bicep module manifest.
 pub const MANIFEST: &str = "application/vnd.oci.image.manifest.v1+json";
 
-/// The media type of the compiled template layer of a Bicep module.
 pub const LAYER: &str = "application/vnd.ms.bicep.module.layer.v1+json";
 
-/// The registry the `br/public:` alias names.
 pub const PUBLIC: &str = "mcr.microsoft.com/bicep";
 
-/// Reads module manifests from a registry.
 pub trait Registry {
-    /// The manifest bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn manifest(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Reads manifests over HTTPS.
 pub struct Site(HttpFetch);
 
 impl Site {
-    /// A registry client that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -46,12 +37,9 @@ impl Registry for Site {
     }
 }
 
-/// One module reference: `HOST/PATH` and its tag.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Reference {
-    /// `HOST/PATH`, the host in lowercase.
     pub name: String,
-    /// The tag.
     pub tag: String,
 }
 
@@ -98,14 +86,12 @@ impl Reference {
         self.name.split_once('/').unwrap_or((&self.name, ""))
     }
 
-    /// The URL of a manifest by tag or digest.
     #[must_use]
     pub fn manifest_url(&self, reference: &str) -> String {
         let (host, path) = self.registry();
         format!("https://{host}/v2/{path}/manifests/{reference}")
     }
 
-    /// The URL of a blob by digest.
     #[must_use]
     pub fn blob_url(&self, digest: &str) -> String {
         let (host, path) = self.registry();
@@ -113,7 +99,6 @@ impl Reference {
     }
 }
 
-/// The single-quoted strings of Bicep source outside comments.
 fn strings(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut chars = text.chars().peekable();
@@ -153,8 +138,6 @@ fn strings(text: &str) -> Vec<String> {
     out
 }
 
-/// The module references of Bicep source, in source order.
-///
 /// # Errors
 /// Fails on a `br:` or `br/public:` string that is not a valid reference.
 pub fn references(text: &str) -> Result<Vec<Reference>, Error> {
@@ -171,8 +154,6 @@ fn hex(digest: &str) -> Option<&str> {
         .filter(|hex| dx_lock::is_sha256(hex))
 }
 
-/// The sha256 of the one Bicep module layer of a manifest.
-///
 /// # Errors
 /// Fails when the manifest is not an OCI manifest with exactly one Bicep module layer.
 pub fn module_layer(name: &str, manifest: &[u8]) -> Result<String, Error> {
@@ -199,19 +180,16 @@ pub fn module_layer(name: &str, manifest: &[u8]) -> Result<String, Error> {
         .ok_or_else(|| Error::new(format!("{name}: layer {LAYER} has no sha256 digest")))
 }
 
-/// The resolver of the bicep ecosystem.
 pub struct Bicep<'a> {
     registry: &'a dyn Registry,
 }
 
 impl<'a> Bicep<'a> {
-    /// A resolver that reads manifests from `registry`.
     #[must_use]
     pub fn new(registry: &'a dyn Registry) -> Self {
         Self { registry }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -315,8 +293,6 @@ impl Resolver for Bicep<'_> {
     }
 }
 
-/// Runs the bicep lock step on `args`, the arguments after `dx bicep_lock`: 0 when the lock is
-/// fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("bicep") else {
         eprintln!("bicep has no registry entry");

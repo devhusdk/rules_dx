@@ -16,7 +16,6 @@ _MAJOR_MINOR = ".".join(JULIA_RUNTIME_VERSION.split(".")[:2])
 
 _LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 
-# Set by the runtime rules so they resolve the downloaded Julia release, not the source toolchain.
 bool_flag(
     name = "stock",
     build_setting_default = False,

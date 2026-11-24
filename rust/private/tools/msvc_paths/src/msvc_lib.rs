@@ -1,7 +1,3 @@
-//! Runs $`TARGET_AR` from the execroot with execroot-relative paths, so archive member names do not
-//! depend on the checkout. Build scripts call it from deep inside bazel-out, where `../` prefixes
-//! would push paths past `MAX_PATH`, so the archiver always runs from the execroot itself.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,

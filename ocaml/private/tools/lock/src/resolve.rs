@@ -1,18 +1,15 @@
-//! Locks the packages that `*.opam.locked` files pin, with the archive each opam-repository entry names.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
-/// The opam-repository tree the package files are read from.
 pub const REPOSITORY: &str = concat!(
     "https://raw.githubusercontent.com/ocaml/opam-repository/",
     env!("OPAM_REPOSITORY_COMMIT"),
     "/packages"
 );
 
-/// The `depends` filters of entries a build does not need.
 pub const SKIPPED_FILTERS: [&str; 4] = ["dev", "with-dev-setup", "with-doc", "with-test"];
 
 const TOOLCHAIN_PACKAGES: [&str; 7] = [
@@ -25,26 +22,19 @@ const TOOLCHAIN_PACKAGES: [&str; 7] = [
     "ocaml-variants",
 ];
 
-/// The `extra` key listing the dependencies of a package that no lock file pins.
 pub const UNPINNED: &str = "opam_unpinned";
 
-/// The suffix of the state files.
 pub const LOCKED: &str = ".opam.locked";
 
-/// Downloads opam files.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Https(HttpFetch);
 
 impl Https {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -63,13 +53,11 @@ impl Download for Https {
     }
 }
 
-/// Whether the pinned toolchain provides the opam package.
 #[must_use]
 pub fn is_toolchain_package(name: &str) -> bool {
     TOOLCHAIN_PACKAGES.contains(&name) || name.starts_with("base-")
 }
 
-/// The library name dune gives a package by default.
 #[must_use]
 pub fn library(name: &str) -> String {
     name.replace(['-', '.'], "_")
@@ -155,7 +143,6 @@ fn tokens(text: &str) -> Result<Vec<Token>, Error> {
     Ok(out)
 }
 
-/// The tokens of the top-level field `key`, without the key.
 fn field(all: &[Token], key: &str) -> Option<Vec<Token>> {
     let mut depth = 0usize;
     let wanted = format!("{key}:");
@@ -172,7 +159,6 @@ fn field(all: &[Token], key: &str) -> Option<Vec<Token>> {
     None
 }
 
-/// The tokens of one value: a single token, or one bracketed group with its brackets.
 fn value(rest: &[Token]) -> Vec<Token> {
     let mut depth = 0usize;
     for (i, token) in rest.iter().enumerate() {
@@ -200,7 +186,6 @@ fn render(tokens: &[Token]) -> String {
         .join(" ")
 }
 
-/// The `(name, filter)` entries of the `depends` field, the filter as text.
 fn depends(text: &str) -> Result<Vec<(String, String)>, Error> {
     let all = tokens(text)?;
     let Some(list) = field(&all, "depends") else {
@@ -241,8 +226,6 @@ fn skipped(filter: &str) -> bool {
         .any(|term| SKIPPED_FILTERS.contains(&term.trim()))
 }
 
-/// The `{package: version}` pins of an opam lock file; entries limited to tests, docs or development are left out.
-///
 /// # Errors
 /// Fails when the text is not opam syntax.
 pub fn parse_locked(text: &str) -> Result<BTreeMap<String, String>, Error> {
@@ -265,8 +248,6 @@ pub fn parse_locked(text: &str) -> Result<BTreeMap<String, String>, Error> {
     Ok(out)
 }
 
-/// The `depends` names a build needs.
-///
 /// # Errors
 /// Fails when the text is not opam syntax.
 pub fn parse_depend_names(text: &str) -> Result<Vec<String>, Error> {
@@ -277,17 +258,12 @@ pub fn parse_depend_names(text: &str) -> Result<Vec<String>, Error> {
         .collect())
 }
 
-/// The source of a package archive.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Source {
-    /// The archive URL.
     pub src: String,
-    /// The sha256 the opam file states, else empty.
     pub sha256: String,
 }
 
-/// The `url` section of an opam file.
-///
 /// # Errors
 /// Fails when the file has no url section with an https `src`.
 pub fn parse_url(text: &str) -> Result<Source, Error> {
@@ -322,14 +298,12 @@ pub fn parse_url(text: &str) -> Result<Source, Error> {
     Ok(Source { src, sha256 })
 }
 
-/// The resolver of the opam ecosystem.
 pub struct Opam<'a> {
     repository: &'a str,
     download: &'a dyn Download,
 }
 
 impl<'a> Opam<'a> {
-    /// A resolver that reads opam files below `repository`.
     #[must_use]
     pub fn new(repository: &'a str, download: &'a dyn Download) -> Self {
         Self {
@@ -338,7 +312,6 @@ impl<'a> Opam<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -357,8 +330,6 @@ impl<'a> Opam<'a> {
         String::from_utf8(bytes).map_err(|e| Error::new(format!("{url} is not UTF-8: {e}")))
     }
 
-    /// The lock packages of the pins.
-    ///
     /// # Errors
     /// Fails when an opam file cannot be read or has no usable url section.
     pub fn packages(&self, pins: &BTreeMap<String, String>) -> Result<Vec<Package>, Error> {
@@ -441,7 +412,6 @@ impl Resolver for Opam<'_> {
     }
 }
 
-/// Runs the opam lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("opam") else {

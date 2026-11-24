@@ -62,7 +62,6 @@ failure_test(
     target = ":conflict",
 )
 
-# The hub resolves for the exec platform of the host.
 # keep
 terraform_library(
     name = "hub_null",

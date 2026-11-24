@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Runs the pinned opam against the pinned opam-repository snapshot as the only repository.
-# `opam.sh snapshot-dir` prints the snapshot checkout instead.
 set -euo pipefail
 
 runfiles="${RUNFILES_DIR:-$0.runfiles}"

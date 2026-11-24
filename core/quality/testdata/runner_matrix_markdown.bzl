@@ -27,8 +27,14 @@ _VALE_TEST_CONFIG = {
 _MARKDOWN_VALE = ["markdown_check", "vale"]
 _MARKDOWN_VALE_BINARIES = ["//core/quality/markdown:quality_markdown", "@dx_tools//:vale"]
 
+_DX_STYLE_FILES = [
+    "Filler.yml",
+    "Markers.yml",
+    "Placeholders.yml",
+]
+
 def _vale_profile_files(profile):
-    styles = ["write-good/" + f for f in _VALE_STYLE_FILES]
+    styles = ["write-good/" + f for f in _VALE_STYLE_FILES] + ["Dx/" + f for f in _DX_STYLE_FILES]
     ini = ":vale_profile/%s/.vale.ini" % profile
     root = "core/quality/testdata/vale_profile/%s/" % profile
     return {
@@ -287,5 +293,7 @@ MARKDOWN_CASES = [
     _vale_profile_case("matrix_markdown_lint_profile_strict", "strict", "markdown", "matrix/vale_profile_strict.md", "# Profile\n\nThe ball was kicked.\n"),
     _clean_tier_case("standard"),
     _clean_tier_case("strict"),
+    _vale_profile_case("matrix_markdown_lint_profile_strict_guard", "strict", "markdown", "matrix/vale_profile_strict_guard.md", "# Guard\n\nTODO: delve into lorem ipsum in order to ship.\n"),
+    _vale_profile_case("matrix_markdown_lint_profile_standard_guard", "standard", "markdown", "matrix/vale_profile_standard_guard.md", "# Guard\n\nTODO: delve into lorem ipsum in order to ship.\n"),
     _vale_profile_case("matrix_rst_lint_profile_strict", "strict", "rst", "matrix/vale_profile_strict.rst", "Profile\n=======\n\nThe ball was kicked.\n"),
 ]

@@ -232,6 +232,18 @@ FILE_FAMILY_CASES = [
         config = "//core/quality/tiers/fortitude:strict.toml",
     ),
     matrix_case(
+        name = "matrix_fortran_lint_strict_guards",
+        capability = "lint",
+        tool = "fortitude",
+        binary = "@dx_tools//:fortitude",
+        source_class = "fortran",
+        generated = {
+            "matrix/fortran_strict_guards.f90": "module guards_m\n  implicit none\n  private\n  public :: twice\n  real(8) :: total\n  common /shared/ total\ncontains\n  subroutine twice(a)\n    real :: a\n    a = 2.0 * a\n  end subroutine twice\nend module guards_m\n",
+        },
+        platforms = ["linux_x86_64"],
+        config = "//core/quality/tiers/fortitude:strict.toml",
+    ),
+    matrix_case(
         name = "matrix_fortran_lint_syntax_error",
         capability = "lint",
         tool = "fortitude",
@@ -610,6 +622,17 @@ FILE_FAMILY_CASES = [
         source_class = "haskell",
         generated = {
             "matrix/hlint_clean_strict.hs": "module Clean where\n\nmain :: IO ()\nmain = putStrLn \"hello\"\n",
+        },
+        config = "//core/quality/tiers/hlint:strict.yaml",
+    ),
+    matrix_case(
+        name = "matrix_haskell_lint_banned_strict",
+        capability = "lint",
+        tool = "hlint",
+        binary = "//haskell/private/tools/hlint/bin",
+        source_class = "haskell",
+        generated = {
+            "matrix/hlint_banned_strict.hs": "{-# OPTIONS_GHC -w #-}\nmodule Banned (first, unwrap, noisy) where\n\nimport Data.Maybe (fromJust)\nimport Debug.Trace (trace)\n\nfirst :: [Int] -> Int\nfirst = head\n\nunwrap :: Maybe Int -> Int\nunwrap = fromJust\n\nnoisy :: Int -> Int\nnoisy = trace \"noisy\"\n",
         },
         config = "//core/quality/tiers/hlint:strict.yaml",
     ),

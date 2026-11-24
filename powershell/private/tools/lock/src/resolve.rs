@@ -1,16 +1,11 @@
-//! Resolves the modules the PowerShell manifest pins to their Gallery packages.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
-/// The Gallery API the packages are downloaded from.
 pub const SOURCE: &str = "https://www.powershellgallery.com/api/v2";
 
-/// The resolver of the powershell ecosystem.
 pub struct Powershell;
 
-/// The `Name = 'version'` entries of a requirements file, comments skipped.
-///
 /// # Errors
 /// Fails when a line is not an entry, a module is listed twice, or the file lists no module.
 pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
@@ -48,7 +43,6 @@ pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
 }
 
 impl Powershell {
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -90,7 +84,6 @@ impl Resolver for Powershell {
     }
 }
 
-/// Runs the powershell lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("powershell") else {

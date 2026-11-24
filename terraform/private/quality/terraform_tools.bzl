@@ -32,7 +32,12 @@ TOOLS = [
         id = "tflint",
         adapters = {"lint": ["terraform"]},
         config = config(suffixes = [".hcl"], tier_active = True),
-        severity = severity(default = "warning", categories = {"tflint-diagnostic": "error"}),
+        severity = severity(default = "warning", categories = {
+            "terraform_module_pinned_source": "error",
+            "terraform_required_providers": "error",
+            "terraform_required_version": "error",
+            "tflint-diagnostic": "error",
+        }),
         support = [
             row(
                 capability = "lint",

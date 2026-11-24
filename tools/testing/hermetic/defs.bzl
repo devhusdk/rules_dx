@@ -127,7 +127,7 @@ def hermetic_qualification(
         consumer_rows = [],
         workspace_dir = "consumer ws",
         **kwargs):
-    """Declares a consumer manifest and a golden check; smoke also runs the nested qualification."""
+    """Declares a consumer manifest and a golden check; smoke instead runs the consumer on the nested Bazel harness."""
     srcs = srcs or []
     hermetic_manifest(
         name = name + "_manifest",
@@ -173,40 +173,43 @@ def hermetic_qualification(
             ],
         )
         return
-    rust_test(
+    nested_bazel_test(
         name = name,
         timeout = kwargs.pop("timeout", "moderate"),
-        srcs = ["//tools/testing/hermetic:qualification_test.rs"],
-        data = [":" + name + "_manifest"] + select({
-            "@platforms//os:windows": ["//tools/testing/hermetic:appcontainer_run"],
+        srcs = ["//tools/testing/hermetic:harness_qualification_test.rs"],
+        crate_root = "//tools/testing/hermetic:harness_qualification_test.rs",
+        cache = name,
+        cache_locks = "//tools/testing/nested_cache:%s_locks" % name,
+        data = [":" + name + "_manifest", "//:lang_json", "//:module_srcs", "//patches/llvm:patches", "//patches/rules_py:patches"] + select({
+            "@platforms//os:windows": [],
             "//conditions:default": ["//core/coreutils:applets"],
         }),
         env = select({
-            "@platforms//os:windows": {
-                "DX_HERMETIC_APPCONTAINER": "$(rlocationpath //tools/testing/hermetic:appcontainer_run)",
-                "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
-            },
+            "@platforms//os:windows": {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
             "//conditions:default": {
                 "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
                 "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
             },
         }),
-        tags = QUALIFICATION_TAGS + ["hermetic-consumer", "resources:nested_bazel:1"] + ["consumer-row:" + row for row in consumer_rows],
+        tags = ["hermetic-consumer"] + ["consumer-row:" + row for row in consumer_rows],
         target_compatible_with = compatible_with,
         deps = [
             "//tools/testing:dx_testing",
             "//tools/testing/hermetic",
+            "//tools/testing/nested:dx_nested",
         ],
         **kwargs
     )
 
-def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
-    """Declares a rust_test that runs a nested Bazel with the shared tags, env and the cache set `cache` whose locks are the label `cache_locks`."""
+def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None, caches = "shared", data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env, the cache set `cache` whose locks are `cache_locks`, and `caches = "private"` to stay off the shared cache root."""
     target_compatible_with = target_compatible_with or []
     cache_data = []
     cache_env = {}
     if bool(cache) != bool(cache_locks):
         fail("cache and cache_locks go together")
+    if caches not in ("shared", "private"):
+        fail("%s: caches is %r, want \"shared\" or \"private\"" % (name, caches))
     if cache:
         repository_cache = "@nested_cache_%s//:cache" % cache
         locks = cache_locks
@@ -216,10 +219,13 @@ def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None
             "DX_NESTED_LOCKS": "$(rlocationpaths %s)" % locks,
             "DX_NESTED_REPOSITORY_CACHE": "$(rlocationpath %s)" % repository_cache,
         }
+    if caches == "private":
+        cache_env["DX_NESTED_CACHES"] = "private"
     rust_test(
         name = name,
         data = (data or []) + cache_data + NESTED_BAZEL_DATA,
         env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | cache_env | (env or {}),
+        env_inherit = ["DX_NESTED_SHARED"] if caches == "shared" else [],
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with,
         **kwargs

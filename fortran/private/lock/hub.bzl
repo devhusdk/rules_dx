@@ -15,6 +15,7 @@ def build_file(package):
         '    srcs = glob(["src/**/*." + ext for ext in FORTRAN_EXTENSIONS], allow_empty = True),',
         '    includes = ["src"],',
         "    deps = %s," % json.encode(["//" + dep for dep in package.get("deps", [])]),
+        "    warnings_as_errors = False,",
         '    visibility = ["//visibility:public"],',
         ")",
         "",

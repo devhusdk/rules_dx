@@ -58,7 +58,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/waitgroup"
 )
 
-// defaults run unless removed with -NAME. optional ones run only when named.
 var defaults = []*analysis.Analyzer{
 	appends.Analyzer,
 	asmdecl.Analyzer,
@@ -97,8 +96,6 @@ var defaults = []*analysis.Analyzer{
 	waitgroup.Analyzer,
 }
 
-// strictOnly are the analyzers the strict profile adds to the defaults.
-// forvar is x/tools' successor to the copyloopvar linter.
 var strictOnly = []*analysis.Analyzer{
 	bodyclose.Analyzer,
 	errorlint.NewAnalyzer(),
@@ -116,7 +113,6 @@ var (
 	excludes = map[string][]*regexp.Regexp{}
 )
 
-// analyzersFor returns the analyzers the profile runs.
 func analyzersFor(profile string) ([]*analysis.Analyzer, error) {
 	switch profile {
 	case "standard":
@@ -127,8 +123,6 @@ func analyzersFor(profile string) ([]*analysis.Analyzer, error) {
 	return nil, fmt.Errorf("unknown profile %q, want standard or strict", profile)
 }
 
-// analyzerConfig is the nogo style config: per analyzer, regexes of files
-// whose findings are dropped, each with a reason.
 type analyzerConfig map[string]struct {
 	ExcludeFiles map[string]string `json:"exclude_files"`
 }
@@ -189,7 +183,6 @@ type diagnostic struct {
 	Posn string `json:"posn"`
 }
 
-// filter drops the findings whose file an analyzer excludes.
 func filter(_ *unit.Config, tree unit.Tree) unit.Tree {
 	for _, byAnalyzer := range tree {
 		for name, raw := range byAnalyzer {
@@ -235,7 +228,6 @@ func excluded(res []*regexp.Regexp, posn string) bool {
 	return false
 }
 
-// Main runs go vet's analyzers as a unitchecker over args and returns the exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
 	opts := unit.Options{
 		Configure: configure,

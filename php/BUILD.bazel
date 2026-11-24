@@ -9,9 +9,6 @@ exports_files([
     "pins.json",
 ])
 
-# Public so users can register their own PHP toolchain. Register it for both
-# types: the target type is the interpreter php_binary and php_test ship, the
-# exec type is the interpreter build actions run on the execution platform.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],
@@ -22,7 +19,6 @@ toolchain_type(
     visibility = ["//visibility:public"],
 )
 
-# Programs put this in deps to find their runfiles with Bazel\Runfiles\Runfiles.
 php_library(
     name = "runfiles",
     srcs = ["//php/private:Runfiles.php"],

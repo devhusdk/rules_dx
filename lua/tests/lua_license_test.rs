@@ -1,8 +1,5 @@
-//! The shipped Lua and LuaFileSystem licence texts match the pinned upstream sources.
-
 use dx_testing::{env_file, read_text};
 
-/// The copyright block at the end of `lua.h`, without its `/****` and `****/` rules and the leading `* ` of each line.
 fn copyright_block(header: &str) -> String {
     let header = header.replace("\r\n", "\n");
     let lines: Vec<&str> = header.lines().collect();

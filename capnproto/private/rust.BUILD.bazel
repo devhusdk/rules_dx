@@ -1,6 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
-# The capnp runtime and the capnpc code generator library, from one source archive.
 rust_library(
     name = "capnp",
     srcs = glob(["capnp/src/**/*.rs"]),

@@ -1,5 +1,3 @@
-//! Builds the split APKs one App Bundle installs on one device spec.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -7,7 +5,6 @@ use crate::util::{Captured, Failure, Outcome, apks_in, capture, reject, scratch_
 
 pub const PREFIX: &str = "dx-android-apk-set";
 
-/// The first bundletool error line, without its tag.
 #[must_use]
 pub fn reason(log: &str) -> &str {
     log.lines()
@@ -32,7 +29,6 @@ fn rejected(ran: &Captured, spec: &Path, aab: &Path, what: String) -> Failure {
 }
 
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let [bundletool, aab, spec, keystore, apks, out_dir] = args else {

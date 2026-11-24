@@ -31,7 +31,7 @@ TOOLS = {
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,
-        "shard": "core",
+        "shard": "docstrfmt",
     },
     "lychee": {
         "attr": attr.label(default = "@dx_tools//:lychee", allow_single_file = True, cfg = "exec"),
@@ -86,6 +86,11 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Biome real lint aspect.",
         "shard": "biome",
+    },
+    "real_docstrfmt_format": {
+        "capability": "format",
+        "doc": "docstrfmt real format aspect.",
+        "shard": "docstrfmt",
     },
     "real_format": {
         "capability": "format",
@@ -176,5 +181,7 @@ real_typecheck_aspect = real_make_aspect(_CFG, "real_typecheck")
 real_biome_format_aspect = real_make_aspect(_CFG, "real_biome_format")
 
 real_biome_lint_aspect = real_make_aspect(_CFG, "real_biome_lint")
+
+real_docstrfmt_format_aspect = real_make_aspect(_CFG, "real_docstrfmt_format")
 
 real_vale_lint_aspect = real_make_aspect(_CFG, "real_vale_lint")

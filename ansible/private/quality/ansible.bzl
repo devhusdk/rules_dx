@@ -32,7 +32,6 @@ SHARD_SPECS = {
 }
 
 def _yamlfmt_hook(_target, _ctx, _resolved, _capability, _what, _shared):
-    # ansible-lint rejects a playbook without `---`, which yamlfmt drops by default.
     return real_context(options = {"args": ["document_start"]})
 
 HOOK_ORDER = ["yamlfmt"]

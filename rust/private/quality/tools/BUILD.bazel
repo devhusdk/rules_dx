@@ -1,5 +1,4 @@
 # gazelle:ignore
-# Quality tools built from Rust source through the dx_quality_crates hub.
 
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
@@ -32,7 +31,6 @@ alias(
     actual = "//rust/private/tools/topiary:dx_topiary",
 )
 
-# dx_quality_crates has no windows_arm64 cell, so tools built from source select a marked stub there.
 config_setting(
     name = "windows_arm64",
     constraint_values = [

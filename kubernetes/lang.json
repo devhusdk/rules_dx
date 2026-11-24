@@ -33,6 +33,7 @@
       "format": [],
       "lint": [
         "kubeconform",
+        "trivy_config",
         "typos"
       ],
       "typecheck": []

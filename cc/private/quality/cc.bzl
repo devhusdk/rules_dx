@@ -8,7 +8,6 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
-# `generated` and `qml_srcs` are the qt_* forward rule's qmldir, qmltypes and QML sources.
 _QML_CONTEXT_ATTRS = ["srcs", "data", "qml_srcs", "generated"]
 
 QmlContextInfo = provider(

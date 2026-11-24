@@ -2,7 +2,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_name")
-load("//fortran/private:kwargs.bzl", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
+load("//fortran/private:kwargs.bzl", "STRICT_COPTS", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_strict_copts", "fortran_with_defaults")
 load(":toolchain_tests.bzl", "fortran_metadata_tests")
 
 package(default_visibility = ["//visibility:private"])
@@ -66,6 +66,21 @@ dx_wrapper_contract_tests(
             "the guard stays with an empty list",
             type(fortran_with_defaults({"target_compatible_with": []})["target_compatible_with"]),
             "select",
+        ),
+        expect_equal(
+            "the strict copts come before the user's copts",
+            fortran_strict_copts({"copts": ["-std=f2008"], "warnings_as_errors": True})["copts"],
+            STRICT_COPTS + ["-std=f2008"],
+        ),
+        expect_equal(
+            "warnings_as_errors off keeps only the user's copts",
+            fortran_strict_copts({"copts": ["-std=f2008"], "warnings_as_errors": False})["copts"],
+            ["-std=f2008"],
+        ),
+        expect_equal(
+            "warnings_as_errors does not reach the library",
+            "warnings_as_errors" in fortran_strict_copts({"warnings_as_errors": True}),
+            False,
         ),
         expect_equal(
             "compile attributes reach the library",

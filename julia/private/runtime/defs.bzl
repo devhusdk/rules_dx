@@ -40,9 +40,6 @@ def julia_source_toolchain_target(name):
 def _runtime_version_impl(_settings, _attr):
     return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}
 
-# The source-built runtime and the toolchain it links against must be the same Julia release.
-# The stock flag keeps the source toolchain out of resolution here, so these rules see the
-# downloaded release instead of themselves.
 _runtime_version = transition(
     implementation = _runtime_version_impl,
     inputs = [],
@@ -114,9 +111,6 @@ def _rlocationpath(ctx, file):
 
 def _julia_source_toolchain_impl(ctx):
     stock = ctx.toolchains[_JULIA_TOOLCHAIN]
-
-    # The source build carries the versioned file among others; the hub file and the
-    # guard stub are the one file of their target.
     built = [f for f in ctx.files.library if f.basename == _LIBRARY] or ctx.files.library
     if len(built) != 1:
         fail("{} holds no {} and is not one file".format(ctx.attr.library.label, _LIBRARY))
@@ -135,8 +129,6 @@ def _julia_source_toolchain_impl(ctx):
         out = ctx.actions.declare_file(ctx.label.name + "/" + rel)
         tree[rel] = out
 
-        # The dynamic loader resolves $ORIGIN and Julia finds libjulia-internal next to
-        # the real path of julia and libjulia, so those must be files in this tree.
         if rel == internal:
             coreutils_copy(ctx, built[0], out, "JuliaRuntimeCopy")
         elif rel.startswith("bin/") or rel.startswith("lib/libjulia.so"):

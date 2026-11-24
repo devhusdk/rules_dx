@@ -89,7 +89,6 @@ def hub_build(versions):
     testing_toolchain_type = str(Label("//scala/private/toolchain/hub:testing_toolchain_type"))
     out = ['package(default_visibility = ["//visibility:public"])\n']
 
-    # Bazel registers the toolchains of a package in name order, so semanticdb_* wins over upstream_* when both match.
     for v in versions:
         suffix = _suffix(v)
         version_setting = str(Label("@rules_scala_config//:scala_version" + suffix))

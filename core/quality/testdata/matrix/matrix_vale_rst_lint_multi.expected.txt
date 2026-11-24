@@ -5,7 +5,7 @@ stage vale classes=rst sources=matrix/rst_a.rst,matrix/rst_b.rst
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING vale Dx.Markers matrix/rst_b.rst 50 55 fixable=false "Remove 'FIXME' markers before merging."
+initial ERROR vale Dx.Markers matrix/rst_b.rst 50 55 fixable=false "Remove 'FIXME' markers before merging."
 terminal 1
-terminal WARNING vale Dx.Markers matrix/rst_b.rst 50 55 fixable=false "Remove 'FIXME' markers before merging."
+terminal ERROR vale Dx.Markers matrix/rst_b.rst 50 55 fixable=false "Remove 'FIXME' markers before merging."
 replacements 0

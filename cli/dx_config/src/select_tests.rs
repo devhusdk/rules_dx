@@ -114,6 +114,12 @@ fn cross_family_tools_follow_the_root_tier() {
 }
 
 #[test]
+fn a_tier_on_one_iac_family_loads() {
+    let config = parse("schema_version = 1\n[families.helm]\ntier = \"standard\"\n").unwrap();
+    assert!(effective(Some(&config)).is_ok());
+}
+
+#[test]
 fn two_owners_of_one_concern_are_rejected() {
     let error =
         problem("schema_version = 1\n[families.javascript]\nlint = [\"eslint\", \"biome\"]\n");

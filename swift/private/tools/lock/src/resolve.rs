@@ -1,4 +1,3 @@
-//! Resolves a Swift package set from its pins and the targets `swift package describe` prints.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -9,20 +8,15 @@ use dx_lock::{
 };
 use serde_json::{Map, Value, json};
 
-/// Downloads archives.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Github(HttpFetch);
 
 impl Github {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -41,7 +35,6 @@ impl Download for Github {
     }
 }
 
-/// The resolver of the swiftpm ecosystem.
 pub struct Swift<'a> {
     swift: PathBuf,
     manifest: String,
@@ -49,7 +42,6 @@ pub struct Swift<'a> {
     download: &'a dyn Download,
 }
 
-/// One pin of the state file.
 struct Pin {
     identity: String,
     version: String,
@@ -57,7 +49,6 @@ struct Pin {
     strip_prefix: String,
 }
 
-/// What `swift package describe` printed for one pin.
 struct Described {
     pin: Pin,
     sha256: String,
@@ -66,7 +57,6 @@ struct Described {
     settings: BTreeMap<String, Settings>,
 }
 
-/// The unconditional settings of one target of a dumped package.
 #[derive(Default)]
 struct Settings {
     defines: Vec<String>,
@@ -91,7 +81,6 @@ fn strings(value: &Value) -> Vec<String> {
 }
 
 impl<'a> Swift<'a> {
-    /// A resolver that runs `swift` and downloads with `download`.
     #[must_use]
     pub fn new(swift: PathBuf, spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -102,7 +91,6 @@ impl<'a> Swift<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -112,8 +100,6 @@ impl<'a> Swift<'a> {
         }
     }
 
-    /// Writes the state file from the root manifest: each `exact:` GitHub requirement becomes the
-    /// commit its tag names.
     fn write_state(&self, scratch: &Scratch) -> Result<(), Error> {
         let text = std::fs::read_to_string(scratch.set().join(&self.manifest))
             .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
@@ -346,9 +332,6 @@ fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
         .collect()
 }
 
-/// The defines and header paths that apply to every platform and configuration, by target name,
-/// and the names of targets with a setting that applies to some platforms or configurations only.
-///
 /// # Errors
 /// Fails when a target has no name.
 fn target_settings(
@@ -399,10 +382,6 @@ fn target_settings(
     Ok((all, conditional))
 }
 
-/// The library products of a described package and the targets they need, by name. A product
-/// whose targets include one that is not a Swift or C library, such as a macro, plugin or
-/// executable target, or one named in `unsupported`, is left out.
-///
 /// # Errors
 /// Fails when a product has no name or a target is not described.
 pub fn library_targets(
@@ -448,7 +427,6 @@ pub fn library_targets(
     Ok((products, targets))
 }
 
-/// The package of `old` that has the name, version and archive URL of `pin`.
 fn unchanged<'l>(old: &'l Lock, pin: &Pin) -> Option<&'l Package> {
     old.packages.iter().find(|package| {
         package.name == pin.identity
@@ -616,8 +594,6 @@ impl Resolver for Swift<'_> {
     }
 }
 
-/// Runs the swiftpm lock step on `args`, the arguments after `dx swift_lock`: `--swift=<path>`
-/// and the `dx_lock::Args` flags. 0 when the lock is fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let (paths, rest) = match dx_lock::tool_paths(args, &["--swift"]) {
         Ok(split) => split,

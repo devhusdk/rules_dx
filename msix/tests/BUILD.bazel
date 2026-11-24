@@ -556,7 +556,6 @@ sign_env_test(
     target_under_test = "//msix/tests/fixtures/msix_app/app:app_sign",
 )
 
-# size: medium, timed out at 300s on windows
 [
     powershell_test(
         name = "install_" + case + "_test",

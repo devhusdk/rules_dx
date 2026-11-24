@@ -169,8 +169,6 @@ MUSL_CELLS = {
 
 ALL_CELLS = CELLS | MUSL_CELLS
 
-# llvm_backend: the macOS GHC's AArch64 native code generator prints Mach-O GOT relocations
-# whatever the target, so that cell compiles through llc and opt to emit ELF.
 CROSS_CELLS = {
     "linux_arm64_to_linux_x86_64": struct(host = "linux_arm64", target = "linux_x86_64", cc_target = "x86_64-linux-gnu", llvm_backend = False),
     "linux_x86_64_to_linux_arm64": struct(host = "linux_x86_64", target = "linux_arm64", cc_target = "aarch64-linux-gnu", llvm_backend = False),

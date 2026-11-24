@@ -11,7 +11,6 @@ permissions:
 env:
   BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
   BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-  # Git Bash must not convert Bazel labels.
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
@@ -81,7 +80,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --nocache_test_results --test_timeout=2400 --test_env=DX_NESTED_BAZEL_NETWORK=1 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --nocache_test_results --test_timeout=2400 --test_env=DX_NESTED_BAZEL_NETWORK=1 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
     timeout-minutes: 120
@@ -107,26 +106,21 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           targets="$(bazel query "$@" 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...) except filter("_msvc$", //...)' --output=label)"
           test -n "$targets"
-          echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $targets
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $targets
       - name: Run the release consumer cases offline
         if: ${{ !cancelled() }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //deploy/private/release/tests:release_consumer_smoke_test
-      - uses: ./.github/actions/hermetic-evidence
-        if: always()
-        with:
-          platform: linux_x86_64
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+          echo "Qualified a fresh C++ and Rust consumer on the nested Bazel harness: test offline from its cache set." >> "$GITHUB_STEP_SUMMARY"
   hermetic-macos:
     name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
     timeout-minutes: 150
@@ -146,21 +140,16 @@ jobs:
       - name: Qualify the consumer without installs or network
         run: |
           test "$(uname -s)" = Darwin
-          printf '%s\n' //tools/testing/hermetic:cpp_rust > "$RUNNER_TEMP/hermetic-targets"
+          # The qualifications compatible with macOS; widen this list with the target (#8258).
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          # shellcheck disable=SC2046
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test //apple/tests:consumer_build_test $(cat "$RUNNER_TEMP/hermetic-targets")
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test //apple/tests:consumer_build_test //tools/testing/hermetic:cpp_rust
       - name: Run the README quickstart and bcr_test_module cases for macos_arm64
         if: ${{ !cancelled() }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel test --noshow_progress --test_output=all --test_timeout=2400 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::bcr_test_module_runs_its_presubmit_targets --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
-      - uses: ./.github/actions/hermetic-evidence
-        if: always()
-        with:
-          platform: macos_arm64
   hermetic-windows:
     name: hermetic-windows (MSVC isolation on ${{ matrix.platform }})
     timeout-minutes: 90
@@ -208,7 +197,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_windows_probe_test
           if [ "$PLATFORM" = windows_x86_64 ]; then
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
@@ -245,7 +234,6 @@ jobs:
         with:
           cache-save: false
       - name: Build twice and compare the execution logs
-        # A step timeout fails the step and keeps the log; the job cap above discards it.
         timeout-minutes: 40
         env:
           SHARD: ${{ matrix.shard }}

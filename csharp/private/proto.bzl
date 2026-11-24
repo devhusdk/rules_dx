@@ -52,7 +52,6 @@ def _csharp_proto_srcs_impl(ctx):
     args.add_all(protos)
     ctx.actions.run(
         executable = ctx.toolchains[_PROTO_TOOLCHAIN].proto.proto_compiler,
-        # Run on the same exec platform as _exec_os, which picks the path separator.
         toolchain = None,
         arguments = [args],
         inputs = descriptors,
@@ -72,7 +71,6 @@ csharp_proto_srcs = rule(
             providers = [ExecOsInfo],
         ),
     },
-    # The resolved toolchain is the prebuilt protoc binary where one exists, so no protobuf C++ builds.
     toolchains = [config_common.toolchain_type(_PROTO_TOOLCHAIN, mandatory = True)],
     doc = "Generates the <Name>.cs files of one proto_library.",
 )

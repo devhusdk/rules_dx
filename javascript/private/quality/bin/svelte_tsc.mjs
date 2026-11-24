@@ -50,7 +50,6 @@ for (const row of run.stdout.split(/\r?\n/)) {
   }
   const fromTs = entry.source === "ts" || entry.source === "js";
   if (fromTs && !(entry.code > 0)) {
-    // svelte-check repeats a Svelte compile error as a code-less TypeScript row.
     continue;
   }
   const message = entry.message.replace(/\s*\r?\n\s*/g, " ");

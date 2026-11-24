@@ -33,7 +33,6 @@ def resolve(branches):
         if groups:
             oses[os] = branches[groups[0]]
 
-    # When full-name keys cover every name of an OS, the OS arm adds nothing, and for web it would match exactly the same platforms.
     for os in list(oses):
         if all([name in names for name in PLATFORMS if PLATFORMS[name].os == os]):
             oses.pop(os)

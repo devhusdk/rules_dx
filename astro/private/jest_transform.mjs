@@ -2,9 +2,6 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-// Compiles one .astro file for jest with the @astrojs/compiler-rs the test links.
-// The source map lets jest's coverage report the lines of the component, not
-// of the generated code.
 async function processAsync(src, filename, options) {
 	const req = createRequire(path.join(options.config.rootDir, "package.json"));
 	const { transform } = await import(

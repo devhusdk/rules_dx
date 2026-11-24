@@ -122,7 +122,6 @@ def _go_analysis_impl(target, ctx):
             own.append(dep.data)
             continue
 
-        # gc export data of a direct dep includes every type its API reaches.
         data = dep.data
         if not data.importmap or data.export_file == None:
             continue

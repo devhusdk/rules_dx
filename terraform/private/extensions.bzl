@@ -62,7 +62,8 @@ def hub_build(providers):
     lines.append("")
     for name, entry in sorted(providers.items()):
         branches = ["        \":%s\": \"@%s//:provider\"," % (t, repo) for t, repo in sorted(entry["repos"].items())]
-        lines.append("alias(\n    name = \"%s\",\n    actual = select({\n%s\n    }, no_match_error = \"provider %s has no artifact for this execution platform\"),\n)\n" % (name, "\n".join(branches), entry["source"]))
+        compatible = ["        \":%s\": []," % t for t in sorted(entry["repos"])] + ["        \"//conditions:default\": [\"@platforms//:incompatible\"],"]
+        lines.append("alias(\n    name = \"%s\",\n    actual = select({\n%s\n    }, no_match_error = \"provider %s has no artifact for this execution platform\"),\n    target_compatible_with = select({\n%s\n    }),\n)\n" % (name, "\n".join(branches), entry["source"], "\n".join(compatible)))
     return "\n".join(lines)
 
 def provider_repos(hub, lock):

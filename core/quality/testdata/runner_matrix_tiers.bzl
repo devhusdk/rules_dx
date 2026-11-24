@@ -36,6 +36,7 @@ def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
     )
 
 _HADOLINT_CLEAN = {"matrix/hadolint_tier/Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n"}
+_HADOLINT_GUARD = {"matrix/hadolint_guard/Dockerfile": "FROM alpine:latest\nUSER root\n"}
 _HADOLINT_STYLE = {"matrix/hadolint_style/Dockerfile": "FROM scratch\nRUN [\"/bin/a\"]\nRUN [\"/bin/b\"]\n"}
 _TFLINT_DOCUMENTED = {
     "matrix/tflint_tier/variables.tf": "variable \"name\" {\n  type        = string\n  description = \"Name.\"\n}\n",
@@ -127,6 +128,14 @@ def _lint_cases(tier):
     ]
 
 TIERS_CASES = _lint_cases("standard") + _lint_cases("strict") + [
+    _lint_case(
+        "matrix_dockerfile_lint_guard_strict",
+        _HADOLINT_GUARD,
+        "dockerfile",
+        "hadolint",
+        "@dx_tools//:hadolint",
+        "//core/quality/tiers/hadolint:strict.yaml",
+    ),
     _fixpoint_case("matrix_tiers_javascript_format_pass", "biome", "@dx_tools//:biome", "javascript", TIER_JAVASCRIPT, "//:biome.json"),
     _fixpoint_case("matrix_tiers_json_format_pass", "prettier", "//javascript/private/quality/bin:prettier", "json", TIER_JSON),
     _fixpoint_case("matrix_tiers_toml_format_pass", "taplo", "@dx_tools//:taplo", "toml", TIER_TOML),

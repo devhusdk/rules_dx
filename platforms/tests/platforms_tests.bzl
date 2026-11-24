@@ -194,7 +194,6 @@ def transition_analysis_tests(name, size):
     moved_subject(name = name + "_android", platforms = ["android"], value = platform_select(_SELECT))
     moved_subject(name = name + "_web_os", platforms = ["web"], value = platform_select(_SELECT))
 
-    # The host is linux, macos or windows, so an OS key matches it whatever its CPU.
     moved_subject(name = name + "_os_key", value = platform_select({"linux": "os", "macos": "os", "windows": "os"}))
     subjects = ["android", "min_os", "os_key", "os_only", "stay", "wasi", "web", "web_os"]
     observations = []

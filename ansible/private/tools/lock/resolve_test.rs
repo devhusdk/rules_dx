@@ -1,5 +1,3 @@
-//! The ansible lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
-
 use ansible_lock::{Ansible, parse_requirements};
 use dx_lock::{Args, Error, Outcome, run};
 use dx_lock_testing::FixtureFetch;

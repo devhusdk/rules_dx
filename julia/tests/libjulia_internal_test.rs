@@ -1,5 +1,3 @@
-//! The source-built libjulia-internal stands in for the one the runtime's Julia release ships.
-
 use object::elf;
 use object::read::elf::{Dyn, ElfFile64, FileHeader};
 use object::{Object, ObjectSymbol};
@@ -13,7 +11,6 @@ fn julia() -> PathBuf {
     dx_testing::resolve_runfiles(&rel)
 }
 
-/// The Julia tree root: the directory above the `bin/` holding `julia`.
 fn julia_root() -> PathBuf {
     let exe = std::fs::canonicalize(julia()).expect("resolve julia");
     exe.parent()
@@ -35,7 +32,6 @@ fn built() -> PathBuf {
     dx_testing::resolve_runfiles(rel)
 }
 
-/// The library file name, `libjulia-internal.so.<major>.<minor>.<patch>`.
 fn library() -> String {
     built()
         .file_name()
@@ -44,7 +40,6 @@ fn library() -> String {
         .into_owned()
 }
 
-/// The library file name without its patch number.
 fn major_minor_alias() -> String {
     let library = library();
     let (alias, _patch) = library.rsplit_once('.').expect("versioned library name");

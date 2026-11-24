@@ -1,5 +1,3 @@
-//! The maven lock step writes the golden lock from a runfiles repository with an empty `PATH`.
-
 use maven_lock::{MARKER, Outcome, Request, Tools, config, lock, run_process};
 
 const MANIFEST: &str = "[versions]\nlib = \"2.0\"\n\n[libraries]\napp = \"com.example:app:1.0\"\nlib = { module = \"com.example:lib\", version.ref = \"lib\" }\n";

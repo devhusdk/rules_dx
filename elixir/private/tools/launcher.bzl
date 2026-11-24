@@ -4,10 +4,8 @@ load("//core:rlocation.bzl", "runfiles_path")
 
 MIX_HOME = "/nonexistent/dx_mix_format"
 
-# A drive path that does not exist and is valid on Windows.
 WINDOWS_MIX_HOME = "C:/dx_nonexistent/dx_mix_format"
 
-# What the caller of a `caller_homes` launcher may set; the rest of the mix environment is fixed.
 _CALLER_HOMES = ["HEX_HOME", "HOME", "MIX_HOME"]
 
 def _mix_env(home):

@@ -1,4 +1,3 @@
-//! The nuget resolver: one exact-version closure per Paket group of the Paket lock file.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -10,29 +9,21 @@ use dx_lock::{
 };
 use serde_json::Value;
 
-/// The `NuGet` v3 service index that every Paket `source` names.
 pub const SOURCE: &str = "https://api.nuget.org/v3/index.json";
 
-/// The flat container of [`SOURCE`].
 pub const FLAT: &str = "https://api.nuget.org/v3-flatcontainer";
 
-/// The group a Paket file names before its first `group` line.
 pub const MAIN: &str = "main";
 
-/// Reads registry bytes.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// The `NuGet` registry over HTTPS.
 pub struct Registry(HttpFetch);
 
 impl Registry {
-    /// A registry client.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -51,19 +42,13 @@ impl Download for Registry {
     }
 }
 
-/// One package line of a Paket lock group.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Pinned {
-    /// The package id as Paket writes it.
     pub name: String,
-    /// The normalized `NuGet` version.
     pub version: String,
-    /// The ids of the packages it needs.
     pub deps: Vec<String>,
 }
 
-/// The group names of a Paket dependencies file, in file order.
-///
 /// # Errors
 /// Fails on a source other than [`SOURCE`] and on a group named twice.
 pub fn manifest_groups(text: &str) -> Result<Vec<String>, Error> {
@@ -91,7 +76,6 @@ pub fn manifest_groups(text: &str) -> Result<Vec<String>, Error> {
     Ok(groups)
 }
 
-/// The `framework:` target frameworks of each group of a Paket dependencies file, sorted.
 #[must_use]
 pub fn manifest_frameworks(text: &str) -> BTreeMap<String, Vec<String>> {
     let mut frameworks: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -113,7 +97,6 @@ pub fn manifest_frameworks(text: &str) -> BTreeMap<String, Vec<String>> {
     frameworks
 }
 
-/// The `NuGet` normal form of a version: three or four numeric parts, a fourth only when not zero.
 #[must_use]
 pub fn normalize_version(version: &str) -> String {
     let (release, label) = match version.find(['-', '+']) {
@@ -135,8 +118,6 @@ pub fn normalize_version(version: &str) -> String {
     format!("{}{label}", parts.join("."))
 }
 
-/// The packages of each group of a Paket lock file, by group name.
-///
 /// # Errors
 /// Fails on a section other than `NUGET`, a remote other than [`SOURCE`] and a line outside a package.
 pub fn lock_groups(text: &str) -> Result<BTreeMap<String, Vec<Pinned>>, Error> {
@@ -201,14 +182,12 @@ pub fn lock_groups(text: &str) -> Result<BTreeMap<String, Vec<Pinned>>, Error> {
     Ok(groups)
 }
 
-/// The id and parenthesized version of `Name (version) - options`.
 fn package_line(body: &str) -> Option<(&str, &str)> {
     let (name, rest) = body.split_once(" (")?;
     let (version, _) = rest.split_once(')')?;
     Some((name.trim(), version.trim()))
 }
 
-/// The flat container URL of a package archive.
 #[must_use]
 pub fn archive_url(name: &str, version: &str) -> String {
     let id = name.to_ascii_lowercase();
@@ -216,8 +195,6 @@ pub fn archive_url(name: &str, version: &str) -> String {
     format!("{FLAT}/{id}/{version}/{id}.{version}.nupkg")
 }
 
-/// The assembly names under `lib/` of a package archive.
-///
 /// # Errors
 /// Fails when the bytes are not a zip archive.
 pub fn assemblies(bytes: &[u8]) -> Result<Vec<String>, Error> {
@@ -242,7 +219,6 @@ pub fn assemblies(bytes: &[u8]) -> Result<Vec<String>, Error> {
     Ok(names)
 }
 
-/// The attributes of every `<tag ...>` element of an XML text, in document order.
 fn elements(text: &str, tag: &str) -> Vec<BTreeMap<String, String>> {
     let open = format!("<{tag}");
     let mut found = Vec::new();
@@ -273,19 +249,13 @@ fn elements(text: &str, tag: &str) -> Vec<BTreeMap<String, String>> {
     found
 }
 
-/// One command of a .NET tool package.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Tool {
-    /// The command name.
     pub name: String,
-    /// The assembly the command runs.
     pub entrypoint: String,
-    /// The host that runs it.
     pub runner: String,
 }
 
-/// The commands of a .NET tool package archive by tools folder target framework; empty for other packages.
-///
 /// # Errors
 /// Fails when the bytes are not a zip archive or a tool settings file is unreadable.
 pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
@@ -335,10 +305,8 @@ pub fn tools(bytes: &[u8]) -> Result<BTreeMap<String, Vec<Tool>>, Error> {
     Ok(found)
 }
 
-/// The most bytes read from one package archive member.
 const MEMBER_LIMIT: u64 = 8 << 20;
 
-/// The member names of a package archive, with the text of those `read` selects.
 fn members(
     bytes: &[u8],
     read: impl Fn(&str) -> bool,
@@ -377,7 +345,6 @@ fn is_nuspec(name: &str) -> bool {
     !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec")
 }
 
-/// The target framework of a `tools/<tfm>/<rid>/DotnetToolSettings.xml` member.
 fn tool_settings(name: &str) -> Option<&str> {
     let mut parts = name.split('/');
     match (
@@ -392,7 +359,6 @@ fn tool_settings(name: &str) -> Option<&str> {
     }
 }
 
-/// The `sha512-<base64>` digest of `bytes`.
 #[must_use]
 pub fn sha512(bytes: &[u8]) -> String {
     format!(
@@ -401,18 +367,13 @@ pub fn sha512(bytes: &[u8]) -> String {
     )
 }
 
-/// The pinned Paket and the dotnet host that runs it.
 #[derive(Clone, Debug)]
 pub struct Paket {
-    /// The `dotnet` host executable.
     pub dotnet: std::path::PathBuf,
-    /// The Paket `.nupkg`.
     pub nupkg: std::path::PathBuf,
 }
 
 impl Paket {
-    /// Writes the state file of the set in `scratch.set()`.
-    ///
     /// # Errors
     /// Fails when the package cannot be unpacked or Paket fails.
     pub fn install(&self, scratch: &Scratch) -> Result<(), Error> {
@@ -446,7 +407,6 @@ impl Paket {
     }
 }
 
-/// The nuget resolver.
 pub struct Nuget<'a> {
     manifest: String,
     state: String,
@@ -455,7 +415,6 @@ pub struct Nuget<'a> {
 }
 
 impl<'a> Nuget<'a> {
-    /// A resolver for the files of `spec` over `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -466,14 +425,12 @@ impl<'a> Nuget<'a> {
         }
     }
 
-    /// Runs `paket` to write the state file before it is read.
     #[must_use]
     pub fn with_paket(mut self, paket: Paket) -> Self {
         self.paket = Some(paket);
         self
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -619,9 +576,6 @@ impl Resolver for Nuget<'_> {
     }
 }
 
-/// Runs the nuget lock step on `args`, the arguments after `dx csharp_lock`:
-/// `--dotnet=<path> --paket=<path>` and the `dx_lock::Args` flags. 0 when the lock is fresh or
-/// written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let (paths, rest) = match dx_lock::tool_paths(args, &["--dotnet", "--paket"]) {
         Ok(split) => split,

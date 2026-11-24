@@ -15,7 +15,6 @@ cli/process/src/procs_tests.rs spawn-by-name 3
 cli/shim/src/protocol.rs env-path 1
 cli/shim/src/protocol.rs spawn-by-name 1
 cli/shim/tests/e2e.rs spawn-by-name 1
-cli/test_scratch/src/lib.rs spawn-by-name 2
 cli/worktree/src/host.rs env-path 1
 cli/worktree/src/host.rs spawn-by-name 3
 core/quality/artifacts/acquire_test/repos.bzl rctx-which 1
@@ -45,7 +44,7 @@ tools/docs/site/browser/src/lib_tests.rs spawn-by-name 1
 tools/testing/hermetic/isolation_windows_test.rs spawn-by-name 3
 tools/testing/hermetic/src/lib.rs env-home 3
 tools/testing/hermetic/src/lib.rs env-path 1
-tools/testing/hermetic/src/lib.rs spawn-by-name 2
+tools/testing/hermetic/src/lib.rs spawn-by-name 1
 tools/testing/nested/src/lib.rs spawn-by-name 3
 tools/testing/preflight_smoke_test.rs spawn-by-name 1
 tools/testing/src/lib.rs spawn-by-name 1

@@ -224,6 +224,7 @@ def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None
         name = name,
         data = (data or []) + cache_data + NESTED_BAZEL_DATA,
         env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | cache_env | (env or {}),
+        env_inherit = ["DX_NESTED_SHARED"] if caches == "shared" else [],
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with,
         **kwargs

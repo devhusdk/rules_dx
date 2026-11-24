@@ -549,6 +549,27 @@ fn a_shared_root_over_its_limit_evicts_the_least_recently_used_entry_first() {
 }
 
 #[test]
+fn an_eviction_stopped_mid_delete_leaves_the_repositories_whole_and_its_trash_is_emptied() {
+    let shared = tmpdir().join("interrupted");
+    let root = shared.to_string_lossy();
+    probe(&root);
+    let half = shared.join(nested::shared::TRASH).join("1-2-0");
+    std::fs::create_dir_all(half.join("external")).expect("mkdir");
+    std::fs::File::create(half.join("external").join("BUILD.bazel"))
+        .and_then(|file| file.set_len(1 << 20))
+        .expect("half-deleted entry");
+    let rerun = probe(&root);
+    assert!(!half.exists(), "{}", rerun.combined());
+    assert_eq!(
+        probe_line(&rerun, "extracted"),
+        "false",
+        "{}",
+        rerun.combined()
+    );
+    assert_eq!(probe_line(&rerun, "fetched"), "", "{}", rerun.combined());
+}
+
+#[test]
 fn without_a_shared_root_a_test_extracts_fetches_and_stops_its_server() {
     let probe = probe("");
     assert_eq!(

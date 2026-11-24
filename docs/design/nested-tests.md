@@ -64,12 +64,12 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 
 ### Environment
 
-- The test sets `PATH=/dx_no_path` and inherits no host variable. `NESTED_BAZEL_ENV_INHERIT` is deleted.
+- The test sets `PATH=/dx_no_path` and inherits no host variable but `DX_NESTED_SHARED`. `NESTED_BAZEL_ENV_INHERIT` is deleted.
 - `HOME`, the output user root and every workspace are under `TEST_TMPDIR`.
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
 - The nested Bazel reads one rc file that the harness writes. It reads no home, system or workspace rc of the host.
 - The nested Bazel uses no remote cache.
-- setup-bazel sets `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, least recently used first.
+- setup-bazel exports `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, least recently used first, sparing what running tests hold.
 - `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 
@@ -83,14 +83,14 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - The harness builds a repository cache from the manifest and passes `--repository_cache`.
 - A nested test declares one cache set with `nested_bazel_test(cache = "<set>")`.
 - The downloader config blocks every host, `bcr.bazel.build` included.
-- A missing entry fails the test with the URL.
+- A missing entry fails with the URL.
 - `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, and the tool copies them to `tools/testing/nested_cache`.
 - Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
 - Each case that ends rewrites the record from every workspace registered so far, so a failing test still uploads its record. The exit hook rewrites it once more and fails on a missing lock.
 - `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two digests, fails when the locks of one stem differ, and writes the result to `tools/testing/nested_cache`.
 - A full re-record is one `lock-refresh.yml` dispatch with `nested=true` and `pr=<number>` on the pull request branch. It records the nested tests on linux_x86_64, macos_arm64 and windows_x86_64, merges the three hosts with `--from` and pushes `tools/testing/nested_cache` to that branch with the root lock.
-- The list is the registry files, module archives, patches and overlays of the lock, and every checksummed download in the Bazel workspace rules log. Nothing is edited by hand.
+- The list is the registry files, module archives, patches and overlays of the lock, and every checksummed download in the Bazel workspace rules log. None is hand-edited.
 - `//core/modules:consumer_deps_test` fails a PR that bumps a registry `bazel_dep` until the same PR re-records every nested cache set.
 
 ### Tags
@@ -98,7 +98,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - No `local`, `no-sandbox`, `no-cache`, `no-remote`, `external`, `requires-network` or `manual`.
 - `NESTED_BAZEL_NETWORK_TAGS`, `NESTED_BAZEL_NETWORK_ENV`, `STARTER_CONSUMER_TAGS` and `QUALIFICATION_TAGS` are deleted.
 - A nested test keeps `resources:nested_bazel:1`, `resources:cpu:2` and `resources:memory:2560`.
-- The result is cached like any other test. Its inputs are the pinned Bazel, the shim, `module_srcs`, the cache sets and the fixture.
+- The result is cached. Its inputs are the pinned Bazel, the shim, `module_srcs`, the cache sets and the fixture.
 
 ### Size
 

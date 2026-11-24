@@ -1063,7 +1063,13 @@ impl Server {
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         if let Some(root) = &server.config.shared {
-            server.lease = Some(shared::lease(root, server.config.limit)?);
+            let fetches = server.config.fetches(root);
+            let holds = shared::Holds {
+                install: install_base(root, &server.config.bazel),
+                downloads: fetches.join(REPOSITORY_CACHE),
+                fetched: fetches.join(REPO_CONTENTS),
+            };
+            server.lease = Some(shared::lease(root, server.config.limit, &holds)?);
         }
         let repository_cache = server.repository_cache();
         if server.config.record.is_none() {

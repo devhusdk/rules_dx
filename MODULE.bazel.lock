@@ -72242,6 +72242,7 @@
         "darwin-x86_64": "01eb4368a9c331391448bc1f11b1bec4e57793a0cee0581579ee786cd26baf37",
         "linux-arm64": "10ba9cb76d4ee748d274dcc2981992bb12b74a203dc41a9c2eceeb8f29359366",
         "linux-x86_64": "7f775b54bbec487efaf0f49ccda1d2ed02cd34f582edfdd6aeeec76e39ef585c",
+        "windows-arm64": "e1dbf01b19fda41a8aef99ada6023f1f4b42bb1d02ef59d42a9dd2286eb6d309",
         "windows-x86_64": "12abcedb177ca1bd293875dd7d5aa1ebf4336cf44d406b597907932251cf9714"
       }
     },

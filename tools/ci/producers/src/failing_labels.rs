@@ -8,7 +8,16 @@ use crate::test_log_tails::PASSING_OUTCOMES;
 const USAGE: &str =
     "usage: producers_bin --failing-labels --out FILE [--dx FILE] [--previous FILE]";
 
-const NOT_RUN_OUTCOMES: [&str; 3] = ["skipped", "filtered", "cancelled"];
+const NOT_RUN_OUTCOMES: [&str; 4] = ["skipped", "filtered", "cancelled", "aborted"];
+
+const NOT_BUILT_CATEGORIES: [&str; 3] = ["skipped", "cancelled", "aborted"];
+
+const TARGET_FAILURE_CODES: [&str; 4] = [
+    "bazel_failed",
+    "tests_failed",
+    "analysis_failed",
+    "incomplete_results",
+];
 
 const PHASE_SKIPPED: &str = "umbrella_phase_skipped";
 
@@ -115,7 +124,10 @@ fn read_run(text: &str) -> Run {
                     run.failing.extend(event["target"].as_str().map(label));
                 }
             }
-            Some("build_failure") => {
+            Some("build_failure")
+                if !NOT_BUILT_CATEGORIES
+                    .contains(&event["category"].as_str().unwrap_or_default()) =>
+            {
                 run.failing.extend(
                     event["target"]
                         .as_str()
@@ -177,7 +189,12 @@ fn failing_keys(run: &Run) -> BTreeSet<String> {
 }
 
 fn merge(previous: &BTreeSet<String>, run: &Run) -> BTreeSet<String> {
-    let complete = run.exit_code.is_some() && !run.skipped_phase && run.errors.is_empty();
+    let complete = run.exit_code.is_some()
+        && !run.skipped_phase
+        && run
+            .errors
+            .iter()
+            .all(|code| TARGET_FAILURE_CODES.contains(&code.as_str()));
     let reached: &[String] = if complete { &run.covered } else { &[] };
     previous
         .iter()
@@ -234,8 +251,12 @@ mod tests {
                 r#"{"event":"test_outcome","target":"//a:tagged","outcome":"filtered"}"#,
                 r#"{"event":"test_outcome","target":"//a:skip","outcome":"skipped"}"#,
                 r#"{"event":"test_outcome","target":"//a:slow","outcome":"timeout"}"#,
+                r#"{"event":"test_outcome","target":"//a:oom","outcome":"aborted"}"#,
                 r#"{"event":"build_failure","target":"//b:bin","count":2,"targets":["//b:bin","//b:other"]}"#,
                 r#"{"event":"build_failure","target":"unknown"}"#,
+                r#"{"event":"build_failure","target":"//c:dep","category":"skipped"}"#,
+                r#"{"event":"build_failure","target":"//c:oom","category":"aborted"}"#,
+                r#"{"event":"build_failure","target":"//c:root","category":"compile_failed"}"#,
                 r#"{"event":"diagnostic","severity":"error","path":"a/x.rs","origins":[{"target":"//a:lib"}]}"#,
                 r#"{"event":"diagnostic","severity":"info","origins":[{"target":"//a:quiet"}]}"#,
                 r#"{"event":"diagnostic","severity":"warning","path":"loose.md"}"#,
@@ -254,6 +275,7 @@ mod tests {
                 "//a:slow",
                 "//b:bin",
                 "//b:other",
+                "//c:root",
                 "//a:lib",
                 "loose.md",
                 "a/fmt.rs"
@@ -301,13 +323,26 @@ mod tests {
             merge(&previous, &stopped),
             set(&["//a:red", "//b/c:red", "//z:red"])
         );
+        let red = Run {
+            failing: set(&["//b/c:red"]),
+            errors: set(&["bazel_failed", "incomplete_results"]),
+            exit_code: Some(1),
+            ..whole.clone()
+        };
+        assert_eq!(merge(&previous, &red), set(&["//b/c:red"]));
         let errored = Run {
-            errors: set(&["incomplete_results"]),
+            errors: set(&["incomplete_results", "server_out_of_memory"]),
+            exit_code: Some(33),
             ..whole.clone()
         };
         assert_eq!(
             merge(&previous, &errored),
-            set(&["//a:red", "//b/c:red", "//z:red"])
+            set(&[
+                "//a:red",
+                "//b/c:red",
+                "//z:red",
+                "dx: incomplete_results, server_out_of_memory"
+            ])
         );
         let unfinished = Run {
             exit_code: None,

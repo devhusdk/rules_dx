@@ -7,6 +7,7 @@ pub mod api_spec_preflight;
 pub mod buf_preflight;
 pub mod cloudformation_preflight;
 pub mod commands;
+pub mod dockerfile_guard;
 pub mod exec;
 pub mod json_schema;
 pub mod kubernetes_preflight;

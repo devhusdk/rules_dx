@@ -21,6 +21,7 @@ single_version_override(
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
         "//patches/rules_rust:rust_analyzer_rustc_lib.patch",
+        "//patches/rules_rust:msvc_stdlib_ntdll.patch",
     ],
     version = "0.75.0",
 )
@@ -1811,6 +1812,7 @@ single_version_override(
         "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
         "//patches/rules_dart:dx_bzl_srcs.patch",
+        "//patches/rules_dart:windows_arm64_host.patch",
     ],
     version = "0.9.1",
 )
@@ -2823,6 +2825,7 @@ crate.from_cargo(
         "//cli/exec_update:Cargo.toml",
         "//cli/exec_worktree:Cargo.toml",
         "//cli/exec_bench:Cargo.toml",
+        "//cli/exec_deploy:Cargo.toml",
         "//cli/exec_docs:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",

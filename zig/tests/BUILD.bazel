@@ -171,6 +171,15 @@ zig_tier_tests(
     target = "//zig/tests/fixtures/hello:greet",
 )
 
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//zig/tests/fixtures/sancov:sancov_launcher_test",
+        "//zig/tests/fixtures/sancov:sancov_subject_test",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
@@ -181,13 +190,4 @@ real_source_target(
         "tier_tests.bzl",
     ],
     tags = ["corpus"],
-)
-
-test_suite(
-    name = "fixture_tests",
-    testonly = True,
-    tests = [
-        "//zig/tests/fixtures/sancov:sancov_launcher_test",
-        "//zig/tests/fixtures/sancov:sancov_subject_test",
-    ],
 )

@@ -2,12 +2,12 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//dart:defs.bzl", "dart_package_metadata")
 load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_font_family", "flutter_library")
 
+package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
+
 dart_package_metadata(
     name = "pubspec-metadata",
     package_name = "flutter_app_failures",
 )
-
-package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
 
 exports_files(
     glob(["lib/**"]) + ["BUILD.bazel"],
@@ -53,7 +53,7 @@ flutter_library(
     fonts = [":foreign_font"],
     package = ":pubspec-metadata",
     tags = ["manual"],
-    visibility = ["//flutter/tests/negative:__pkg__"],
+    visibility = ["//flutter/tests/fixtures/negative:__pkg__"],
 )
 
 flutter_android_app(
@@ -62,7 +62,7 @@ flutter_android_app(
     application = "//flutter/tests/fixtures/flutter_app/app:native",
     application_id = "dk.devhus.flutterapp",
     tags = ["manual"],
-    visibility = ["//flutter/tests/negative:__pkg__"],
+    visibility = ["//flutter/tests/fixtures/negative:__pkg__"],
 )
 
 real_source_target(

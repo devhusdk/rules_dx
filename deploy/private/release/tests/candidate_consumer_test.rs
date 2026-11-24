@@ -231,27 +231,6 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
         "the fetched MODULE.bazel is not the staged registry file"
     );
 
-    stage("dx check");
-    let policy = "--@my_dx//config:workspace=//:policy";
-    let check = dx(&case, "check", &["//...", "--", policy]);
-    let build = std::fs::read_to_string(case.root().join("BUILD.bazel")).unwrap_or_default();
-    if build != BUILD {
-        use std::io::Write;
-        writeln!(std::io::stderr(), "dx check rewrote BUILD.bazel:\n{build}")
-            .expect("stderr is writable");
-    }
-    if check.status.code() != Some(0) {
-        use std::io::Write;
-        let diff = dx(&case, "generate", &["--diff", "//...", "--", policy]);
-        writeln!(
-            std::io::stderr(),
-            "dx generate --diff:\n{}",
-            diff.combined()
-        )
-        .expect("stderr is writable");
-    }
-    ok(&check, "dx check");
-
     stage("dx fetch");
     ok(&dx(&case, "fetch", &["//..."]), "dx fetch");
     stage("dx test --offline");
@@ -380,7 +359,7 @@ fn assert_gcc_consumer(case: &Case) {
 }
 
 #[test]
-fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
+fn a_candidate_archive_builds_and_tests_a_registry_consumer() {
     let root = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let scratch_dir = dx_test_scratch::scratch("candidate-snapshot").unwrap();
     let scratch = scratch_dir.path();

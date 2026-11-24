@@ -7,7 +7,7 @@ load("//bicep/private/quality:bicep.bzl", _BICEP_HOOKS = "HOOKS", _BICEP_SHARD_S
 load("//cc/private/quality:cc.bzl", _CC_HOOKS = "HOOKS", _CC_SHARD_SPECS = "SHARD_SPECS", _CC_TOOLS = "TOOLS", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
 load("//cloudformation/private/quality:cloudformation.bzl", _CLOUDFORMATION_HOOKS = "HOOKS", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _real_cloudformation_lint_probe_aspect = "real_cloudformation_lint_probe_aspect")
 load("//cmake/private/quality:cmake.bzl", _CMAKE_HOOKS = "HOOKS", _CMAKE_SHARD_SPECS = "SHARD_SPECS", _CMAKE_TOOLS = "TOOLS", _real_cmake_format_aspect = "real_cmake_format_aspect", _real_cmake_format_probe_aspect = "real_cmake_format_probe_aspect", _real_cmake_lint_aspect = "real_cmake_lint_aspect", _real_cmake_lint_probe_aspect = "real_cmake_lint_probe_aspect")
-load("//core/quality:families/core.bzl", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS", _real_biome_format_aspect = "real_biome_format_aspect", _real_biome_lint_aspect = "real_biome_lint_aspect", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _real_vale_lint_aspect = "real_vale_lint_aspect")
+load("//core/quality:families/core.bzl", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS", _real_biome_format_aspect = "real_biome_format_aspect", _real_biome_lint_aspect = "real_biome_lint_aspect", _real_docstrfmt_format_aspect = "real_docstrfmt_format_aspect", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _real_vale_lint_aspect = "real_vale_lint_aspect")
 load("//core/quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
 load("//core/quality:families/cue.bzl", _CUE_HOOKS = "HOOKS", _CUE_SHARD_SPECS = "SHARD_SPECS", _CUE_TOOLS = "TOOLS", _real_cue_format_aspect = "real_cue_format_aspect", _real_cue_typecheck_aspect = "real_cue_typecheck_aspect")
 load("//core/quality:families/generation.bzl", _GENERATION_HOOKS = "HOOKS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
@@ -137,6 +137,8 @@ real_cmake_lint_probe_aspect = _real_cmake_lint_probe_aspect
 real_biome_format_aspect = _real_biome_format_aspect
 
 real_biome_lint_aspect = _real_biome_lint_aspect
+
+real_docstrfmt_format_aspect = _real_docstrfmt_format_aspect
 
 real_format_aspect = _real_format_aspect
 
@@ -766,6 +768,7 @@ _SHARD_ASPECTS = {
     "real_dart_lint": _real_dart_lint_aspect,
     "real_dart_typecheck": _real_dart_typecheck_aspect,
     "real_dockerfile_lint": _real_dockerfile_lint_aspect,
+    "real_docstrfmt_format": _real_docstrfmt_format_aspect,
     "real_dotnet_format": _real_dotnet_format_aspect,
     "real_dotnet_lint": _real_dotnet_lint_aspect,
     "real_dotnet_typecheck": _real_dotnet_typecheck_aspect,

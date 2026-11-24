@@ -61,6 +61,20 @@ def upstream_source_class(extension):
             return class_id
     return ""
 
+def is_workspace_file(f):
+    """Reports whether a file lives in the main repository."""
+    return not f.short_path.startswith("../")
+
+def holds_workspace_source(rule_files):
+    """Reports whether a public rule attribute holds a main-repository file of an upstream source class."""
+    for name in dir(rule_files):
+        if name.startswith("_"):
+            continue
+        for f in getattr(rule_files, name):
+            if is_workspace_file(f) and upstream_source_class(f.extension) != "":
+                return True
+    return False
+
 DOCKERFILE_NAME_PATTERNS = [
     "Dockerfile",
     "Containerfile",

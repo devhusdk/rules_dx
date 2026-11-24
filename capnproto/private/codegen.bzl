@@ -12,7 +12,6 @@ load("//core:stage.bzl", "check_import_paths")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "CapnprotoInfo")
 
-# The compiler is the pinned source build, never the lint flag.
 _PRIVATE_ATTRS = {
     "_capnp": attr.label(
         default = Label("@dx_prebuilt//:capnp"),

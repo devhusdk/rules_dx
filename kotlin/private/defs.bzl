@@ -143,7 +143,6 @@ def kotlin_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         visibility = ["//visibility:private"],
     )
 
-    # The JMH generator reads the compiled jar, so the library needs no kapt and no kapt stub jar.
     jmh_bench_generated(name, kotlin_library, java_jmh_test, srcs, deps or [], tags or [], kwargs, {"javac_opts": ":" + name + "_javac_opts"})
 
 def kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):

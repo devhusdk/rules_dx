@@ -2,7 +2,6 @@ load("@rules_d//d:defs.bzl", "d_binary")
 
 package(default_visibility = ["//visibility:public"])
 
-# rules_d's string_srcs takes labels, not plain files.
 filegroup(
     name = "githash",
     srcs = ["githash.txt"],

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Runs one bisect_ppx instrumented OCaml test and writes its LCOV report into COVERAGE_DIR.
 set -uo pipefail
 
 f=bazel_tools/tools/bash/runfiles/runfiles.bash
@@ -8,8 +7,6 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   source "$0.runfiles/$f" 2>/dev/null || \
   { echo >&2 "ERROR: cannot find $f"; exit 1; }
 runfiles_export_envvars
-# rlocation prints nothing and still exits 0 for a missing path once the envvars are exported.
-# The apparent name rules_dx maps to _main here and to rules_dx+ in a consumer.
 lib=$(rlocation rules_dx/tools/coverage/lib/runfile.sh)
 [ -n "$lib" ] || { echo >&2 "ERROR: cannot find runfile.sh"; exit 1; }
 source "$lib"

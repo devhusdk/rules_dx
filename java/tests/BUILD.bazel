@@ -54,10 +54,8 @@ java_test(
     deps = ["//java/private/quality/tools/kotlinc_check:kotlinc_check_lib"],
 )
 
-# The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
 scalac_toolchain_jars_rule(name = "scalac_compiler_jars")
 
-# A Scala 3 compiler for the dotc frontend test; the repo's own toolchain stays Scala 2.13.
 runtime_jars_rule(
     name = "scala3_compiler_jars",
     deps = ["@dx_scala3_test//:org_scala_lang_scala3_compiler_3"],

@@ -1,5 +1,3 @@
-//! Tests notarizing and stapling a signed macOS app.
-
 mod fake;
 
 use dx_apple_ops::notarize::run;

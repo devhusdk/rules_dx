@@ -1,7 +1,6 @@
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
 load("//core:wrapper.bzl", "dx_append_flags", "dx_src_path", "dx_warnings_as_errors")
 
-# Error Prone checks that catch swallowed errors, dropped results and dead code; JavaBuilder runs Error Prone.
 JAVA_ERROR_PRONE_CHECKS = [
     "EmptyCatch",
     "CatchAndPrintStackTrace",

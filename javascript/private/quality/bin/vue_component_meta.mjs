@@ -1,14 +1,3 @@
-// Isolated vue-component-meta launcher for vue_doc_shard.
-//
-// Upstream `createChecker(tsconfig)` and `@vue/language-core` call `require()` on
-// every entry of `vueCompilerOptions.plugins`, in the tsconfig and in each file it
-// extends, and swallow config errors. This launcher reads the whole config chain
-// itself, rejects plugins, and only then hands the JSON to `createCheckerByJson`.
-// Never switch to `createChecker(path)`. A module-load guard additionally refuses
-// any module outside the launcher's own node_modules.
-//
-// usage: vue_component_meta.mjs --tsconfig FILE --out FILE --entry FILE [--entry FILE]...
-// Exit codes: 0 ok, 1 usage or configuration error, 2 extraction error.
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -27,7 +16,6 @@ function checkPlugins(ts, files) {
   }
 }
 
-// Declaration ranges are UTF-16 offsets into the file text; JS strings are UTF-16.
 function locate(declarations, cwd, cache) {
   const first = declarations.find((d) => relative(d.file, cwd) !== "");
   if (!first) {
@@ -85,8 +73,6 @@ async function main() {
     } catch (error) {
       throw new Failure(2, `${entry}: ${error.message}`);
     }
-    // getComponentMeta adds the entry as a root of the program when the tsconfig
-    // does not include it, so the program is fetched again afterwards.
     const checked = checker.getProgram();
     const source = checked?.getSourceFile(file);
     if (!source) {

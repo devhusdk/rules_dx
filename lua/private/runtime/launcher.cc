@@ -1,5 +1,3 @@
-// Runs one Lua program from the <name>.luaentry file next to the executable.
-
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -20,7 +18,6 @@ using rules_cc::cc::runfiles::Runfiles;
 
 constexpr char kEntrySuffix[] = ".luaentry";
 constexpr char kModulesKey[] = "dx.lua.modules";
-// The coverage hook named in LUA_ENTRY_FORMAT in lua/private/providers.bzl.
 constexpr char kCoverageModule[] = "dx_coverage";
 
 struct Entry {

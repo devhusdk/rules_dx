@@ -1,11 +1,3 @@
-// Isolated TypeDoc launcher for typescript_doc_shard.
-//
-// The stock `typedoc` CLI loads plugins named in typedoc.json, package.json and
-// the `typedocOptions` of tsconfig.json (including inherited ones), and each
-// plugin is arbitrary JavaScript. This launcher never loads plugins and reads
-// configuration from the command line and the tsconfig compiler options only.
-// Its reader list is the only place where configuration is read. Never switch
-// to bootstrapWithPlugins or the default readers.
 import * as td from "typedoc";
 
 const ExitCodes = {
@@ -17,9 +9,6 @@ const ExitCodes = {
   ExceptionThrown: 6,
 };
 
-// Tag definitions that TypeDoc derives from tsdoc.json are set without a config
-// path. Everything that comes from `typedocOptions` carries the path of the
-// file that set it and is dropped. (The tag names are harmless either way.)
 function filteredContainer(container, logger) {
   const dropped = new Set();
   const proxy = new Proxy(container, {

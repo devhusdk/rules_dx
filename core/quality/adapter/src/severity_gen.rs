@@ -7,8 +7,15 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
             default: Some(crate::ToolSeverity::Warning),
             floor: None,
             categories: &[
+                ("command-instead-of-module", crate::ToolSeverity::Error),
                 ("internal-error", crate::ToolSeverity::Error),
+                ("latest", crate::ToolSeverity::Error),
                 ("load-failure", crate::ToolSeverity::Error),
+                ("no-changed-when", crate::ToolSeverity::Error),
+                ("no-log-password", crate::ToolSeverity::Error),
+                ("package-latest", crate::ToolSeverity::Error),
+                ("risky-file-permissions", crate::ToolSeverity::Error),
+                ("risky-shell-pipe", crate::ToolSeverity::Error),
                 ("syntax-check", crate::ToolSeverity::Error),
             ],
         },
@@ -302,7 +309,11 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             floor: None,
-            categories: &[],
+            categories: &[
+                ("C", crate::ToolSeverity::Error),
+                ("OB", crate::ToolSeverity::Error),
+                ("PORT", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (
@@ -352,6 +363,12 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
             floor: None,
             categories: &[
                 ("DL1", crate::ToolSeverity::Error),
+                ("DL3002", crate::ToolSeverity::Error),
+                ("DL3006", crate::ToolSeverity::Error),
+                ("DL3007", crate::ToolSeverity::Error),
+                ("DL3008", crate::ToolSeverity::Error),
+                ("DL3018", crate::ToolSeverity::Error),
+                ("DL4006", crate::ToolSeverity::Error),
                 ("guard/", crate::ToolSeverity::Error),
             ],
         },
@@ -650,7 +667,12 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             floor: None,
-            categories: &[("tflint-diagnostic", crate::ToolSeverity::Error)],
+            categories: &[
+                ("terraform_module_pinned_source", crate::ToolSeverity::Error),
+                ("terraform_required_providers", crate::ToolSeverity::Error),
+                ("terraform_required_version", crate::ToolSeverity::Error),
+                ("tflint-diagnostic", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (
@@ -691,6 +713,22 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
             default: Some(crate::ToolSeverity::Error),
             floor: None,
             categories: &[],
+        },
+    ),
+    (
+        "typos",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
+        "vale",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            floor: Some(crate::ToolSeverity::Warning),
+            categories: &[("Dx.", crate::ToolSeverity::Error)],
         },
     ),
     (

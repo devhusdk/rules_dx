@@ -15,25 +15,25 @@ program runfiles_main
         if (status /= 0) error stop "no runfiles"
         path = ""
         open (newunit=unit, file=trim(manifest), status="old", action="read")
-        do
+        scan: do
             read (unit, "(a)", iostat=ios) line
-            if (ios /= 0) exit
+            if (ios /= 0) exit scan
             if (index(line, trim(rpath) // " ") == 1) then
                 path = adjustl(line(len_trim(rpath) + 2:))
                 length = len_trim(path)
                 if (length > 0 .and. path(length:length) == achar(13)) path(length:length) = " "
-                exit
+                exit scan
             end if
-        end do
+        end do scan
         close (unit)
         if (len_trim(path) == 0) error stop "runfile not in manifest"
     end if
 
     open (newunit=unit, file=trim(path), status="old", action="read")
-    do
+    copy: do
         read (unit, "(a)", iostat=ios) line
-        if (ios /= 0) exit
+        if (ios /= 0) exit copy
         print "(a)", trim(line)
-    end do
+    end do copy
     close (unit)
 end program runfiles_main

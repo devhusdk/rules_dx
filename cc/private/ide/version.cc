@@ -1,4 +1,3 @@
-// C++ IDE version entry point (proves C++ toolchain acquisition).
 #include <cstdio>
 
 int main() {

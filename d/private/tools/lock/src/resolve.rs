@@ -1,4 +1,3 @@
-//! Resolves a DUB package set from the `dependencies` of its manifest and the code.dlang.org registry.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
@@ -6,23 +5,17 @@ use serde_json::{Value, json};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// The registry API and archive host.
 pub const BASE: &str = "https://code.dlang.org";
 
-/// Downloads registry answers and archives.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Registry(HttpFetch);
 
 impl Registry {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -41,19 +34,16 @@ impl Download for Registry {
     }
 }
 
-/// The URL of the version list of a package.
 #[must_use]
 pub fn versions_url(name: &str) -> String {
     format!("{BASE}/api/packages/{name}/versions")
 }
 
-/// The URL of the archive of a package version.
 #[must_use]
 pub fn archive_url(name: &str, version: &str) -> String {
     format!("{BASE}/packages/{name}/{version}.zip")
 }
 
-/// A version split into its parts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Version {
     numbers: [u64; 3],
@@ -101,7 +91,6 @@ impl PartialOrd for Version {
     }
 }
 
-/// One bound of a version range.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Bound {
     Any,
@@ -109,7 +98,6 @@ enum Bound {
     Compatible(Version, usize),
 }
 
-/// A version range: every bound must hold.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Range {
     text: String,
@@ -117,8 +105,6 @@ pub struct Range {
 }
 
 impl Range {
-    /// Parses a DUB version specification.
-    ///
     /// # Errors
     /// Fails on a branch, a path or any text that is not a version range.
     pub fn parse(text: &str) -> Result<Self, Error> {
@@ -186,8 +172,6 @@ impl Range {
     }
 }
 
-/// The dependencies of a manifest, by base package name; optional ones are skipped.
-///
 /// # Errors
 /// Fails on a dependency selected by path or repository, or with an unsupported range.
 pub fn parse_dependencies(manifest: &Value) -> Result<BTreeMap<String, Vec<Range>>, Error> {
@@ -224,14 +208,12 @@ pub fn parse_dependencies(manifest: &Value) -> Result<BTreeMap<String, Vec<Range
     Ok(deps)
 }
 
-/// The resolver of the dub ecosystem.
 pub struct Dub<'a> {
     manifest: String,
     state: String,
     download: &'a dyn Download,
 }
 
-/// What one downloaded archive holds.
 #[derive(Clone)]
 struct Described {
     package: Package,
@@ -239,7 +221,6 @@ struct Described {
 }
 
 impl<'a> Dub<'a> {
-    /// A resolver that downloads with `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -249,7 +230,6 @@ impl<'a> Dub<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -473,10 +453,8 @@ fn parse_manifest(name: &str, bytes: &[u8]) -> Result<Value, String> {
         .map_err(|error| format!("{name}: {error}"))
 }
 
-/// The most bytes read from one archive member.
 const MEMBER_LIMIT: u64 = 8 << 20;
 
-/// The regular files of an archive and the contents of its manifests.
 struct Members {
     names: BTreeSet<String>,
     files: BTreeMap<String, Vec<u8>>,
@@ -514,7 +492,6 @@ fn read_members(bytes: &[u8], manifest: &str) -> Result<Members, String> {
     Ok(members)
 }
 
-/// The package of `old` that has the name and version.
 fn unchanged<'l>(old: &'l Lock, name: &str, version: &str) -> Option<&'l Package> {
     old.packages.iter().find(|package| {
         package.name == name
@@ -524,7 +501,6 @@ fn unchanged<'l>(old: &'l Lock, name: &str, version: &str) -> Option<&'l Package
     })
 }
 
-/// The versions the previous run selected.
 fn selections(text: &str) -> BTreeMap<String, String> {
     let Ok(Value::Object(data)) = serde_json::from_str::<Value>(text) else {
         return BTreeMap::new();
@@ -648,8 +624,6 @@ impl Resolver for Dub<'_> {
     }
 }
 
-/// Runs the dub lock step on `args`, the arguments after `dx d_lock`: 0 when the lock is
-/// fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("dub") else {
         eprintln!("dub has no registry entry");

@@ -78,8 +78,6 @@ def qt_test_coverage(ctx, upstream):
     llvm_cov = (None if macos else toolchain_cov) or ctx.executable._llvm_cov
     llvm_profdata = (None if macos else toolchain_profdata) or ctx.executable._llvm_profdata
 
-    # On macOS the subject may carry the Xcode profile runtime, whose raw profile version the
-    # hermetic llvm-profdata rejects; the collector then retries with the cc toolchain's tools.
     fallback = [toolchain_cov, toolchain_profdata] if macos and toolchain_cov and toolchain_profdata else []
     transitive = []
     if DxDataCoverageInfo in upstream:

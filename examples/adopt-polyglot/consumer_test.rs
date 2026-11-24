@@ -1,5 +1,3 @@
-//! Adopts the example in a scratch workspace with `dx init --apply`, which also runs `dx generate`, then tests it.
-
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;
@@ -15,7 +13,6 @@ fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
 }
 
-/// Runs `step`, writes its wall time to the test log, and checks it exits 0.
 fn timed(what: &str, step: impl FnOnce() -> Run) {
     let started = Instant::now();
     let run = step();
@@ -23,7 +20,6 @@ fn timed(what: &str, step: impl FnOnce() -> Run) {
     ok(&run, what);
 }
 
-/// The handwritten thin entry of `native_cpp/main`, which `dx generate` does not write.
 const SHAPES_MAIN_BUILD: &str = r#"load("@rules_dx//cc:defs.bzl", "cc_binary")
 
 cc_binary(
@@ -33,10 +29,8 @@ cc_binary(
 )
 "#;
 
-/// The include prefix of the C++ sources in rules_dx.
 const WORKSPACE_INCLUDE: &str = "#include \"examples/adopt-polyglot/";
 
-/// Copies the example sources, without the BUILD files that `dx generate` writes, with C++ includes rooted at `to`.
 fn copy_sources(from: &Path, to: &Path) {
     let entries = std::fs::read_dir(from).unwrap_or_else(|error| panic!("read {from:?}: {error}"));
     for entry in entries {
@@ -62,7 +56,6 @@ fn copy_sources(from: &Path, to: &Path) {
     }
 }
 
-/// Every file of the workspace by relative path, leaving out the Bazel output links.
 fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     fn walk(root: &Path, dir: &Path, files: &mut BTreeMap<String, Vec<u8>>) {
         let entries =
@@ -122,7 +115,6 @@ fn the_polyglot_example_adopts_and_tests_green() {
         &root.join(".bazelversion"),
         &read_text(&source.join(".bazelversion")),
     );
-    // rules_flutter pulls rules_swift, whose macOS extensions need the root's absolute-path Xcode patches.
     let apple: String = [
         ("apple_support", &["toolchains_gate.patch"][..]),
         ("rules_swift", &[][..]),

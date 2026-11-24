@@ -140,9 +140,6 @@ _d_fuzzer_driver = dx_private_dep_rule(
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
 
-    # The sanitizer runtimes exist only under the fuzz transition, and lld-link ignores
-    # -fsanitize=, so Windows and builds outside the transition link a plain driver that
-    # feeds the target its input files and `-runs=N` inputs instead (as cc_fuzz_test does).
     flags = select({
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],

@@ -4,8 +4,6 @@ stages 1
 stage vale classes=markdown sources=matrix/vale_profile_strict.md
 completed_rounds 1
 convergence STABLE
-initial 1
-initial WARNING vale write-good.Passive matrix/vale_profile_strict.md 20 30 fixable=false "'was kicked' may be passive voice. Use active voice if you can."
-terminal 1
-terminal WARNING vale write-good.Passive matrix/vale_profile_strict.md 20 30 fixable=false "'was kicked' may be passive voice. Use active voice if you can."
+initial 0
+terminal 0
 replacements 0

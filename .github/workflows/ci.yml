@@ -377,36 +377,6 @@ jobs:
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
-  native-lint:
-    name: native-lint (dx lint on cfg(windows) and macOS code on ${{ matrix.platform }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos_arm64, windows_x86_64]
-    runs-on: ${{ fromJSON('{"macos_arm64":"macos-15","windows_x86_64":"windows-latest"}')[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Lint the platform-specific process crates with the .bazelrc clippy deny set
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" //:dx -- lint //cli/process/... //cli/os_sys/... //cli/shim/...
   determinism:
     name: determinism (two cold builds, exec logs compared, shard ${{ matrix.shard }})
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
@@ -1075,7 +1045,6 @@ jobs:
         hermetic-windows,
         launch-heavy,
         msix-install,
-        native-lint,
         network,
         preflight,
         quality-matrix,

@@ -438,6 +438,7 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "bicep",
+          "trivy_config",
           "typos"
         ],
         "typecheck": []
@@ -677,6 +678,7 @@ LANGS = json.decode("""{
         "format": [],
         "lint": [
           "cfn_lint",
+          "trivy_config",
           "typos"
         ],
         "typecheck": []
@@ -1881,6 +1883,7 @@ LANGS = json.decode("""{
         "format": [],
         "lint": [
           "helm",
+          "trivy_config",
           "typos"
         ],
         "typecheck": []
@@ -2367,6 +2370,7 @@ LANGS = json.decode("""{
         "format": [],
         "lint": [
           "kubeconform",
+          "trivy_config",
           "typos"
         ],
         "typecheck": []

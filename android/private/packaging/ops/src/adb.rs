@@ -1,5 +1,3 @@
-//! Runs one adb operation against one device.
-
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -7,7 +5,6 @@ use crate::util::{Outcome, apks_in, missing, usage};
 
 pub const PREFIX: &str = "dx-android-adb";
 
-/// The flags of one adb launcher.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Flags {
     pub adb: String,
@@ -19,10 +16,7 @@ pub struct Flags {
     pub activity: String,
 }
 
-/// Reads `--name=value` flags; a later flag replaces an earlier one.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Flags, String> {
     let mut flags = Flags::default();
@@ -45,10 +39,7 @@ pub fn parse(args: &[String]) -> Result<Flags, String> {
     Ok(flags)
 }
 
-/// The adb arguments of one operation.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn adb_args(flags: &Flags) -> Result<Vec<String>, String> {
     if flags.serial.is_empty() {
@@ -88,7 +79,6 @@ pub fn adb_args(flags: &Flags) -> Result<Vec<String>, String> {
 }
 
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let mut flags = parse(args).map_err(usage)?;

@@ -4,7 +4,6 @@ load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_p
 
 package(default_visibility = ["//:__subpackages__"])
 
-# Hosts the SDK's csc.dll in-process for the CSharpRoslyn action, one-shot or as a persistent worker.
 csharp_binary(
     name = "roslyn_worker",
     srcs = ["Program.cs"],

@@ -2,9 +2,6 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-// Compiles one .mdx file for jest with the @mdx-js/mdx the test links. The
-// source map lets jest's coverage report the lines of the document, not of
-// the generated code.
 async function processAsync(src, filename, options) {
 	const req = createRequire(path.join(options.config.rootDir, "package.json"));
 	const { compile } = await import(

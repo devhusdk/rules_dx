@@ -1,5 +1,3 @@
-//! Unpacks a built macOS app and runs it.
-
 use std::path::Path;
 
 use crate::util::{Env, Outcome, exit_code, missing, reject, scratch, usage};
@@ -7,10 +5,7 @@ use crate::xcode::{DITTO, PLUTIL, Tools};
 
 pub const PREFIX: &str = "apple_macos_app";
 
-/// Runs the app in the zip at `args[0]` with the remaining arguments.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let Some((zipped, rest)) = args.split_first() else {

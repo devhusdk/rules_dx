@@ -106,8 +106,6 @@ cc_binary(
     for name in _CROSS
 ]
 
-# The dx wrappers forward the upstream's providers but register no compile or
-# link actions themselves, so the action tests read the upstream targets.
 cc_msvc_arm64_action_tests(
     name = "msvc_arm64_action_test",
     compile_target = ":greet_static_upstream",

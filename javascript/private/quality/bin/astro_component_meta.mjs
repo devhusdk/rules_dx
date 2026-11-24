@@ -1,12 +1,3 @@
-// Isolated Astro compiler launcher for astro_doc_shard.
-//
-// Turns each .astro entry into TSX with the Astro compiler, reads the props from the
-// TypeScript checker and maps lines back through the source map. Slots come from the
-// compiler's parse tree. It never reads astro.config.* and a module-load guard refuses
-// any module outside its node_modules.
-//
-// usage: astro_component_meta.mjs --tsconfig FILE --out FILE --entry FILE [--entry FILE]...
-// Exit codes: 0 ok, 1 usage or configuration error, 2 extraction error.
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";

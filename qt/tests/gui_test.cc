@@ -225,7 +225,6 @@ void GuiTest::loadsOnlyPinnedLibraries() {
   }
   QVERIFY2(leaks.isEmpty(), qPrintable(leaks.join(QLatin1Char('\n'))));
 #if defined(_WIN32)
-  // qt_test reads the module list from stderr when asked to.
   if (qEnvironmentVariableIsSet("DX_QT_TRACE_MODULES")) {
     for (const QString &path : MappedObjects()) {
       std::fprintf(stderr, "dx-module: %s\n", path.toUtf8().constData());

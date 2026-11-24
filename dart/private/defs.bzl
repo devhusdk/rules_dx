@@ -75,7 +75,6 @@ _dart_forward_test = dx_executable_forward_rule(
     ),
 )
 
-# Re-exported unchanged: BUILD files need it to generate Dart sources.
 dart_codegen = _dart_codegen
 
 dart_package_metadata = _dart_package_metadata

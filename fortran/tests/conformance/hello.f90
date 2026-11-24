@@ -1,5 +1,5 @@
 program hello
   use greet, only: greeting
-  implicit none
-  print '(a)', greeting("world")
+  implicit none (type, external)
+  print "(a)", greeting("world")
 end program hello

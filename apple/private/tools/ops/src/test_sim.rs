@@ -1,12 +1,9 @@
-//! Creates and deletes the simulator one test run uses.
-
 use crate::simctl::{device, list};
 use crate::util::{Env, Failure, Outcome, exit_code, usage};
 use crate::xcode::Tools;
 
 pub const PREFIX: &str = "dx-apple-test-simulator";
 
-/// The process group a simulator name records, when `name` is one dx created.
 #[must_use]
 pub fn owner(name: &str) -> Option<i32> {
     let (head, group) = name.strip_prefix("dx ")?.rsplit_once(" pgid ")?;
@@ -37,10 +34,7 @@ fn sweep(tools: &Tools<'_>, alive: &dyn Fn(i32) -> bool) {
     }
 }
 
-/// Creates and boots one simulator; its UDID is the first line of the returned stdout.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn create(
     tools: &Tools<'_>,
@@ -97,10 +91,7 @@ pub fn create(
     Ok(udid)
 }
 
-/// Shuts down and deletes the simulator `SIMULATOR_UDID` names; a failed delete only warns.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn delete(tools: &Tools<'_>, env: Env<'_>) -> Outcome {
     let udid = env("SIMULATOR_UDID")

@@ -1,5 +1,3 @@
-//! Runs rust-lld as lld-link with execroot-relative paths, so the PDB does not depend on the checkout.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -69,7 +67,6 @@ fn run() -> io::Result<ExitCode> {
     Ok(exit_code(status?))
 }
 
-/// Finds rust-lld on the PATH that rustc sets for its linker.
 fn rust_lld(rewriter: &Rewriter) -> io::Result<String> {
     let name = if cfg!(windows) {
         "rust-lld.exe"

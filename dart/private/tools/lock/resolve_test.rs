@@ -1,5 +1,3 @@
-//! Tests the pub lock step with the pinned Dart SDK on a set with no hosted packages.
-
 use std::path::{Path, PathBuf};
 
 use pub_lock::{MARKER, Outcome, Parsed, Request, lock, parse, pub_args};

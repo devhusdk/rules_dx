@@ -127,7 +127,6 @@ def _cc_test_coverage(ctx, upstream):
 
 CC_COVERAGE_TRANSITION = _cc_coverage_transition
 
-# The attrs and toolchains a test forwarder of C/C++ code needs to collect coverage.
 CC_TEST_COVERAGE_ATTRS = dx_lcov_merger_attr() | dx_native_coverage_attrs()
 CC_TEST_COVERAGE_TOOLCHAINS = dx_native_coverage_toolchains()
 

@@ -1,5 +1,3 @@
-//! Task records and the plain-text board format every output loads.
-
 use std::fmt;
 
 pub const MAX_TITLE_LEN: usize = 80;

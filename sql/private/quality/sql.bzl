@@ -26,7 +26,6 @@ SHARD_SPECS = {
     },
 }
 
-# sql_library dialect names to sqlfluff's. A dialect missing here has no sqlfluff dialect.
 _SQLFLUFF_DIALECTS = {
     "bigquery": "bigquery",
     "clickhouse": "clickhouse",

@@ -1,5 +1,3 @@
-//! Runs the relocated native task board over its packaged resources.
-
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 

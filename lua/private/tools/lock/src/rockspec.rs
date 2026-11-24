@@ -1,31 +1,20 @@
-//! Reads the data of a rockspec without running Lua.
-
 use std::collections::BTreeMap;
 
-/// A value of the Lua subset rockspecs are written in.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
-    /// A string or a number.
     Text(String),
-    /// `true` or `false`.
     Flag(bool),
-    /// `nil`.
     Nil,
-    /// A table constructor.
     Table(Table),
 }
 
-/// A table constructor: positional items and named fields.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Table {
-    /// The positional items.
     pub list: Vec<Value>,
-    /// The named fields.
     pub map: BTreeMap<String, Value>,
 }
 
 impl Value {
-    /// The text of a string or number.
     #[must_use]
     pub fn text(&self) -> Option<&str> {
         match self {
@@ -34,7 +23,6 @@ impl Value {
         }
     }
 
-    /// The table of a table constructor.
     #[must_use]
     pub fn table(&self) -> Option<&Table> {
         match self {
@@ -290,8 +278,6 @@ impl Parser<'_> {
     }
 }
 
-/// The top-level assignments of a rockspec.
-///
 /// # Errors
 /// Fails when the file uses more than assignments of strings and tables.
 pub fn parse(text: &str) -> Result<BTreeMap<String, Value>, String> {

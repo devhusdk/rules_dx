@@ -1,4 +1,3 @@
-//! Runs one .NET test under coverlet and writes its LCOV report for Bazel coverage.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -345,7 +344,6 @@ fn run() -> Result<i32, String> {
     Ok(code)
 }
 
-/// Runs the .NET test named by `DX_COVERLET_CONFIG` under coverlet.
 pub fn main() -> std::process::ExitCode {
     let code = run().unwrap_or_else(|message| {
         eprintln!("dx: {message}");

@@ -83,7 +83,7 @@ fn case(name: &str) -> Inputs {
     match name {
         "standard" => inputs(Some(standard), &["python"], &["ruff.toml"]),
         "strict" => inputs(Some(strict), &["python"], &["ruff.toml"]),
-        "no_dx_toml" => inputs(None, &["python", "core"], &[]),
+        "no_dx_toml" => inputs(None, &["python", "core", "rust"], &[]),
         "existing_exports" => Inputs {
             root_build: Some(RootBuild {
                 name: "BUILD".to_owned(),
@@ -263,6 +263,15 @@ fn renders_no_dx_toml() {
                 ],
                 "typecheck": ["ty"],
             },
+            "rust": {
+                "disabled": ["audit"],
+                "format": ["rustfmt"],
+                "lint": [
+                    "clippy",
+                    "typos",
+                ],
+                "typecheck": ["rustc"],
+            },
         },
         tier = "strict",
     )
@@ -270,6 +279,52 @@ fn renders_no_dx_toml() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The clippy tier.
+    common --@rules_dx//config:clippy_flag=-Wclippy::all
+    common --@rules_dx//config:clippy_flag=-Wclippy::pedantic
+    common --@rules_dx//config:clippy_flag=-Wclippy::dbg_macro
+    common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_used
+    common --@rules_dx//config:clippy_flag=-Dclippy::expect_used
+    common --@rules_dx//config:clippy_flag=-Dclippy::panic
+    common --@rules_dx//config:clippy_flag=-Dclippy::unreachable
+    common --@rules_dx//config:clippy_flag=-Dclippy::todo
+    common --@rules_dx//config:clippy_flag=-Dclippy::unimplemented
+    common --@rules_dx//config:clippy_flag=-Dclippy::exit
+    common --@rules_dx//config:clippy_flag=-Dclippy::indexing_slicing
+    common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_in_result
+    common --@rules_dx//config:clippy_flag=-Dclippy::panic_in_result_fn
+    common --@rules_dx//config:clippy_flag=-Dclippy::get_unwrap
+    common --@rules_dx//config:clippy_flag=-Dclippy::string_slice
+    common --@rules_dx//config:clippy_flag=-Dclippy::fallible_impl_from
+    common --@rules_dx//config:clippy_flag=-Dclippy::wildcard_enum_match_arm
+    common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_must_use
+    common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_untyped
+    common --@rules_dx//config:clippy_flag=-Dclippy::undocumented_unsafe_blocks
+    common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes_without_reason
+    common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes
+    common --@rules_dx//config:clippy_flag=-Dclippy::match_wildcard_for_single_variants
+    common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_future
+    common --@rules_dx//config:clippy_flag=-Dclippy::unchecked_time_subtraction
+    common --@rules_dx//config:clippy_flag=-Dclippy::large_futures
+    common --@rules_dx//config:clippy_flag=-Dclippy::try_err
+    common --@rules_dx//config:clippy_flag=-Dclippy::infinite_loop
+    common --@rules_dx//config:clippy_flag=-Dclippy::cast_possible_truncation
+    common --@rules_dx//config:clippy_flag=-Dclippy::cast_possible_wrap
+    common --@rules_dx//config:clippy_flag=-Dclippy::mem_forget
+    common --@rules_dx//config:clippy_flag=-Dclippy::rc_mutex
+    common --@rules_dx//config:clippy_flag=-Dclippy::multiple_unsafe_ops_per_block
+    common --@rules_dx//config:clippy_flag=-Dclippy::string_add
+    common --@rules_dx//config:clippy_flag=-Dclippy::create_dir
+    common --@rules_dx//config:clippy_flag=-Dclippy::iter_over_hash_type
+    common --@rules_dx//config:clippy_flag=-Dclippy::map_err_ignore
+    common --@rules_dx//config:clippy_flag=-Dclippy::unused_result_ok
+    common --@rules_dx//config:clippy_flag=-Dunsafe_code
+    common --@rules_dx//config:clippy_flag=-Dunsafe_op_in_unsafe_fn
+    common --@rules_dx//config:clippy_flag=-Dunused_must_use
+    common --@rules_dx//config:clippy_flag=-Wrust_2018_idioms
+    common --@rules_dx//config:clippy_flag=-Wunused_qualifications
+    common --@rules_dx//config:clippy_flag=-Dwarnings
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network

@@ -11,7 +11,6 @@ load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load("//tools/coverage/sancov:sancov.bzl", "dx_sancov_attrs", "dx_sancov_test_coverage")
 load(":mode.bzl", "ZigOptsInfo", "ZigReleaseFastInfo", "zig_opts_aspect")
 
-# Set False to tag zig tests dx-no-coverage-collector instead of running kcov or sancov.
 ZIG_COVERAGE_COLLECTOR = True
 
 _DX_ZIG_LIBRARY_PROVIDES = [
@@ -103,7 +102,6 @@ def _release_mode_attrs(upstream_cfg):
     """Returns the ReleaseFast opt-in attr and the mode probe, built in the upstream configuration."""
     return {
         "allow_release_fast": attr.bool(doc = "Allow ReleaseFast, which drops the safety checks that ReleaseSafe keeps."),
-        # Read after the upstream transition, where auto is gone, so only an explicit release_fast mode matches.
         "_release_fast": attr.label(default = Label("//zig/private:release_fast"), cfg = upstream_cfg, providers = [ZigReleaseFastInfo]),
     }
 

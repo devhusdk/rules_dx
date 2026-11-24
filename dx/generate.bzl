@@ -16,15 +16,7 @@ def _rlocation_path(ctx, file):
     return ctx.workspace_name + "/" + file.short_path
 
 def gazelle_launch_descriptor(gazelle, repo_config, goroot, mode, gazelle_args):
-    """Returns the launcher descriptor that runs gazelle.
-
-    Args:
-      gazelle: runfiles key of the gazelle binary.
-      repo_config: runfiles key of the repo config, or None.
-      goroot: runfiles key of a file at the root of the Go SDK.
-      mode: the gazelle -mode value, or None.
-      gazelle_args: arguments after the command when the user names none.
-    """
+    """Returns the launcher descriptor that runs gazelle."""
     lines = ["program=" + gazelle, "verb=update", "verb=fix"]
     if repo_config:
         lines.extend(["arg=-bzlmod", "arg=-repo_config", "path=" + repo_config])

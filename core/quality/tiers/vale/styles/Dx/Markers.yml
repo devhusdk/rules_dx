@@ -1,0 +1,8 @@
+extends: existence
+message: "Remove the '%s' marker."
+level: error
+tokens:
+  - TODO
+  - FIXME
+  - TBD
+  - XXX

@@ -3,9 +3,7 @@
 
 namespace {
 
-// Bazel starts Windows tests without a console window, and Qt then shows a
-// MessageBox for a failed platform plugin and waits for it. A hidden console
-// makes Qt print the error and exit.
+// Without a console, Qt shows a blocking MessageBox for a failed platform plugin.
 struct HiddenConsole {
   HiddenConsole() {
     if (GetConsoleWindow() != nullptr) {

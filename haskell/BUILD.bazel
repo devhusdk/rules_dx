@@ -10,7 +10,6 @@ exports_files([
     "pins.json",
 ])
 
-# Public so users can register their own GHC toolchain.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],

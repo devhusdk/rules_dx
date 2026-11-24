@@ -9,7 +9,6 @@ load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framew
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo")
 load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"

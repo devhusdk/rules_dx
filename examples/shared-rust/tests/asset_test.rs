@@ -1,5 +1,3 @@
-//! Asserts the staged browser layout and loads its resources natively.
-
 use std::path::PathBuf;
 
 const PACKAGE: &str = "examples/shared-rust/app";

@@ -35,8 +35,6 @@ string_flag(
     visibility = ["//visibility:public"],
 )
 
-# Public so users can register their own CUDA toolchain. Declared here, not in rules_cuda,
-# so toolchain resolution never loads a rules_cuda .bzl file.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],
@@ -74,8 +72,6 @@ cuda_component_library(
     visibility = ["//visibility:public"],
 )
 
-# clang's CUDA runtime wrapper includes curand_mtgp32_kernel.h, so clang-tidy needs the cuRAND headers.
-# Only CUDA compiles run under the static runtime setting, so other C/C++ targets never fetch cuRAND.
 alias(
     name = "clang_tidy_headers",
     actual = select({

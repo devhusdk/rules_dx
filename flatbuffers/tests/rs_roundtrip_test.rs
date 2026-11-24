@@ -1,5 +1,3 @@
-//! Builds a Shape with a Point from the generated Rust crate and reads it back.
-
 use shapes_rs::dx::api::{root_as_shape, Shape, ShapeArgs};
 use shapes_rs::dx::base::Point;
 

@@ -1,39 +1,25 @@
-//! Runs `pub get` or `pub upgrade` of the pinned Dart SDK on a copy of a set and writes its
-//! lockfile with a marker that records the manifest digest.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};
 
 use dx_lock::{RESOLVER_TIMEOUT, Scratch};
 
-/// One lock step for one dependency set.
 pub struct Request {
-    /// The set directory.
     pub dir: PathBuf,
-    /// The manifest file name.
     pub manifest: String,
-    /// The lock file name.
     pub lock: String,
-    /// Compare only.
     pub check: bool,
-    /// The `PATH` of `pub`, which runs `chmod` when it unpacks a package with executables.
     pub path: Option<PathBuf>,
-    /// Runs `pub upgrade` on these packages, or on every package when empty, instead of `pub get`.
     pub upgrade: Option<Vec<String>>,
 }
 
-/// What the lock step did.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// The lock already matched.
     Fresh,
-    /// The lock was written.
     Written,
-    /// `check` found the lock missing or different.
     Stale,
 }
 
-/// The `dart` arguments that run `pub get`, or `pub upgrade` of `upgrade`.
 #[must_use]
 pub fn pub_args(upgrade: Option<&[String]>) -> Vec<&str> {
     let mut args = vec!["--suppress-analytics", "pub"];
@@ -48,7 +34,6 @@ pub fn pub_args(upgrade: Option<&[String]>) -> Vec<&str> {
     args
 }
 
-/// The lock line that records the sha256 of the manifest the lock was resolved from.
 pub const MARKER: &str = "# dx inputs sha256: ";
 
 fn recorded(lock: &str) -> Option<&str> {
@@ -61,7 +46,6 @@ fn without_marker(lock: &str) -> String {
         .collect()
 }
 
-/// Places the marker after the lock's leading comment lines.
 fn with_marker(lock: &str, digest: &str) -> String {
     let mut out = String::with_capacity(lock.len() + MARKER.len() + digest.len() + 1);
     let mut placed = false;
@@ -78,13 +62,7 @@ fn with_marker(lock: &str, digest: &str) -> String {
     out
 }
 
-/// Writes the set's lock with `dart`, or with `check` compares the lock's marker to the manifest.
-///
-/// Without `upgrade`, a lock whose marker matches the manifest digest is fresh without running
-/// `dart`.
-///
 /// # Errors
-///
 /// Fails when the manifest cannot be read, `pub` fails, the request both checks and upgrades, or
 /// the lock cannot be written.
 pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
@@ -133,26 +111,17 @@ pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
     Ok(Outcome::Written)
 }
 
-/// The flag that upgrades every package of the set.
 pub const UPGRADE_ALL: &str = "--upgrade-all";
 
-/// The parsed arguments of the step.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Parsed {
-    /// The `dart` executable.
     pub dart: PathBuf,
-    /// The `chmod` executable.
     pub chmod: PathBuf,
-    /// The shared lock step flags.
     pub args: dx_lock::Args,
-    /// The packages to upgrade; empty upgrades every package.
     pub upgrade: Option<Vec<String>>,
 }
 
-/// Parses `--dart=<path> --chmod=<path>`, the shared lock step flags and `--upgrade-all`.
-///
 /// # Errors
-///
 /// Fails on a missing tool path, a bad shared flag, or `--upgrade-all` beside `--upgrade`.
 pub fn parse(args: &[String]) -> Result<Parsed, dx_lock::Error> {
     let (paths, rest) = dx_lock::tool_paths(args, &["--dart", "--chmod"])?;
@@ -180,9 +149,6 @@ pub fn parse(args: &[String]) -> Result<Parsed, dx_lock::Error> {
     })
 }
 
-/// Runs the pub lock step on `args`, the arguments after `dx dart_lock`:
-/// `--dart=<path> --chmod=<path> --dir <set directory> [--check] [--upgrade <name>]... [--upgrade-all]`.
-/// 0 when the lock is fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Parsed {
         dart,

@@ -1,0 +1,12 @@
+extends: existence
+message: "Remove the filler '%s'."
+level: error
+ignorecase: true
+tokens:
+  - it is worth noting
+  - delv(?:e|es|ed|ing)
+  - seamless(?:ly)?
+  - robust(?:ly|ness)?
+  - leverag(?:e|es|ed|ing)
+  - comprehensive(?:ly)?
+  - game[- ]changers?

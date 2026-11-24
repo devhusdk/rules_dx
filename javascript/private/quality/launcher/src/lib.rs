@@ -1,12 +1,9 @@
-//! Reads a generated JavaScript launcher's own runfiles so a host can run the tool.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// The program a launcher runs, with the entry point it runs.
 #[derive(Debug)]
 pub struct Plan {
     pub program: PathBuf,
@@ -19,7 +16,6 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// Returns the full child command line this plan runs.
     pub fn argv(&self) -> Vec<OsString> {
         let mut argv = Vec::new();
         argv.push(self.program.as_os_str().to_owned());
@@ -31,7 +27,6 @@ impl Plan {
     }
 }
 
-/// Names the descriptor beside one launcher.
 #[must_use]
 pub fn descriptor_path(exe: &Path) -> PathBuf {
     let mut name = exe.file_stem().unwrap_or(exe.as_os_str()).to_os_string();
@@ -39,7 +34,6 @@ pub fn descriptor_path(exe: &Path) -> PathBuf {
     exe.with_file_name(name)
 }
 
-/// The launch the Bazel rule wrote for one wrapper.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Descriptor {
     pub entry: String,
@@ -49,10 +43,7 @@ pub struct Descriptor {
     pub node_options: Vec<String>,
 }
 
-/// Returns the launch one descriptor names.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn descriptor(path: &Path) -> io::Result<Descriptor> {
     let text = read(path)?;
@@ -87,10 +78,7 @@ pub fn descriptor(path: &Path) -> io::Result<Descriptor> {
     })
 }
 
-/// Resolves what one launcher invocation runs from its own runfiles.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
     let cwd = std::env::current_dir().map_err(|error| {
@@ -102,10 +90,7 @@ pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
     plan_in(exe, args, &cwd)
 }
 
-/// Resolves one launch as if the launcher ran in `cwd`.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
     let owned = descriptor(&descriptor_path(exe))?;
@@ -154,12 +139,6 @@ pub fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
     })
 }
 
-/// Returns the file one runfiles key names.
-///
-/// Manifests map npm package directories rather than every file inside them,
-/// so a key the manifest does not name is retried below each mapped ancestor
-/// directory. A resolved file that does not exist fails the same way a key
-/// the runfiles never named does.
 fn resolve(runfiles: &dx_path::Resolver, key: &str) -> io::Result<PathBuf> {
     if let Ok(path) = runfiles.lookup(key) {
         return Ok(path);
@@ -182,7 +161,6 @@ fn resolve(runfiles: &dx_path::Resolver, key: &str) -> io::Result<PathBuf> {
     runfiles.lookup(key)
 }
 
-/// Returns the runfiles tree one resolver read, or the manifest's directory.
 fn runfiles_root(runfiles: &dx_path::Resolver) -> PathBuf {
     let source = runfiles.source();
     if source.is_dir() {

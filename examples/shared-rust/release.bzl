@@ -1,6 +1,5 @@
 """Builds one target in the optimized release configuration."""
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 def _opt_transition_impl(_settings, _attr):

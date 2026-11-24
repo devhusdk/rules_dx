@@ -1,6 +1,6 @@
 module dot
-  use iso_c_binding, only: c_double, c_int
-  implicit none
+  use, intrinsic :: iso_c_binding, only: c_double, c_int
+  implicit none (type, external)
   private
   public :: dx_dot
 

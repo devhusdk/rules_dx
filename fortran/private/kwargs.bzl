@@ -1,7 +1,7 @@
 """Default attributes for the Fortran macros."""
 
 load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
-load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 
 PLATFORM_SUPPORT = cells_support("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", FORTRAN_CELLS, lang_cells("fortran"), "//fortran/private/toolchain", "constraints")
@@ -14,9 +14,17 @@ LIBRARY_ATTRS = ["copts", "defines", "deps", "hdrs", "includes", "srcs"]
 
 SHARED_ATTRS = ["tags", "target_compatible_with", "testonly"]
 
+STRICT_COPTS = ["-fimplicit-none", "-fimplicit-none-ext", "-std=f2018", "-Werror"]
+
+def fortran_strict_copts(kwargs):
+    """Returns kwargs without warnings_as_errors and with the strict copts ahead of the user's copts, so a user flag overrides one."""
+    out, strict = dx_warnings_as_errors(kwargs, STRICT_COPTS)
+    out["copts"] = strict + (out.get("copts") or [])
+    return out
+
 def fortran_with_defaults(kwargs):
-    """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
-    out = dx_language_kwargs(dx_warnings_flags(kwargs, "copts", ["-Werror"]), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
+    """Returns kwargs with the strict copts, the qualified Fortran cell in target_compatible_with and the quality skip tags."""
+    out = dx_language_kwargs(fortran_strict_copts(kwargs), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
     out["copts"] = (out.get("copts") or []) + select({
         Label("//fortran:kcov_build"): ["-g"],
         "//conditions:default": [],

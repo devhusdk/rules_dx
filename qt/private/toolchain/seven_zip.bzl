@@ -41,7 +41,6 @@ def seven_zip_fetch(rctx, output):
 def seven_zip_reads_rpm(extractor):
     """Returns whether one pinned extractor unpacks the rpm and cpio runtime packages."""
 
-    # 7zr is the reduced standalone build: it reads only 7z, xz and lzma archives.
     return extractor.binary.removesuffix(".exe") != "7zr"
 
 def seven_zip_host(rctx):

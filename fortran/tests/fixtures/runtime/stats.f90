@@ -1,7 +1,7 @@
 module stats
-  use iso_fortran_env, only: real64
+  use, intrinsic :: iso_fortran_env, only: real64
   use greet, only: greeting
-  implicit none
+  implicit none (type, external)
   private
   public :: mean, summary
 
@@ -18,7 +18,7 @@ contains
     real(real64), intent(in) :: values(:)
     character(:), allocatable :: text
     character(32) :: buffer
-    write(buffer, '(f0.2)') mean(values)
+    write(buffer, "(f0.2)") mean(values)
     text = greeting(name) // " mean=" // trim(buffer)
   end function summary
 

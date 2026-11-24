@@ -1,0 +1,17 @@
+producer //core/quality/testdata:matrix_markdown_lint_profile_strict_guard
+capability LINT
+stages 1
+stage vale classes=markdown sources=matrix/vale_profile_strict_guard.md
+completed_rounds 1
+convergence STABLE
+initial 4
+initial ERROR vale Dx.Markers matrix/vale_profile_strict_guard.md 9 13 fixable=false "Remove the 'TODO' marker."
+initial ERROR vale Dx.Filler matrix/vale_profile_strict_guard.md 15 20 fixable=false "Remove the filler 'delve'."
+initial ERROR vale Dx.Placeholders matrix/vale_profile_strict_guard.md 26 37 fixable=false "Replace the placeholder 'lorem ipsum'."
+initial WARNING vale write-good.TooWordy matrix/vale_profile_strict_guard.md 38 49 fixable=false "'in order to' is too wordy."
+terminal 4
+terminal ERROR vale Dx.Markers matrix/vale_profile_strict_guard.md 9 13 fixable=false "Remove the 'TODO' marker."
+terminal ERROR vale Dx.Filler matrix/vale_profile_strict_guard.md 15 20 fixable=false "Remove the filler 'delve'."
+terminal ERROR vale Dx.Placeholders matrix/vale_profile_strict_guard.md 26 37 fixable=false "Replace the placeholder 'lorem ipsum'."
+terminal WARNING vale write-good.TooWordy matrix/vale_profile_strict_guard.md 38 49 fixable=false "'in order to' is too wordy."
+replacements 0

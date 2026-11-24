@@ -42,7 +42,6 @@ def luarocks_problems(lock):
             problems.append("package %s has no lua_modules object" % name)
             continue
         for module, path in sorted(modules.items()):
-            # build_file strips the module path off the file to find the source root.
             if type(path) != "string" or not ("/" + path).endswith("/" + module.replace(".", "/") + ".lua"):
                 problems.append("package %s module %s has path %r, which does not end in %s.lua" % (name, module, path, module.replace(".", "/")))
     return problems

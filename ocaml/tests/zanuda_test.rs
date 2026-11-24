@@ -1,6 +1,3 @@
-//! The built zanuda reports findings on typed-tree files from the pinned toolchain, names the
-//! listed source in each finding, passes a clean target and fails on a missing or corrupt .cmt.
-
 use std::path::{Path, PathBuf};
 
 use dx_testing::{Run, command_for, env_file, env_text, path_text, read, scratch_dir, write};

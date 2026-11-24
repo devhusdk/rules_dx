@@ -27,7 +27,6 @@ cc_feature(
     overrides = "@rules_cc//cc/toolchains/features:dynamic_linking_mode",
 )
 
-# Bazel's own rpath flags use $EXEC_ORIGIN for tests, which the loader ignores.
 cc_args(
     name = "origin_rpath",
     actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
@@ -87,7 +86,6 @@ cc_args(
     args = [
         "-static-libgcc",
         "-l:libstdc++.a",
-        # -nodefaultlibs linkers (rustc) need libgcc.a for the ARM64 outline atomics in libstdc++.a.
         "-l:libgcc.a",
     ],
     requires_any_of = [

@@ -1,4 +1,3 @@
-//! Runs the `rules_jvm_external` Maven resolver on a version catalog with the pinned JDK.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::PathBuf;
@@ -6,36 +5,23 @@ use std::path::PathBuf;
 use dx_lock::{RESOLVER_TIMEOUT, Scratch};
 use serde_json::{Value, json};
 
-/// The JDK and resolver jar the lock step runs.
 pub struct Tools {
-    /// The `java` executable.
     pub java: PathBuf,
-    /// The resolver deploy jar.
     pub jar: PathBuf,
 }
 
-/// One lock step for one dependency set.
 pub struct Request {
-    /// The set directory.
     pub dir: PathBuf,
-    /// The manifest file name.
     pub manifest: String,
-    /// The lock file name.
     pub lock: String,
-    /// Repository URLs; empty means Maven Central.
     pub repositories: Vec<String>,
-    /// Compare only.
     pub check: bool,
 }
 
-/// What the lock step did.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// The lock already matched.
     Fresh,
-    /// The lock was written.
     Written,
-    /// `check` found the lock missing or different.
     Stale,
 }
 
@@ -110,10 +96,7 @@ fn coordinates(
     Ok((format!("{group}:{artifact}"), artifact_json))
 }
 
-/// Renders the resolver's config file for one manifest.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String> {
     let parsed: toml::Table = manifest
@@ -177,7 +160,6 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
     serde_json::to_string_pretty(&config).map_err(|error| error.to_string())
 }
 
-/// The top-level lock key that records the sha256 of the manifest the lock was resolved from.
 pub const MARKER: &str = "__DX_INPUTS_SHA256";
 
 fn recorded(lock: &[u8]) -> Option<String> {
@@ -185,13 +167,7 @@ fn recorded(lock: &[u8]) -> Option<String> {
     parsed.get(MARKER)?.as_str().map(str::to_owned)
 }
 
-/// Resolves the set's manifest and writes, or with `check` compares the lock's marker to the
-/// manifest.
-///
-/// A lock whose marker matches the manifest digest is fresh without running the resolver.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
     let manifest_path = request.dir.join(&request.manifest);
@@ -257,10 +233,6 @@ fn parse(args: &[String]) -> Result<(Tools, dx_lock::Args), dx_lock::Error> {
     Ok((Tools { java, jar }, args))
 }
 
-/// Runs the lock step on `args`, the arguments after the subcommand name:
-/// `--java=<path> --resolver-jar=<path> --dir <set directory> [--check]`.
-/// Returns 0 when the lock is fresh or written, 1 when stale or the resolver fails, 2 on bad
-/// arguments.
 pub fn run_process(args: &[String]) -> i32 {
     let (tools, args) = match parse(args) {
         Ok(parsed) => parsed,

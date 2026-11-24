@@ -1,5 +1,3 @@
-//! Rewrites absolute execroot paths in MSVC linker and archiver arguments to relative ones.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fs;
@@ -7,7 +5,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{ExitCode, ExitStatus};
 
-/// Returns the nearest ancestor of `cwd`, or `cwd` itself, that holds `bazel-out`.
 pub fn execroot(cwd: &Path) -> io::Result<PathBuf> {
     cwd.ancestors()
         .find(|dir| dir.join("bazel-out").is_dir())
@@ -20,14 +17,12 @@ pub fn execroot(cwd: &Path) -> io::Result<PathBuf> {
         })
 }
 
-/// Returns the prefix that leads from `cwd` back up to `root`.
 #[must_use]
 pub fn up_prefix(cwd: &Path, root: &Path) -> String {
     let depth = cwd.components().count() - root.components().count();
     "../".repeat(depth)
 }
 
-/// Replaces the execroot at the start of a path with a relative prefix.
 pub struct Rewriter {
     root: String,
     prefix: String,
@@ -42,14 +37,12 @@ impl Rewriter {
         }
     }
 
-    /// Finds the execroot above the current directory.
     pub fn from_cwd() -> io::Result<Self> {
         let cwd = std::env::current_dir()?;
         let root = execroot(&cwd)?;
         Ok(Self::new(&root.to_string_lossy(), &up_prefix(&cwd, &root)))
     }
 
-    /// Replaces every `<root>\` and `<root>/` in `text`, ignoring ASCII case.
     #[must_use]
     pub fn rewrite(&self, text: &str) -> String {
         let mut out = String::with_capacity(text.len());
@@ -72,7 +65,6 @@ impl Rewriter {
         out
     }
 
-    /// Returns what follows `<root>` and one separator at the start of `text`.
     fn strip_root<'a>(&self, text: &'a str) -> Option<&'a str> {
         let root = self.root.as_bytes();
         let bytes = text.as_bytes();
@@ -99,7 +91,6 @@ fn is_sep_char(c: char) -> bool {
     c == '/' || c == '\\'
 }
 
-/// How a response file was encoded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Encoding {
     Utf8,
@@ -141,7 +132,6 @@ fn invalid(err: impl std::error::Error + Send + Sync + 'static) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err)
 }
 
-/// Calls `edit` on each argument and on each line of every `@file` response file.
 pub fn edit_args(
     args: &mut [String],
     mut edit: impl FnMut(&str) -> io::Result<String>,
@@ -188,7 +178,6 @@ fn edit_line(line: &str, edit: &mut impl FnMut(&str) -> io::Result<String>) -> i
     }
 }
 
-/// Splits an MSVC option such as `/DEF:` from its value; a plain path has no option.
 #[must_use]
 pub fn split_option(arg: &str) -> (&str, &str) {
     if let Some(rest) = arg.strip_prefix(['/', '-'])
@@ -202,7 +191,6 @@ pub fn split_option(arg: &str) -> (&str, &str) {
     ("", arg)
 }
 
-/// Returns the file name of a path that sits in a rustc temp dir such as `rustcPNODW9`.
 pub fn rustc_temp_file(path: &str) -> Option<&str> {
     let mut parts = path.rsplit(is_sep_char);
     let name = parts.next()?;
@@ -211,7 +199,6 @@ pub fn rustc_temp_file(path: &str) -> Option<&str> {
     (random && !name.is_empty()).then_some(name)
 }
 
-/// Returns the directory that holds copies of rustc temp files for the link that writes `out`.
 pub fn link_copy_dir(out: &str) -> String {
     let (dir, file) = match out.rfind(is_sep_char) {
         Some(i) => out.split_at(i + 1),

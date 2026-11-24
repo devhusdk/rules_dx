@@ -1,5 +1,3 @@
-//! Signs a device app into a distributable IPA.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -14,7 +12,6 @@ pub const PREFIX: &str = "dx-apple-export";
 
 const HELP: &str = "usage: bazel run <export> -- --certificate <identity.p12> --password-file <file> --out <App.ipa>";
 
-/// The sorted file names of an IPA, without directories and signatures.
 pub fn listing(ipa: &Path) -> Option<BTreeSet<String>> {
     let names = dx_archive::zip_names(std::fs::File::open(ipa).ok()?).ok()?;
     Some(
@@ -33,7 +30,6 @@ fn digits(stamp: &str) -> String {
         .collect()
 }
 
-/// The current UTC time as `YYYY-MM-DDTHH:MM:SSZ`.
 #[must_use]
 pub fn now() -> String {
     let seconds = std::time::SystemTime::now()
@@ -64,7 +60,6 @@ pub fn now() -> String {
     )
 }
 
-/// The platform and minimum OS of the first `LC_BUILD_VERSION` in `otool -l` output.
 #[must_use]
 pub fn build_version(listing: &str) -> (String, String) {
     let (mut command, mut platform, mut minos) = (String::new(), String::new(), String::new());
@@ -92,10 +87,7 @@ fn covers(app_identifier: &str, team: &str, bundle_id: &str) -> bool {
     }
 }
 
-/// Exports the IPA `args[1]` signed with the profile `args[2]` as bundle id `args[0]`; the flags follow.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();

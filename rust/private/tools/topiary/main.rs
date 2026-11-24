@@ -1,14 +1,3 @@
-//! `dx_topiary`: a hermetic OCaml formatter built on topiary-core.
-//!
-//! Grammars and formatting queries are compiled in, so the tool never reads
-//! environment variables or configuration files and never touches the network.
-//!
-//! Usage: `dx_topiary [--write] [--language ocaml|ocaml_interface] FILE...`
-//!
-//! Exit codes: 0 = every file is formatted, 1 = check mode found files that
-//! would change (one PATH per line on stdout), 2 = a syntax
-//! error (`PATH:LINE:COL: message`), an unsupported file, or a tool error.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::Path;
@@ -16,7 +5,6 @@ use std::process::ExitCode;
 
 use topiary_core::{Language, Operation, TopiaryQuery, formatter_str};
 
-/// The single language-to-grammar table. Add new topiary languages here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Lang {
     Ocaml,
@@ -70,7 +58,6 @@ enum Outcome {
     Error(String),
 }
 
-/// Position (1-based) of the first syntax error or missing node, if any.
 fn first_syntax_error(lang: Lang, source: &str) -> Result<Option<(usize, usize)>, String> {
     let mut parser = tree_sitter::Parser::new();
     parser

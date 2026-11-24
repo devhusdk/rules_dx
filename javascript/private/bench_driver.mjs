@@ -1,4 +1,3 @@
-// Runs a tinybench `Bench` exported by the module named in argv[2] and writes dx-bench.json.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

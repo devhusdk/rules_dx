@@ -152,7 +152,6 @@ def component_errors(name, paths):
             return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags"]
     return []
 
-# Flags that hide nvcc or host warnings, or relax device-code semantics.
 _BANNED_COPTS = ["-w", "--disable-warnings", "--expt-relaxed-constexpr", "-expt-relaxed-constexpr", "--use_fast_math", "-use_fast_math"]
 _BANNED_COPT_PREFIXES = ["-Wno-", "--diag-suppress", "-diag-suppress", "--diag_suppress", "-diag_suppress"]
 
@@ -177,7 +176,6 @@ def copt_errors(copts):
         if _banned_copt(flag, host):
             errors.append("dx_cuda: copt '" + flag + "' silences warnings or relaxes device code; fix the code instead")
 
-        # nvcc takes the token after a bare -Xcompiler as host compiler flags.
         host = flag in ("-Xcompiler", "--compiler-options")
     return errors
 

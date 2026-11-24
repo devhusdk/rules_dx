@@ -1,5 +1,3 @@
-//! The swiftpm lock step writes the golden lock from a pinned archive with an empty `PATH` and no network.
-
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Outcome, run};
@@ -64,7 +62,6 @@ fn set_named(identity: &str, location: &str) -> tempfile::TempDir {
     dir
 }
 
-/// The swift launcher inside this test's runfiles tree, where it finds the toolchain runfiles.
 fn swift() -> std::path::PathBuf {
     dx_testing::runfiles_root().join(dx_testing::env_text("SWIFT"))
 }

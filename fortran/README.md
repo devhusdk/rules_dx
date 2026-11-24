@@ -82,6 +82,16 @@ The default policy selects these tools for the `fortran` family:
 - fortitude reads free-form source only, so it does not lint `.f` and `.F`
   files.
 
+Fortran targets build with `-fimplicit-none -fimplicit-none-ext -std=f2018
+-Werror`, so implicit typing, implicit external procedures, nonstandard
+extensions and warnings fail the build. Locked fpm packages build without
+them. Set `warnings_as_errors = False` on one target to drop these flags, or
+turn them off for the whole build in `.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
 ## API docs
 
 `dx docs` documents every `fortran_library` that lists its own sources, with

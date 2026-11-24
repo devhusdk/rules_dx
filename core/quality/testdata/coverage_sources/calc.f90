@@ -1,5 +1,7 @@
 module calc
-  implicit none
+  implicit none (type, external)
+  private
+  public :: clamp
 contains
   integer function clamp(value, low, high)
     integer, intent(in) :: value, low, high

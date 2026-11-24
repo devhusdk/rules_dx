@@ -1,5 +1,3 @@
-//! Writes a Shape with the binary protocol and reads it back.
-
 use shapes_rs::common::Point;
 use shapes_rs::shape::Shape;
 use thrift::protocol::{TBinaryInputProtocol, TBinaryOutputProtocol, TSerializable};

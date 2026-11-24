@@ -1,6 +1,3 @@
-//! The Apple consumer fixture builds its iOS simulator app, its iOS Rust library and its macOS app with
-//! no flag and no `rust.toolchain`.
-
 use std::collections::BTreeMap;
 
 use dx_nested::compose::{
@@ -8,17 +5,14 @@ use dx_nested::compose::{
     write_root_patch_overrides, write_rules_py_patches,
 };
 
-/// The fixture directory under the source snapshot.
 const PREFIX: &str = "apple/tests/consumer/";
 
-/// The name the fixture stores `MODULE.bazel` under.
 const STORED_MODULE: &str = "consumer.MODULE.bazel";
 
 const SHARE_BUILD: &str = "load(\"@rules_dx//apple:defs.bzl\", \"apple_ios_lib\")\n\napple_ios_lib(\n    name = \"share\",\n    srcs = [\"share.rs\"],\n    platform = \"@rules_dx//apple:ios_sim_arm64\",\n)\n";
 
 const SHARE_RS: &str = "/// Returns the number of items the phone app shares.\n#[unsafe(no_mangle)]\npub extern \"C\" fn share_count() -> u32 {\n    1\n}\n";
 
-/// The files of the fixture, keyed by their path under it.
 fn fixture() -> BTreeMap<String, String> {
     let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
         .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
@@ -31,7 +25,6 @@ fn fixture() -> BTreeMap<String, String> {
         .collect()
 }
 
-/// The fixture module without its `module` and `rules_dx` lines, which the nested consumer writes.
 fn module_body(module: &str) -> String {
     module
         .lines()
@@ -43,8 +36,6 @@ fn module_body(module: &str) -> String {
         .collect()
 }
 
-/// The module lines that point `@bazel_tools//tools/cpp:host_xcodes` at apple_support's
-/// `local_config_xcode`.
 fn host_xcodes_override(apple_support: &str) -> String {
     let version = apple_support
         .lines()

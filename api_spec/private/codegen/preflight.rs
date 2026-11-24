@@ -1,10 +1,7 @@
-//! Offline gate every `api_spec_typescript_client` runs before Redocly generates anything.
-
 use std::collections::BTreeMap;
 
 use quality_adapter::api_spec_preflight::{check_root, openapi_root_problem};
 
-/// The parsed command line.
 struct Args {
     root: String,
     docs: Vec<(String, String)>,
@@ -37,7 +34,6 @@ fn parse(args: &[String]) -> Result<Args, String> {
     })
 }
 
-/// The `path:line:col rule message` lines for one root and its staged documents.
 fn problems(root: &str, docs: &BTreeMap<String, String>) -> Vec<String> {
     let Some(text) = docs.get(root) else {
         return vec![format!(
@@ -72,7 +68,6 @@ fn run(args: &[String]) -> Result<Vec<String>, String> {
     Ok(lines)
 }
 
-/// Runs the preflight with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     match run(args) {

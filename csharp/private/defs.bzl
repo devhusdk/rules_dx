@@ -11,7 +11,6 @@ load(":proto.bzl", "csharp_proto_srcs")
 load("//dotnet/private:sharpfuzz.bzl", "sharpfuzz_fuzz")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 
-# Set False to tag csharp tests dx-no-coverage-collector instead of running coverlet.
 CSHARP_COVERAGE_COLLECTOR = True
 
 _DX_CSHARP_LIBRARY_PROVIDES = [

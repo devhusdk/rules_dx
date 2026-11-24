@@ -1,5 +1,3 @@
-//! Authoritative C/C++ compile context read from a Bazel aquery action record.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -8,7 +6,6 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Mnemonic Bazel gives a configured C or C++ compile action.
 pub const COMPILE_MNEMONIC: &str = "CppCompile";
 
 /// File name clang-tidy and clangd read a compilation database from.
@@ -20,7 +17,6 @@ pub const POLICY_FILE: &str = ".clang-tidy";
 /// Config file extension a clang-tidy policy must use.
 pub const POLICY_EXTENSION: &str = ".clang-tidy";
 
-/// Everything that must fail closed instead of yielding a no-flags clean run.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum Error {
     #[error("compilation_db: malformed aquery record: {0}")]
@@ -73,7 +69,6 @@ pub enum Error {
     Usage(String),
 }
 
-/// One aquery action from a `--output=jsonproto` record.
 #[derive(Debug, Deserialize)]
 pub struct Action {
     #[serde(default)]
@@ -98,7 +93,6 @@ pub struct Action {
     pub param_files: Vec<ParamFile>,
 }
 
-/// One param file Bazel wrote for an action, as aquery reports it.
 #[derive(Debug, Deserialize)]
 pub struct ParamFile {
     #[serde(default, rename = "execPath")]
@@ -107,7 +101,6 @@ pub struct ParamFile {
     pub arguments: Vec<String>,
 }
 
-/// One aquery action environment entry.
 #[derive(Debug, Deserialize)]
 pub struct EnvironmentVariable {
     pub key: String,
@@ -115,7 +108,6 @@ pub struct EnvironmentVariable {
     pub value: String,
 }
 
-/// One aquery artifact, addressed by execroot-relative path or path fragment.
 #[derive(Debug, Deserialize)]
 pub struct Artifact {
     pub id: i64,
@@ -125,7 +117,6 @@ pub struct Artifact {
     pub path_fragment_id: i64,
 }
 
-/// One aquery path fragment, linked to its parent fragment.
 #[derive(Debug, Deserialize)]
 pub struct PathFragment {
     pub id: i64,
@@ -135,7 +126,6 @@ pub struct PathFragment {
     pub parent_id: i64,
 }
 
-/// One aquery file dep set; ids are recursive.
 #[derive(Debug, Deserialize)]
 pub struct DepSet {
     pub id: i64,
@@ -145,14 +135,12 @@ pub struct DepSet {
     pub transitive_dep_set_ids: Vec<i64>,
 }
 
-/// One aquery target label.
 #[derive(Debug, Deserialize)]
 pub struct Target {
     pub id: i64,
     pub label: String,
 }
 
-/// One aquery configuration identity.
 #[derive(Debug, Deserialize)]
 pub struct Configuration {
     pub id: i64,
@@ -162,7 +150,6 @@ pub struct Configuration {
     pub checksum: String,
 }
 
-/// The decoded aquery action graph.
 #[derive(Debug, Default, Deserialize)]
 pub struct AqueryGraph {
     #[serde(default)]
@@ -179,7 +166,6 @@ pub struct AqueryGraph {
     pub path_fragments: Vec<PathFragment>,
 }
 
-/// How a compiler driver takes its flags.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Driver {
@@ -189,7 +175,6 @@ pub enum Driver {
     Unknown,
 }
 
-/// The compiler Bazel selected for one configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CompilerIdentity {
     pub configuration: String,
@@ -204,7 +189,6 @@ pub struct CompilerIdentity {
     pub target: String,
 }
 
-/// One configured compile action with its authoritative argv and declared inputs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompileCommand {
     pub target: String,
@@ -218,7 +202,6 @@ pub struct CompileCommand {
     pub identity: Option<CompilerIdentity>,
 }
 
-/// One compilation database record, in the format clang tooling consumes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {
     pub directory: String,
@@ -227,13 +210,10 @@ pub struct Entry {
 }
 
 impl AqueryGraph {
-    /// Decodes an aquery `--output=jsonproto` record.
     pub fn parse(text: &str) -> Result<Self, Error> {
         serde_json::from_str(text).map_err(|err| Error::Malformed(err.to_string()))
     }
 
-    /// Drops compile actions that belong to none of `labels`, such as toolchain tools
-    /// pulled in by `deps()`.
     pub fn retain_owned(&mut self, labels: &[String]) {
         let targets: BTreeMap<i64, &str> = self
             .targets
@@ -249,7 +229,6 @@ impl AqueryGraph {
             .retain(|a| a.mnemonic != COMPILE_MNEMONIC || owned.contains(&a.target_id));
     }
 
-    /// Collects every configured compile action, expanding response files.
     pub fn compile_commands(
         &self,
         execroot: &Path,
@@ -350,13 +329,11 @@ impl AqueryGraph {
     }
 }
 
-/// Reports whether a compile action belongs to the requested top-level label.
 #[must_use]
 pub fn owns_label(action_target: &str, label: &str) -> bool {
     action_target == label || action_target == format!("{label}_upstream")
 }
 
-/// Reads the source a compile action compiles from its own argv.
 fn source_argument<'a>(target: &str, arguments: &'a [String]) -> Result<&'a str, Error> {
     let missing = |flag: &str| Error::MissingSourceFlag {
         target: target.to_string(),
@@ -382,14 +359,12 @@ fn source_argument<'a>(target: &str, arguments: &'a [String]) -> Result<&'a str,
     Err(missing(""))
 }
 
-/// How a driver splits the text of a response file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Quoting {
     Gnu,
     Windows,
 }
 
-/// Picks the response-file quoting from the selected driver, or None when it is unknown.
 #[must_use]
 pub fn rsp_quoting(arguments: &[String], driver: Driver) -> Option<Quoting> {
     for argument in arguments {
@@ -409,7 +384,6 @@ pub fn rsp_quoting(arguments: &[String], driver: Driver) -> Option<Quoting> {
     }
 }
 
-/// Reads the compiler identity files Bazel wrote, one per configuration.
 pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error> {
     let mut identities: Vec<CompilerIdentity> = Vec::new();
     for path in paths {
@@ -436,13 +410,8 @@ pub fn read_identities(paths: &[PathBuf]) -> Result<Vec<CompilerIdentity>, Error
     Ok(identities)
 }
 
-/// Argv flags that mean an MSVC action already carries its own CRT and SDK includes.
 const MSVC_ARGV_INCLUDE_FLAGS: [&str; 4] = ["/imsvc", "-imsvc", "/winsysroot", "-winsysroot"];
 
-/// Argv0 and arguments of the version probe for a recorded compiler. A relative argv0 is
-/// resolved against the execroot. An `external/` argv0 is read from the output base when it
-/// is there, because Bazel need not link every repository into the execroot.
-/// `cl` takes no flag and prints its banner on stderr.
 #[must_use]
 pub fn version_probe(execroot: &Path, output_base: &Path, argv0: &str) -> (PathBuf, Vec<String>) {
     let in_output_base = output_base.join(argv0);
@@ -462,8 +431,6 @@ pub fn version_probe(execroot: &Path, output_base: &Path, argv0: &str) -> (PathB
     (path, args)
 }
 
-/// Turns the hermetic MSVC action env into the flags clang-cl needs, right after argv0.
-/// An action with no `INCLUDE` in its env but include flags in argv is kept unchanged.
 fn msvc_context_arguments(
     target: &str,
     action: &Action,
@@ -534,7 +501,6 @@ pub fn clang_tidy_projection(commands: &[CompileCommand]) -> Result<(), Error> {
     Ok(())
 }
 
-/// One exported command proven equal to Bazel's own action argv.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Qualified {
     pub target: String,
@@ -545,11 +511,6 @@ pub struct Qualified {
     pub exported: Vec<String>,
 }
 
-/// Checks exported commands against the argv Bazel recorded, with param files
-/// taken from aquery `paramFiles` and never from this crate's tokenizer.
-/// Compile actions whose param file aquery does not report (the compiler param
-/// file Bazel writes while executing) are read from the execroot, one argument
-/// per line.
 pub fn qualify(
     graph: &AqueryGraph,
     commands: &[CompileCommand],
@@ -652,7 +613,6 @@ fn unquote_line(line: &str) -> String {
     inner.replace("\\\"", "\"")
 }
 
-/// Expands every `@response` argument against the execroot.
 pub fn expand_response_files(
     arguments: &[String],
     execroot: &Path,
@@ -720,7 +680,6 @@ fn read_response_file(execroot: &Path, path: &str) -> Result<String, Error> {
     String::from_utf8(bytes.to_vec()).map_err(|err| encoding(err.to_string()))
 }
 
-/// Splits a response file into arguments the way the selected driver does.
 pub fn tokenize_response(path: &str, text: &str, quoting: Quoting) -> Result<Vec<String>, Error> {
     match quoting {
         Quoting::Gnu => tokenize_gnu(path, text),
@@ -827,7 +786,6 @@ fn tokenize_windows(path: &str, text: &str) -> Result<Vec<String>, Error> {
     Ok(tokens)
 }
 
-/// Rebuilds one execroot-relative artifact path from its fragment chain.
 #[must_use]
 pub fn fragment_path(fragments: &BTreeMap<i64, &PathFragment>, id: i64) -> String {
     let mut parts: Vec<&str> = Vec::new();
@@ -887,7 +845,6 @@ fn sorted_paths(ids: &[i64], artifacts: &BTreeMap<i64, &str>) -> Vec<String> {
     paths.into_iter().map(str::to_string).collect()
 }
 
-/// Builds the database for one label, refusing any source with conflicting context.
 pub fn database(
     commands: &[CompileCommand],
     execroot: &Path,
@@ -979,7 +936,6 @@ pub fn read_policy(path: &Path) -> Result<String, Error> {
     Ok(body)
 }
 
-/// Writes the compilation database and the bound policy into one consumer bundle.
 pub fn write_bundle(directory: &Path, entries: &[Entry], policy: &str) -> Result<(), Error> {
     fs::create_dir_all(directory).map_err(|err| Error::UnwritableOutput {
         path: directory.to_string_lossy().into_owned(),
@@ -1002,7 +958,6 @@ pub fn write_bundle(directory: &Path, entries: &[Entry], policy: &str) -> Result
     Ok(())
 }
 
-/// Reads a whole file, or stdin when the path is `-`.
 pub fn read_input(path: &str) -> Result<String, Error> {
     if path == "-" {
         let mut text = String::new();

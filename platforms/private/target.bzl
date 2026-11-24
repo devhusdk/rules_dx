@@ -29,7 +29,6 @@ TARGET_TOOLCHAIN = Label("//platforms:target_toolchain_type")
 _PLATFORMS = "//command_line_option:platforms"
 _CURRENT = str(Label("//platforms:current"))
 
-# Each OS that min_os accepts, and the flag that holds its minimum version.
 MIN_OS_FLAGS = {
     "android": str(Label("//platforms:min_os_android")),
     "ios": "//command_line_option:ios_minimum_os",
@@ -67,7 +66,6 @@ def min_os_error(min_os):
 def transition_error(current, platforms, min_os):
     """Returns why platform_transition cannot move a target, or "" when it can."""
 
-    # The incoming transition runs before the rule, so it checks the platforms list itself.
     return current_error(current) or platforms_error(platforms, False) or min_os_error(min_os)
 
 def _transition_impl(settings, attr):

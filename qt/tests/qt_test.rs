@@ -187,8 +187,6 @@ const UNQUALIFIED_EXIT: i32 = -1;
 
 const UNQUALIFIED: &str = "import QtQml\n\nQtObject {\n    property int a: b\n}\n";
 
-/// Windows searches the executable's directory before System32 and PATH, so the pinned
-/// MSVC runtime is copied beside a private copy of the executable.
 #[cfg(windows)]
 fn runnable(variable: &str) -> (Option<dx_test_scratch::TempDir>, PathBuf) {
     let exe = env_file(variable);
@@ -239,14 +237,12 @@ fn expected_platform_plugins() -> BTreeSet<String> {
     if cfg!(target_os = "macos") {
         plugins.insert("cocoa".to_owned());
     }
-    // The Windows archive ships these in plugins/platforms beside the pinned ones.
     if cfg!(windows) {
         plugins.extend(["direct2d".to_owned(), "windows".to_owned()]);
     }
     plugins
 }
 
-/// Parses Qt's "Available platform plugins are: a, b." line into a set; empty if absent.
 fn available_platform_plugins(output: &str) -> BTreeSet<String> {
     const MARKER: &str = "Available platform plugins are: ";
     output
@@ -287,7 +283,6 @@ fn initialized_objects(stderr: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// gui_test prints one `dx-module: <path>` line per loaded module when DX_QT_TRACE_MODULES is set.
 #[cfg(windows)]
 fn initialized_objects(stderr: &str) -> BTreeSet<String> {
     stderr
@@ -342,8 +337,6 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
     }
 }
 
-/// Windows loads DLLs from next to the symlinked executable, not next to its target,
-/// so the pinned runtime `bin` directory goes first on PATH for the children.
 #[cfg(windows)]
 fn runtime_path() -> String {
     let paths = std::env::var("DX_QT_RUNTIME").expect("DX_QT_RUNTIME must name files");
@@ -368,7 +361,6 @@ fn runtime_path() -> String {
     }
 }
 
-/// The MSVC runtime must come from the pinned payload, never from the host System32.
 #[cfg(windows)]
 fn host_msvc_runtime(path: &str) -> bool {
     let path = path.replace('\\', "/").to_ascii_lowercase();
@@ -467,7 +459,6 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
         "{}",
         run.stderr
     );
-    // Keep in sync with platform_plugins in the cell layouts.
     assert_eq!(
         available_platform_plugins(&run.stderr),
         expected_platform_plugins(),
@@ -590,7 +581,6 @@ fn qmllint_fails_unqualified_access_with_a_located_warning() {
     assert_eq!(warning["column"], 21);
 }
 
-// qmllint is a Qt tool and prints no module list on Windows.
 #[cfg(not(windows))]
 #[test]
 fn tools_ignore_host_routes_and_load_pinned_plugins() {

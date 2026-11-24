@@ -266,6 +266,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
+`hlint` takes its tier from `core/quality/tiers/hlint/`. Standard ignores the naming, section, lambda-case, tuple-section and bracket hints. Strict turns on the `extra`, `generalise` and `future` groups and bans the functions `head`, `tail`, `init`, `last`, `fromJust`, `!!`, `read`, `error`, `undefined`, `unsafePerformIO`, `unsafeCoerce`, `trace`, `traceShow`, `traceM`, `foldl1`, `foldr1`, `maximum`, `minimum` and `genericIndex`, the modules `Debug.Trace`, `System.IO.Unsafe` and `Unsafe.Coerce`, and every `OPTIONS_GHC` flag; set compiler flags in `ghcopts`. These bans and the hints `Use fromMaybe`, `Unused LANGUAGE pragma`, `Redundant bracket`, `Redundant $`, `Redundant id`, `Use null`, `Use isNothing` and `Use isJust` are errors.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 `credo` takes its tier from `core/quality/tiers/credo/`. Standard runs the warning and refactor checks, including `IoInspect`, `Dbg`, `IoPuts`, `UnsafeToAtom`, `UnsafeExec`, `MixEnv` and `LeakyEnvironment`. Strict runs Credo in strict mode and adds the readability and design checks, including `Specs`, `ImplTrue`, `WithCustomTaggedTuple`, `SkipTestWithoutComment`, `TagTODO`, `TagFIXME` and `UnusedVariableNames`.

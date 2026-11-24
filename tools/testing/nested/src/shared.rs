@@ -349,6 +349,7 @@ mod tests {
         file.set_len(100).expect("size");
         file.set_modified(SystemTime::now() + DAY * 3650)
             .expect("mtime");
+        drop(file);
         backdate(&install, DAY * 3);
         let fresh = entry(root, "repo-contents/new", 100, Duration::ZERO);
         evict(root, 100, &[], "t");
@@ -366,6 +367,7 @@ mod tests {
         file.set_len(100).expect("size");
         file.set_modified(SystemTime::now() - DAY * 3)
             .expect("mtime");
+        drop(file);
         evict(root, 100, &[], "t");
         assert!(!stale.exists() && recent.exists());
     }

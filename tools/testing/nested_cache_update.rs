@@ -287,28 +287,38 @@ fn run() -> Result<(), String> {
         "bazel test {} --config=nested_record --nocache_test_results --nozip_undeclared_test_outputs --test_tag_filters= --build_tag_filters=",
         labels.join(" ")
     );
-    let target = workspace.join(DIR);
+    let mut dirs = Vec::new();
     for (package, name) in parts {
-        let recorded = workspace
-            .join("bazel-testlogs")
-            .join(package)
-            .join(name)
-            .join("test.outputs")
-            .join("nested_cache");
-        let entries = std::fs::read_dir(&recorded).map_err(|error| {
-            format!(
-                "{} recorded nothing: {error}; run `{test_command}` first",
-                recorded.display()
-            )
-        })?;
-        for entry in entries.filter_map(Result::ok) {
-            let dst = target.join(entry.file_name());
-            std::fs::copy(entry.path(), &dst)
-                .map_err(|error| format!("cannot write {}: {error}", dst.display()))?;
-            println!("wrote {DIR}/{}", entry.file_name().to_string_lossy());
+        let testlogs = workspace.join("bazel-testlogs").join(package).join(name);
+        let recorded = recorded_dirs(&testlogs);
+        if recorded.is_empty() {
+            return Err(format!(
+                "{} recorded nothing; run `{test_command}` first",
+                testlogs.display()
+            ));
         }
+        dirs.extend(recorded);
     }
-    Ok(())
+    merge(&workspace, &dirs)
+}
+
+/// The record directories of one test: one per shard under `shard_<i>_of_<n>`, else
+/// `test.outputs/nested_cache`.
+fn recorded_dirs(testlogs: &Path) -> Vec<PathBuf> {
+    let record = |dir: &Path| dir.join("test.outputs").join("nested_cache");
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(testlogs)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().starts_with("shard_"))
+        .map(|entry| record(&entry.path()))
+        .filter(|dir| dir.is_dir())
+        .collect();
+    dirs.sort();
+    if dirs.is_empty() && record(testlogs).is_dir() {
+        dirs.push(record(testlogs));
+    }
+    dirs
 }
 
 fn main() -> ExitCode {
@@ -327,6 +337,46 @@ mod tests {
 
     fn list(text: &str) -> (String, String) {
         ("host".to_string(), text.to_string())
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        std::env::var_os("TEST_TMPDIR")
+            .map_or_else(std::env::temp_dir, PathBuf::from)
+            .join(name)
+    }
+
+    #[test]
+    fn recorded_dirs_finds_each_shard() {
+        let root = scratch("sharded");
+        for dir in [
+            "shard_2_of_2",
+            "shard_1_of_2",
+            "shard_3_of_3/empty",
+            "test.outputs/nested_cache",
+        ] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        for shard in ["shard_1_of_2", "shard_2_of_2"] {
+            std::fs::create_dir_all(root.join(shard).join("test.outputs/nested_cache")).unwrap();
+        }
+        let dirs = recorded_dirs(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(
+            dirs,
+            [
+                root.join("shard_1_of_2/test.outputs/nested_cache"),
+                root.join("shard_2_of_2/test.outputs/nested_cache"),
+            ]
+        );
+    }
+
+    #[test]
+    fn recorded_dirs_finds_an_unsharded_record() {
+        let root = scratch("unsharded");
+        std::fs::create_dir_all(root.join("test.outputs/nested_cache")).unwrap();
+        let dirs = recorded_dirs(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(dirs, [root.join("test.outputs/nested_cache")]);
     }
 
     #[test]

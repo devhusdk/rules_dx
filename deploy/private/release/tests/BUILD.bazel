@@ -12,6 +12,7 @@ nested_bazel_test(
     testonly = True,
     srcs = [
         "candidate_consumer_test.rs",
+        "dx_commands_test.rs",
         "quickstart_consumer_test.rs",
         "release_consumer_test.rs",
     ],
@@ -58,7 +59,9 @@ nested_bazel_test(
         "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
         "DX_PYTHON_CONSUMER_BUDGET": "$(rootpath //core/modules:python_consumer_budget.json)",
     },
+    shard_count = 5,
     deps = [
+        "//cli/digest:dx_digest",
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",
         "//deploy/private/release:dx_release_tools",

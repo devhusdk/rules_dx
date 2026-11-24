@@ -43,7 +43,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//tools/testing/hermetic:cuda_gpu_nested_test` | A GPU test runs through a consumer | Deleted. `cuda_gpu_facts_test` stays |
 | `//tools/testing:nested_bazel_harness_test` | The harness runs the pinned Bazel offline and stops its server | Stays nested |
 | `//core/quality/tests:quality_check_smoke_test` | `dx check` reports each phase and diagnostic | Unit test for the events, in-graph fixtures for the diagnostics |
-| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart (`dx init` with `--no-generate`) and `bcr_test_module` run, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One target. Stays nested, on the harness |
+| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart (`dx init` with `--no-generate`) and `bcr_test_module` run, every `dx` command runs against one consumer, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One sharded target. Stays nested, on the harness |
 | `//examples/adopt-polyglot:consumer_test` | `dx init` and `dx generate` adopt a tree with no BUILD files, twice with no change | Stays nested, on the harness |
 
 - `tools/docs/support_matrix` lists the in-graph test of a language once its nested test is converted.
@@ -84,7 +84,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - A nested test declares one cache set with `nested_bazel_test(cache = "<set>")`.
 - The downloader config blocks every host, `bcr.bazel.build` included.
 - A missing entry fails with the URL.
-- `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, and the tool copies them to `tools/testing/nested_cache`.
+- `bazel run //tools/testing:nested_cache_update -- <test label>` runs the tests online with `DX_NESTED_BAZEL_NETWORK=1`. In that record mode the test writes `<set>.txt` and `<set>.MODULE.bazel.lock` to its undeclared outputs, one record per shard for a sharded test, and the tool merges them into `tools/testing/nested_cache` as `--from` does.
 - Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
 - Each case that ends rewrites the record from every workspace registered so far, so a failing test still uploads its record. The exit hook rewrites it once more and fails on a missing lock.

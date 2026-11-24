@@ -48,6 +48,15 @@ runs:
             [ -d "$dir" ] || mkdir -p "$dir" || { echo "::error::cannot create $dir"; exit 1; }
           done
         fi
+        if [ "$RUNNER_OS" = Windows ]; then
+          bin="$(cygpath -w "$(dirname "${BAZEL_SH:-/usr/bin/bash.exe}")")"
+          root="${bin%\\usr\\bin}"
+          if [ "$root" != "$bin" ] && [ -f "$(cygpath -u "$root\\cmd\\git.exe")" ]; then
+            system="$(cygpath -w "${SYSTEMROOT:-C:\\Windows}")"
+            path="$bin;$root\\bin;$root\\cmd;$system;$system\\System32;$system\\System32\\WindowsPowerShell\\v1.0"
+            echo "test:windows '--test_env=PATH=${path//\\/\\\\}'" >> user.bazelrc
+          fi
+        fi
         if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
           echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
         elif [ "$RUNNER_OS" = Windows ]; then

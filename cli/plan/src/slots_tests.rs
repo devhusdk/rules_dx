@@ -43,39 +43,34 @@ fn slot_holder_helper() {
     };
     let _slot = acquire(Path::new(&dir), 1, "helper-tree", &mut |_| {}).expect("slot");
     std::fs::write(Path::new(&dir).join("held"), b"1").expect("marker");
-    std::thread::sleep(Duration::from_secs(120));
-}
-
-fn wait_for(path: &Path, what: &str) {
-    let start = Instant::now();
-    while !path.exists() {
-        assert!(start.elapsed() < Duration::from_secs(30), "{what}");
-        std::thread::sleep(Duration::from_millis(25));
-    }
+    drop(std::io::Read::read_to_end(
+        &mut std::io::stdin(),
+        &mut Vec::new(),
+    ));
 }
 
 /// Waits until the waiter queued in `dir` has finished one whole pass begun after this call,
 /// or has left the line.
 fn another_pass<T>(dir: &Path, waiter: &std::thread::JoinHandle<T>) {
-    let start = Instant::now();
     let mut seen = SystemTime::now();
     let mut passes = 0;
-    while passes < 2 && !waiter.is_finished() {
-        let latest = tickets(dir)
-            .iter()
-            .filter_map(|(_, path)| path.metadata().ok()?.modified().ok())
-            .max();
-        match latest {
-            Some(latest) if latest > seen => {
+    let passed = dx_test_scratch::wait::watch_until(
+        &queue_dir(dir).join("ticket"),
+        "another waiter pass",
+        ANNOUNCE_TIMEOUT,
+        || {
+            let latest = tickets(dir)
+                .iter()
+                .filter_map(|(_, path)| path.metadata().ok()?.modified().ok())
+                .max();
+            if let Some(latest) = latest.filter(|latest| *latest > seen) {
                 seen = latest;
                 passes += 1;
             }
-            _ => {
-                assert!(start.elapsed() < ANNOUNCE_TIMEOUT, "waiter never polled");
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
-    }
+            passes >= 2 || waiter.is_finished()
+        },
+    );
+    assert!(passed.is_ok(), "waiter never polled: {passed:?}");
 }
 
 fn spawn_holder(dir: &Path) -> Child {
@@ -83,10 +78,12 @@ fn spawn_holder(dir: &Path) -> Child {
         .arg("slots::tests::slot_holder_helper")
         .arg("--exact")
         .env(HOLD_ENV, dir)
+        .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .spawn()
         .expect("spawn");
-    wait_for(&dir.join("held"), "holder never took the slot");
+    let held = dx_test_scratch::wait::path_appears(&dir.join("held"), Duration::from_secs(30));
+    assert!(held.is_ok(), "holder never took the slot: {held:?}");
     child
 }
 
@@ -496,12 +493,11 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
     let spawner = std::thread::spawn(move || {
         let mut cmd = Process::new("/bin/sh");
         cmd.args(["-c", "exit 0"]);
-        // SAFETY: the hook only writes to a socket and sleeps, both async-signal-safe.
+        // SAFETY: the hook only writes to and reads from a socket, both async-signal-safe.
         unsafe {
             cmd.pre_exec(move || {
                 (&hook).write_all(&[1])?;
-                std::thread::sleep(std::time::Duration::from_millis(150));
-                Ok(())
+                (&hook).read_exact(&mut [0u8; 1])
             });
         }
         let mut child = cmd.spawn().expect("spawn");
@@ -515,6 +511,7 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
         try_take(&dir, 1, "probe").expect("try").is_none(),
         "the forked child holds the lock until it execs"
     );
+    reader.write_all(&[1]).expect("let the child exec");
     assert!(slot_settles_free(&dir, 1));
     spawner.join().expect("spawner");
 }
@@ -1354,7 +1351,6 @@ fn waiters_get_slots_in_arrival_order() {
             })
             .expect("slot");
             order.lock().expect("order").push(id);
-            std::thread::sleep(Duration::from_millis(50));
             drop(slot);
         }));
         notices.push(
@@ -2282,6 +2278,7 @@ fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
     let first = acquire(&dir, 1, "tree-a", &mut |_| {}).expect("first");
     let polls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let seen = polls.clone();
+    let (polled, poll_seen) = std::sync::mpsc::channel();
     let waiter_dir = dir.clone();
     let waiter = std::thread::spawn(move || {
         acquire_with(
@@ -2291,18 +2288,16 @@ fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
             &mut |_, _| {},
             &mut || {
                 seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                drop(polled.send(()));
             },
             &mut |_, _| {},
         )
         .expect("second")
     });
-    let start = Instant::now();
-    while polls.load(std::sync::atomic::Ordering::SeqCst) < 2 {
-        assert!(
-            start.elapsed() < Duration::from_secs(30),
-            "waiter never polled"
-        );
-        std::thread::sleep(Duration::from_millis(25));
+    for _ in 0..2 {
+        poll_seen
+            .recv_timeout(Duration::from_secs(30))
+            .expect("waiter never polled");
     }
     drop(first);
     let slot = waiter.join().expect("join");
@@ -2952,8 +2947,8 @@ fn a_real_ping_child_is_reaped_on_stop() {
         output_base: None,
         default_roots: Vec::new(),
     };
-    let mut child = Process::new("sleep")
-        .arg("30")
+    let mut child = Process::new("cat")
+        .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .spawn()
         .expect("spawn");

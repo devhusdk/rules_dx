@@ -702,22 +702,28 @@ fn sbom_declares_the_pinned_licenses() {
     }
 }
 
-fn run_fresh_copy(copy: &Path) -> std::process::Output {
-    for _ in 0..100 {
-        match std::process::Command::new(copy)
-            .arg("--version")
-            .env_remove("RUNFILES_DIR")
-            .env_remove("TEST_SRCDIR")
-            .env_remove("RUNFILES_MANIFEST_FILE")
-            .output()
-        {
-            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy => {
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            result => return result.expect("run launcher copy"),
-        }
+fn copy_launcher(from: &Path, to: &Path) {
+    #[cfg(unix)]
+    {
+        let status = std::process::Command::new("cp")
+            .arg(from)
+            .arg(to)
+            .status()
+            .expect("run cp");
+        assert!(status.success(), "cp {from:?}: {status}");
     }
-    panic!("{copy:?} stayed busy: a concurrent fork kept its write handle open");
+    #[cfg(not(unix))]
+    std::fs::copy(from, to).expect("copy launcher");
+}
+
+fn run_fresh_copy(copy: &Path) -> std::process::Output {
+    std::process::Command::new(copy)
+        .arg("--version")
+        .env_remove("RUNFILES_DIR")
+        .env_remove("TEST_SRCDIR")
+        .env_remove("RUNFILES_MANIFEST_FILE")
+        .output()
+        .expect("run launcher copy")
 }
 
 fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
@@ -733,7 +739,7 @@ fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(env_file("DX_QMLLINT")).expect("launcher");
     let scratch = dx_test_scratch::scratch("qt-launcher").unwrap();
     let copy = scratch.path().join("qmllint");
-    std::fs::copy(&launcher, &copy).expect("copy launcher");
+    copy_launcher(&launcher, &copy);
     let output = run_fresh_copy(&copy);
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);

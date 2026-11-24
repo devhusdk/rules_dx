@@ -84,8 +84,9 @@ pub fn write(args: &[String]) -> Result<(), String> {
 
 fn read_labels(text: &str) -> Result<BTreeSet<String>, String> {
     let value: Value = serde_json::from_str(text).map_err(|error| error.to_string())?;
-    value["labels"]
-        .as_array()
+    value
+        .get("labels")
+        .and_then(Value::as_array)
         .ok_or("no labels array")?
         .iter()
         .map(|label| {
@@ -104,74 +105,81 @@ fn read_run(text: &str) -> Run {
         let Ok(event) = serde_json::from_str::<Value>(line) else {
             continue;
         };
-        match event["event"].as_str() {
+        match field(&event, "event") {
             Some("command_started") => {
-                let affected = &event["affected"];
-                let widened = items(&affected["widened"]).map(|entry| &entry["scope"]);
+                let affected = event.get("affected").unwrap_or(&Value::Null);
+                let widened = items(affected, "widened").filter_map(|entry| field(entry, "scope"));
                 run.covered.extend(
-                    items(&affected["targets"])
-                        .chain(items(&affected["tests"]))
-                        .chain(widened)
+                    items(affected, "targets")
+                        .chain(items(affected, "tests"))
                         .filter_map(Value::as_str)
+                        .chain(widened)
                         .map(str::to_owned),
                 );
             }
             Some("test_outcome") => {
-                let outcome = event["outcome"].as_str().unwrap_or("unknown");
+                let outcome = field(&event, "outcome").unwrap_or("unknown");
                 let ran_and_failed =
                     !PASSING_OUTCOMES.contains(&outcome) && !NOT_RUN_OUTCOMES.contains(&outcome);
-                if event["final"].as_bool() != Some(false) && ran_and_failed {
-                    run.failing.extend(event["target"].as_str().map(label));
+                if event.get("final").and_then(Value::as_bool) != Some(false) && ran_and_failed {
+                    run.failing.extend(field(&event, "target").map(label));
                 }
             }
             Some("build_failure")
                 if !NOT_BUILT_CATEGORIES
-                    .contains(&event["category"].as_str().unwrap_or_default()) =>
+                    .contains(&field(&event, "category").unwrap_or_default()) =>
             {
                 run.failing.extend(
-                    event["target"]
-                        .as_str()
+                    field(&event, "target")
                         .filter(|target| *target != "unknown")
                         .map(label),
                 );
                 run.failing.extend(
-                    items(&event["targets"])
+                    items(&event, "targets")
                         .filter_map(Value::as_str)
                         .map(label),
                 );
             }
             Some("diagnostic")
-                if FAILING_SEVERITIES.contains(&event["severity"].as_str().unwrap_or_default()) =>
+                if FAILING_SEVERITIES.contains(&field(&event, "severity").unwrap_or_default()) =>
             {
-                let origins: Vec<String> = items(&event["origins"])
-                    .filter_map(|origin| origin["target"].as_str())
+                let origins: Vec<String> = items(&event, "origins")
+                    .filter_map(|origin| field(origin, "target"))
                     .map(label)
                     .collect();
                 if origins.is_empty() {
-                    run.failing
-                        .extend(event["path"].as_str().map(str::to_owned));
+                    run.failing.extend(field(&event, "path").map(str::to_owned));
                 }
                 run.failing.extend(origins);
             }
-            Some("change") if event["effect"].as_str() == Some("proposed") => {
-                run.failing
-                    .extend(event["path"].as_str().map(str::to_owned));
+            Some("change") if field(&event, "effect") == Some("proposed") => {
+                run.failing.extend(field(&event, "path").map(str::to_owned));
             }
-            Some("notice") if event["code"].as_str() == Some(PHASE_SKIPPED) => {
+            Some("notice") if field(&event, "code") == Some(PHASE_SKIPPED) => {
                 run.skipped_phase = true;
             }
             Some("error") => {
-                run.errors.extend(event["code"].as_str().map(str::to_owned));
+                run.errors.extend(field(&event, "code").map(str::to_owned));
             }
-            Some("command_finished") => run.exit_code = event["exit_code"].as_i64(),
+            Some("command_finished") => {
+                run.exit_code = event.get("exit_code").and_then(Value::as_i64);
+            }
             _ => {}
         }
     }
     run
 }
 
-fn items(value: &Value) -> impl Iterator<Item = &Value> {
-    value.as_array().into_iter().flatten()
+fn field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
+    value.get(key).and_then(Value::as_str)
+}
+
+fn items<'a>(value: &'a Value, key: &str) -> impl Iterator<Item = &'a Value> {
+    value
+        .get(key)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
 }
 
 fn failing_keys(run: &Run) -> BTreeSet<String> {

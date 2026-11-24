@@ -337,9 +337,8 @@ mod tests {
     }
 
     fn wait_for(path: &Path, what: &str) {
-        if let Err(error) = dx_test_scratch::wait::path_appears(path, Duration::from_secs(30)) {
-            panic!("{what}: {error}");
-        }
+        dx_test_scratch::wait::path_appears(path, Duration::from_secs(30))
+            .unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
     #[test]

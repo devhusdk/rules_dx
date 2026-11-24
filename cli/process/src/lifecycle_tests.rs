@@ -1121,7 +1121,7 @@ fn sigints(log: &std::path::Path, expected: usize) -> usize {
     dx_test_scratch::wait::watch_until(
         log,
         "the probe counting SIGINT",
-        Duration::from_secs(10),
+        Duration::from_secs(5),
         || count() >= expected,
     )
     .unwrap();
@@ -1461,8 +1461,7 @@ fn wait_alive(lock: &std::path::Path) {
     wait_armed(lock);
     assert!(
         dx_testing::alive_lock_held(lock),
-        "probe never took its alive lock: {}",
-        lock.display()
+        "probe never took its alive lock"
     );
 }
 

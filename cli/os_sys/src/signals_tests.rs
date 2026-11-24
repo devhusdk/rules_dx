@@ -55,6 +55,10 @@ fn unlink_on_stop_child() {
     unlink_on_stop(Path::new(&path)).expect("watch");
     let pid = i32::try_from(std::process::id()).expect("pid fits pid_t");
     crate::process::signal(pid, libc::SIGTERM).expect("signal self");
+    park_forever();
+}
+
+fn park_forever() -> ! {
     loop {
         std::thread::park();
     }
@@ -65,12 +69,16 @@ fn sigterm_removes_the_watched_path_and_exits_143() {
     let dir = std::env::var_os("TEST_TMPDIR").map_or_else(std::env::temp_dir, Into::into);
     let part = dir.join(format!("unlink-on-stop-{}.part", std::process::id()));
     std::fs::write(&part, b"partial").expect("write");
-    let status = std::process::Command::new(std::env::current_exe().expect("exe"))
+    let child = std::process::Command::new(std::env::current_exe().expect("exe"))
         .args(["--exact", "signals::signals_tests::unlink_on_stop_child"])
         .env(UNLINK_CHILD, &part)
-        .status()
+        .spawn()
         .expect("run the child");
-    assert_eq!(status.code(), Some(143));
+    let exit = dx_test_scratch::wait::exit_within(child, std::time::Duration::from_secs(30))
+        .expect("wait for the child");
+    let exited_143 =
+        matches!(&exit, dx_test_scratch::wait::Exit::Exited(status) if status.code() == Some(143));
+    assert!(exited_143, "{exit:?}");
     assert!(!part.exists());
 }
 

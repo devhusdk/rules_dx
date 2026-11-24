@@ -55,7 +55,9 @@ fn unlink_on_stop_child() {
     unlink_on_stop(Path::new(&path)).expect("watch");
     let pid = i32::try_from(std::process::id()).expect("pid fits pid_t");
     crate::process::signal(pid, libc::SIGTERM).expect("signal self");
-    std::thread::sleep(std::time::Duration::from_secs(30));
+    loop {
+        std::thread::park();
+    }
 }
 
 #[test]

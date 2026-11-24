@@ -383,8 +383,9 @@ fn timeout_kills_a_group_whose_leader_exits_on_term() {
     let scratch = dx_test_scratch::scratch("dx-lifecycle-term-group").unwrap();
     let pidfile = scratch.path().join("child.pid");
     let script = format!(
-        "sh -c 'trap \"\" TERM; echo $$ > {pid}; while :; do sleep 1; done' & wait",
-        pid = pidfile.display()
+        "sh -c 'trap \"\" TERM; echo $$ > {pid}; {block}' & wait",
+        pid = pidfile.display(),
+        block = blocked(scratch.path()),
     );
     let spec = controlled_spec(
         scratch.path(),
@@ -395,30 +396,20 @@ fn timeout_kills_a_group_whose_leader_exits_on_term() {
         run_within(&spec, INTERACTIVE).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
     );
-    let pid = std::fs::read_to_string(&pidfile)
+    let pid: u32 = std::fs::read_to_string(&pidfile)
         .expect("the descendant recorded its pid")
         .trim()
-        .to_owned();
-    let deadline = Instant::now() + Duration::from_secs(10);
-    loop {
-        let alive = std::process::Command::new("kill")
-            .args(["-0", &pid])
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok_and(|status| status.success());
-        if !alive {
-            break;
-            // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        }
-        assert!(
-            Instant::now() < deadline,
-            // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            "descendant {pid} survived the run"
-        );
-        // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        std::thread::sleep(Duration::from_millis(50));
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+        .parse()
+        .expect("a pid");
+    dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(10)).unwrap();
+}
+
+#[cfg(unix)]
+fn blocked(dir: &std::path::Path) -> String {
+    format!(
+        "mkfifo \"{0}\" && read -r line < \"{0}\"",
+        dir.join("blocked.fifo").display()
+    )
 }
 
 fn daemon_probe(
@@ -1120,22 +1111,20 @@ fn counting_probe(scratch: &std::path::Path) -> (Probe, std::path::PathBuf) {
         .arg("--sleep-ms=30000")
         .process_group(0);
     let child = Probe(command.spawn().expect("probe starts"));
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !log.exists() {
-        assert!(Instant::now() < deadline, "probe never armed");
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    wait_armed(&log);
     (child, log)
 }
 
 #[cfg(unix)]
 fn sigints(log: &std::path::Path, expected: usize) -> usize {
     let count = || std::fs::read(log).map_or(0, |bytes| bytes.len());
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while count() < expected && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    std::thread::sleep(Duration::from_millis(100));
+    dx_test_scratch::wait::watch_until(
+        log,
+        "the probe counting SIGINT",
+        Duration::from_secs(10),
+        || count() >= expected,
+    )
+    .unwrap();
     count()
 }
 
@@ -1244,9 +1233,10 @@ fn streamed_self_exit_stops_the_rest_of_the_owned_group() {
     let lock = scratch.path().join("leftover.alive");
     let sink = Sink::default();
     let script = format!(
-        "'{probe}' --alive-lock='{lock}' --sleep-ms=30000 >/dev/null 2>&1 & while [ ! -e '{lock}' ]; do sleep 0.05; done; exit 0",
+        "mkfifo '{up}' || exit 9; '{probe}' --alive-lock='{lock}' --stdout-text=up --sleep-ms=30000 >'{up}' 2>/dev/null & head -c 2 '{up}' >/dev/null; exit 0",
         probe = dx_testing::process_probe().display(),
         lock = lock.display(),
+        up = scratch.path().join("up.fifo").display(),
     );
     let spec = streamed(
         scratch.path(),
@@ -1396,7 +1386,7 @@ fn streamed_stop_during_withdraw_is_a_cancel() {
     use std::sync::atomic::{AtomicBool, Ordering};
     let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let sink = Sink::default();
-    let script = "trap '' TERM; sleep 3";
+    let script = format!("trap '' TERM; {}", blocked(scratch.path()));
     let spec = streamed(
         scratch.path(),
         vec!["/bin/sh".into(), "-c".into(), script.into()],
@@ -1464,32 +1454,16 @@ fn lease_free(path: &std::path::Path) -> bool {
 }
 
 fn wait_lease_free(path: &std::path::Path) {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while !lease_free(path) {
-        // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        assert!(
-            Instant::now() < deadline,
-            "the held lease never came free: {}",
-            path.display()
-        );
-        std::thread::sleep(Duration::from_millis(50));
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+    dx_test_scratch::wait::lock_free(path, Duration::from_secs(20)).unwrap();
 }
 
 fn wait_alive(lock: &std::path::Path) {
     wait_armed(lock);
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !dx_testing::alive_lock_held(lock) {
-        // LCOV_EXCL_START - reason: failure-only arm or message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        assert!(
-            Instant::now() < deadline,
-            "probe never took its alive lock: {}",
-            lock.display()
-        );
-        std::thread::sleep(Duration::from_millis(10));
-        // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    }
+    assert!(
+        dx_testing::alive_lock_held(lock),
+        "probe never took its alive lock: {}",
+        lock.display()
+    );
 }
 
 #[test]
@@ -1851,8 +1825,9 @@ fn a_prepared_command_keeps_its_removed_variable_out_of_the_child() {
 #[test]
 fn a_stop_probe_ends_a_prepared_command_before_its_deadline() {
     let _fork = dx_testing::forking();
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
     let mut command = Command::new("/bin/sh");
-    command.args(["-c", "sleep 30"]);
+    command.args(["-c", &blocked(scratch.path())]);
     let started = Instant::now();
     let outcome = run_command_until(
         &mut command,
@@ -1911,17 +1886,22 @@ fn stream_stdin_is_null_only_for_an_inherited_terminal_in_an_own_group() {
 fn a_stop_reaches_only_the_runs_still_registered() {
     let _fork = dx_testing::forking();
     static TABLE: [Slot; FORWARD_SLOTS] = [const { Slot::new() }; FORWARD_SLOTS];
+    static SENT: Mutex<Vec<i32>> = Mutex::new(Vec::new());
     fn ignore(_: i32) {}
+    fn send(target: i32, signo: i32) {
+        SENT.lock().unwrap().push(target);
+        backend::send(target, signo);
+    }
     let scratch = dx_test_scratch::scratch("dx-forward-table").unwrap();
     let (mut a, a_log) = counting_probe(scratch.path());
     let other = dx_test_scratch::scratch("dx-forward-table-b").unwrap();
-    let (b, b_log) = counting_probe(other.path());
+    let (b, _) = counting_probe(other.path());
     let first = Forwarding::register_in(&TABLE, -a.0.id().cast_signed());
     let mut second = Forwarding::register_in(&TABLE, -b.0.id().cast_signed());
     second.clear();
-    forward_from(&TABLE, 2, ignore, backend::send);
+    forward_from(&TABLE, 2, ignore, send);
+    assert_eq!(*SENT.lock().unwrap(), [-a.0.id().cast_signed()]);
     assert_eq!(sigints(&a_log, 1), 1);
-    assert_eq!(sigints(&b_log, 1), 0);
     assert!(first.claimed());
     assert!(!second.claimed());
     assert_survived(&mut a);
@@ -1978,10 +1958,7 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
         if calls.fetch_add(1, Ordering::SeqCst) == 0 {
             return None;
         }
-        dx_test_scratch::eventually("sigint log", Duration::from_secs(10), || {
-            log.exists().then_some(())
-        })
-        .unwrap();
+        dx_test_scratch::wait::path_appears(&log, Duration::from_secs(10)).unwrap();
         Some(2)
     };
     assert_eq!(
@@ -2062,7 +2039,7 @@ fn a_drain_retries_interrupts_and_keeps_what_it_read_after_an_error() {
 fn a_child_that_ignores_term_is_killed_after_the_graceful_wait() {
     let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
-    let script = "trap '' TERM; exec sleep 30";
+    let script = format!("trap '' TERM; {}", blocked(scratch.path()));
     let spec = controlled_spec(
         scratch.path(),
         vec!["/bin/sh".into(), "-c".into(), script.into()],

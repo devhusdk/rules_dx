@@ -101,7 +101,7 @@ fn main() -> ExitCode {
     let index = std::env::args().nth(1).unwrap_or_default();
     if index == "--hang" {
         loop {
-            std::thread::sleep(std::time::Duration::from_secs(60));
+            std::thread::park();
         }
     }
     match resolve(&index) {

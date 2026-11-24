@@ -27,10 +27,9 @@ fn an_exited_child_with_an_open_handle_is_not_alive() {
         .spawn()
         .expect("spawn");
     let pid = child.id();
-    while child.try_wait().expect("poll").is_none() {
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
+    dx_test_scratch::wait::pid_gone(pid, std::time::Duration::from_secs(30)).unwrap();
     assert!(!pid_alive(pid));
+    child.wait().expect("wait");
 }
 
 #[cfg(windows)]
@@ -64,20 +63,26 @@ fn the_live_table_has_this_process_and_its_parent() {
 fn command_lines_see_a_child_with_a_marker_and_memory() {
     let _fork = dx_testing::forking();
     let mut child = Command::new("cmd")
-        .args(["/C", "ping -n 30 127.0.0.1 >nul & rem dx-procs-marker"])
+        .args(["/K", "echo ready& rem dx-procs-marker"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("spawn");
     let pid = child.id();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    let found = loop {
-        let found = command_lines()
-            .into_iter()
-            .find(|info| info.pid == pid && info.rss_bytes > 0);
-        if found.is_some() || std::time::Instant::now() >= deadline {
-            break found;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    };
+    let stdout = child.stdout.take().expect("stdout");
+    let ready = dx_test_scratch::wait::within(
+        "cmd running",
+        std::time::Duration::from_secs(30),
+        move || {
+            let mut line = String::new();
+            std::io::BufRead::read_line(&mut std::io::BufReader::new(stdout), &mut line)
+                .map(|_| line)
+        },
+    )
+    .unwrap()
+    .expect("read cmd output");
+    assert!(ready.starts_with("ready"), "{ready:?}");
+    let found = command_lines().into_iter().find(|info| info.pid == pid);
     child.kill().expect("kill");
     child.wait().expect("wait");
     let info = found.expect("child listed");
@@ -142,11 +147,15 @@ fn an_unreaped_child_is_a_zombie() {
         .spawn()
         .expect("spawn");
     let pid = child.id();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    while !zombie(pid) {
-        assert!(std::time::Instant::now() < deadline, "no zombie");
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
+    let raw = i32::try_from(pid).expect("pid fits");
+    dx_test_scratch::wait::within(
+        "the child exiting",
+        std::time::Duration::from_secs(30),
+        move || dx_os_sys::process::await_exit_unreaped(raw),
+    )
+    .unwrap()
+    .expect("waitid");
+    assert!(zombie(pid), "no zombie");
     assert!(!zombie(std::process::id()));
     child.wait().expect("wait");
 }

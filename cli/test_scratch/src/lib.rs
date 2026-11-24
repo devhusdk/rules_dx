@@ -149,23 +149,6 @@ pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     removed
 }
 
-pub fn eventually<T>(
-    what: &str,
-    deadline: std::time::Duration,
-    mut probe: impl FnMut() -> Option<T>,
-) -> Result<T, String> {
-    let start = std::time::Instant::now();
-    loop {
-        if let Some(value) = probe() {
-            return Ok(value);
-        }
-        if start.elapsed() >= deadline {
-            return Err(format!("timed out waiting for {what}"));
-        }
-        std::thread::sleep(std::time::Duration::from_millis(25));
-    }
-}
-
 #[must_use]
 pub fn running_as_root() -> bool {
     #[cfg(unix)]
@@ -353,28 +336,6 @@ mod tests {
         assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "");
     }
 
-    #[test]
-    fn eventually_returns_the_first_some() {
-        let mut calls = 0;
-        let got = eventually("x", std::time::Duration::from_secs(5), || {
-            calls += 1;
-            Some(7)
-        })
-        .unwrap();
-        assert_eq!((got, calls), (7, 1));
-    }
-
-    #[test]
-    fn eventually_retries_until_the_probe_succeeds() {
-        let mut calls = 0;
-        let got = eventually("x", std::time::Duration::from_secs(5), || {
-            calls += 1;
-            (calls == 3).then_some(calls)
-        })
-        .unwrap();
-        assert_eq!(got, 3);
-    }
-
     #[cfg(unix)]
     #[test]
     fn running_as_root_matches_reading_a_mode_000_file() {
@@ -384,14 +345,6 @@ mod tests {
         std::fs::write(&locked, "x").unwrap();
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
         assert_eq!(running_as_root(), std::fs::read(&locked).is_ok());
-    }
-
-    #[test]
-    fn eventually_fails_after_the_deadline() {
-        assert_eq!(
-            eventually::<()>("a thing", std::time::Duration::from_millis(50), || None),
-            Err("timed out waiting for a thing".to_owned())
-        );
     }
 
     #[test]

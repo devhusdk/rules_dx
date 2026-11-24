@@ -276,7 +276,7 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
                     (GenerationUse::Generated, held.pair().generated.as_str()),
                 ] {
                     let sentinel = generation_dir(&workspace, kind, hex).join(SENTINEL);
-                    std::thread::sleep(Duration::from_millis(2));
+                    std::thread::yield_now();
                     assert_eq!(
                         fs::read_to_string(&sentinel).expect("held generation is whole"),
                         hex
@@ -353,11 +353,11 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         held: held.into_files(),
     };
     let run = std::thread::spawn(move || run_streamed(spec, CleanupBudget::STANDARD, &|| None));
-    let deadline = Instant::now() + WAIT;
-    while !(alive.exists() && dx_testing::alive_lock_held(&alive)) {
-        assert!(Instant::now() < deadline, "the probe never started");
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    dx_testing::wait_armed(&alive);
+    assert!(
+        dx_testing::alive_lock_held(&alive),
+        "the probe never started"
+    );
     select(&workspace, &setup_pair('3', '4'));
     let outcome = prune(&workspace);
     assert_eq!(outcome.skipped_leased_generations.len(), 2, "{outcome:?}");
@@ -370,18 +370,16 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         run.join().expect("run thread").expect("probe runs"),
         StreamOutcome::Exited(Exit::Code(0))
     );
-    let deadline = Instant::now() + WAIT;
-    loop {
-        let outcome = prune(&workspace);
-        if outcome.skipped_leased_generations.is_empty() {
-            break;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "the lease outlived the child tree"
-        );
-        std::thread::sleep(Duration::from_millis(50));
+    let dx_dir = dx_path::state::local_dir(&workspace);
+    for (kind, hex) in [
+        (GenerationUse::Environment, digest('1')),
+        (GenerationUse::Generated, digest('2')),
+    ] {
+        let lease = dx_atomic_fs::lease::lease_path(&dx_dir, kind, &hex).expect("lease path");
+        dx_test_scratch::wait::lock_free(&lease, WAIT).expect("the lease outlived the child tree");
     }
+    let outcome = prune(&workspace);
+    assert!(outcome.skipped_leased_generations.is_empty(), "{outcome:?}");
     assert!(
         !old_gen.exists(),
         "cleanup removes the generation once the child is gone"

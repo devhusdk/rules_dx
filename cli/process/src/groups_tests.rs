@@ -501,12 +501,10 @@ fn a_group_that_ignores_the_first_signal_is_killed() {
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
     let armed = scratch.path().join("armed");
-    let script = format!(
-        "trap '' TERM; : > '{}'; while :; do sleep 1; done",
-        armed.display()
-    );
+    let script = format!("trap '' TERM; : > '{}'; read -r line", armed.display());
     let mut child = Command::new("/bin/sh")
         .args(["-c", &script])
+        .stdin(std::process::Stdio::piped())
         .process_group(0)
         .spawn()
         .expect("shell starts");

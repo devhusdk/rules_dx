@@ -510,11 +510,13 @@ fn sigterm_mid_download_leaves_no_part_file() {
             .flatten()
             .any(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
     };
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
-    while !has_part() {
-        assert!(std::time::Instant::now() < deadline, "no download started");
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
+    dx_test_scratch::wait::watch_until(
+        &dir.join("download"),
+        "a download starting",
+        std::time::Duration::from_secs(20),
+        has_part,
+    )
+    .unwrap();
     Command::new("kill")
         .args(["-TERM", &child.id().to_string()])
         .status()

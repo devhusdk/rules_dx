@@ -35,7 +35,9 @@ def _host_env_impl(ctx):
     _assert_no_host_flags(env, action)
     for name in ["CC", "CXX", "AR"]:
         asserts.equals(env, action.env.get("TARGET_" + name), action.env.get("HOST_" + name), "HOST_{} is not TARGET_{}".format(name, name))
-    asserts.true(env, _FILE_PREFIX_MAP in action.env.get("CXXFLAGS", "").split(" "), "CXXFLAGS has no {}: {}".format(_FILE_PREFIX_MAP, action.env.get("CXXFLAGS")))
+    for name in _C_FLAGS + _CXX_FLAGS:
+        value = action.env.get(name, "")
+        asserts.equals(env, 1, len(_prefix_maps(value)), "{} has not exactly one of {}: {}".format(name, _PREFIX_MAPS, value))
     cxxflags = (action.env.get("CXXFLAGS", "") + " " + action.env.get("HOST_CXXFLAGS", "")).split(" ")
     libcxx = [part for part in cxxflags if "libcxx_headers_include_search_directory" in part]
     asserts.true(env, len(libcxx) <= 1, "libc++ headers are on the include path twice, which breaks #include_next: {}".format(libcxx))
@@ -101,8 +103,12 @@ def _llvm_impl(ctx):
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
 _FILE_PREFIX_MAP = "-ffile-prefix-map=${pwd}=."
+_PREFIX_MAPS = [_FILE_PREFIX_MAP, "/clang:" + _FILE_PREFIX_MAP]
 _C_FLAGS = ["CFLAGS"]
 _CXX_FLAGS = ["CXXFLAGS"]
+
+def _prefix_maps(value):
+    return [part for part in value.split(" ") if part in _PREFIX_MAPS]
 
 def _assert_no_target_flags(env, action):
     for name in ["TARGET_CFLAGS", "TARGET_CXXFLAGS"]:
@@ -136,6 +142,7 @@ def _msvc_impl(ctx):
     for name in _C_FLAGS + _CXX_FLAGS:
         value = action.env.get(name, "")
         asserts.false(env, _UNDEF_ISO_STDIO in value.split(" "), "{} drops ISO wide stdio outside coverage: {}".format(name, value))
+        asserts.equals(env, [], _prefix_maps(value), "{} has a prefix map cl.exe does not take: {}".format(name, value))
     _assert_no_host_flags(env, action)
     return analysistest.end(env)
 

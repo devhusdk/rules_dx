@@ -53,6 +53,7 @@ fn covered_languages_include_wrapped_langs() {
         "elf.hrl",
         "elf.ml",
         "elf.zig",
+        "elf.swift",
     ] {
         assert!(is_covered_language(path), "{path}");
     }

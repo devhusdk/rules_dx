@@ -10,6 +10,11 @@ final class LedgerAppTests: XCTestCase {
     XCTAssertEqual(ledger_total("broken"), -1)
   }
 
+  func testSwiftSkipsBlankLinesAndRejectsMalformedOnes() {
+    XCTAssertEqual(Ledger(text: "tea 450\n   \nbread 325\n")?.total, 775)
+    XCTAssertNil(Ledger(text: "broken"))
+  }
+
   func testRustRunsOnTheSimulator() {
     XCTAssertEqual(String(cString: ledger_platform()), "iphonesimulator")
   }

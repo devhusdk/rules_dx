@@ -146,7 +146,7 @@ rust_test(
     ],
 )
 
-# Upstream: rhysd/actionlint#763
+# Upstream: rhysd/actionlint#651
 rust_test(
     name = "actionlint_test",
     size = "small",

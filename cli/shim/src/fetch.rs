@@ -223,13 +223,6 @@ mod interrupt {
     struct RemovePart;
 
     impl CtrlHandler for RemovePart {
-        #[cfg_attr(
-            not(test),
-            expect(
-                clippy::exit,
-                reason = "a console control handler ends the process with the signal exit code"
-            )
-        )]
         fn handle(event: CtrlEvent) -> bool {
             if let Some(path) = PATH.lock().ok().and_then(|p| p.clone()) {
                 dx_atomic_fs::discard_file(path);

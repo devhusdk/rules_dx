@@ -1,5 +1,3 @@
-//! Runs every `dx` command against one consumer of this checkout.
-
 use crate::quickstart_consumer_test::{init_consumer, nested_env};
 use dx_nested::{self as nested, Case};
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
@@ -8,12 +6,10 @@ use std::time::Duration;
 
 const TEST: &str = "dx_commands_test";
 
-/// The audit date, so advisory pin age never depends on the clock.
 const AUDIT_TODAY: &str = "2026-01-01";
 
 type CaseFn = fn(&Consumer) -> Result<(), String>;
 
-/// One case per `dx` command, in the order they run.
 const CASES: [(&str, CaseFn); 26] = [
     ("init", init),
     ("status", status),
@@ -43,7 +39,6 @@ const CASES: [(&str, CaseFn); 26] = [
     ("clean", clean),
 ];
 
-/// The consumer every case runs in.
 struct Consumer {
     case: Case,
     dx: PathBuf,
@@ -60,7 +55,6 @@ impl Consumer {
             .collect()
     }
 
-    /// Runs `dx <command> --workspace=<root> <rest>`.
     fn dx(&self, args: &[&str]) -> Run {
         crate::stage(TEST, &format!("dx {}", args.join(" ")));
         let mut argv: Vec<&str> = args.iter().copied().take(1).collect();
@@ -80,7 +74,6 @@ impl Consumer {
     }
 }
 
-/// The last lines of `run`'s output.
 fn tail(run: &Run) -> String {
     let combined = run.combined();
     let lines: Vec<&str> = combined.lines().collect();
@@ -92,7 +85,6 @@ fn tail(run: &Run) -> String {
         .join("\n")
 }
 
-/// Checks that `dx <args>` exits `code` and prints every one of `needles`.
 fn expect(consumer: &Consumer, args: &[&str], code: i32, needles: &[&str]) -> Result<Run, String> {
     let run = consumer.dx(args);
     let what = format!("dx {}", args.join(" "));
@@ -137,7 +129,6 @@ fn upgrade(consumer: &Consumer) -> Result<(), String> {
     .map(drop)
 }
 
-/// The agent hook allows a plain command and refuses `git worktree add`.
 fn worktree(consumer: &Consumer) -> Result<(), String> {
     let guard = |command: &str| -> Result<i32, String> {
         use std::io::Write;
@@ -192,7 +183,6 @@ fn update(consumer: &Consumer) -> Result<(), String> {
     expect(consumer, &["update"], 0, &[]).map(drop)
 }
 
-/// Gitleaks runs through Bazel and finds a planted key; the advisory snapshots are pinned empty.
 fn security(consumer: &Consumer) -> Result<(), String> {
     let mut pins = read_text(&consumer.case.root().join(".dx/pins"));
     let snapshot = "[]";
@@ -240,7 +230,6 @@ fn fetch(consumer: &Consumer) -> Result<(), String> {
     expect(consumer, &["fetch", "//app/..."], 0, &[]).map(drop)
 }
 
-/// LCOV output, both gates, `--fail-on`, and exits 0, 1, 2 and 3.
 fn coverage(consumer: &Consumer) -> Result<(), String> {
     let lcov = consumer.scratch.join("lcov.info");
     let report = format!("lcov={}", lcov.display());
@@ -322,7 +311,6 @@ fn bench(consumer: &Consumer) -> Result<(), String> {
     expect(consumer, &["bench", "//bench/..."], 0, &["parse"]).map(drop)
 }
 
-/// A clean runner passes, a crashing one leaves its crash file, and no target is a no-op.
 fn fuzz(consumer: &Consumer) -> Result<(), String> {
     expect(
         consumer,
@@ -352,7 +340,6 @@ fn fuzz(consumer: &Consumer) -> Result<(), String> {
     .map(drop)
 }
 
-/// A dry run, a publish into a directory, and a refused pattern.
 fn deploy(consumer: &Consumer) -> Result<(), String> {
     expect(
         consumer,
@@ -401,7 +388,6 @@ fn check(consumer: &Consumer) -> Result<(), String> {
     expect(consumer, &["check", "//app/..."], 0, &[]).map(drop)
 }
 
-/// `dx watch --poll` builds once and keeps watching until it is killed.
 fn watch(consumer: &Consumer) -> Result<(), String> {
     use std::io::BufRead;
     crate::stage(TEST, "dx watch --poll build //app:calc");
@@ -468,7 +454,6 @@ fn clean(consumer: &Consumer) -> Result<(), String> {
     expect(consumer, &["clean"], 0, &["dx clean: removed"]).map(drop)
 }
 
-/// The packages the cases run against.
 fn write_packages(root: &Path) {
     let files = [
         (
@@ -522,7 +507,6 @@ fn write_packages(root: &Path) {
     }
 }
 
-/// Declares `deps` as the `crates` dependency set on the rules_rust that `source` pins.
 fn add_cargo_set(root: &Path, source: &Path) {
     let version = read_text(&source.join("MODULE.bazel"))
         .split("bazel_dep(name = \"rules_rust\", version = \"")

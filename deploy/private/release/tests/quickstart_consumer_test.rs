@@ -246,9 +246,6 @@ fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
     );
 }
 
-/// Runs `dx <init> --workspace=<root>` in `case`, then adds the overrides
-/// `tools/testing/consumer/pending.txt` still lists (a registry release needs none) and pins the
-/// dx and launcher this test built, as a release's `pins.bzl` serves them.
 pub(crate) fn init_consumer(
     case: &Case,
     source: &std::path::Path,

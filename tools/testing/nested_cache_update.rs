@@ -302,8 +302,6 @@ fn run() -> Result<(), String> {
     merge(&workspace, &dirs)
 }
 
-/// The record directories of one test: one per shard under `shard_<i>_of_<n>`, else
-/// `test.outputs/nested_cache`.
 fn recorded_dirs(testlogs: &Path) -> Vec<PathBuf> {
     let record = |dir: &Path| dir.join("test.outputs").join("nested_cache");
     let mut dirs: Vec<PathBuf> = std::fs::read_dir(testlogs)

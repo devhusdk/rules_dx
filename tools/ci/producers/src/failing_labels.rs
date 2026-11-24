@@ -8,6 +8,8 @@ use crate::test_log_tails::PASSING_OUTCOMES;
 const USAGE: &str =
     "usage: producers_bin --failing-labels --out FILE [--dx FILE] [--previous FILE]";
 
+const PHASE_SKIPPED: &str = "umbrella_phase_skipped";
+
 const FAILING_SEVERITIES: [&str; 2] = ["warning", "error"];
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -15,6 +17,7 @@ struct Run {
     failing: BTreeSet<String>,
     covered: Vec<String>,
     errors: BTreeSet<String>,
+    skipped_phase: bool,
     exit_code: Option<i64>,
 }
 
@@ -131,6 +134,9 @@ fn read_run(text: &str) -> Run {
                 run.failing
                     .extend(event["path"].as_str().map(str::to_owned));
             }
+            Some("notice") if event["code"].as_str() == Some(PHASE_SKIPPED) => {
+                run.skipped_phase = true;
+            }
             Some("error") => {
                 run.errors.extend(event["code"].as_str().map(str::to_owned));
             }
@@ -160,9 +166,14 @@ fn failing_keys(run: &Run) -> BTreeSet<String> {
 }
 
 fn merge(previous: &BTreeSet<String>, run: &Run) -> BTreeSet<String> {
+    let reached: &[String] = if run.exit_code.is_some() && !run.skipped_phase {
+        &run.covered
+    } else {
+        &[]
+    };
     previous
         .iter()
-        .filter(|key| key.starts_with("//") && !run.covered.iter().any(|p| covers(p, key)))
+        .filter(|key| key.starts_with("//") && !reached.iter().any(|p| covers(p, key)))
         .cloned()
         .chain(failing_keys(run))
         .collect()
@@ -219,6 +230,7 @@ mod tests {
                 r#"{"event":"diagnostic","severity":"warning","path":"loose.md"}"#,
                 r#"{"event":"change","path":"a/fmt.rs","effect":"proposed"}"#,
                 r#"{"event":"error","code":"incomplete_results","message":"m"}"#,
+                r#"{"event":"notice","code":"umbrella_phase_skipped","severity":"warning"}"#,
                 "not json",
                 r#"{"event":"command_finished","exit_code":1}"#,
             ]
@@ -236,6 +248,7 @@ mod tests {
             ])
         );
         assert_eq!(run.covered, ["//a:lib", "//b/...", "//a:test", "//w/..."]);
+        assert!(run.skipped_phase);
         assert_eq!(run.exit_code, Some(1));
     }
 
@@ -268,6 +281,23 @@ mod tests {
             ..Run::default()
         };
         assert_eq!(merge(&previous, &whole), set(&[]));
+        let stopped = Run {
+            skipped_phase: true,
+            ..whole
+        };
+        assert_eq!(
+            merge(&previous, &stopped),
+            set(&["//a:red", "//b/c:red", "//z:red"])
+        );
+        let unfinished = Run {
+            exit_code: None,
+            covered: vec!["//...".to_owned()],
+            ..Run::default()
+        };
+        assert_eq!(
+            merge(&previous, &unfinished),
+            set(&["//a:red", "//b/c:red", "//z:red", "dx: no result"])
+        );
     }
 
     #[test]

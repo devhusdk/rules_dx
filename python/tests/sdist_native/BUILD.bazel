@@ -30,6 +30,7 @@ python_test(
 
 cc_toolchain_test(
     name = "geohash_msvc_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -40,6 +41,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "geohash_gcc_test",
+    size = "small",
     compiler = "gcc",
     target_compatible_with = [
         "@platforms//os:linux",

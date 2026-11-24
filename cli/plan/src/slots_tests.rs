@@ -215,10 +215,16 @@ fn a_remote_gate_skips_admission_that_holds_a_local_gate() {
     let (extra, extra_err, _) = take_gate(&remote);
     assert_eq!((base.index, extra.index), (0, 1));
     assert_eq!((base_err.as_str(), extra_err.as_str()), ("", ""));
-    assert!(!remote_dir.join("admitted").exists(), "remote gate ran admission");
+    assert!(
+        !remote_dir.join("admitted").exists(),
+        "remote gate ran admission"
+    );
     let local_dir = scratch.path().join("local");
     let (_slot, _, _) = take_gate(&gate(&local_dir, false));
-    assert!(local_dir.join("admitted").is_file(), "local gate skipped admission");
+    assert!(
+        local_dir.join("admitted").is_file(),
+        "local gate skipped admission"
+    );
 }
 
 #[test]
@@ -2288,7 +2294,7 @@ fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
             &mut |_, _| {},
             &mut || {
                 seen.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                drop(polled.send(()));
+                polled.send(()).unwrap_or_default();
             },
             &mut |_, _| {},
         )

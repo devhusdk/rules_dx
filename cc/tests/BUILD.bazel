@@ -282,6 +282,7 @@ gcc_unsupported_tests(name = "gcc_unsupported_test")
 
 cc_toolchain_test(
     name = "gcc_hello_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -293,6 +294,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_hello_lib_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -304,6 +306,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_hello_c_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -315,6 +318,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_shared_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -326,6 +330,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_dynamic_libstdcxx_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["dynamic_libstdcxx"],
     target_compatible_with = [
@@ -337,6 +342,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_asan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["asan"],
     tags = [
@@ -352,6 +358,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_ubsan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["ubsan"],
     tags = [
@@ -367,6 +374,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_tsan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["tsan"],
     tags = ["no-coverage"],
@@ -379,6 +387,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "llvm_asan_test",
+    size = "small",
     compiler = "llvm",
     llvm_sanitizers = ["asan"],
     tags = ["no-coverage"],
@@ -392,6 +401,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "llvm_ubsan_test",
+    size = "small",
     compiler = "llvm",
     llvm_sanitizers = ["ubsan"],
     tags = ["no-coverage"],
@@ -405,6 +415,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "llvm_tsan_test",
+    size = "small",
     compiler = "llvm",
     llvm_sanitizers = ["tsan"],
     tags = ["no-coverage"],
@@ -418,6 +429,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "xcode_asan_test",
+    size = "small",
     compiler = "llvm",
     extra_features = ["asan"],
     tags = ["no-coverage"],
@@ -430,6 +442,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "xcode_ubsan_test",
+    size = "small",
     compiler = "llvm",
     extra_features = ["ubsan"],
     tags = ["no-coverage"],
@@ -442,6 +455,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "xcode_tsan_test",
+    size = "small",
     compiler = "llvm",
     extra_features = ["tsan"],
     tags = ["no-coverage"],
@@ -454,6 +468,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_hello_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -465,6 +480,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_hello_c_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -476,6 +492,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_shared_test",
+    size = "small",
     compiler = "gcc",
     tags = ["row:cc_gcc"],
     target_compatible_with = [
@@ -487,6 +504,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_dynamic_libstdcxx_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["dynamic_libstdcxx"],
     tags = ["row:cc_gcc"],
@@ -499,6 +517,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_asan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["asan"],
     tags = [
@@ -514,6 +533,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gcc_arm64_ubsan_test",
+    size = "small",
     compiler = "gcc",
     extra_features = ["ubsan"],
     tags = [
@@ -542,6 +562,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_hello_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -553,6 +574,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_hello_lib_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -564,6 +586,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_hello_c_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -575,6 +598,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_shared_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -586,6 +610,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_c_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -597,6 +622,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_spaced_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -608,6 +634,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_shared_dbg_test",
+    size = "small",
     compilation_mode = "dbg",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
@@ -620,6 +647,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_shared_opt_test",
+    size = "small",
     compilation_mode = "opt",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
@@ -632,6 +660,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_static_crt_test",
+    size = "small",
     compiler = "msvc",
     extra_features = [
         "-dynamic_link_msvcrt",
@@ -647,6 +676,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_arm64_hello_test",
+    size = "small",
     compiler = "msvc",
     tags = ["row:cc_msvc"],
     target_compatible_with = [
@@ -658,6 +688,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_arm64_hello_c_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -668,6 +699,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_arm64_shared_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",

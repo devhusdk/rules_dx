@@ -2,13 +2,13 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
 load("//qt/private:defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 load("//qt/private/toolchain:pins.bzl", "QT_VERSION")
-load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 load(":rules_tests.bzl", "qt_rules_tests")
@@ -48,13 +48,13 @@ qt_frameworks(
 cc_binary(
     name = "probe",
     srcs = ["probe.cc"],
-    local_defines = ['DX_QT_PINNED_VERSION=\\"' + QT_VERSION + '\\"'],
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": ["-fPIC"],
     }),
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
+    local_defines = ['DX_QT_PINNED_VERSION=\\"' + QT_VERSION + '\\"'],
     tags = ["manual"],
     deps = [
         ":probe_qt_frameworks",
@@ -302,6 +302,7 @@ qt_cc_test(
 
 cc_toolchain_test(
     name = "qt_test_msvc",
+    size = "small",
     compiler = "msvc",
     tags = [
         "block-network",
@@ -313,6 +314,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "gui_test_msvc",
+    size = "small",
     compiler = "msvc",
     tags = ["no-remote-exec"],
     target_compatible_with = ["@platforms//os:windows"],
@@ -536,7 +538,6 @@ rust_test(
     size = "small",
     srcs = ["tool_dylibs_test.rs"],
     data = [
-        "@llvm//tools:llvm-otool",
         "@dx_qt//:lrelease",
         "@dx_qt//:moc",
         "@dx_qt//:qmlformat",
@@ -544,6 +545,7 @@ rust_test(
         "@dx_qt//:qmltyperegistrar",
         "@dx_qt//:rcc",
         "@dx_qt//:uic",
+        "@llvm//tools:llvm-otool",
     ],
     env = {"LLVM_OTOOL": "$(rlocationpath @llvm//tools:llvm-otool)"},
     target_compatible_with = ["@platforms//os:macos"],
@@ -612,7 +614,10 @@ qt_cc_test(
         } | {
             "DX_QT_RUNTIME_RECORD": "msvc_vcruntime * app_local" if os == "windows" else ("os_runtime_" + cell + " " + glibc + " os_supplied" if glibc else ""),
         } | ({"DX_QT_TASKS_RECORD": "runtime_runtime " + QT_VERSION + " os_supplied"} if os != "windows" else {}),
-        target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],
+        target_compatible_with = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
         deps = [
             "//cli/test_scratch:dx_test_scratch",
             "//deploy/private:dx_deploy_tools",

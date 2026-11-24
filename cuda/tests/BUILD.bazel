@@ -465,6 +465,7 @@ failure_test(
 
 cc_toolchain_test(
     name = "msvc_saxpy_device_code_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -475,6 +476,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_rdc_output_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -485,6 +487,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_saxpy_gpu_unavailable_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -495,6 +498,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_gpu_guard_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -505,6 +509,7 @@ cc_toolchain_test(
 
 cc_toolchain_test(
     name = "msvc_rdc_device_link_hermetic_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",
@@ -525,6 +530,7 @@ test_suite(
 
 cc_toolchain_test(
     name = "msvc_hermetic_toolchain_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",

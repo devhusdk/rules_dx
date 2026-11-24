@@ -26,7 +26,7 @@ avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
 capnproto/tests/BUILD.bazel no-size 11
-cc/tests/BUILD.bazel no-size 39
+cc/tests/BUILD.bazel no-size 7
 cc/tests/failure_tests.bzl no-size 1
 cc/tests/fixtures/adopt_cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt_cpp/solo/BUILD.bazel no-size 1
@@ -154,7 +154,7 @@ csharp/tests/fixtures/hello/BUILD.bazel no-size 1
 csharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
-cuda/tests/BUILD.bazel no-size 28
+cuda/tests/BUILD.bazel no-size 22
 cuda/tests/fixtures/cuda_app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda_app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
@@ -177,7 +177,7 @@ dart/tests/fixtures/negative/BUILD.bazel no-size 3
 dart/tests/fixtures/runtime/BUILD.bazel no-size 2
 dart/tests/fixtures/tags/BUILD.bazel no-size 2
 dart/tests/fixtures/web/BUILD.bazel no-size 2
-deploy/private/BUILD.bazel no-size 110
+deploy/private/BUILD.bazel no-size 83
 deploy/private/api_compat_tests.bzl no-size 1
 deploy/private/archive_tests.bzl no-size 2
 deploy/private/cloudflare_tests.bzl no-size 1
@@ -319,7 +319,7 @@ go/tests/fixtures/adopt_go/solo/BUILD.bazel no-size 1
 go/tests/fixtures/bench/BUILD.bazel no-size 3
 go/tests/fixtures/bench/BUILD.bazel size-large 1
 go/tests/fixtures/bench/BUILD.bazel timeout-long 1
-go/tests/fixtures/cgo/BUILD.bazel no-size 9
+go/tests/fixtures/cgo/BUILD.bazel no-size 6
 go/tests/fixtures/cgo/toolchain_test.bzl no-size 2
 go/tests/fixtures/fuzz/BUILD.bazel no-size 3
 go/tests/fixtures/godeps/BUILD.bazel no-size 1
@@ -373,7 +373,7 @@ julia/private/tools/jet/BUILD.bazel no-size 1
 julia/private/tools/lint/BUILD.bazel no-size 1
 julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
-julia/tests/fixtures/hello/BUILD.bazel no-size 8
+julia/tests/fixtures/hello/BUILD.bazel no-size 7
 julia/tests/fixtures/julia_app/archive/BUILD.bazel size-medium 1
 julia/tests/fixtures/julia_app/cli/BUILD.bazel no-size 1
 julia/tests/fixtures/julia_app/cli/BUILD.bazel size-medium 1
@@ -431,7 +431,7 @@ php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3
 powershell/tests/fixtures/hello/BUILD.bazel no-size 1
-python/tests/BUILD.bazel no-size 4
+python/tests/BUILD.bazel no-size 3
 python/tests/analysis/BUILD.bazel no-size 4
 python/tests/fixtures/adopt_python/app/BUILD.bazel no-size 1
 python/tests/fixtures/adopt_python/solo/BUILD.bazel no-size 2
@@ -440,15 +440,15 @@ python/tests/fixtures/entries/BUILD.bazel no-size 3
 python/tests/fixtures/fuzz/BUILD.bazel no-size 3
 python/tests/fixtures/hello/BUILD.bazel flaky 1
 python/tests/fixtures/hello/BUILD.bazel no-size 8
-python/tests/fixtures/native_ext/BUILD.bazel no-size 3
+python/tests/fixtures/native_ext/BUILD.bazel no-size 1
 python/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 python/tests/fixtures/python_service/ledger/cli/BUILD.bazel no-size 3
 python/tests/fixtures/python_service/ledger/core/BUILD.bazel no-size 2
 python/tests/fixtures/python_service/ledger/service/BUILD.bazel no-size 1
 python/tests/runtime_tests.bzl no-size 1
-python/tests/sdist_native/BUILD.bazel no-size 5
+python/tests/sdist_native/BUILD.bazel no-size 3
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
-qt/tests/BUILD.bazel no-size 8
+qt/tests/BUILD.bazel no-size 6
 qt/tests/fixtures/qt_app/app/BUILD.bazel no-size 3
 qt/tests/fixtures/qt_rust/app/BUILD.bazel no-size 2
 qt/tests/fixtures/qt_rust/ledger/BUILD.bazel no-size 1
@@ -480,7 +480,7 @@ rust/tests/fixtures/consumer_web/BUILD.bazel no-size 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel no-size 2
 rust/tests/fixtures/fuzz/BUILD.bazel no-size 2
 rust/tests/fixtures/hello/BUILD.bazel no-size 23
-rust/tests/fixtures/native_call/BUILD.bazel no-size 25
+rust/tests/fixtures/native_call/BUILD.bazel no-size 19
 rust/tests/fixtures/shared_rust_checks/BUILD.bazel no-size 6
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 12
 rust/tests/fixtures/wasm_bindgen/js_parity.bzl no-size 1
@@ -530,7 +530,7 @@ tools/testing/BUILD.bazel no-size 3
 tools/testing/BUILD.bazel size-large 1
 tools/testing/hermetic/BUILD.bazel no-size 35
 tools/testing/hermetic/BUILD.bazel timeout-eternal 1
-tools/testing/hermetic/compilers.bzl no-size 2
+tools/testing/hermetic/compilers.bzl no-size 1
 tools/testing/signatures/BUILD.bazel no-size 1
 tools/visibility/BUILD.bazel no-size 2
 tools/visibility/visibility_tests.bzl no-size 1

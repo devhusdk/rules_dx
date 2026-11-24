@@ -138,6 +138,7 @@ def compiler_fixture(name, sources, compiler, rejected, target_compatible_with, 
     """Declares the in-graph fixture of one compiler over one starter_sources."""
     cc_toolchain_test(
         name = name + "_starter_test",
+        size = "small",
         compiler = compiler,
         target_compatible_with = target_compatible_with,
         test = sources + "_test",

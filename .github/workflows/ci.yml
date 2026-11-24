@@ -566,7 +566,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           mkdir -p "$RUNNER_TEMP/exec-log"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" -- //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/fixtures/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... -//julia/tests/fixtures/hello:hello_standalone_output_test -//julia/tests/fixtures/hello:relocate_test -//julia/private/tools/lint/... -//julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" -- //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/fixtures/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... -//julia/tests/fixtures/hello:relocate_test -//julia/private/tools/lint/... -//julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
       - name: Check the upload holds no secret
         id: scan-exec-log
         if: always()
@@ -751,7 +751,7 @@ jobs:
             (while sleep 30; do echo "resources: $(free -m | sed -n 2,3p | tr -s ' \n' ' ') | $(df -h / /mnt | tail -2 | tr -s ' \n' ' ')"; done) &
           fi
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-heavy.log" "$@" //julia/tests/fixtures/hello:hello_standalone_output_test //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-heavy.log" "$@" //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
       - name: Check the upload holds no secret
         id: scan-exec-log
         if: always()

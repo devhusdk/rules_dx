@@ -29,11 +29,13 @@ mod tests {
         let (sender, settled) = std::sync::mpsc::channel();
         let waiter = dir.clone();
         let settler = std::thread::spawn(move || {
-            drop(sender.send(settles_within(
-                &waiter,
-                1,
-                std::time::Duration::from_secs(30),
-            )));
+            sender
+                .send(settles_within(
+                    &waiter,
+                    1,
+                    std::time::Duration::from_secs(30),
+                ))
+                .unwrap_or_default();
         });
         assert!(settled.try_recv().is_err(), "settled while still held");
         drop(held);

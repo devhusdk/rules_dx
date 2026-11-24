@@ -51,6 +51,7 @@ python_test(
 
 cc_toolchain_test(
     name = "rust_sdist_msvc_test",
+    size = "small",
     compiler = "msvc",
     target_compatible_with = [
         "@platforms//os:windows",

@@ -1,5 +1,3 @@
-//! Writes the coverage summary comment of one consumer coverage cell.
-
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};

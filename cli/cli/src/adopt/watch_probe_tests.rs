@@ -215,7 +215,6 @@ impl Probe {
     }
 }
 
-/// dx ends an interrupted watch with code 130 or by re-raising SIGINT, depending on timing.
 fn assert_interrupted(status: ExitStatus) {
     assert!(
         status.code() == Some(130) || status.signal() == Some(SIGINT),
@@ -511,7 +510,6 @@ fn json_watch_keeps_every_stdout_line_an_event() {
     for needle in ["iteration=1", "changed ", "iteration=2"] {
         assert!(stderr.contains(needle), "{needle}: {stderr}");
     }
-    // A signal that lands while a child runs kills dx before it can say it stopped.
     assert!(
         status.code() != Some(130) || stderr.contains("stopped"),
         "stopped: {stderr}"

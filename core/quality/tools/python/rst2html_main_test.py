@@ -24,10 +24,7 @@ class Rst2HtmlTest(unittest.TestCase):
     """Feeds Vale's exact argv and checks the HTML."""
 
     def run_main(self, body: bytes) -> str:
-        """Converts one body through stdin in this process and returns stdout.
-
-        It runs in-process because on Windows a child interpreter does not find the venv.
-        """
+        """Converts one body through stdin in this process and returns stdout."""
         stdout = io.BytesIO()
         stdin = io.TextIOWrapper(io.BytesIO(body), encoding="utf-8")
         out = io.TextIOWrapper(stdout, encoding="utf-8")

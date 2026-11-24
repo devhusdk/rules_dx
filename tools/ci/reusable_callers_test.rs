@@ -1,5 +1,3 @@
-//! Pins the contract between each reusable workflow, its callers and the GitHub CI page.
-
 use serde_json::Value;
 
 use ci_workflow::{jobs, reusable_calls, workflow_call};
@@ -9,7 +7,6 @@ const DOCS: &str = "docs/github-ci.md";
 
 const CI: &str = ".github/workflows/ci.yml";
 
-/// Each reusable workflow with the starter that calls it.
 const PAIRS: [(&str, &str); 2] = [
     ("reusable-consumer.yml", "examples/consumer-ci/caller.yml"),
     ("reusable-docs.yml", "examples/docs-ci/caller.yml"),
@@ -19,14 +16,12 @@ fn workflow_path(name: &str) -> String {
     format!(".github/workflows/{name}")
 }
 
-/// Returns the starters and ci.yml, every file that calls a reusable workflow.
 fn callers() -> Vec<&'static str> {
     let mut found: Vec<&str> = PAIRS.iter().map(|(_, caller)| *caller).collect();
     found.push(CI);
     found
 }
 
-/// Returns the keys of one map value, sorted; a missing value has none.
 fn keys(value: &Value, what: &str) -> Vec<String> {
     if value.is_null() {
         return Vec::new();
@@ -160,7 +155,6 @@ fn docs_page_embeds_every_starter_verbatim() {
         "examples/docs-ci/caller.yml",
     ] {
         let text = read_runfiles(starter);
-        // A starter sits at the top level or inside a numbered list step.
         let embedded = ["", "   "].iter().any(|indent| {
             let block: String = text
                 .lines()

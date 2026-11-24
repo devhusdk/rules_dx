@@ -5,11 +5,6 @@ use std::path::{Path, PathBuf};
 use super::rule_graph::is_graph_query;
 use super::{QueryResult, QueryRunner};
 
-/// Query runner that remembers the successful workspace rule-graph query.
-///
-/// Only the `kind('rule', //...)` query is cached, keyed on the exact argv and
-/// cwd. Launch errors and non-zero exits are never cached. Callers must call
-/// `invalidate` after anything that may have written BUILD files.
 pub struct MemoizedGraphQuery<'a> {
     inner: &'a dyn QueryRunner,
     cache: RefCell<Vec<(Vec<String>, PathBuf, QueryResult)>>,
@@ -23,7 +18,6 @@ impl<'a> MemoizedGraphQuery<'a> {
         }
     }
 
-    /// Drops every cached graph so the next graph query reaches the inner runner.
     pub fn invalidate(&self) {
         self.cache.borrow_mut().clear();
     }

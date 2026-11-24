@@ -1,5 +1,3 @@
-//! Conan publisher: recipe identity checks, local staging, `conan create` and `conan upload`.
-
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
     placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
@@ -11,7 +9,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a conan deployment failed.
 #[derive(Debug)]
 pub enum ConanError {
     Paths(io::Error),
@@ -19,17 +16,10 @@ pub enum ConanError {
     TempDir(io::Error),
     Io(PathIoError),
     Run(RunError),
-    NameMismatch {
-        declared: String,
-        target: String,
-    },
+    NameMismatch { declared: String, target: String },
     NoVersion,
-    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
     Refused(String),
-    ConanFailed {
-        step: String,
-        status: String,
-    },
+    ConanFailed { step: String, status: String },
     NoConan,
     Export(io::Error),
 }
@@ -75,7 +65,6 @@ impl std::error::Error for ConanError {
     }
 }
 
-/// Owner approval gate for `conan_deploy`.
 pub(crate) const CONAN_GATE: OwnerGate = OwnerGate {
     tool: "conan_deploy",
     action: "upload",
@@ -83,7 +72,6 @@ pub(crate) const CONAN_GATE: OwnerGate = OwnerGate {
     approved: "CONAN_PUBLISH_APPROVED",
 };
 
-/// What a Conan deployment pins besides the recipe files.
 pub struct ConanLaunch<'a> {
     pub recipe_rlocs: &'a [String],
     pub deploy_name: &'a str,
@@ -94,7 +82,6 @@ pub struct ConanLaunch<'a> {
     pub conan_rloc: &'a str,
 }
 
-/// Returns the string a recipe assigns to one class attribute.
 fn recipe_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     text.lines().find_map(|line| {
         let line = line.trim();
@@ -108,7 +95,6 @@ fn recipe_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     })
 }
 
-/// Checks the recipe's declared name and returns the version to publish.
 fn recipe_version(text: &str, package: &str, version: &str) -> Result<String, ConanError> {
     if let Some(name) = recipe_string(text, "name")
         && name != package
@@ -126,7 +112,6 @@ fn recipe_version(text: &str, package: &str, version: &str) -> Result<String, Co
     }
 }
 
-/// Runs one conan command in an isolated CONAN_HOME.
 fn conan_run(
     conan: &Path,
     home: &Path,
@@ -154,7 +139,6 @@ fn conan_run(
     })
 }
 
-/// Creates the package from the staged recipe and uploads it to the remote.
 fn conan_publish(
     conan: &Path,
     staging: &Path,
@@ -182,7 +166,6 @@ fn conan_publish(
     Ok(())
 }
 
-/// Runs the Conan deploy tool.
 pub fn conan_main(spec: &ConanLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "conan_deploy",

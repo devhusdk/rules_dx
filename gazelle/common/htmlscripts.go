@@ -6,13 +6,10 @@ import (
 	"golang.org/x/net/html"
 )
 
-// ScriptScope selects which <script> elements ExtractScripts returns.
 type ScriptScope int
 
 const (
-	// TopLevel keeps only scripts that are root blocks, as Vue and Svelte do.
 	TopLevel ScriptScope = iota
-	// Anywhere keeps scripts at any depth, as Astro does.
 	Anywhere
 )
 
@@ -22,8 +19,6 @@ var voidElements = map[string]bool{
 	"param": true, "source": true, "track": true, "wbr": true,
 }
 
-// ExtractScripts returns complete <script> bodies as sub-slices of src.
-// TopLevel skips each other root element's body to its matching end tag.
 func ExtractScripts(src []byte, scope ScriptScope) [][]byte {
 	z := html.NewTokenizer(bytes.NewReader(src))
 	var out [][]byte
@@ -65,8 +60,6 @@ func ExtractScripts(src []byte, scope ScriptScope) [][]byte {
 	}
 }
 
-// matchingEnd is framing-only: it skips a root block to its end tag; x/net/html tokenizes the rest.
-// It returns the offset past the end tag closing name, or -1.
 func matchingEnd(src []byte, from int, name []byte) int {
 	depth := 1
 	i := from
@@ -95,7 +88,6 @@ func matchingEnd(src []byte, from int, name []byte) int {
 			}
 			i += gt + 1
 		case tagNameAt(rest[1:], name):
-			// A self-closing same-name tag (<div/>) opens nothing.
 			if gt := bytes.IndexByte(rest, '>'); gt < 0 || rest[gt-1] != '/' {
 				depth++
 			}
@@ -106,7 +98,6 @@ func matchingEnd(src []byte, from int, name []byte) int {
 	}
 }
 
-// tagNameAt is framing-only: it reports whether b starts with the whole tag name name.
 func tagNameAt(b, name []byte) bool {
 	if len(b) < len(name) || !bytes.EqualFold(b[:len(name)], name) {
 		return false

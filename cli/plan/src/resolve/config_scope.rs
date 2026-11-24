@@ -6,10 +6,6 @@ use super::{QueryRunner, RuleGraph};
 
 const EVERYTHING: &str = "//...";
 
-/// The scopes with each workspace-bound tool config file replaced by `//...`.
-///
-/// A file is workspace-bound when a workspace bazelrc flag names its label, or names a target
-/// the file reaches. Returns `None` when no scope is such a file.
 #[must_use]
 pub fn widen_config_scopes(
     scopes: &[String],

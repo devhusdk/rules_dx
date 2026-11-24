@@ -5,7 +5,6 @@ use std::os::unix::process::CommandExt;
 fn this_process_and_its_group_are_reachable() {
     let me = i32::try_from(std::process::id()).expect("pid");
     assert_eq!(probe(me), Presence::Reachable);
-    // A sandbox's PID namespace can hide the group leader, which reads as group 0.
     if own_group() > 0 {
         assert_eq!(probe(-own_group()), Presence::Reachable);
     }

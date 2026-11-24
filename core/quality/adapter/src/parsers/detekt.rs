@@ -45,7 +45,6 @@ fn severity_of(word: &str, tag: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-/// detekt names files by absolute path; the checked file is the one the path ends with.
 fn checked<'a>(files: &[&'a str], reported: &str) -> Result<&'a str, ParseError> {
     let reported = reported.replace('\\', "/");
     let found = files
@@ -101,13 +100,6 @@ fn finding(
     })
 }
 
-/// Parses the checkstyle-format report written by `--report xml:<path>`.
-///
-/// Exit 2 is detekt's "issues found"; any other non-zero exit is a failed run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_detekt(
     report: &[u8],
     code: Option<i32>,

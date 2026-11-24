@@ -1,28 +1,21 @@
-//! `dx init --apply` writes the checked-in files of one `<lang>/tests/consumer` fixture, unless `tools/testing/consumer/pending.txt` holds `init <lang>`.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// The pending list named in failures.
 const PENDING: &str = "tools/testing/consumer/pending.txt";
 
-/// The name the fixture stores `MODULE.bazel` under.
 const STORED_MODULE: &str = "consumer.MODULE.bazel";
 
-/// The name of the scratch workspace directory; `dx init` without a directory argument names the module `my_project`.
 const WORKSPACE: &str = "consumer";
 
 fn base(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
-/// True when `dx init --apply` writes the file at `rel` in the fixture.
 fn written(rel: &str) -> bool {
     rel == STORED_MODULE || base(rel) == "BUILD.bazel"
 }
 
-/// The workspace path of the fixture file at `rel`.
 fn workspace_path(rel: &str) -> &str {
     if rel == STORED_MODULE {
         "MODULE.bazel"
@@ -31,7 +24,6 @@ fn workspace_path(rel: &str) -> &str {
     }
 }
 
-/// The files of the `lang` fixture, keyed by their path under it.
 fn fixture(lang: &str) -> BTreeMap<String, String> {
     let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
         .unwrap_or_else(|error| panic!("DX_CONSUMER_JSON: {error}"));
@@ -45,7 +37,6 @@ fn fixture(lang: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// Copies the fixture sources to a new workspace and names it.
 fn workspace(files: &BTreeMap<String, String>) -> PathBuf {
     let root = PathBuf::from(dx_testing::env_text("TEST_TMPDIR")).join(WORKSPACE);
     for (rel, text) in files {
@@ -56,8 +47,6 @@ fn workspace(files: &BTreeMap<String, String>) -> PathBuf {
     root
 }
 
-/// The license ids the `dx_licenses.accept` tags of the checked-in `MODULE.bazel` list. The
-/// list ends at its `]`, before any `terms_sha256` pins.
 fn accepted_ids(files: &BTreeMap<String, String>) -> Vec<String> {
     let module = files.get(STORED_MODULE).map_or("", String::as_str);
     module
@@ -103,7 +92,6 @@ fn init(root: &Path, licenses: &[String]) -> dx_testing::Run {
         .unwrap_or_else(|error| panic!("dx init --apply: {error}"))
 }
 
-/// The fixture files `dx init --apply` did not write as checked in, each with what differs.
 fn differences(files: &BTreeMap<String, String>, root: &Path) -> Vec<String> {
     let mut out = Vec::new();
     for (rel, want) in files {

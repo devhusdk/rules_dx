@@ -1,18 +1,12 @@
-//! Test helpers for `dx` command output: argument lists, rule graph query
-//! lines and NDJSON event streams.
-
-/// Copies test words into owned strings, in order.
 pub fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(ToString::to_string).collect()
 }
 
-/// Renders one rule as a line of `streamed_jsonproto` query output.
 #[must_use]
 pub fn graph_rule(name: &str, inputs: &[&str], tags: &[&str]) -> String {
     render_graph_rule(name, None, inputs, tags)
 }
 
-/// Renders one rule of the given rule class as a line of query output.
 #[must_use]
 pub fn graph_rule_of_kind(name: &str, kind: &str, inputs: &[&str], tags: &[&str]) -> String {
     render_graph_rule(name, Some(kind), inputs, tags)
@@ -30,7 +24,6 @@ fn render_graph_rule(name: &str, kind: Option<&str>, inputs: &[&str], tags: &[&s
     serde_json::json!({"type": "RULE", "rule": rule}).to_string()
 }
 
-/// Joins rule lines into the rule graph query output.
 #[must_use]
 pub fn graph_stdout(lines: &[String]) -> String {
     let mut out = lines.join("\n");
@@ -38,11 +31,6 @@ pub fn graph_stdout(lines: &[String]) -> String {
     out
 }
 
-/// Parses one NDJSON event per line.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn json_events(out: &str) -> Vec<serde_json::Value> {
@@ -52,11 +40,6 @@ pub fn json_events(out: &str) -> Vec<serde_json::Value> {
         .unwrap_or_else(|err| panic!("NDJSON: {err}"))
 }
 
-/// Returns the kind of every event, in order.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -71,11 +54,6 @@ pub fn event_kinds(events: &[serde_json::Value]) -> Vec<&str> {
         .collect()
 }
 
-/// Returns the first event of the given kind.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -86,7 +64,6 @@ pub fn event<'a>(events: &'a [serde_json::Value], kind: &str) -> &'a serde_json:
         .unwrap_or_else(|| panic!("missing {kind} event"))
 }
 
-/// Returns every event of the given kind, in order.
 #[must_use]
 pub fn events_of_kind<'a>(
     events: &'a [serde_json::Value],

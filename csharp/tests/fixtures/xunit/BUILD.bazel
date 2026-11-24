@@ -40,7 +40,7 @@ csharp_test(
 
 dx_dotnet_coverage_tests(
     name = "csharp_coverage_test",
-    library = "greeter_lib_upstream",
+    library = "greeter_lib",
     source = "csharp/tests/fixtures/xunit/Greeter.cs",
     target = ":greeter_test",
 )

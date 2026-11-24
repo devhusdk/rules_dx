@@ -7,7 +7,6 @@ dx_licenses.accept(ids = ["android-sdk-license"])
 
 android = use_extension("@rules_dx//android:extensions.bzl", "android")
 
-# The consumer's own tag: rules_dx sends one too, and the root module's tag wins.
 android.configure(extra_packages = ["platform-tools"])
 use_repo(android, "dx_android_sdk", "dx_androidsdk")
 

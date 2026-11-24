@@ -573,6 +573,12 @@ style:
         value: 'java.lang.annotation.Repeatable'
       - reason: 'Kotlin does not support @Inherited annotation, see https://youtrack.jetbrains.com/issue/KT-22265'
         value: 'java.lang.annotation.Inherited'
+      - reason: 'a disabled test hides a failure. Fix or delete the test instead.'
+        value: 'org.junit.Ignore'
+      - reason: 'a disabled test hides a failure. Fix or delete the test instead.'
+        value: 'org.junit.jupiter.api.Disabled'
+      - reason: 'a disabled test hides a failure. Fix or delete the test instead.'
+        value: 'kotlin.test.Ignore'
   ForbiddenComment:
     active: true
     comments:

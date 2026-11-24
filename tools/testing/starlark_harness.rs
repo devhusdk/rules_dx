@@ -1,34 +1,18 @@
-//! Evaluates one `starlark_test` manifest without host shell tooling.
-//!
-//! The Starlark rule writes one JSON manifest per case and runs this binary as
-//! the test executable. The harness resolves every input through its own
-//! runfiles, evaluates the analysis-time assertions Starlark already decided,
-//! checks the required file substrings byte for byte, prints the analysis
-//! observations, and renders one PASS or FAIL line per assertion. No sh, awk,
-//! grep, cat, or batch interpreter is launched.
-
 use std::path::{Path, PathBuf};
 
 use dx_path::Resolver;
 
-/// Names the environment entry carrying the manifest runfiles key.
 pub const MANIFEST_ENV: &str = "STARLARK_HARNESS_MANIFEST";
-/// Accepts only manifests written for this evaluator.
 pub const MANIFEST_VERSION: u64 = 2;
 
-/// The rendered outcome of one manifest evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {
-    /// Every PASS, FAIL, and observation line plus the summary line, in order.
     pub lines: Vec<String>,
-    /// The number of passing assertions.
     pub passed: usize,
-    /// The number of failing assertions.
     pub failed: usize,
 }
 
 impl Report {
-    /// Renders the whole report as test output text.
     #[must_use]
     pub fn text(&self) -> String {
         let mut out = self.lines.join("\n");
@@ -36,14 +20,12 @@ impl Report {
         out
     }
 
-    /// Returns whether every assertion passed.
     #[must_use]
     pub fn ok(&self) -> bool {
         self.failed == 0
     }
 }
 
-/// Reads one required string field from a manifest object.
 fn field(value: &serde_json::Value, path: &str, name: &str) -> std::io::Result<String> {
     value
         .get(name)
@@ -52,7 +34,6 @@ fn field(value: &serde_json::Value, path: &str, name: &str) -> std::io::Result<S
         .ok_or_else(|| bad(format!("{path} has no string field {name}")))
 }
 
-/// Reads one required string array field from a manifest object.
 fn string_list(value: &serde_json::Value, path: &str, name: &str) -> std::io::Result<Vec<String>> {
     let list = value
         .get(name)
@@ -68,7 +49,6 @@ fn string_list(value: &serde_json::Value, path: &str, name: &str) -> std::io::Re
     Ok(out)
 }
 
-/// Evaluates one equality assertion.
 fn evaluate_equal(name: &str, expected: &str, actual: &str, report: &mut Report) {
     if expected == actual {
         pass(report, format!("PASS: {name}"));
@@ -80,7 +60,6 @@ fn evaluate_equal(name: &str, expected: &str, actual: &str, report: &mut Report)
     }
 }
 
-/// Evaluates one boolean assertion.
 fn evaluate_bool(name: &str, want: &str, actual: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -92,7 +71,6 @@ fn evaluate_bool(name: &str, want: &str, actual: &str, passed: &str, report: &mu
     }
 }
 
-/// Evaluates one membership assertion.
 fn evaluate_contains(name: &str, haystack: &str, needle: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -104,7 +82,6 @@ fn evaluate_contains(name: &str, haystack: &str, needle: &str, passed: &str, rep
     }
 }
 
-/// Evaluates one substring assertion.
 fn evaluate_match(name: &str, value: &str, want: &str, passed: &str, report: &mut Report) {
     if passed == "True" {
         pass(report, format!("PASS: {name}"));
@@ -116,7 +93,6 @@ fn evaluate_match(name: &str, value: &str, want: &str, passed: &str, report: &mu
     }
 }
 
-/// Evaluates one decoded check record in declaration order.
 fn evaluate_check(check: &serde_json::Value, report: &mut Report) -> std::io::Result<()> {
     let kind = field(check, "check", "kind")?;
     let name = field(check, "check", "name")?;
@@ -155,7 +131,6 @@ fn evaluate_check(check: &serde_json::Value, report: &mut Report) -> std::io::Re
     Ok(())
 }
 
-/// Returns whether the needle bytes occur anywhere in the haystack bytes.
 fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
     if needle.is_empty() {
         return true;
@@ -168,7 +143,6 @@ fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
         .any(|window| window == needle)
 }
 
-/// Returns the length of the longest prefix of the needle that occurs in the haystack.
 fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
     if needle.is_empty() {
         return 0;
@@ -204,10 +178,6 @@ fn longest_prefix_match(haystack: &[u8], needle: &[u8]) -> usize {
     best
 }
 
-/// Returns the 0-based index and text of the first needle line that breaks the match.
-///
-/// A line is missing when the needle stops matching inside it. A line that does not
-/// directly follow its predecessor in the haystack is reported as out of order.
 fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) {
     let bytes = needle.as_bytes();
     let matched = longest_prefix_match(haystack, bytes);
@@ -222,7 +192,6 @@ fn first_missing_line<'a>(haystack: &[u8], needle: &'a str) -> (usize, &'a str) 
     (index, needle.split('\n').nth(index).unwrap_or(needle))
 }
 
-/// Returns the 1-based line of the first line ending that is not the wanted kind.
 fn first_bad_line_ending(bytes: &[u8], crlf: bool) -> Option<usize> {
     let mut line = 1;
     let mut previous = None;
@@ -240,7 +209,6 @@ fn first_bad_line_ending(bytes: &[u8], crlf: bool) -> Option<usize> {
     None
 }
 
-/// Evaluates one staged file against its line endings and required substrings.
 fn evaluate_file(
     entry: &serde_json::Value,
     resolver: &Resolver,
@@ -307,11 +275,6 @@ fn evaluate_file(
     Ok(())
 }
 
-/// Evaluates the check records of one parsed manifest.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn evaluate(manifest: &serde_json::Value) -> std::io::Result<Report> {
     let version = manifest
         .get("version")
@@ -349,11 +312,6 @@ pub fn evaluate(manifest: &serde_json::Value) -> std::io::Result<Report> {
     Ok(report)
 }
 
-/// Evaluates the file entries of one manifest through one resolver.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn evaluate_files(
     manifest: &serde_json::Value,
     resolver: &Resolver,
@@ -369,14 +327,6 @@ pub fn evaluate_files(
     Ok(())
 }
 
-/// Appends the analysis observations after the assertion lines.
-///
-/// Observation lines carry no verdict; they never change the pass or fail
-/// counts.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn evaluate_observations(
     manifest: &serde_json::Value,
     report: &mut Report,
@@ -390,19 +340,16 @@ pub fn evaluate_observations(
     Ok(())
 }
 
-/// Records one passing assertion.
 fn pass(report: &mut Report, line: String) {
     report.lines.push(line);
     report.passed += 1;
 }
 
-/// Records one failing assertion.
 fn fail(report: &mut Report, line: String) {
     report.lines.push(line);
     report.failed += 1;
 }
 
-/// Appends the closing summary line.
 fn summarize(report: &mut Report) {
     let passed = report.passed;
     let failed = report.failed;
@@ -411,7 +358,6 @@ fn summarize(report: &mut Report) {
         .push(format!("starlark_test: {passed} passed, {failed} failed"));
 }
 
-/// Returns the invoked test executable without resolving its symlink.
 fn invoked_exe() -> std::io::Result<PathBuf> {
     let argv0 = std::env::args()
         .next()
@@ -425,17 +371,14 @@ fn invoked_exe() -> std::io::Result<PathBuf> {
         .map_err(|error| bad(format!("cannot resolve the test executable: {error}")))
 }
 
-/// Resolves the runfiles of the invoked test executable.
 fn resolver_for(exe: &Path) -> std::io::Result<Resolver> {
     Resolver::for_executable(exe).or_else(|error| {
-        // A runner reached through another test's manifest has no tree of its own.
         inherited_tree()
             .and_then(|tree| Resolver::for_tree(&tree).ok())
             .ok_or_else(|| bad(format!("no runfiles beside {}: {error}", exe.display())))
     })
 }
 
-/// Returns the runfiles tree of the test that launched this runner, when there is one.
 fn inherited_tree() -> Option<PathBuf> {
     ["RUNFILES_DIR", "TEST_SRCDIR"]
         .into_iter()
@@ -444,7 +387,6 @@ fn inherited_tree() -> Option<PathBuf> {
         .find(|tree| tree.is_dir())
 }
 
-/// Reads the value of one required environment entry.
 fn env_value(name: &str) -> std::io::Result<String> {
     std::env::var(name)
         .map_err(|error| bad(format!("missing environment {name}: {error}")))
@@ -456,11 +398,6 @@ fn env_value(name: &str) -> std::io::Result<String> {
         })
 }
 
-/// Evaluates the manifest one runfiles key names for one executable.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn run_with(exe: &Path, key: &str) -> std::io::Result<Report> {
     let resolver = resolver_for(exe)?;
     let manifest_path = resolver
@@ -481,7 +418,6 @@ pub fn run_with(exe: &Path, key: &str) -> std::io::Result<Report> {
     Ok(report)
 }
 
-/// Evaluates the manifest named by the test environment.
 fn run() -> std::io::Result<Report> {
     let exe = match invoked_exe() {
         Ok(exe) => exe,
@@ -497,7 +433,6 @@ fn bad(message: impl std::fmt::Display) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidInput, message.to_string())
 }
 
-/// Prints one evaluation result and returns the test exit code.
 fn finish(
     result: &std::io::Result<Report>,
     out: &mut impl std::io::Write,

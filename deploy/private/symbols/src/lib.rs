@@ -1,6 +1,3 @@
-//! Checks that a binary and its debug info belong together: ELF build-ids and
-//! macOS dSYM UUIDs and Windows PDB GUIDs.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod cli;
@@ -11,7 +8,6 @@ use object::{Architecture, Object};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// Why a binary and its debug info cannot be read or do not belong together.
 #[derive(Debug)]
 pub enum SymbolsError {
     WrongFormat {
@@ -184,7 +180,6 @@ impl From<PathIoError> for SymbolsError {
     }
 }
 
-/// The build-id and architecture shared by a binary and its debug file.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Pair {
     pub build_id: String,
@@ -233,11 +228,6 @@ fn read(bytes: &[u8], what: &'static str) -> Result<Elf, SymbolsError> {
     })
 }
 
-/// Returns the shared build-id and arch, or says why the two files do not match.
-///
-/// # Errors
-///
-/// Returns an error when the files cannot be parsed or their build ids or architectures differ.
 pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, SymbolsError> {
     let bin = read(binary, "binary")?;
     let dbg = read(debug, "debug file")?;
@@ -260,7 +250,6 @@ pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, SymbolsError> {
     })
 }
 
-/// The UUID and arch shared by a Mach-O binary and its dSYM.
 #[derive(Debug, PartialEq, Eq)]
 pub struct DsymPair {
     pub uuid: String,
@@ -284,11 +273,6 @@ fn macho_uuid(bytes: &[u8], what: &'static str) -> Result<([u8; 16], String), Sy
     Ok((uuid, format!("{:?}", file.architecture()).to_lowercase()))
 }
 
-/// Returns the shared UUID and arch, or says why the binary and dSYM do not match.
-///
-/// # Errors
-///
-/// Returns an error when either file is not a Mach-O file or the UUIDs or architectures differ.
 pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, SymbolsError> {
     let (bin_uuid, bin_arch) = macho_uuid(binary, "binary")?;
     let (dsym_uuid, dsym_arch) = macho_uuid(dwarf, "dSYM")?;
@@ -311,11 +295,6 @@ pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, SymbolsError>
     })
 }
 
-/// The one DWARF file inside a dSYM bundle, at Contents/Resources/DWARF/.
-///
-/// # Errors
-///
-/// Returns an error when the bundle has no DWARF file or more than one.
 pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, SymbolsError> {
     let dir = bundle.join("Contents/Resources/DWARF");
     let files = path_io::read_dir(&dir).map_err(|source| SymbolsError::DsymUnreadable {
@@ -331,11 +310,6 @@ pub fn dwarf_file(bundle: &Path) -> Result<PathBuf, SymbolsError> {
     }
 }
 
-/// The manifest for a binary and its dSYM bundle: UUID, arch, binary digest and the dsymutil version.
-///
-/// # Errors
-///
-/// Returns an error when a file cannot be read or the pair does not match.
 pub fn dsym_manifest(
     binary: &Path,
     bundle: &Path,
@@ -361,7 +335,6 @@ pub fn dsym_manifest(
     }))
 }
 
-/// What a PE file says about its PDB: the `CodeView` record and the machine.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PeId {
     pub guid: [u8; 16],
@@ -371,7 +344,6 @@ pub struct PeId {
     pub linker_version: String,
 }
 
-/// What a PDB says about itself: the info stream GUID, and the DBI age and machine.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PdbId {
     pub guid: [u8; 16],
@@ -379,7 +351,6 @@ pub struct PdbId {
     pub machine: u16,
 }
 
-/// The GUID, age and arch shared by a PE file and its PDB.
 #[derive(Debug, PartialEq, Eq)]
 pub struct PdbPair {
     pub guid: String,
@@ -395,11 +366,6 @@ fn u32_at(b: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
 }
 
-/// Reads the `CodeView` GUID, age and path, the machine and the linker version of a PE file.
-///
-/// # Errors
-///
-/// Returns an error when the bytes are not a PE file with a `CodeView` record.
 pub fn pe_codeview(bytes: &[u8]) -> Result<PeId, SymbolsError> {
     let (what, format) = ("binary", "PE");
     let file = object::File::parse(bytes).map_err(|source| SymbolsError::Unreadable {
@@ -484,11 +450,6 @@ fn msf_streams(bytes: &[u8]) -> Result<Vec<Vec<u8>>, SymbolsError> {
     Ok(streams)
 }
 
-/// Reads the GUID, age and machine of a PDB from its MSF info and DBI streams.
-///
-/// # Errors
-///
-/// Returns an error when the bytes are not a valid MSF file.
 pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, SymbolsError> {
     let streams = msf_streams(bytes)?;
     let info = streams.get(1).filter(|s| s.len() >= 28);
@@ -505,11 +466,6 @@ pub fn pdb_identity(bytes: &[u8]) -> Result<PdbId, SymbolsError> {
     })
 }
 
-/// Returns the shared GUID, age and arch, or says why the PE file and PDB do not match.
-///
-/// # Errors
-///
-/// Returns an error when the GUIDs, ages or machines differ.
 pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, SymbolsError> {
     if pe.guid != pdb.guid {
         return Err(SymbolsError::GuidMismatch {
@@ -542,20 +498,10 @@ pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, SymbolsError> {
     })
 }
 
-/// Checks a PE file against its PDB.
-///
-/// # Errors
-///
-/// Returns an error when either file cannot be parsed or the pair does not match.
 pub fn check_pdb(binary: &[u8], pdb: &[u8]) -> Result<PdbPair, SymbolsError> {
     compare_pdb(&pe_codeview(binary)?, &pdb_identity(pdb)?)
 }
 
-/// The manifest for a PE file and its PDB: GUID, age, arch, binary digest, PDB name, `CodeView` path and linker version.
-///
-/// # Errors
-///
-/// Returns an error when a file cannot be read or the pair does not match.
 pub fn pdb_manifest(binary: &Path, pdb: &Path) -> Result<serde_json::Value, SymbolsError> {
     let bin = path_io::read(binary)?;
     let dbg = path_io::read(pdb)?;

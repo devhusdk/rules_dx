@@ -1,5 +1,3 @@
-//! Converts a Clover or Cobertura XML coverage report to LCOV.
-
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -74,7 +72,6 @@ fn run(args: &[OsString]) -> Result<(), DxError> {
 }
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// Runs `to_lcov` on the process arguments.
 pub fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     match run(&args) {
@@ -220,7 +217,6 @@ mod tests {
         ).expect("write input");
         let missing = dir.join("missing").display().to_string();
         let input = input.display().to_string();
-        // write_atomic creates missing parents, so a file in the parent's place is what fails.
         let output = dir.join("clover.xml").join("out").display().to_string();
 
         let read = run(&strings(&["--from", "clover", &missing, &output]));

@@ -9,7 +9,6 @@ use quality_adapter::{ColumnEncoding, Finding, TextPosition, ToolSeverity, comma
 use super::check::ToolDef;
 use super::{RealBackend, RealTool, RunnerError, StagedPair, StagedScratch, execution, parsed};
 
-/// One preflight problem as an error finding on the root it was found from.
 fn preflight_finding(root: &Path, problem: Problem) -> FileFinding {
     FileFinding {
         file: root.to_string_lossy().into_owned(),
@@ -36,7 +35,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Lints each owned root on its own, after the offline preflight clears it.
     pub(super) fn check_redocly(
         &self,
         tool_id: &str,

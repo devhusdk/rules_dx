@@ -8,7 +8,6 @@ use super::file_uri_to_path;
 
 const MESSAGE_LIMIT: usize = 1000;
 
-/// The build stage a failure belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailureStage {
     Analysis,
@@ -35,7 +34,6 @@ impl FailureStage {
     }
 }
 
-/// Whether a failed target is a test target, as Bazel configured it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FailedTargetKind {
     Test,
@@ -54,7 +52,6 @@ impl FailedTargetKind {
     }
 }
 
-/// Where a failed action's stderr can be read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StderrRef {
     Local(PathBuf),
@@ -62,7 +59,6 @@ pub enum StderrRef {
     Absent,
 }
 
-/// One failure Bazel reported while building.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildFailure {
     pub target: Option<String>,
@@ -77,7 +73,6 @@ pub struct BuildFailure {
     pub message: Option<String>,
 }
 
-/// The failures of one build event stream and whether the stream was readable to its end.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct BuildFailures {
     pub failures: Vec<BuildFailure>,
@@ -222,9 +217,6 @@ fn label_of<'a>(id: &'a Map<String, Value>, keys: &[&str]) -> Option<(&'a str, O
     None
 }
 
-/// Reads the failed actions, aborted targets, and unbuilt targets of a build event stream.
-///
-/// A line that is not a JSON object ends the read and is named in `problem`.
 pub fn collect_build_failures(reader: impl BufRead) -> BuildFailures {
     let mut actions: Vec<ActionFailure> = Vec::new();
     let mut targets: Vec<TargetFailure> = Vec::new();

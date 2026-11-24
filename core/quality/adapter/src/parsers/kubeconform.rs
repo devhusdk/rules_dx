@@ -6,7 +6,6 @@ const TOOL: &str = "kubeconform";
 const FILE_URL: &str = "file://";
 const ADDITIONAL: &str = "additional properties '";
 
-/// One path kubeconform was handed, the owned file it stands for and that file's documents.
 #[derive(Debug, Clone, Copy)]
 pub struct KubeconformTarget<'a> {
     pub reported: &'a str,
@@ -23,7 +22,6 @@ fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseErr
     }
 }
 
-/// The message with scratch `file://` URLs cut to their file name and staged paths renamed.
 fn clean(message: &str, targets: &[KubeconformTarget<'_>]) -> String {
     let mut out = String::with_capacity(message.len());
     let mut rest = message;
@@ -45,7 +43,6 @@ fn clean(message: &str, targets: &[KubeconformTarget<'_>]) -> String {
     out.trim().to_owned()
 }
 
-/// The document a result names: the only one, or the one matching kind, name and version.
 fn document<'a>(
     target: &KubeconformTarget<'a>,
     resource: &serde_json::Value,
@@ -66,7 +63,6 @@ fn document<'a>(
         .or_else(|| target.documents.iter().find(|doc| same(&doc.kind, kind))))
 }
 
-/// The position of one validation error, on the named key of an additional property.
 fn position(document: Option<&Document>, path: &str, message: &str) -> TextPosition {
     let Some(document) = document else {
         return TextPosition { line: 1, column: 1 };
@@ -167,13 +163,6 @@ fn resource_findings(
     }
 }
 
-/// Parses `kubeconform -output json -summary=false`: a `resources` list, or one object each.
-///
-/// Exit 1 needs a failing result and exit 0 must not have one; anything else fails closed.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_kubeconform(
     stdout: &[u8],
     stderr: &[u8],

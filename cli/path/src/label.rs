@@ -1,22 +1,10 @@
-//! Bazel label spelling: one parser for `@repo//package:name` and its short forms.
-//!
-//! The parser is structural only. It splits a label into repository, package and
-//! name and does not check the characters inside each part, so target patterns
-//! such as `@hub//...` or `//pkg:all` parse too, with the wildcard kept as the
-//! package or name.
-
-/// The repository part of a label.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Repo<'a> {
-    /// No `@`: the repository the label is read in (`//p:n`, `:n`).
     Local,
-    /// `@name`, as the reading module spells it. `@//p` is the main repository.
     Apparent(&'a str),
-    /// `@@name`, the repository name Bazel assigns (`rules_go+`, `+ext+hub`).
     Canonical(&'a str),
 }
 
-/// Spells the repository as it prefixes `//`: nothing, `@name` or `@@name`.
 impl std::fmt::Display for Repo<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -27,23 +15,15 @@ impl std::fmt::Display for Repo<'_> {
     }
 }
 
-/// One parsed label. The parts borrow from the text it was parsed from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Label<'a> {
     pub repo: Repo<'a>,
-    /// The package path, `""` for the root package. Unknown for a
-    /// package-relative label, where it is also `""`; see [`Label::relative`].
     pub package: &'a str,
     pub name: &'a str,
-    /// Whether the label is package-relative (`:n`), so `package` is the reader's.
     pub relative: bool,
 }
 
 impl<'a> Label<'a> {
-    /// Parses `//p`, `//p:n`, `:n`, `@r`, `@r//p:n`, `@@r+//p:n` and `@//p:n`.
-    ///
-    /// Returns `None` for text that is not label-shaped: no leading `//`, `:` or
-    /// `@`, an empty name, or a repository not followed by `//`.
     #[must_use]
     pub fn parse(text: &'a str) -> Option<Self> {
         if let Some(name) = text.strip_prefix(':') {
@@ -71,7 +51,6 @@ impl<'a> Label<'a> {
                 };
                 match rest {
                     Some(rest) => (repo, rest),
-                    // `@r` is shorthand for `@r//:r`.
                     None if name.is_empty() || name.contains([':', '/']) => return None,
                     None => {
                         return Some(Label {
@@ -87,7 +66,6 @@ impl<'a> Label<'a> {
         };
         let (package, name) = match rest.split_once(':') {
             Some((package, name)) => (package, name),
-            // `//a/b` is shorthand for `//a/b:b`.
             None => (rest, rest.rsplit('/').next().unwrap_or(rest)),
         };
         if name.is_empty() {
@@ -101,7 +79,6 @@ impl<'a> Label<'a> {
         })
     }
 
-    /// The repository name after `@` or `@@`, or `None` when the label has no `@`.
     #[must_use]
     pub fn repo_name(&self) -> Option<&'a str> {
         match self.repo {
@@ -110,13 +87,11 @@ impl<'a> Label<'a> {
         }
     }
 
-    /// The package spelled without its repository, as `//package`.
     #[must_use]
     pub fn package_label(&self) -> String {
         format!("//{}", self.package)
     }
 
-    /// The workspace-relative path of a source file this label names.
     #[must_use]
     pub fn file_path(&self) -> String {
         if self.package.is_empty() {
@@ -127,8 +102,6 @@ impl<'a> Label<'a> {
     }
 }
 
-/// The repository a label names after `@` or `@@`, or `None` for a label
-/// without one or text that is not a label.
 #[must_use]
 pub fn repo_of(text: &str) -> Option<&str> {
     Label::parse(text)?.repo_name()

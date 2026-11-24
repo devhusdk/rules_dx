@@ -1,8 +1,8 @@
 # gazelle:exclude src
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript/private/quality:tsc_report.bzl", "tsc_report", "tsc_stdout_test")
 load("//typescript:defs.bzl", "typescript_config", "typescript_library")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_report", "tsc_stdout_test")
 
 package(
     default_testonly = True,

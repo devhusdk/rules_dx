@@ -38,9 +38,6 @@ fn eslint_severity(tool: &'static str, severity: u64) -> Result<ToolSeverity, Pa
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_eslint(
     stdout: &[u8],
     code: Option<i32>,
@@ -49,11 +46,6 @@ pub fn parse_eslint(
     parse_eslint_json("eslint", false, stdout, code, files)
 }
 
-/// Parses graphql-eslint JSON, which must report every requested file.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_graphql_eslint(
     stdout: &[u8],
     code: Option<i32>,

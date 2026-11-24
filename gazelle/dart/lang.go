@@ -12,21 +12,14 @@ import (
 )
 
 const (
-	languageName = "dart"
-	// LibraryKind is the rule kind generated over lib/.
-	LibraryKind = "dart_library"
-	// BinaryKind is the rule kind generated per bin/*.dart.
-	BinaryKind = "dart_binary"
-	// TestKind is the rule kind generated per test/**/*_test.dart.
-	TestKind = "dart_test"
-	// FlutterLibraryKind is the library kind for a package that uses the Flutter SDK.
+	languageName       = "dart"
+	LibraryKind        = "dart_library"
+	BinaryKind         = "dart_binary"
+	TestKind           = "dart_test"
 	FlutterLibraryKind = "flutter_library"
-	// FlutterTestKind is the test kind for a package that uses the Flutter SDK.
-	FlutterTestKind = "flutter_test"
-	// MetadataKind declares the package's pub name; the library names it in `package`.
-	MetadataKind = "dart_package_metadata"
-	// MetadataName is the name of the generated MetadataKind rule.
-	MetadataName = "pubspec-metadata"
+	FlutterTestKind    = "flutter_test"
+	MetadataKind       = "dart_package_metadata"
+	MetadataName       = "pubspec-metadata"
 )
 
 func entryKind() rule.KindInfo {
@@ -56,12 +49,10 @@ func metadataKind() rule.KindInfo {
 	}
 }
 
-// The kinds leave data, defines, aspect_hints and tags unmergeable so they stay
-// user-owned.
 var dartKinds = map[string]rule.KindInfo{
 	LibraryKind: libraryKind(),
-	BinaryKind: entryKind(),
-	TestKind:   entryKind(),
+	BinaryKind:  entryKind(),
+	TestKind:    entryKind(),
 
 	FlutterLibraryKind: libraryKind(),
 	FlutterTestKind:    entryKind(),
@@ -73,7 +64,6 @@ type dartLang struct {
 	*common.SingleLang
 }
 
-// NewLanguage returns the Dart language extension.
 func NewLanguage() language.Language {
 	return &dartLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
@@ -90,7 +80,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes a library under its pub package name.
 func (l *dartLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind && r.Kind() != FlutterLibraryKind {
 		return nil
@@ -98,8 +87,6 @@ func (l *dartLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resol
 	return []resolve.ImportSpec{{Lang: languageName, Imp: packageName(r, f)}}
 }
 
-// packageName is the package_name of the same-file dart_package_metadata the
-// library names in `package`, else the library's name.
 func packageName(r *rule.Rule, f *rule.File) string {
 	if ref := strings.TrimPrefix(r.AttrString("package"), ":"); ref != "" && f != nil {
 		for _, m := range f.Rules {

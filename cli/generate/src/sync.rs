@@ -1,5 +1,3 @@
-//! Keeps the `.dx` tree in step with `dx.toml`, skipping all work when nothing it reads changed.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -10,37 +8,28 @@ use dx_config::LoadProblem;
 use crate::tools_gen::TOOL_CONFIGS;
 use crate::{GenerateError, Inputs, RootBuild, references, render};
 
-/// Bump when the fingerprint layout changes.
 const VERSION: &str = "v1";
 
-/// Root files whose stats the fingerprint covers besides the outputs.
 fn shared_inputs() -> [&'static str; 4] {
     let manifest = dx_families::hub("uv").map_or("", |hub| hub.manifest.as_str());
     ["MODULE.bazel", manifest, "BUILD.bazel", "BUILD"]
 }
 
-/// Top-level entries under `.dx` that dx does not own.
 const KEPT: [&str; 2] = ["local", "pins"];
 
-/// How long a sync waits for another one to finish.
 const LOCK_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
-    /// Skip detection and rendering when the fingerprint matches.
     Fast,
-    /// Always detect and render.
     Full,
 }
 
-/// Workspace-relative paths that a sync changed.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct SyncReport {
     pub written: Vec<String>,
     pub deleted: Vec<String>,
-    /// Whether families were detected, i.e. the fast path missed.
     pub detected: bool,
-    /// One `dx: warning: ...` line per root reference to a `.dx` file dx does not render.
     pub warnings: Vec<String>,
 }
 
@@ -52,7 +41,6 @@ pub enum SyncError {
     Generate(#[from] GenerateError),
     #[error("{}: {source}", path.display())]
     Io { path: PathBuf, source: io::Error },
-    /// The last sync failed with this message and nothing it read has changed since.
     #[error("{0}")]
     Unchanged(String),
 }
@@ -62,8 +50,6 @@ fn io_error(path: &Path) -> impl FnOnce(io::Error) -> SyncError {
     move |source| SyncError::Io { path, source }
 }
 
-/// Renders `.dx` and the root export block, writes what differs and deletes stale `.dx` files.
-/// `detect` returns the families present in the workspace; `Fast` calls it only on a miss.
 pub fn sync(
     root: &Path,
     mode: Mode,
@@ -106,7 +92,6 @@ pub fn sync(
     }
 }
 
-/// The result of the last sync when nothing it read has changed since.
 fn cached(root: &Path, snapshot: &Snapshot) -> Option<Result<SyncReport, SyncError>> {
     let text = std::fs::read_to_string(dx_path::state::fingerprint_path(root)).ok()?;
     let (stored, rest) = text.split_once('\n').unwrap_or((&text, ""));
@@ -131,8 +116,6 @@ fn record(root: &Path, text: &str) -> Result<(), SyncError> {
     dx_atomic_fs::write_atomic(&path, text.as_bytes()).map_err(io_error(&path))
 }
 
-/// Every file a sync of `root` would leave in place, keyed by workspace-relative path, without
-/// writing anything.
 pub fn plan(
     root: &Path,
     detect: &mut dyn FnMut(&Path) -> BTreeSet<String>,
@@ -170,7 +153,6 @@ fn plan_from(
     Ok(render(&inputs)?)
 }
 
-/// Renders from `snapshot`, writes what differs and removes stale files. Returns the outputs.
 fn render_and_write(
     root: &Path,
     snapshot: &Snapshot,
@@ -236,15 +218,12 @@ fn render_and_write(
     Ok((report, files.into_keys().collect()))
 }
 
-/// Whether `path` is under one of the [`KEPT`] entries.
 fn user_owned(path: &str) -> bool {
     let rest = path.strip_prefix(".dx/").unwrap_or(path);
     let top = rest.split('/').next().unwrap_or(rest);
     KEPT.contains(&top)
 }
 
-/// What `remove_stale` leaves: rendered files, plus files a root config still names and the
-/// rest of their directory.
 struct Stale<'a> {
     keep: &'a BTreeSet<&'a str>,
     kept_dirs: &'a [String],
@@ -264,8 +243,6 @@ fn is_not_found(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::NotFound
 }
 
-/// Deletes files under `dir` that `keep` does not keep, then `dir` itself if that left it empty.
-/// Returns whether `dir` is now gone.
 fn remove_stale(
     dir: &Path,
     rel: &str,
@@ -326,17 +303,14 @@ fn remove_stale(
     Ok(false)
 }
 
-/// Everything a render reads from the workspace, taken once so the render and the fingerprint agree.
 struct Snapshot {
     config: Option<Vec<u8>>,
     pins: Option<Vec<u8>>,
     root_files: BTreeSet<String>,
     root_build: Option<RootBuild>,
     root_texts: BTreeMap<String, String>,
-    /// The `.dx/` paths each root tool config names.
     dx_refs: BTreeMap<String, Vec<String>>,
     files: BTreeSet<String>,
-    /// (size, mtime) of each of [`shared_inputs`], taken before anything is read.
     stats: Vec<Option<(u64, u128)>>,
 }
 
@@ -447,8 +421,6 @@ fn root_names(root: &Path) -> Result<BTreeSet<String>, SyncError> {
         .collect()
 }
 
-/// The files under each target plus the BUILD files of the directories above it: all that
-/// `references::resolve` looks at. Honors `.gitignore` and skips VCS, Bazel output and `.dx`.
 fn reference_files(root: &Path, targets: &BTreeSet<String>) -> BTreeSet<String> {
     let mut files = BTreeSet::new();
     for target in targets {
@@ -493,7 +465,6 @@ fn reference_files(root: &Path, targets: &BTreeSet<String>) -> BTreeSet<String> 
     files
 }
 
-/// Hash of everything in `snapshot` plus the current stats of `outputs`.
 fn fingerprint(snapshot: &Snapshot, root: &Path, outputs: &[String]) -> [u8; 32] {
     let mut buf = Vec::new();
     let mut field = |bytes: &[u8]| {

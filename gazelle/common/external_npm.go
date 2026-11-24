@@ -10,15 +10,11 @@ import (
 
 var npmLockFile = LockName("npm")
 
-// npmManifest holds the packages a package manifest declares.
 type npmManifest struct {
 	packages map[string]bool
-	// dir is the package holding the pnpm lock the packages link from.
-	dir string
+	dir      string
 }
 
-// npmBelow lets a directory feed npm when it holds a pnpm lock or is a
-// workspace importer of one.
 func npmBelow(root, rel string) bool {
 	return hasFile(root, path.Join(rel, npmLockFile)) || IsPnpmWorkspaceMember(root, rel)
 }
@@ -48,8 +44,6 @@ func parseNpmManifest(content []byte, _ string) (externalManifest, error) {
 	return m, nil
 }
 
-// NpmPackageName cuts a module specifier down to its package name, keeping
-// the @scope/name pair.
 func NpmPackageName(spec string) string {
 	parts := strings.Split(spec, "/")
 	if strings.HasPrefix(spec, "@") && len(parts) >= 2 {
@@ -58,7 +52,6 @@ func NpmPackageName(spec string) string {
 	return parts[0]
 }
 
-// Lookup resolves a declared package to its //<lockdir>:node_modules/<pkg> target.
 func (m *npmManifest) Lookup(_, name string) ([]label.Label, string) {
 	pkg := NpmPackageName(name)
 	if !m.packages[pkg] {

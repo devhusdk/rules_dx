@@ -66,7 +66,6 @@ rust_test(
     env = {
         "DX_LSP_TOOLCHAIN_FILES": "$(rootpaths @rules_rust//rust/toolchain:current_rust_analyzer_toolchain)",
     },
-    # The four tests each run a rust-analyzer at once.
     tags = [
         "cpu:4",
         "no-remote-exec",

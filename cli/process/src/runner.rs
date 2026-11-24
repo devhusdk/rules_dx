@@ -1,5 +1,3 @@
-//! The production `Runner`: streams children through the lifecycle layer.
-
 use std::fs::File;
 use std::io;
 use std::path::Path;
@@ -17,7 +15,6 @@ const STREAM_CLEANUP: CleanupBudget = CleanupBudget {
     drain: Duration::from_secs(5),
 };
 
-/// Runs children with stop forwarding; `on_stop` fires when a stop signal cancelled the child.
 #[derive(Clone, Copy)]
 pub struct BinaryRunner {
     inherit_stdout: bool,
@@ -63,7 +60,6 @@ fn stream_spec(
     }
 }
 
-/// Clears the tail before any Bazel run, and tees its stderr when `capture` allows.
 fn bazel_stderr(argv: &[String], capture: bool) -> StreamOutput {
     let Some(program) = argv.first().map(std::convert::AsRef::as_ref) else {
         return StreamOutput::Inherit;
@@ -79,7 +75,6 @@ fn bazel_stderr(argv: &[String], capture: bool) -> StreamOutput {
 }
 
 impl BinaryRunner {
-    /// A runner that stops on process interrupts and reports them to `on_stop`.
     pub fn new(inherit_stdout: bool, on_stop: fn(i32)) -> Self {
         Self {
             inherit_stdout,
@@ -88,7 +83,6 @@ impl BinaryRunner {
         }
     }
 
-    /// Streams `spec` under the shared cleanup budget; `None` means the run was withdrawn.
     pub fn stream(&self, spec: StreamSpec) -> io::Result<Option<ChildStatus>> {
         let outcome = lifecycle::run_streamed(spec, STREAM_CLEANUP, &self.stop)?;
         Ok(self.child_status(outcome))
@@ -194,7 +188,6 @@ impl Runner for BinaryRunner {
     }
 }
 
-/// Wraps a runner so `run_app` children also carry `held`; other runs get none.
 pub struct Holding<'a> {
     inner: &'a dyn Runner,
     held: Vec<&'a File>,

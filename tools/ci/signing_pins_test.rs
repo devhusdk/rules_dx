@@ -10,10 +10,7 @@ fn the_cosign_pin_lives_only_in_pins_json() {
     let pins: serde_json::Value = serde_json::from_str(&read_runfiles(PINS_JSON))
         .unwrap_or_else(|e| panic!("{PINS_JSON}: {e}"));
     let version = pins["version"].as_str().unwrap_or_default().to_string();
-    assert!(
-        version.starts_with('v'),
-        "{PINS_JSON} version is {version}"
-    );
+    assert!(version.starts_with('v'), "{PINS_JSON} version is {version}");
     let mut pinned = vec![version];
     let archives = pins["archives"].as_object().expect("archives object");
     assert!(!archives.is_empty(), "{PINS_JSON} has no archives");

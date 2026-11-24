@@ -1,26 +1,14 @@
-//! A fresh one-language consumer fetches only the repositories its cold-start list names.
-//!
-//! Each language is one case: it builds and tests `<lang>/tests/consumer` in a new workspace with
-//! an empty output base, then lists the repositories under `output_base/external`. That list must equal the
-//! committed `cold_start/<lang>.txt`: a longer list means rules_dx started fetching something
-//! eagerly, a shorter one means the file is stale. A case that names `CHECK_ANALYSIS` also analyzes
-//! the `dx check` aspects over every consumer target, so a quality aspect that loads another
-//! family's rules fails it. Repositories of other language families must
-//! never download, whatever the file says. A toolchain hub whose rule ran and downloaded nothing
-//! is fine; it still has to be in the list. `UPSTREAM_REGISTERED` names the module archives a
-//! consumer fetches for the toolchains their own MODULE.bazel registers; they are listed, not
-//! foreign. Both commands run with the repo contents cache off, so every listed repository's rule
-//! runs in the case that fetches it.
-
 use std::collections::BTreeSet;
 
 use dx_nested::Case;
 use dx_nested::record::Fetches;
 use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 
-/// Name fragments of repositories that belong to a language family the consumer does not use.
 const FOREIGN: &[(&str, &[&str])] = &[
-    ("java", &["ocaml", "opam", "cuda", "scala", "kotlin", "android"]),
+    (
+        "java",
+        &["ocaml", "opam", "cuda", "scala", "kotlin", "android"],
+    ),
     (
         "go",
         &[
@@ -60,12 +48,8 @@ const FOREIGN: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Languages whose case also analyzes the `dx check` aspects.
 const CHECK_ANALYSIS: &[&str] = &["java"];
 
-/// The `dx_prebuilt` asset tags that pin every jar tool of `DX_PREBUILT_REGISTRY` to a stub, as a
-/// released rules_dx pins them to downloads; unpinned, a jar tool builds from rules_dx sources that
-/// `//:module_srcs` leaves out.
 fn jar_pins() -> String {
     let registry = dx_testing::env_text("DX_PREBUILT_REGISTRY");
     let registry = dx_testing::read_text(
@@ -92,14 +76,8 @@ fn jar_pins() -> String {
     tags
 }
 
-/// Module archives fetched in every consumer because their MODULE.bazel registers toolchains whose
-/// `toolchain_type` Bazel loads as a configured dependency.
-const UPSTREAM_REGISTERED: &[&str] = &[
-    "rules_android+",
-    "rules_kotlin+",
-];
+const UPSTREAM_REGISTERED: &[&str] = &["rules_android+", "rules_kotlin+"];
 
-/// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.
 fn listed(text: &str) -> BTreeSet<String> {
     text.lines()
         .map(|line| line.split('#').next().unwrap_or_default().trim())
@@ -108,7 +86,6 @@ fn listed(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// The repositories Bazel fetched into `external`, without its `@name.marker` bookkeeping files.
 fn fetched(external: &std::path::Path) -> BTreeSet<String> {
     std::fs::read_dir(external)
         .unwrap_or_else(|error| panic!("read {}: {error}", external.display()))
@@ -119,8 +96,6 @@ fn fetched(external: &std::path::Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// The problems of a measured list against the committed one, the foreign fragments and the
-/// upstream-registered archives.
 fn problems(
     measured: &BTreeSet<String>,
     want: &BTreeSet<String>,
@@ -175,8 +150,6 @@ fn run_ok(case: &Case, args: &[&str], fetches: &mut Fetches) -> dx_testing::Run 
     run
 }
 
-/// Analyzes the `dx check` aspects the consumer's file extensions select over its rules, through
-/// the same `dx_prebuilt_guard` wrapper `prebuilt_guard_test` writes.
 fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
     let targets = run_ok(
         case,
@@ -219,7 +192,6 @@ fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
     );
 }
 
-/// The `DX_COLD_START_LISTS` entries, the runfiles paths of `cold_start/<lang>.txt`.
 fn cold_start_lists() -> Vec<String> {
     dx_testing::env_text("DX_COLD_START_LISTS")
         .split_whitespace()
@@ -248,8 +220,6 @@ fn fetches_only_its_cold_start_list(lang: &str) {
     let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
     let mut fetches = Fetches::default();
-    // The cases share one repository cache; with the contents cache on, a later case reuses an
-    // earlier case's repositories without running their rules.
     run_ok(
         &case,
         &[

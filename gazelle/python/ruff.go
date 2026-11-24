@@ -19,11 +19,9 @@ const (
 	nativeDefs = "core:defs.bzl"
 )
 
-// ruffState is the nearest ruff config at or above a directory.
 type ruffState struct {
-	rel  string
-	file string
-	// initOwned is set when .dx/BUILD.bazel already defines the root config.
+	rel       string
+	file      string
 	initOwned bool
 }
 
@@ -75,7 +73,6 @@ func ruffRule(state *ruffState, rel string) *rule.Rule {
 	return r
 }
 
-// withRuffHint returns the user's aspect_hints plus the ruff config label.
 func withRuffHint(c *config.Config, existing *rule.Rule, state *ruffState, rel string) []string {
 	var hints []string
 	if existing != nil {
@@ -116,4 +113,3 @@ func existingRule(file *rule.File, kind, name string) *rule.Rule {
 	}
 	return nil
 }
-

@@ -13,11 +13,6 @@ use super::real_fix::FixSession;
 use super::{RealBackend, StagedScratch, cleaned, delegated};
 
 impl RealBackend {
-    /// Returns the result of the call.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn diagnose(
         &self,
@@ -28,11 +23,6 @@ impl RealBackend {
         self.diagnose_with_siblings(tool_id, capability, files, &BTreeMap::new())
     }
 
-    /// Returns the result of the call.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn diagnose_with_siblings(
         &self,
@@ -44,11 +34,6 @@ impl RealBackend {
         self.diagnose_with_resolve(tool_id, capability, files, siblings, &BTreeMap::new())
     }
 
-    /// Returns the result of the call.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error describing the first step that failed.
     pub fn diagnose_with_resolve(
         &self,
         tool_id: &str,
@@ -114,11 +99,6 @@ impl RealBackend {
     }
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 #[cfg(test)]
 pub fn run_real_pipeline(
     producer: &str,
@@ -130,11 +110,6 @@ pub fn run_real_pipeline(
     run_real_pipeline_with_siblings(producer, capability, stages, files, &[], backend)
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 #[cfg(test)]
 pub fn run_real_pipeline_with_siblings(
     producer: &str,
@@ -147,11 +122,6 @@ pub fn run_real_pipeline_with_siblings(
     run_real_pipeline_with_resolve(producer, capability, stages, files, siblings, &[], backend)
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn run_real_pipeline_with_resolve(
     producer: &str,
     capability: &str,

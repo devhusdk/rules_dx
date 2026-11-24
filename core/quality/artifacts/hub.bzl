@@ -11,7 +11,6 @@ PLATFORM_CONSTRAINTS = {
     "windows_arm64": ["os_windows", "cpu_arm64"],
 }
 
-# Explicit, so a platform added to PLATFORM_CONSTRAINTS does not qualify itself.
 TOOL_PLATFORMS = [
     "linux_x86_64",
     "linux_arm64",
@@ -19,12 +18,10 @@ TOOL_PLATFORMS = [
     "windows_x86_64",
 ]
 
-# Unqualified platform to the qualified platform whose artifact runs there emulated.
 PLATFORM_FALLBACKS = {
     "windows_arm64": "windows_x86_64",
 }
 
-# Tools with no native build on a fallback platform, sorted.
 EMULATED_TOOLS = {
     "windows_arm64": [
         "chktex",
@@ -51,17 +48,14 @@ EMULATED_TOOLS = {
     ],
 }
 
-# Tools pinned on only some qualified platforms; elsewhere they resolve to an empty file set.
 PARTIAL_TOOL_PLATFORMS = {
     "hlint": ["linux_x86_64", "windows_x86_64"],
     "nixfmt": ["linux_x86_64"],
     "ormolu": ["linux_x86_64", "macos_arm64", "windows_x86_64"],
 }
 
-# Name of the empty target a partial tool resolves to on an unpinned platform.
 UNAVAILABLE_TARGET = "dx_unavailable"
 
-# Platforms outside TOOL_PLATFORMS are selectable but unqualified.
 ARTIFACT_PLATFORMS = list(PLATFORM_CONSTRAINTS.keys())
 
 _ARTIFACT_KEYS = [

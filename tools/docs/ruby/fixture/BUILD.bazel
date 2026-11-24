@@ -99,5 +99,6 @@ real_docs_shard_files(
 # Building the aspect shard runs YARD over a library whose context comes from its deps.
 build_test(
     name = "aspect_shard_build_test",
+    size = "small",
     targets = [":geometry_ext_aspect_shard"],
 )

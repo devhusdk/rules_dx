@@ -5,7 +5,6 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "nvcc_syntax";
 
-/// One EDG (cudafe++/cicc front end) line: `path(LINE): error|warning|remark[ #NNN-D]: message`.
 fn edg_diagnostic(line: &str) -> Option<(&str, u64, Option<ToolSeverity>, String, &str)> {
     let mut from = 0;
     while let Some(offset) = line.get(from..).and_then(|tail| tail.find("): ")) {
@@ -43,7 +42,6 @@ fn edg_diagnostic(line: &str) -> Option<(&str, u64, Option<ToolSeverity>, String
     None
 }
 
-/// Whether the line is nvcc housekeeping that never carries a finding.
 fn is_noise(line: &str) -> bool {
     line.starts_with("Remark: The warnings can be suppressed")
         || (line.contains(" detected in the compilation of ")
@@ -53,15 +51,6 @@ fn is_noise(line: &str) -> bool {
             }))
 }
 
-/// Parses `nvcc -cuda` (EDG front end) text diagnostics, plus the clang-style lines the
-/// host preprocessor prints (a missing include, for example). Identical findings are
-/// reported once, because nvcc prints each device diagnostic once per `-gencode`.
-/// Diagnostics in files outside `files` are dropped (EDG prints no include chain); a
-/// failing exit with no located finding (`nvcc fatal`, an unlocated ptxas error) is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_nvcc_syntax(
     stderr: &[u8],
     code: Option<i32>,

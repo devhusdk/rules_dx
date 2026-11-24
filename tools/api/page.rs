@@ -1,8 +1,5 @@
-//! Renders `docs/supported-surface.md` from the `api/` snapshot.
-
 use serde::Deserialize;
 
-/// The page this module writes, relative to the workspace root.
 pub const PATH: &str = "docs/supported-surface.md";
 
 #[derive(Deserialize)]
@@ -43,7 +40,6 @@ struct Env {
     default_for: Option<String>,
 }
 
-/// One public `.bzl` file in `starlark.json`.
 #[derive(Deserialize)]
 struct Module {
     load: String,
@@ -64,7 +60,6 @@ struct Rule {
     attrs: Vec<Attr>,
 }
 
-/// A symbol whose signature is a list of attrs: a macro, aspect, repository rule or tag class.
 #[derive(Deserialize)]
 struct Named {
     name: String,
@@ -125,10 +120,8 @@ setting it forwards to.
 - An attribute is a named argument of a rule, macro or tag. \"Required\" says whether you must set it.
 ";
 
-/// The module name users load rules_dx labels from.
 const MODULE: &str = "@rules_dx";
 
-/// The page for the snapshot texts `cli.json`, `starlark.json`, `labels.txt` and `schemas.txt`.
 pub fn render(
     cli_json: &str,
     starlark_json: &str,
@@ -293,7 +286,6 @@ fn attrs_table(page: &mut String, attrs: &[Attr]) {
     }
 }
 
-/// A default cell, or an empty cell when there is no default.
 fn optional_default(text: &str) -> String {
     if text.is_empty() {
         String::new()
@@ -302,7 +294,6 @@ fn optional_default(text: &str) -> String {
     }
 }
 
-/// One line of `labels.txt`: a label, its rule, then for a build setting its default and allowed values.
 struct LabelRow<'a> {
     label: &'a str,
     rule: &'a str,
@@ -395,7 +386,6 @@ fn label_row(line: &str) -> Result<LabelRow<'_>, String> {
     })
 }
 
-/// Splits one leading BUILD literal (a quoted string or a bare word) off `text`.
 fn take_literal(text: &str) -> Option<(String, &str)> {
     if !text.starts_with('"') {
         let (word, rest) = text.split_once(' ').unwrap_or((text, ""));
@@ -416,7 +406,6 @@ fn take_literal(text: &str) -> Option<(String, &str)> {
     None
 }
 
-/// The text inside a quoted literal, or a bare word as it is.
 fn unquote(text: &str) -> Option<String> {
     if text.starts_with('"') {
         serde_json::from_str(text).ok()
@@ -425,13 +414,10 @@ fn unquote(text: &str) -> Option<String> {
     }
 }
 
-/// `//pkg:name` as a consumer writes it.
 fn absolute(label: &str) -> String {
     format!("{MODULE}{label}")
 }
 
-/// A setting's default as a consumer writes it: labels in rules_dx get the module name, other values stay as they
-/// are.
 fn setting_value(label: &str, value: &str) -> String {
     if value.starts_with(':') {
         let package = label.split_once(':').map_or(label, |(package, _)| package);
@@ -453,12 +439,11 @@ fn row(page: &mut String, cells: &[String]) {
     page.push_str(&format!("| {} |\n", cells.join(" | ")));
 }
 
-/// A default cell: a default inside rules_dx's private packages shows as `pinned`.
 fn default_cell(value: &str) -> String {
     let private = value.match_indices("/private").any(|(at, word)| {
-        value[at + word.len()..]
-            .chars()
-            .next()
+        value
+            .get(at + word.len()..)
+            .and_then(|rest| rest.chars().next())
             .is_none_or(|next| !(next.is_ascii_alphanumeric() || "_-.".contains(next)))
     });
     if private {
@@ -468,7 +453,6 @@ fn default_cell(value: &str) -> String {
     }
 }
 
-/// A code span that is safe inside a table cell.
 fn code(text: &str) -> String {
     format!("`{}`", text.replace('|', "\\|"))
 }

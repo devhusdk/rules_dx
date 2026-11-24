@@ -1,17 +1,12 @@
-//! Renders the per-cell coverage summary comment of the consumer coverage job.
-
 use serde_json::Value;
 
 #[cfg(test)]
 mod lib_tests;
 
-/// Most coverage source lines one comment lists.
 pub const MAX_SOURCE_LINES: usize = 200;
 
-/// Profiles the summary reads, in output order.
 pub const PROFILE_IDS: [&str; 2] = ["build", "test"];
 
-/// The workflow run the comment points at.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Run {
     pub sha: String,
@@ -20,26 +15,19 @@ pub struct Run {
     pub run_id: String,
 }
 
-/// Everything one cell's comment is rendered from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Inputs {
     pub platform: String,
     pub invocation_id: String,
     pub run: Run,
-    /// Content of `dx_coverage.rc`, absent when the coverage step wrote none.
     pub dx_rc: Option<String>,
-    /// Content of `coverage.ndjson`, empty when absent.
     pub events: String,
     pub changed_lines_configured: bool,
-    /// Content of `dx_changed_lines.rc`, absent when the changed-line step wrote none.
     pub changed_rc: Option<String>,
-    /// Content of `dx_changed_lines.txt`, empty when absent.
     pub changed_lines: String,
-    /// Content of each `profile-<id>.json`, in `PROFILE_IDS` order, empty when absent.
     pub profiles: Vec<(String, String)>,
 }
 
-/// Cell name of one platform and optional invocation id.
 #[must_use]
 pub fn cell(platform: &str, invocation_id: &str) -> String {
     let cell = if invocation_id.is_empty() {
@@ -54,7 +42,6 @@ fn one_line(text: &str) -> String {
     text.replace(['\r', '\n'], " ").replace("```", "'''")
 }
 
-/// Marker line the publish step finds the cell's comment by.
 #[must_use]
 pub fn marker(cell: &str) -> String {
     format!("<!-- dx-coverage-summary: {cell} -->")
@@ -118,7 +105,6 @@ fn source_lines(events: &[Value]) -> Vec<String> {
         .collect()
 }
 
-/// `MmSSs` of a duration in microseconds, rounded down to whole seconds.
 #[must_use]
 #[expect(
     clippy::cast_possible_truncation,
@@ -181,7 +167,6 @@ fn fenced(body: &mut String, lines: &[String]) {
     body.push_str("```\n\n");
 }
 
-/// The comment body of one cell.
 #[must_use]
 pub fn render(inputs: &Inputs) -> String {
     let cell = cell(&inputs.platform, &inputs.invocation_id);

@@ -1,18 +1,10 @@
-//! Reads workspace files from the Bazel runfiles tree.
-
 use crate::{Source, SupportMatrixError};
 
-/// Reads `_main/<path>`, or `<repo>/<path>` for `@repo/<path>`, through the runfiles library.
 pub struct RunfilesSource {
     runfiles: runfiles::Runfiles,
 }
 
 impl RunfilesSource {
-    /// Opens the runfiles of the running binary or test.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SupportMatrixError::Runfiles`] when the runfiles cannot be opened.
     pub fn create() -> Result<Self, SupportMatrixError> {
         runfiles::Runfiles::create()
             .map(|runfiles| Self { runfiles })

@@ -1,4 +1,3 @@
-//! Checks the Kotlin fixture shards and the Dokka adapter's and converter's failure handling.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"

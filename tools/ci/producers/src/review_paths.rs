@@ -1,5 +1,3 @@
-//! Prints the changed files on stdin that start with a prefix in `.github/review-paths.txt`.
-
 use std::io::{BufRead, Write};
 
 const DEFAULT_LIST: &str = ".github/review-paths.txt";
@@ -10,7 +8,6 @@ fn prefixes(text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Reads paths from stdin and prints those that start with a prefix from the list file.
 pub fn filter(args: &[String]) -> Result<(), String> {
     let list = args.first().map_or(DEFAULT_LIST, String::as_str);
     let text = std::fs::read_to_string(list).map_err(|error| format!("read {list}: {error}"))?;

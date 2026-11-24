@@ -30,10 +30,8 @@ pub enum Freshness {
 
 pub const CODE_ADVISORY_REFRESH_FAILED: &str = "advisory_refresh_failed";
 
-/// Command that creates or refreshes the advisory snapshots.
 pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//dx/advisory_prep --";
 
-/// Maps a dependency set name to its advisory family; the sole set-to-family step.
 #[must_use]
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
@@ -44,7 +42,6 @@ pub fn advisory_family(set: &str) -> Option<&'static str> {
     }
 }
 
-/// Maps a dependency set name to the family whose yanked-version snapshot covers it.
 #[must_use]
 pub fn yanked_family(set: &str) -> Option<&'static str> {
     match set {
@@ -56,7 +53,6 @@ pub fn yanked_family(set: &str) -> Option<&'static str> {
 
 pub const PYPI_FAMILY: &str = "pypi";
 
-/// The pin family of the trivy database and checks, one `.tar.gz` of the cache directory.
 pub const TRIVY_FAMILY: &str = "trivy";
 
 #[must_use]
@@ -75,10 +71,8 @@ pub fn is_accepted_url(url: &str) -> bool {
 pub const CODE_ADVISORY_PIN_MISSING: &str = "advisory_pin_missing";
 pub const CODE_ADVISORY_PIN_MISMATCH: &str = "advisory_pin_mismatch";
 
-/// Pins older than this many days draw a warning.
 pub const PIN_MAX_AGE_DAYS: i64 = 14;
 
-/// One `advisory <family> <YYYY-MM-DD> <sha256> <url>` line of `.dx/pins`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdvisoryPin {
     pub family: String,
@@ -88,7 +82,6 @@ pub struct AdvisoryPin {
 }
 
 impl AdvisoryPin {
-    /// The line this pin takes in `.dx/pins`.
     #[must_use]
     pub fn line(&self) -> String {
         format!(
@@ -97,19 +90,16 @@ impl AdvisoryPin {
         )
     }
 
-    /// Where the verified snapshot is cached, relative to the workspace.
     #[must_use]
     pub fn cache_rel(&self) -> String {
         format!(".dx/local/advisory/{}/{}.json", self.sha256, self.family)
     }
 
-    /// Where the unpacked trivy cache lives, relative to the workspace.
     #[must_use]
     pub fn trivy_cache_rel(&self) -> String {
         format!(".dx/local/advisory/{}/trivy", self.sha256)
     }
 
-    /// Whole days from the pin date to `today`, when both are audit dates.
     #[must_use]
     pub fn age_days(&self, today: &str) -> Option<i64> {
         let parse = |value: &str| chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").ok();
@@ -120,7 +110,6 @@ impl AdvisoryPin {
     }
 }
 
-/// The pin for one family; lines of any other shape are ignored.
 #[must_use]
 pub fn find_pin(text: &str, family: &str) -> Option<AdvisoryPin> {
     text.lines().find_map(|line| {
@@ -141,13 +130,11 @@ pub fn find_pin(text: &str, family: &str) -> Option<AdvisoryPin> {
     })
 }
 
-/// The local path a `file://` URL names.
 #[must_use]
 pub fn file_url_path(url: &str) -> Option<std::path::PathBuf> {
     url::Url::parse(url).ok()?.to_file_path().ok()
 }
 
-/// The `file://` URL of one absolute local path.
 pub fn file_url(path: &std::path::Path) -> Option<String> {
     url::Url::from_file_path(path).ok().map(String::from)
 }
@@ -211,7 +198,6 @@ pub fn freshness(snapshot: &AdvisorySnapshot, today: &str) -> Freshness {
     }
 }
 
-/// Whether one value is an audit date, `YYYY-MM-DD`.
 #[must_use]
 pub fn is_audit_date(value: &str) -> bool {
     let bytes = value.as_bytes();

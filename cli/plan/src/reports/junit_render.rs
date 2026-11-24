@@ -64,9 +64,6 @@ fn junit_status(case: &JunitCase) -> quick_junit::TestCaseStatus {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super::ReportError> {
     let mut ordered: Vec<(String, Vec<JunitCase>)> = suites.to_vec();
     for (_, cases) in &mut ordered {

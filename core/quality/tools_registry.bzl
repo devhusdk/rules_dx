@@ -4602,7 +4602,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "DL3007": "error",
           "DL3008": "error",
           "DL3018": "error",
-          "DL4006": "error"
+          "DL4006": "error",
+          "guard/": "error"
         },
         "default": "warning",
         "floor": null
@@ -5609,7 +5610,9 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "hlint",
       "severity": {
-        "categories": {},
+        "categories": {
+          "Avoid restricted": "error"
+        },
         "default": null,
         "floor": null
       },

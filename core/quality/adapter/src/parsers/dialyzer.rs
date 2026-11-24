@@ -4,18 +4,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "dialyzer";
 
-/// Findings from `dialyzer --no_indentation --error_location column`, on exit 0 (clean) or 2 (warnings).
-///
-/// Dialyzer prints every warning to stdout as `file:line:column: message`, followed by indented
-/// continuation lines, then the `Unknown functions:` and `Unknown types:` blocks. `files` holds the
-/// owned workspace-relative source paths. Dialyzer names a file as the beam recorded it (absolute
-/// in a sandbox, relative to the execroot, or a bare basename for `+deterministic` Erlang beams),
-/// so a reported path is resolved to the owned path it ends with; a warning in a file nothing owned
-/// matches belongs to a dependency and is dropped. Exit 1 is dialyzer failing to analyse.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dialyzer(
     stdout: &[u8],
     code: Option<i32>,
@@ -97,9 +85,6 @@ pub fn parse_dialyzer(
     Ok(findings)
 }
 
-/// The owned path a reported file name stands for: the longest owned path the report ends with at
-/// a `/` boundary, else the first owned path (in sorted order) that ends with the report, which is
-/// how a bare basename resolves.
 pub(super) fn resolve<'a>(owned: &[&'a str], reported: &str) -> Option<&'a str> {
     let ends_with_path = |whole: &str, tail: &str| {
         whole == tail
@@ -120,7 +105,6 @@ pub(super) fn resolve<'a>(owned: &[&'a str], reported: &str) -> Option<&'a str> 
         })
 }
 
-/// The run's own account of why it failed, without the banner and the log cache tail.
 fn failure(out: &str) -> String {
     let text = out
         .lines()
@@ -136,7 +120,6 @@ fn failure(out: &str) -> String {
     }
 }
 
-/// `file:line:column: message` or `file:line: message`, as (file, line, column, message).
 fn header(line: &str) -> Option<(&str, u64, u64, &str)> {
     let (file, rest) = line.split_once(':')?;
     if file.is_empty() || file.contains(char::is_whitespace) {
@@ -153,7 +136,6 @@ fn header(line: &str) -> Option<(&str, u64, u64, &str)> {
     Some((file, row, 1, message.trim()))
 }
 
-/// `m:f/a (file:line:column)` from an unknown-function or unknown-type block.
 fn reference(line: &str) -> Option<(&str, &str, u64, u64)> {
     let (name, place) = line.split_once(" (")?;
     let place = place.strip_suffix(')')?;
@@ -178,7 +160,6 @@ fn located_finding(file: &str, row: u64, column: u64, message: &str) -> FileFind
     )
 }
 
-/// The rule a dialyzer warning belongs to, from the wording of its first line.
 fn rule_for(message: &str) -> &'static str {
     if message.contains("no local return") || message.contains("will never return") {
         "no_return"

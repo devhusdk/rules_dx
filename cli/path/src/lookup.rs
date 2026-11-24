@@ -1,15 +1,6 @@
-//! Finding an executable on a PATH-style search list.
-
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-/// Returns the first regular file named one of `names` in the directories
-/// of `path`, in PATH order.
-///
-/// Directories win over names: an earlier directory holding any of the names
-/// beats a later directory holding an earlier name, which is how a shell
-/// resolves a command. Directories named like a tool never match, and an empty
-/// entry never searches the working directory.
 #[must_use]
 pub fn find_in<S: AsRef<Path>>(path: &OsStr, names: &[S]) -> Option<PathBuf> {
     std::env::split_paths(path).find_map(|dir| {
@@ -23,8 +14,6 @@ pub fn find_in<S: AsRef<Path>>(path: &OsStr, names: &[S]) -> Option<PathBuf> {
     })
 }
 
-/// The first file on `path` that the host runs as `command`: the bare name,
-/// and on Windows also `command.exe` and the other executable suffixes.
 #[must_use]
 pub fn find_command_in(path: &OsStr, command: &str) -> Option<PathBuf> {
     let suffixes: &[&str] = if cfg!(windows) {
@@ -62,7 +51,6 @@ mod tests {
         let path = dir.path().as_os_str();
         assert_eq!(find_command_in(path, "dx"), None);
         std::fs::write(dir.path().join("dx.exe"), b"x").unwrap();
-        // Windows runs `dx.exe` for `dx`; other hosts run only the bare name.
         let want = cfg!(windows).then(|| dir.path().join("dx.exe"));
         assert_eq!(find_command_in(path, "dx"), want);
         std::fs::write(dir.path().join("dx"), b"x").unwrap();
@@ -83,7 +71,6 @@ mod tests {
         std::fs::write(second.path().join("tool"), b"x").unwrap();
         assert_eq!(find_in(&path, &["tool"]), Some(second.path().join("tool")));
 
-        // An earlier directory wins even when it only holds a later name.
         std::fs::write(first.path().join("tool.cmd"), b"x").unwrap();
         assert_eq!(
             find_in(&path, &["tool", "tool.cmd"]),

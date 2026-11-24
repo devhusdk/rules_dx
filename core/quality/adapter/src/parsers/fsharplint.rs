@@ -20,9 +20,6 @@ struct FSharpLintRecord {
     end_column: u64,
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fsharplint(
     stdout: &[u8],
     code: Option<i32>,

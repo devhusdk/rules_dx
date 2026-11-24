@@ -1,6 +1,3 @@
-/// The last `max_lines` lines of a test log. When those exceed `max_bytes`, the oldest whole
-/// lines are dropped; a single oversize line is cut at a char boundary instead. Blank logs have
-/// no tail.
 #[must_use]
 pub fn log_tail(bytes: &[u8], max_lines: usize, max_bytes: usize) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);

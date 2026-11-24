@@ -94,21 +94,17 @@ type rustConfig struct {
 }
 
 type targetImports struct {
-	production  []string
-	test        []string
-	mirrorPaths []string
-	// pathRefs are crate roots of qualified paths; they resolve like mirrorPaths.
-	pathRefs     []string
-	pathRefsTest []string
-	siblingLib   string
-	scriptDep    string
-	renames      map[string]string
-	gated        map[string]bool
-	gateTarget   map[string]string
-	// deferred are imports the manifest does not declare; Resolve finds them in the rule index.
-	deferred map[string]bool
-	// inheritedDeps are dependency labels of the existing crate rule that a
-	// self-contained unit test does not inherit through crate=.
+	production    []string
+	test          []string
+	mirrorPaths   []string
+	pathRefs      []string
+	pathRefsTest  []string
+	siblingLib    string
+	scriptDep     string
+	renames       map[string]string
+	gated         map[string]bool
+	gateTarget    map[string]string
+	deferred      map[string]bool
 	inheritedDeps []string
 }
 
@@ -234,8 +230,6 @@ func (*rustLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve
 	return []resolve.ImportSpec{{Lang: languageName, Imp: effectiveCrateName(r)}}
 }
 
-// effectiveCrateName is the crate name rules_rust gives r: crate_name, else
-// the rule name with "-" and "/" replaced by "_".
 func effectiveCrateName(r *rule.Rule) string {
 	if name := r.AttrString("crate_name"); name != "" {
 		return name
@@ -243,10 +237,6 @@ func effectiveCrateName(r *rule.Rule) string {
 	return strings.NewReplacer("-", "_", "/", "_").Replace(r.Name())
 }
 
-// effectiveCrateRoot is the crate root rules_rust compiles r from
-// (crate_root_src in rules_rust/rust/private/utils.bzl), relative to the
-// package. It is "" when r wraps a crate= target, has no plain srcs list or
-// rules_rust could not infer a root.
 func effectiveCrateRoot(r *rule.Rule) string {
 	if root := r.AttrString("crate_root"); root != "" {
 		return root
@@ -388,9 +378,6 @@ func hasCargoManifest(args language.GenerateArgs) bool {
 	return false
 }
 
-// sourceOnlyTestImports returns the imports of a source-only unit test. A
-// self-contained test compiles the whole tree, so it needs the production
-// imports too; a crate= wrapper inherits those from its crate.
 func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targetImports {
 	imports := importsFor(tree)
 	if selfContained {
@@ -460,11 +447,6 @@ func (l *rustLang) finish(args language.GenerateArgs, result language.GenerateRe
 	return mergeStale(args.File, args.Rel, withoutExcluded(files, args), result)
 }
 
-// setCoverageLib points a self-contained unit test at its library, so
-// coverage counts the library's sources. A map_kind'ed rust_test may not
-// know the attribute, so it is never added there. Gazelle still merges it as
-// a rust_test attribute, so an existing coverage_lib is copied from the rule
-// in file to keep the merge from deleting it.
 func setCoverageLib(c *config.Config, file *rule.File, gen []*rule.Rule) {
 	if mapped, ok := c.KindMap[testKind]; ok {
 		if file == nil {
@@ -506,8 +488,6 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	for _, r := range gen {
 		taken[r.Name()] = true
 	}
-	// adopt renames r to the one existing rule of its kind that match
-	// selects. It reports whether some existing rule matched at all.
 	adopt := func(r *rule.Rule, match func(*rule.Rule) bool) bool {
 		var found *rule.Rule
 		for _, existing := range file.Rules {
@@ -560,8 +540,6 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 			r.SetPrivateAttr(unitTestOfAttr, of)
 		}
 		if r.AttrString("crate_root") != "" {
-			// A self-contained unit test also adopts the crate= wrapper
-			// it replaces.
 			if of != "" && !adopted[r] {
 				crate := ":" + of
 				adopt(r, func(existing *rule.Rule) bool {
@@ -581,9 +559,6 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 		if adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate") == crate }) {
 			continue
 		}
-		// A crate= unit test also adopts the self-contained test it
-		// replaces: same crate root and crate name as its crate target,
-		// generated or existing.
 		if lib := byName[crate[1:]]; lib != nil && of != "" {
 			root := lib.AttrString("crate_root")
 			names := map[string]bool{lib.AttrString("crate_name"): true}
@@ -601,11 +576,6 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 	return renamed
 }
 
-// adoptExistingCrateNames keeps the crate names of the rules in file for a
-// package without a Cargo manifest, where nothing else names the crate. A
-// crate rule takes the crate_name of the existing rule of its kind and name,
-// or drops its own when that rule has none. A self-contained unit test then
-// takes the crate name of its crate target.
 func adoptExistingCrateNames(file *rule.File, gen []*rule.Rule) {
 	if file == nil {
 		return
@@ -641,15 +611,8 @@ func adoptExistingCrateNames(file *rule.File, gen []*rule.Rule) {
 	}
 }
 
-// crateInheritedAttrs are attributes a crate= unit test inherits from its
-// crate target. A self-contained unit test has to carry them itself.
 var crateInheritedAttrs = []string{"compile_data", "crate_features", "edition", "proc_macro_deps", "rustc_env", "rustc_env_files", "rustc_flags"}
 
-// inheritCrateAttrs copies crateInheritedAttrs from each self-contained unit
-// test's existing crate rule, unless the generated test already sets them.
-// An existing test with a different value is an error: it would silently
-// change what the test compiles. It also returns, per test, the literal deps
-// labels of the existing crate rule, which include hand-maintained deps.
 func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]string, error) {
 	if file == nil {
 		return nil, nil
@@ -698,8 +661,6 @@ func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]stri
 	return deps, nil
 }
 
-// containsAll reports whether both are plain string lists and have holds every
-// entry of want.
 func containsAll(have, want bzl.Expr) bool {
 	haveSet := map[string]bool{}
 	for _, s := range plainStrings(have) {
@@ -741,8 +702,6 @@ func validCratesHub(repo string) bool {
 	return repo != "" && !strings.ContainsAny(repo, "@/: \t")
 }
 
-// withoutExcluded drops files under subdirectories that gazelle:exclude
-// removed from the walk.
 func withoutExcluded(files []string, args language.GenerateArgs) []string {
 	subdirs := make(map[string]bool, len(args.Subdirs))
 	for _, name := range args.Subdirs {
@@ -760,10 +719,6 @@ func withoutExcluded(files []string, args language.GenerateArgs) []string {
 	return kept
 }
 
-// ownedByAncestorCrate reports whether a crate in an ancestor package already
-// compiles the .rs files under rel. That crate's source walk reaches rel when
-// no BUILD file stands between them, so a new package at rel would cut its
-// modules out of it. The nearest ancestor with a BUILD file ends the search.
 func ownedByAncestorCrate(c *config.Config, rel string) bool {
 	if c == nil || rel == "" {
 		return false

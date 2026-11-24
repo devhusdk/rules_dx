@@ -12,8 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return java.Language() })
 
-// ParseImports returns the sorted, deduplicated import identities of content.
-// Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -48,8 +46,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// ParsePackage returns the package name, or an error when the file declares
-// more than one package.
 func ParsePackage(content []byte) (string, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -83,7 +79,6 @@ func (e *duplicatePackageError) Error() string {
 
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
-// DefinesMain reports whether content declares a static void main method.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()

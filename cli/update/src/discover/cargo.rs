@@ -1,5 +1,3 @@
-//! Lists Cargo dependencies whose newest stable crates.io version is outside the declared requirement.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
@@ -12,8 +10,6 @@ pub const API_BASE: &str = "https://crates.io";
 
 const DEP_TABLES: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
 
-/// Checks each registry dependency of the manifests against the sparse index at `base`.
-/// Outdated crates get their GitHub repository from the crates.io API at `api`.
 pub fn outdated(
     set: &str,
     manifests: &[String],
@@ -80,7 +76,6 @@ pub fn outdated(
     found
 }
 
-/// The newest stable version of crate `name` in the sparse index at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{}", index_path(name)?))?;
     newest(&body, false).map(|release| release.version.to_string())
@@ -142,7 +137,6 @@ fn requirement(entry: &Item) -> Option<String> {
     table.get("version")?.as_str().map(str::to_owned)
 }
 
-/// The sparse-index path of crate `name`.
 pub fn index_path(name: &str) -> Result<String, DxError> {
     let valid = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '_';
     if name.is_empty() || !name.chars().all(valid) {
@@ -167,7 +161,6 @@ struct Release {
     published: Option<String>,
 }
 
-/// One index line: the version, whether it is yanked and its publish time.
 pub struct IndexEntry {
     pub version: String,
     pub yanked: bool,
@@ -197,7 +190,6 @@ pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, DxError> {
     Ok(out)
 }
 
-/// The yanked versions one crate's index file lists.
 pub fn yanked_versions(body: &str) -> Result<Vec<String>, DxError> {
     Ok(index_entries(body)?
         .into_iter()

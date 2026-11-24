@@ -1,5 +1,3 @@
-//! Finds `deps` entries in BUILD file text and the bytes that remove them.
-
 use std::collections::BTreeMap;
 
 fn sub(text: &str, from: usize, to: usize) -> &str {
@@ -14,7 +12,6 @@ fn upto(text: &str, at: usize) -> &str {
     text.get(..at).unwrap_or_default()
 }
 
-/// Whether `text` has an identifier character right before `at`.
 fn inside_identifier(text: &str, at: usize) -> bool {
     upto(text, at)
         .chars()
@@ -22,7 +19,6 @@ fn inside_identifier(text: &str, at: usize) -> bool {
         .is_some_and(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// Byte range from the `name` attribute of the rule named `target` to the end of that rule.
 fn find_rule(text: &str, target: &str) -> Option<(usize, usize)> {
     let name = format!("name = \"{target}\"");
     let mut from = 0;
@@ -40,7 +36,6 @@ fn find_rule(text: &str, target: &str) -> Option<(usize, usize)> {
     None
 }
 
-/// The start of the `<attr> = [` key in `rule..rule_end` and the byte range of its list body.
 fn find_list(
     text: &str,
     rule: usize,
@@ -63,7 +58,6 @@ fn find_list(
     None
 }
 
-/// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
 #[must_use]
 pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
     let (rule, rule_end) = find_rule(text, target)?;
@@ -73,7 +67,6 @@ pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usiz
         .find(|(start, end)| target_name(sub(text, start + 1, end - 1)) == dependency)
 }
 
-/// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
 #[must_use]
 pub fn has_keep_tag(text: &str, target: &str) -> bool {
     let Some((rule, rule_end)) = find_rule(text, target) else {
@@ -87,7 +80,6 @@ pub fn has_keep_tag(text: &str, target: &str) -> bool {
         .any(|(start, end)| sub(text, start, end) == "\"dx-keep\"")
 }
 
-/// The quoted strings of a list body, as byte ranges including the quotes.
 fn literals(body: &str, offset: usize) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut open: Option<usize> = None;
@@ -118,7 +110,6 @@ fn target_name(label: &str) -> &str {
     }
 }
 
-/// The bytes to delete: the whole line when the entry is alone on it, else the entry and its comma.
 #[must_use]
 pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
     let mut cut_end = end;
@@ -141,7 +132,6 @@ pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
     (start, cut_end + spaces)
 }
 
-/// Byte range of the `deps = [` key of the rule named `target`, else of its `name =` line.
 #[must_use]
 pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
     let (rule, rule_end) = find_rule(text, target)?;
@@ -155,8 +145,6 @@ pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
     Some((line_start, line_end))
 }
 
-/// The offset and text that add `label` as the last entry of the target's `deps`.
-/// None when the target has no `deps` list or already lists the label.
 #[must_use]
 pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String)> {
     let (rule, rule_end) = find_rule(text, target)?;
@@ -195,8 +183,6 @@ pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String
     }
 }
 
-/// The repo of a canonical external label such as `@@+maven+maven//:guava`. Main-repo labels
-/// give None.
 #[must_use]
 pub fn canonical_repo(label: &str) -> Option<&str> {
     let rest = label.strip_prefix("@@")?;
@@ -204,9 +190,6 @@ pub fn canonical_repo(label: &str) -> Option<&str> {
     (!repo.is_empty()).then_some(repo)
 }
 
-/// The label as written in a BUILD file of `package`.
-/// A canonical external label is written by its apparent name, so it needs `apparent`, a map
-/// from canonical to apparent repo name; without a name for the repo the result is None.
 #[must_use]
 pub fn short_label(
     package: &str,
@@ -238,7 +221,6 @@ pub fn short_label(
 mod tests {
     use super::*;
 
-    /// The `cargo` hub label of `serde`.
     fn serde() -> String {
         format!(
             "@{}//:serde",
@@ -248,7 +230,6 @@ mod tests {
         )
     }
 
-    /// One `rust_library` whose deps are `//util:used` and the `serde` hub label.
     fn lib_build() -> String {
         [
             "rust_library(\n",

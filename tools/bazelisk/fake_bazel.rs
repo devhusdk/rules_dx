@@ -1,5 +1,3 @@
-//! Stands in for Bazel in wrapper_test: prints BAZEL_SH and each argument on its own line.
-
 fn main() {
     println!("BAZEL_SH={}", std::env::var("BAZEL_SH").unwrap_or_default());
     for arg in std::env::args().skip(1) {

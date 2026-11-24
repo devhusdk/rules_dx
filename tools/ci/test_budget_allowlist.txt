@@ -87,7 +87,7 @@ core/env/tests/plan_tests.bzl no-size 2
 core/fuzz.bzl no-size 1
 core/modules/BUILD.bazel no-size 3
 core/modules/versions_tests.bzl no-size 1
-core/quality/BUILD.bazel no-size 30
+core/quality/BUILD.bazel no-size 29
 core/quality/artifacts/BUILD.bazel no-size 4
 core/quality/artifacts/acquire_test/BUILD.bazel no-size 1
 core/quality/artifacts/metadata_tests.bzl no-size 1
@@ -206,7 +206,7 @@ deploy/private/pub_tests.bzl no-size 1
 deploy/private/pypi_tests.bzl no-size 1
 deploy/private/release/BUILD.bazel no-size 20
 deploy/private/release/bcr_tests.bzl no-size 1
-deploy/private/release/inventory_tests.bzl no-size 3
+deploy/private/release/inventory_tests.bzl no-size 2
 deploy/private/release/matrix_tests.bzl no-size 1
 deploy/private/release/notice_tests.bzl no-size 2
 deploy/private/release/sbom_tests.bzl no-size 2
@@ -253,10 +253,9 @@ examples/adopt-polyglot/pytools/BUILD.bazel no-size 1
 examples/adopt-polyglot/widgets/BUILD.bazel no-size 1
 examples/shared-rust/BUILD.bazel no-size 13
 flatbuffers/tests/BUILD.bazel no-size 22
-flutter/tests/contract/BUILD.bazel no-size 1
 flutter/tests/fixtures/flutter_app/app/BUILD.bazel no-size 2
 flutter/tests/fixtures/flutter_app/web/BUILD.bazel no-size 1
-flutter/tests/negative/BUILD.bazel no-size 2
+flutter/tests/fixtures/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
 fortran/tests/fixtures/negative/BUILD.bazel no-size 3

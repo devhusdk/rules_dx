@@ -9,7 +9,6 @@ use super::{RealBackend, RealTool, RunnerError, Scratch, StagedScratch, executio
 
 const DOCS_REL: &str = "dx-kubeconform/docs";
 
-/// One preflight problem as an error finding on the owned file.
 pub(super) fn preflight_finding(file: &Path, problem: Problem) -> FileFinding {
     FileFinding {
         file: file.to_string_lossy().into_owned(),
@@ -38,7 +37,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Preflights each owned file, then validates every document in one kubeconform run.
     pub(super) fn check_kubeconform(
         &self,
         tool_id: &str,
@@ -95,7 +93,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// Writes every owned document to scratch and validates them in one kubeconform run.
     pub(super) fn validate_documents(
         &self,
         tool_id: &str,
@@ -153,7 +150,6 @@ impl RealBackend {
     }
 }
 
-/// Whether delegated kubeconform output names a failing resource.
 fn failing_upstream(bytes: &[u8]) -> bool {
     let text = String::from_utf8_lossy(bytes);
     text.contains("\"statusInvalid\"") || text.contains("\"statusError\"")

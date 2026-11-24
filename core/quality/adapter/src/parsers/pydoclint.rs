@@ -33,9 +33,6 @@ fn pydoclint_violation(line: &str) -> Result<(u64, &str, String), ParseError> {
     Ok((number, rule, message.to_owned()))
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pydoclint(
     stderr: &[u8],
     code: Option<i32>,
@@ -133,7 +130,6 @@ mod tests {
         );
     }
 
-    /// pydoclint spells every path with `/`, so Windows needs both sides compared that way.
     #[test]
     fn pydoclint_reports_windows_paths_spelled_with_forward_slashes() {
         let stderr = "C:/tmp/dx-scratch-a/a.py\n    4: DOC101: msg\n";

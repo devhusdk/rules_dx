@@ -5,15 +5,12 @@ use crate::{
     FileHits, Ignores, LcovError, find_ignores, is_covered_language, is_ignored, merge_lcov_reports,
 };
 
-/// The rules_dx-relative aspect that writes one source manifest per top-level target.
 pub const SOURCES_ASPECT: &str = "core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
-/// The output group that carries the source manifests.
 pub const SOURCES_OUTPUT_GROUP: &str = "dx_coverage_sources";
 
 const MANIFEST_VERSION: &str = "v2";
 const UNKNOWN_CELL: &str = "unknown";
 
-/// One instrumented source a target owns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceRow {
     pub path: String,
@@ -21,14 +18,12 @@ pub struct SourceRow {
     pub generated: bool,
 }
 
-/// The instrumented sources of one top-level target in one cell.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SourceManifest {
     pub cell: String,
     pub rows: Vec<SourceRow>,
 }
 
-/// How the accounting treats one owned source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
     Eligible,
@@ -37,7 +32,6 @@ pub enum Disposition {
     Unsupported,
 }
 
-/// Every owned source of one cell with its disposition, line counts and accounting errors.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CellAccount {
     pub cell: String,
@@ -50,17 +44,13 @@ pub struct CellAccount {
     pub excluded_files: u64,
     pub unsupported_files: u64,
     pub files: BTreeMap<String, Disposition>,
-    /// Covered and eligible line counts of each eligible file.
     pub file_lines: BTreeMap<String, (u64, u64)>,
-    /// Production sources owned by an instrumented target that the report never saw.
     pub absent: Vec<String>,
-    /// Tracked covered-language files that no Bazel rule uses.
     pub orphans: Vec<String>,
     pub errors: Vec<String>,
 }
 
 impl CellAccount {
-    /// The one-line counts summary for this cell.
     #[must_use]
     pub fn summary(&self) -> String {
         format!(
@@ -77,7 +67,6 @@ impl CellAccount {
         )
     }
 
-    /// Records tracked sources no Bazel rule uses: sorted, deduplicated, one error each.
     pub fn record_orphans(&mut self, paths: impl IntoIterator<Item = String>) {
         let found: BTreeSet<String> = paths.into_iter().collect();
         for path in found {
@@ -88,7 +77,6 @@ impl CellAccount {
         }
     }
 
-    /// True when the cell has no accounting errors, at least one eligible line, and meets `minimum` percent.
     #[must_use]
     pub fn meets(&self, minimum: u32) -> bool {
         self.errors.is_empty()
@@ -97,7 +85,6 @@ impl CellAccount {
     }
 }
 
-/// The line counts of one reported file under its validated exclusions.
 #[derive(Debug, Default)]
 pub(crate) struct LineCount {
     pub(crate) covered: u64,
@@ -106,7 +93,6 @@ pub(crate) struct LineCount {
     pub(crate) uncovered: Vec<u32>,
 }
 
-/// Counts one file's reported lines: ignored, eligible, and covered (eligible with hits).
 pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
     let mut count = LineCount::default();
     let mut numbered: Vec<u32> = hits.lines.keys().copied().collect();
@@ -126,9 +112,6 @@ pub(crate) fn count_lines(hits: &FileHits, ignores: &Ignores) -> LineCount {
     count
 }
 
-/// The tracked files that could be orphans: covered-language files outside dx state and the ignored prefixes.
-///
-/// `ignored_prefixes` are `.bazelignore` entries without a trailing slash.
 #[must_use]
 pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec<String> {
     let mut out: Vec<String> = tracked
@@ -152,7 +135,6 @@ pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec
     out
 }
 
-/// The path key a manifest row and an LCOV SF record share.
 pub(crate) fn source_key(path: &str) -> String {
     let normalized = normalize_path(path);
     if let Some(rest) = normalized.strip_prefix("bazel-out/")
@@ -165,10 +147,6 @@ pub(crate) fn source_key(path: &str) -> String {
 
 const DART_ROOT_URI: &str = "org-dartlang-root:///";
 
-/// Rewrites the `SF:` URIs the Dart and Flutter test runners report into the workspace paths `owned` holds.
-///
-/// `org-dartlang-root:///a/b.dart` is `a/b.dart`. `package:name/x.dart` is the one owned `lib/x.dart`.
-/// A package URI that names no owned file is a pub dependency and its record is dropped.
 pub(crate) fn resolve_dart_uris(document: &str, owned: &BTreeSet<String>) -> String {
     let mut out = String::with_capacity(document.len());
     let mut dropping = false;
@@ -219,8 +197,6 @@ fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
     }
 }
 
-/// Parses one source manifest: a `v2 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
-/// A file is prod when a prod row names it, else test.
 pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxError> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines.next().unwrap_or_default().split(' ').collect();
@@ -242,7 +218,6 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
         cell,
         rows: Vec::new(),
     };
-    // Rows not yet paired with a row of the other kind, by path.
     let mut unpaired: BTreeMap<String, usize> = BTreeMap::new();
     for (index, line) in lines.enumerate() {
         let lineno = index + 2;
@@ -306,32 +281,25 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
     }
 }
 
-/// Declaration stubs that carry no executable lines.
 const DECLARATION_SUFFIXES: &[&str] = &[".d.ts", ".d.mts", ".d.cts"];
-/// C and C++ headers, which collectors omit from LCOV when they hold only declarations.
 const HEADER_SUFFIXES: &[&str] = &[".h", ".hh", ".hpp", ".hxx"];
-/// Cell prefixes and the source suffixes no collector covers there.
-/// No C or C++ coverage collector runs on Windows.
 const UNCOLLECTED: &[(&str, &[&str])] = &[(
     "windows_",
     &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"],
 )];
 
-/// False when no collector on `cell` covers the language of `path`.
 fn collected_in(cell: &str, path: &str) -> bool {
     !UNCOLLECTED.iter().any(|(prefix, suffixes)| {
         cell.starts_with(prefix) && suffixes.iter().any(|suffix| has_suffix(path, suffix))
     })
 }
 
-/// True for files that hold declarations only and so have nothing to execute.
 fn is_declaration_stub(path: &str) -> bool {
     DECLARATION_SUFFIXES
         .iter()
         .any(|suffix| has_suffix(path, suffix))
 }
 
-/// True for C and C++ headers.
 fn is_header(path: &str) -> bool {
     HEADER_SUFFIXES
         .iter()
@@ -342,7 +310,6 @@ fn read_error(path: &str, error: &LcovError) -> String {
     format!("cannot read {path} for LCOV_EXCL markers: {error}")
 }
 
-/// True when a valid exclusion range covers every line that is not blank or a comment.
 fn whole_file_excluded(path: &str, source: &str) -> bool {
     let Ok(ignores) = find_ignores(path, source) else {
         return false;
@@ -363,7 +330,6 @@ fn whole_file_excluded(path: &str, source: &str) -> bool {
     })
 }
 
-/// Errors for ignores that cover no instrumented line, or that hide every one.
 fn ignore_hygiene_errors(path: &str, hits: &FileHits, ignores: &Ignores) -> Vec<String> {
     let mut errors = Vec::new();
     for line in ignores.singles.keys() {
@@ -389,7 +355,6 @@ fn ignore_hygiene_errors(path: &str, hits: &FileHits, ignores: &Ignores) -> Vec<
     errors
 }
 
-/// Accounts every owned source of one cell against the merged LCOV report.
 pub fn account(
     manifests: &[SourceManifest],
     lcov_documents: &[String],

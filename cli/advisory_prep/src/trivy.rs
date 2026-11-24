@@ -1,5 +1,3 @@
-//! Downloads the trivy vulnerability and checks databases next to the OSV snapshots.
-
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 
@@ -10,7 +8,6 @@ use serde::{Deserialize, Serialize};
 pub const CACHE_DIR: &str = "trivy";
 pub const META_FILE: &str = "trivy.meta.json";
 
-/// What one trivy preparation run left in the cache.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TrivyPrepared {
     pub cache: PathBuf,
@@ -31,7 +28,6 @@ struct DbMetadata {
     updated_at: String,
 }
 
-/// The arguments of the two download steps, vulnerability database then checks.
 #[must_use]
 pub fn download_args(cache: &Path) -> [Vec<String>; 2] {
     let cache = cache.display().to_string();
@@ -46,7 +42,6 @@ pub fn download_args(cache: &Path) -> [Vec<String>; 2] {
     [base("--download-db-only"), base("--download-checks-only")]
 }
 
-/// Runs the pinned binary for both downloads unless the sidecar already carries `retrieved_at`.
 pub fn prepare_trivy(
     binary: &Path,
     out: &Path,
@@ -106,7 +101,6 @@ pub fn prepare_with(
     })
 }
 
-/// Packs the trivy cache directory into a reproducible `.tar.gz` at `dest` and returns its bytes.
 pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
     let fail = |detail: String| PrepError::Write {
         path: dest.display().to_string(),

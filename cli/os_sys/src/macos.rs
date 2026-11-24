@@ -1,5 +1,3 @@
-//! macOS process table and memory queries through `sysctl` and libproc.
-
 #![expect(
     unsafe_code,
     reason = "sysctl and proc_listallpids have no safe std or rustix API"
@@ -7,13 +5,10 @@
 
 use std::ffi::CStr;
 
-/// Size of `struct kinfo_proc` on 64-bit macOS.
 const KINFO_PROC_SIZE: usize = 648;
 
-/// Offset of `kp_proc.p_stat` within `struct kinfo_proc` on 64-bit macOS.
 const KINFO_PROC_P_STAT: usize = 36;
 
-/// Reads the `sysctl` value named by `mib` into `buffer`; returns the bytes written.
 fn sysctl_into(mib: &mut [libc::c_int], buffer: &mut [u8]) -> Option<usize> {
     let depth = libc::c_uint::try_from(mib.len()).ok()?;
     let mut len = buffer.len();
@@ -31,8 +26,6 @@ fn sysctl_into(mib: &mut [libc::c_int], buffer: &mut [u8]) -> Option<usize> {
     (rc == 0).then_some(len)
 }
 
-/// The kernel start time of `pid` as seconds and microseconds, read without allocating.
-/// `p_starttime` is the first field of the `kinfo_proc` that `KERN_PROC_PID` returns.
 #[must_use]
 pub fn start_timeval(pid: libc::pid_t) -> Option<(i64, i64)> {
     let mut mib = [libc::CTL_KERN, libc::KERN_PROC, libc::KERN_PROC_PID, pid];
@@ -47,7 +40,6 @@ pub fn start_timeval(pid: libc::pid_t) -> Option<(i64, i64)> {
     (secs != 0 || micros != 0).then_some((secs, micros))
 }
 
-/// Whether `pid` is a zombie: exited but not yet reaped by its parent.
 #[must_use]
 pub fn zombie(pid: u32) -> bool {
     let Ok(pid) = libc::c_int::try_from(pid) else {
@@ -61,7 +53,6 @@ pub fn zombie(pid: u32) -> bool {
             .is_some_and(|&stat| u32::from(stat) == libc::SZOMB)
 }
 
-/// Every pid in the process table.
 #[must_use]
 pub fn all_pids() -> Vec<i32> {
     // SAFETY: a null buffer asks only for the current process count.
@@ -79,7 +70,6 @@ pub fn all_pids() -> Vec<i32> {
     pids
 }
 
-/// The raw `KERN_PROCARGS2` buffer of `pid`.
 #[must_use]
 pub fn procargs(pid: i32) -> Option<Vec<u8>> {
     let mut argmax = [0u8; std::mem::size_of::<libc::c_int>()];
@@ -93,7 +83,6 @@ pub fn procargs(pid: i32) -> Option<Vec<u8>> {
     Some(buffer)
 }
 
-/// Reads the fixed-size `sysctl` value called `name`; `None` unless exactly `N` bytes come back.
 fn sysctl_named<const N: usize>(name: &CStr) -> Option<[u8; N]> {
     let mut value = [0u8; N];
     let mut len = N;
@@ -110,13 +99,11 @@ fn sysctl_named<const N: usize>(name: &CStr) -> Option<[u8; N]> {
     (rc == 0 && len == N).then_some(value)
 }
 
-/// The `int` `sysctl` value called `name`, such as `kern.memorystatus_vm_pressure_level`.
 #[must_use]
 pub fn sysctl_i32(name: &CStr) -> Option<i32> {
     sysctl_named(name).map(i32::from_ne_bytes)
 }
 
-/// Physical memory reported by `hw.memsize`.
 #[must_use]
 pub fn memsize() -> Option<u64> {
     sysctl_named(c"hw.memsize").map(u64::from_ne_bytes)

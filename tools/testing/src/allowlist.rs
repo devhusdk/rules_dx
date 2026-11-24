@@ -1,11 +1,7 @@
-//! Allowlists of whole lines, sorted and without repeats.
-
 use std::collections::BTreeSet;
 
-/// The lines of an allowlist.
 pub type Lines = BTreeSet<String>;
 
-/// The lines of a sorted allowlist that `well_formed` accepts, and the lines that break the format.
 pub fn parse_lines(text: &str, well_formed: impl Fn(&str) -> bool) -> (Lines, Vec<String>) {
     let mut lines = Lines::new();
     let mut problems = Vec::new();

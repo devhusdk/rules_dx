@@ -1,12 +1,8 @@
-//! The audit date and the workspace policy files shared by the audit, quality and update verbs.
-
 use dx_error::DxError;
 use std::path::Path;
 
-/// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
 pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
 
-/// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
 pub fn today_utc(pinned: Option<&str>) -> String {
     pinned
         .filter(|date| date.len() == 10 && date.bytes().all(|b| b.is_ascii_digit() || b == b'-'))
@@ -28,7 +24,6 @@ pub enum PolicyError {
     SecurityInvalid(dx_audit::exception::SecurityProblem),
 }
 
-/// The UTF-8 text of the workspace file `rel`.
 pub fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, PolicyError> {
     match dx_path::workspace::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
         Err(error) => Err(PolicyError::Read {
@@ -43,7 +38,6 @@ pub fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, Policy
     }
 }
 
-/// The tier from the dx.toml `tier`; strict without one.
 pub fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),
@@ -51,7 +45,6 @@ pub fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError
     }
 }
 
-/// The text of `rel`, or `None` when the file does not exist.
 pub fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, PolicyError> {
     match read_workspace_text(workspace, rel) {
         Err(PolicyError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -61,7 +54,6 @@ pub fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, P
     }
 }
 
-/// The `security.toml` exceptions under the workspace tier.
 pub fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, PolicyError> {

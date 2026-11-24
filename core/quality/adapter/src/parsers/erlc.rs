@@ -5,7 +5,6 @@ use crate::ToolSeverity;
 
 const DIALECT: Dialect = Dialect {
     tool: "erlc",
-    // erlc columns count characters of the line.
     encoding: ColumnEncoding::Scalars,
     severity: |word| match word {
         "error" => Some(Disposition::Report(ToolSeverity::Error)),
@@ -15,7 +14,6 @@ const DIALECT: Dialect = Dialect {
     bracket_rule: false,
 };
 
-/// The checked source erlc means by a bare file name, since it prints only the base name.
 fn checked_path<'a>(name: &'a str, files: &[&'a str]) -> &'a str {
     if name.contains('/') {
         return name;
@@ -30,7 +28,6 @@ fn checked_path<'a>(name: &'a str, files: &[&'a str]) -> &'a str {
     }
 }
 
-/// Puts the full source path on every diagnostic and marks those without a severity word as errors.
 fn normalized(text: &str, files: &[&str]) -> String {
     let mut out = String::with_capacity(text.len());
     for line in text.lines() {
@@ -50,7 +47,6 @@ fn normalized(text: &str, files: &[&str]) -> String {
     out
 }
 
-/// Splits `file:line:col: text` or `file:line: text` into the file, the position and the text.
 fn located(line: &str) -> Option<(&str, &str, &str)> {
     let (file, rest) = line.split_once(':')?;
     if file.is_empty() || file.contains(' ') {
@@ -72,11 +68,6 @@ fn located(line: &str) -> Option<(&str, &str, &str)> {
     Some((file, position, text))
 }
 
-/// `erlc` output. A nonzero exit that printed no diagnostic is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_erlc(
     output: &[u8],
     code: Option<i32>,

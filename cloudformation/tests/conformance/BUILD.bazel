@@ -1,5 +1,5 @@
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cloudformation:defs.bzl", "cloudformation_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
 package(

@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! Path facts and spellings shared across the tool.
-
 pub mod bazel_package;
 pub mod host;
 pub mod label;
@@ -22,7 +20,6 @@ pub use uri::{UriError, uri, uri_to_path};
 pub use verbatim::{verbatim, without_verbatim, without_verbatim_in, without_verbatim_str};
 pub use workspace::{WorkspaceRelativePath, resolve_in_workspace, resolve_target_in_workspace};
 
-/// Why one serialized path is not a workspace-relative path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathProblem {
     Empty,
@@ -35,7 +32,6 @@ pub enum PathProblem {
 }
 
 impl PathProblem {
-    /// The user-facing sentence for one rung.
     #[must_use]
     pub fn reason(self) -> &'static str {
         match self {
@@ -60,15 +56,11 @@ pub fn is_absolute(path: &str) -> bool {
     path.starts_with('/') || drive_prefix(path)
 }
 
-/// Whether a path is rooted at a drive root, in either slash spelling.
-///
-/// A drive prefix alone names the drive, not a root, so `C:notes` is not rooted.
 #[must_use]
 pub fn drive_rooted(path: &str) -> bool {
     drive_prefix(path) && matches!(path.as_bytes().get(2), Some(b'/' | b'\\'))
 }
 
-/// Names the first rung a serialized path fails, most structural first.
 pub fn classify(path: &str) -> Option<PathProblem> {
     if path.is_empty() {
         return Some(PathProblem::Empty);

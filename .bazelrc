@@ -3,7 +3,6 @@ try-import %workspace%/.dx/bazelrc/correctness.bazelrc
 try-import %workspace%/.dx/bazelrc/performance.bazelrc
 try-import %workspace%/.dx/bazelrc/resources.bazelrc
 
-# Keep -no-coverage and also skip languages with no coverage collector yet.
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 common --local_resources=nested_bazel=2
@@ -25,12 +24,10 @@ common:macos --local_resources=nested_bazel=1
 startup:windows --output_user_root=C:/bz
 startup:windows --windows_enable_symlinks
 
-# Skip the local Windows SDK probe; builds use the hermetic MSVC and need no rc.exe.
 common:windows --override_repository=bazel_tools+winsdk_configure+local_config_winsdk=%workspace%/tools/platforms/no_winsdk
 
 build --@rules_rust//rust/settings:extra_rustc_flags=--deny=warnings
 build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml
-# Strict tier lints rules_dx enforces.
 common --@rules_dx//config:clippy_flag=-Dclippy::unwrap_used
 common --@rules_dx//config:clippy_flag=-Dclippy::expect_used
 common --@rules_dx//config:clippy_flag=-Dclippy::panic
@@ -73,10 +70,8 @@ build:linux --@rules_rust//rust/settings:pipelined_compilation=true
 build:linux --linkopt=-Wno-unused-command-line-argument
 build:linux --host_linkopt=-Wno-unused-command-line-argument
 build:macos --@rules_rust//rust/settings:pipelined_compilation=true
-# No pipelined compilation on Windows: the rmeta and rlib of a crate can carry different SVHs there, so
-# linking fails with "required to be available in rlib format" (#9243, #9792, root cause #9292).
+# Windows rmeta and rlib can carry different SVHs, which breaks pipelined linking.
 build:windows --@rules_rust//rust/settings:pipelined_compilation=false
-# Statically link the MSVC CRT so Windows binaries need no vcruntime DLLs.
 build:windows --@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static
 
 build --javacopt=-Xlint:all
@@ -86,7 +81,7 @@ build --features=treat_warnings_as_errors
 
 build --test_env=PYTHONWARNINGS=error
 
-# Apple Clang's C++ profiles cannot merge with the hermetic LLVM in Rust test wrappers.
+# Apple Clang profiles cannot merge with the hermetic LLVM in Rust test wrappers.
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping
 

@@ -2,14 +2,12 @@ pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
 pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
 pub const DX_BUILD_SLOTS_WAIT_ENV: &str = "DX_BUILD_SLOTS_WAIT";
 
-/// Environment defaults, the flag each one defaults, and the value shape.
 pub const ENV_DEFAULTS: [(&str, &str, &str); 3] = [
     (DX_OUTPUT_ENV, "--output", "mode"),
     (DX_BUILD_SLOTS_ENV, "--build-slots", "auto|n|off"),
     (DX_BUILD_SLOTS_WAIT_ENV, "--build-slots-wait", "duration"),
 ];
 
-/// Read a slot wait: seconds, or a count with an `s`, `m` or `h` suffix. `0` means do not wait.
 pub fn parse_wait(value: &str) -> Option<std::time::Duration> {
     let value = value.trim().to_ascii_lowercase();
     let (digits, unit) = match value.chars().last()? {
@@ -27,23 +25,17 @@ pub fn parse_wait(value: &str) -> Option<std::time::Duration> {
         .map(std::time::Duration::from_secs)
 }
 
-/// The largest explicit slot count; each take walks every index up to it.
 pub const MAX_BUILD_SLOTS: usize = 1024;
 
-/// How many build slots this dx process sizes its gate with.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum BuildSlots {
-    /// Size from host memory. The default inside a `dx worktree` slot.
     #[default]
     Auto,
-    /// Exactly this many slots, with no memory-based clamp and no remote extras.
     Count(std::num::NonZeroUsize),
-    /// Take no slot and pass no `--local_resources`.
     Off,
 }
 
 impl BuildSlots {
-    /// Read `auto`, `off`, or a count from 1 to `MAX_BUILD_SLOTS`; case and surrounding space are ignored.
     pub fn parse(value: &str) -> Option<Self> {
         let value = value.trim().to_ascii_lowercase();
         match value.as_str() {

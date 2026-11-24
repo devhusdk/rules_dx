@@ -1,5 +1,3 @@
-//! Fails when the public API differs from the snapshot checked in under `api/` or the page generated from it.
-
 mod page;
 mod snapshot;
 
@@ -69,7 +67,6 @@ fn checked_in_snapshot_matches_the_code() {
     );
 }
 
-/// Lists public `.bzl` files missing from both `_STARLARK_SRCS` and `_NOT_EXTRACTED`, and stale `_NOT_EXTRACTED` entries.
 fn extraction_gaps(public: &[&str], extracted: &[&str], pending: &[&str]) -> Vec<String> {
     let public: Vec<String> = public
         .iter()
@@ -100,7 +97,6 @@ fn extraction_gaps(public: &[&str], extracted: &[&str], pending: &[&str]) -> Vec
     gaps
 }
 
-/// Lists `<load> <name>` for every parameter or attribute whose default names a canonical `@@` repository.
 fn canonical_defaults(snapshot: &serde_json::Value) -> Vec<String> {
     fn walk(value: &serde_json::Value, load: &str, hits: &mut Vec<String>) {
         match value {
@@ -114,20 +110,23 @@ fn canonical_defaults(snapshot: &serde_json::Value) -> Vec<String> {
                     .get("load")
                     .and_then(serde_json::Value::as_str)
                     .unwrap_or(load);
-                if let Some(default) = object.get("default").and_then(serde_json::Value::as_str) {
-                    if default.contains("@@") {
-                        let name = object
-                            .get("name")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or_default();
-                        hits.push(format!("{load} {name}"));
-                    }
+                if let Some(default) = object.get("default").and_then(serde_json::Value::as_str)
+                    && default.contains("@@")
+                {
+                    let name = object
+                        .get("name")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default();
+                    hits.push(format!("{load} {name}"));
                 }
                 for item in object.values() {
                     walk(item, load, hits);
                 }
             }
-            _ => {}
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_) => {}
         }
     }
     let mut hits = Vec::new();

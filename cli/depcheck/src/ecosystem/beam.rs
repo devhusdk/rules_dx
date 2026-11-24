@@ -22,7 +22,6 @@ fn dep_info(raw: &str, spec: &str, category: &str, optional: bool) -> DepInfo {
     }
 }
 
-/// The body of `def deps do ... end` in a mix manifest.
 fn mix_deps_block(text: &str) -> Option<String> {
     let head = regex::Regex::new(r"(?m)^\s*defp?\s+deps(?:\(\s*\))?\s+do\b").ok()?;
     let start = head.find(text)?.end();
@@ -37,11 +36,6 @@ fn mix_deps_block(text: &str) -> Option<String> {
     Some(block)
 }
 
-/// Reads the `deps` of a Mix manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let entry_re =
@@ -78,11 +72,6 @@ pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
     Ok(deps)
 }
 
-/// Hex lock packages as `name -> version`.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_hex_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
@@ -105,7 +94,6 @@ pub fn parse_hex_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
     Ok(pkgs)
 }
 
-/// The text of the bracketed list that follows `{deps,` and the rest of the file after it.
 fn bracket_list(text: &str, from: usize) -> Option<&str> {
     let open = from + text.get(from..)?.find('[')?;
     let list = text.get(open..)?;
@@ -127,7 +115,6 @@ fn bracket_list(text: &str, from: usize) -> Option<&str> {
     None
 }
 
-/// Splits a list body into its top-level elements.
 fn split_elements(body: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut depth = 0usize;
@@ -152,11 +139,6 @@ fn split_elements(body: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Reads the `deps` of a `rebar.config` manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_erlang_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let raw = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text: String = raw

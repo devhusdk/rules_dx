@@ -8,7 +8,6 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-// dubProject is the part of a dub manifest that generation reads.
 type dubProject struct {
 	Name              string                     `json:"name"`
 	TargetType        string                     `json:"targetType"`
@@ -18,7 +17,6 @@ type dubProject struct {
 	Dependencies      map[string]json.RawMessage `json:"dependencies"`
 }
 
-// parseDubProject reads a dub manifest.
 func parseDubProject(content []byte) (*dubProject, error) {
 	var p dubProject
 	if err := json.Unmarshal(common.StripBOM(content), &p); err != nil {
@@ -27,8 +25,6 @@ func parseDubProject(content []byte) (*dubProject, error) {
 	return &p, nil
 }
 
-// readDubProject reads the dub manifest in dir. It returns nil when there is none
-// or when it does not parse.
 func readDubProject(dir string) *dubProject {
 	content, err := os.ReadFile(filepath.Join(dir, common.ManifestName("dub")))
 	if err != nil {
@@ -41,8 +37,6 @@ func readDubProject(dir string) *dubProject {
 	return p
 }
 
-// Roots returns the import roots of the project: importPaths, else
-// sourcePaths, else the source or src directory that exists in dir.
 func (p *dubProject) Roots(dir string) []string {
 	switch {
 	case len(p.ImportPaths) > 0:

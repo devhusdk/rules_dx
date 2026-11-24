@@ -39,6 +39,7 @@ public final class Scala3CheckTest {
     deprecation(dir);
     werror(dir);
     unused(dir);
+    guards(dir);
     badOption(dir);
     srcjar(dir);
     javaSource(dir);
@@ -126,6 +127,33 @@ public final class Scala3CheckTest {
     expect(log.contains("\"exit\":0"), "unused code does not fail", log);
     expect(occurrences(log, "\"severity\":\"warning\"") == 2, "one import and one private val", log);
     expect(occurrences(log.toLowerCase(Locale.ROOT), "unused") >= 2, "both warnings mention unused", log);
+  }
+
+  private static void guard(Path dir, String name, String body) throws IOException {
+    Path a = write(dir, "guards/" + name + ".scala", body);
+    String log =
+        check(
+            List.of(
+                "source=" + a,
+                "scalacopt=-Wvalue-discard",
+                "scalacopt=-Wnonunit-statement",
+                "scalacopt=-Werror"));
+    expect(log.contains("\"exit\":1"), name + " fails under -Werror", log);
+    expect(log.contains("scala.concurrent.Future[Int]"), name + " reported", log);
+  }
+
+  private static void guards(Path dir) throws IOException {
+    guard(
+        dir,
+        "Discard",
+        "import scala.concurrent.Future\nobject Discard:\n"
+            + "  def f: Future[Int] = Future.successful(1)\n  def g: Unit = f\n");
+    guard(
+        dir,
+        "Statement",
+        "import scala.concurrent.Future\nobject Statement:\n"
+            + "  def f: Future[Int] = Future.successful(1)\n"
+            + "  def g: Int =\n    f\n    2\n");
   }
 
   private static void badOption(Path dir) throws IOException {

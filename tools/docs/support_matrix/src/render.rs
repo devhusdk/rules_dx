@@ -1,5 +1,3 @@
-//! Renders the support matrix as Markdown with stable, ASCII-only output.
-
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 
@@ -39,7 +37,6 @@ pub(crate) const SUITE_TESTS: [&str; 6] = [
     "lock_test",
 ];
 
-/// The platforms a suite test runs on, its `n/a` reason, or `pending`.
 fn suite_cell(facts: &Facts, row: &Row, test: &str) -> String {
     let entries: Vec<_> = facts
         .conformance
@@ -103,7 +100,6 @@ fn unsupported_cell(
 ) -> String {
     let tested = platforms.get(&row.name).cloned().unwrap_or_default();
     let declared = facts.platform_not_applicable.get(&row.name);
-    // Group the unsupported platforms by reason, in platform order.
     let mut groups: Vec<(String, Vec<String>)> = Vec::new();
     for platform in &facts.platforms {
         let reason = match declared.and_then(|d| d.get(&platform.id)) {
@@ -223,7 +219,6 @@ fn blocked_cell(facts: &Facts, row: &Row) -> String {
     cells.join("; ")
 }
 
-/// Returns the quality tools of `capability` across `families`, sorted and unique.
 fn tools(facts: &Facts, families: &[String], capability: &str) -> Vec<String> {
     let mut out: Vec<String> = families
         .iter()
@@ -237,8 +232,6 @@ fn tools(facts: &Facts, families: &[String], capability: &str) -> Vec<String> {
     out
 }
 
-/// Reports whether `capability` never applies to a row: it has no tools and
-/// every one of its families is declared not applicable.
 fn not_applicable(facts: &Facts, families: &[String], capability: &str) -> bool {
     let Some(declared) = facts.not_applicable.get(capability) else {
         return false;
@@ -293,7 +286,6 @@ fn quality_cell(facts: &Facts, row: &Row, capability: &str) -> String {
         .join(", ")
 }
 
-/// Reports whether `row` has a quality row: every language and format, and targets with a family; never compilers.
 #[must_use]
 pub fn shows_quality(row: &Row) -> bool {
     match row.section.as_str() {
@@ -311,7 +303,6 @@ fn doc_cell(row: &Row) -> String {
     }
 }
 
-/// Names the unused-code tools of the row, or `no` when it has none yet.
 fn dead_code_cell(row: &Row) -> String {
     match &row.dead_code {
         None => "n/a".to_owned(),
@@ -360,7 +351,6 @@ fn quality_table(facts: &Facts) -> String {
     )
 }
 
-/// Renders the whole page.
 #[must_use]
 pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> String {
     let ids: Vec<String> = facts

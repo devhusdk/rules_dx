@@ -1,8 +1,3 @@
-//! Deterministic tar.gz and zip writers.
-//!
-//! Every member gets mtime 0 and uid/gid 0, tar output is padded to a whole 10 KiB record with ustar
-//! headers whose checksum field matches python's tarfile, and the gzip header carries no name or time.
-
 use std::collections::HashSet;
 use std::io::{self, Read, Write};
 
@@ -11,7 +6,6 @@ use crate::{invalid_input, link_target_error, member_name_error};
 const RECORDSIZE: usize = 20 * 512;
 const MAX_USTAR_SIZE: u64 = 0o77_777_777_777;
 
-/// Returns whether `name` fits the ustar name field, alone or split at a '/' into prefix and name.
 #[must_use]
 pub fn fits_ustar(name: &str) -> bool {
     name.len() <= 100
@@ -20,7 +14,6 @@ pub fn fits_ustar(name: &str) -> bool {
             .any(|(at, _)| at <= 155 && at + 1 < name.len() && name.len() - at - 1 <= 100)
 }
 
-/// Gzips `data` at the best level with a zero mtime, no name and an unknown OS byte.
 pub fn gzip(data: &[u8]) -> io::Result<Vec<u8>> {
     let mut encoder = flate2::GzBuilder::new()
         .mtime(0)
@@ -49,7 +42,6 @@ fn check_link(name: &str, target: &str) -> io::Result<()> {
     }
 }
 
-/// Checks `name` and returns a ustar header with mtime, uid and gid 0 and the permission bits of `mode`.
 fn ustar_header(
     seen: &mut HashSet<String>,
     name: &str,
@@ -80,7 +72,6 @@ fn ustar_header(
     Ok(header)
 }
 
-/// Writes the checksum field the way python's tarfile does.
 fn set_cksum(header: &mut tar::Header) -> io::Result<()> {
     header.set_cksum();
     let field = format!("{:06o}\0 ", header.cksum()?);
@@ -88,7 +79,6 @@ fn set_cksum(header: &mut tar::Header) -> io::Result<()> {
     Ok(())
 }
 
-/// Builds a ustar image in memory; finish it as plain tar or tar.gz.
 pub struct TarWriter {
     builder: tar::Builder<Vec<u8>>,
     seen: HashSet<String>,
@@ -125,13 +115,11 @@ impl TarWriter {
         self.builder.append(&header, data)
     }
 
-    /// Adds a regular file; only the permission bits of `mode` are kept.
     pub fn add_file(&mut self, name: &str, data: &[u8], mode: u32) -> io::Result<()> {
         let header = self.header(name, name, tar::EntryType::Regular, data.len() as u64, mode)?;
         self.append(header, data)
     }
 
-    /// Adds a directory; `name` has no trailing '/'.
     pub fn add_dir(&mut self, name: &str, mode: u32) -> io::Result<()> {
         let header = self.header(
             name,
@@ -143,7 +131,6 @@ impl TarWriter {
         self.append(header, &[])
     }
 
-    /// Adds a symlink whose target stays inside the archive root.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         check_link(name, target)?;
         let mut header = self.header(name, name, tar::EntryType::Symlink, 0, 0o777)?;
@@ -151,21 +138,17 @@ impl TarWriter {
         self.append(header, &[])
     }
 
-    /// Returns the tar image padded to a whole record.
     pub fn finish_tar(self) -> io::Result<Vec<u8>> {
         let mut image = self.builder.into_inner()?;
         image.resize(image.len().div_ceil(RECORDSIZE) * RECORDSIZE, 0);
         Ok(image)
     }
 
-    /// Returns the gzipped tar image.
     pub fn finish(self) -> io::Result<Vec<u8>> {
         gzip(&self.finish_tar()?)
     }
 }
 
-/// Streams regular files into a ustar archive on `sink`; the output matches [`TarWriter::finish_tar`]
-/// for the same members.
 pub struct TarStream<W: Write> {
     sink: W,
     seen: HashSet<String>,
@@ -181,8 +164,6 @@ impl<W: Write> TarStream<W> {
         }
     }
 
-    /// Adds a regular file of `size` bytes read from `reader`; only the permission bits of `mode`
-    /// are kept. Fails if `reader` yields more or fewer than `size` bytes.
     pub fn add_file_from(
         &mut self,
         name: &str,
@@ -217,7 +198,6 @@ impl<W: Write> TarStream<W> {
         io::copy(&mut io::repeat(0).take(len as u64), &mut self.sink).map(|_| ())
     }
 
-    /// Writes the end-of-archive blocks, pads to a whole record and returns the flushed sink.
     pub fn finish(mut self) -> io::Result<W> {
         let end = self.written + 1024;
         let total = end.div_ceil(RECORDSIZE as u64) * RECORDSIZE as u64;
@@ -227,7 +207,6 @@ impl<W: Write> TarStream<W> {
     }
 }
 
-/// Builds a zip image in memory with a fixed DOS time, unix modes on every host and Deflate level 9.
 pub struct ZipWriter {
     writer: zip::ZipWriter<io::Cursor<Vec<u8>>>,
     seen: HashSet<String>,
@@ -258,7 +237,6 @@ impl ZipWriter {
         }
     }
 
-    /// Adds a regular file; only the permission bits of `mode` are kept.
     pub fn add_file(&mut self, name: &str, data: &[u8], mode: u32) -> io::Result<()> {
         check_new(&mut self.seen, name)?;
         self.writer
@@ -267,7 +245,6 @@ impl ZipWriter {
         self.writer.write_all(data)
     }
 
-    /// Adds a directory; `name` has no trailing '/'.
     pub fn add_dir(&mut self, name: &str, mode: u32) -> io::Result<()> {
         check_new(&mut self.seen, name)?;
         self.writer
@@ -275,7 +252,6 @@ impl ZipWriter {
             .map_err(io::Error::other)
     }
 
-    /// Adds a symlink whose target stays inside the archive root.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         check_link(name, target)?;
         check_new(&mut self.seen, name)?;
@@ -284,7 +260,6 @@ impl ZipWriter {
             .map_err(io::Error::other)
     }
 
-    /// Returns the zip image.
     pub fn finish(self) -> io::Result<Vec<u8>> {
         Ok(self.writer.finish().map_err(io::Error::other)?.into_inner())
     }

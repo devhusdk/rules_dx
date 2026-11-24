@@ -5,23 +5,6 @@ use crate::ColumnEncoding;
 
 const TOOL: &str = "docstrfmt";
 
-/// Parses `docstrfmt --check --ignore-cache --pyproject-config <config> <files>`.
-///
-/// Measured on 2.2.1:
-/// - everything is written to stderr; stdout is expected to be empty;
-/// - `File '<path>' could be reformatted.` names each unformatted file, as an absolute path;
-/// - `<n> out of <m> files could be reformatted.` or `<m> files was checked.` closes the run,
-///   followed by `Done! 🎉`;
-/// - exit 0 is clean and 1 is at least one unformatted file or an error;
-/// - a path that does not exist is skipped without a message, so the closing count must equal the
-///   number of files passed;
-/// - an unreadable file or invalid config prints other lines and `Done, but ...`.
-///
-/// Anything outside that shape is an error and never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_docstrfmt(
     stdout: &[u8],
     stderr: &[u8],

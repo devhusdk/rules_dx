@@ -9,7 +9,6 @@ def _deploy_verify_test_impl(ctx):
     env = {key: ctx.expand_location(value, ctx.attr.data) for key, value in ctx.attr.env.items()}
     env["DX_VERIFY_MODE"] = ctx.attr.mode
 
-    # The harness's own runfiles hold only its own test's data; the harness binary is all it needs here.
     runfiles = ctx.runfiles(files = [out] + ctx.files.data).merge_all([d[DefaultInfo].default_runfiles for d in ctx.attr.data])
     return [
         DefaultInfo(executable = out, runfiles = runfiles),

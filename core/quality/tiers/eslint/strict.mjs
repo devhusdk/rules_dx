@@ -15,7 +15,7 @@ const testOnly = [
 	},
 	{
 		selector:
-			"CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
+			"CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]", // spellchecker:disable-line
 		message:
 			"Remove focused and disabled test calls before committing; every test runs.",
 	},

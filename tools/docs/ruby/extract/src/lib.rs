@@ -1,5 +1,3 @@
-//! Converts the YARD driver's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,7 +16,6 @@ const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "ruby.config";
 const KEY_INCOMPLETE: &str = "ruby.incomplete";
 
-/// Why one YARD JSON document could not become a shard.
 #[derive(Debug)]
 pub enum RubyExtractError {
     Read(PathIoError),
@@ -97,7 +94,6 @@ fn not_object(at: &str) -> RubyExtractError {
     RubyExtractError::NotObject { at: at.to_owned() }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -105,23 +101,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `ruby_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("ruby_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: ruby_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -131,11 +120,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), RubyExtractError> {
     let json = path_io::read_to_string(Path::new(&options.json)).map_err(RubyExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
@@ -144,7 +128,6 @@ pub fn run(options: &Options) -> Result<(), RubyExtractError> {
 
 pub use documentation_ir::escape_segment;
 
-/// One YARD tag.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Tag {
     kind: String,
@@ -153,7 +136,6 @@ struct Tag {
     text: String,
 }
 
-/// Which accessors one `attr_*` declaration defines.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Attribute {
     name: String,
@@ -161,7 +143,6 @@ struct Attribute {
     write: bool,
 }
 
-/// The type of one YARD code object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Type {
     Module,
@@ -170,7 +151,6 @@ enum Type {
     Constant,
 }
 
-/// One YARD code object of the driver JSON.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Object {
     path: String,
@@ -285,7 +265,6 @@ fn object(value: &Value, at: &str) -> Result<Object, RubyExtractError> {
     })
 }
 
-/// Returns the qualified-name segments of one namespace path such as `A::B`.
 fn namespace_segments(path: &str) -> Vec<&str> {
     if path.is_empty() {
         Vec::new()
@@ -294,7 +273,6 @@ fn namespace_segments(path: &str) -> Vec<&str> {
     }
 }
 
-/// Returns the qualified part of one object's id, escaped.
 fn qualified(object: &Object, name: &str) -> String {
     let mut segments: Vec<String> = namespace_segments(&object.namespace)
         .into_iter()
@@ -307,7 +285,6 @@ fn qualified(object: &Object, name: &str) -> String {
     segments.join(".")
 }
 
-/// Returns the qualified part of one namespace path's id, escaped.
 fn namespace_qualified(path: &str) -> String {
     namespace_segments(path)
         .into_iter()
@@ -324,7 +301,6 @@ fn is_hidden_itself(object: &Object) -> bool {
             .any(|tag| tag.kind == "private" || (tag.kind == "api" && tag.text.trim() == "private"))
 }
 
-/// Normalizes CRLF line endings and trims trailing whitespace.
 fn normalize(text: &str) -> String {
     text.replace("\r\n", "\n").trim_end().to_owned()
 }
@@ -340,7 +316,6 @@ fn parameter_name(parameter: &str) -> Option<String> {
     if name.is_empty() { None } else { Some(name) }
 }
 
-/// The documented shape of one emitted symbol before ids are resolved.
 struct Draft<'a> {
     object: &'a Object,
     name: String,
@@ -509,11 +484,6 @@ fn is_hidden(object: &Object, hidden_namespaces: &BTreeSet<&str>) -> bool {
     false
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, RubyExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(RubyExtractError::InvalidPackage {

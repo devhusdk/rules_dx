@@ -113,13 +113,7 @@ def _ruby(i, dep):
     )
 
 def deep_graph_chains(depth):
-    """Declares one linear chain of `depth` libraries per language, each node depending on the one before.
-
-    The targets are incompatible unless --//tools/testing/deep_graph:enabled is set.
-
-    Args:
-      depth: number of libraries in each chain.
-    """
+    """Declares one linear chain of `depth` libraries per language."""
     prefix = "github.com/devhusdk/rules_dx/" + native.package_name()
     previous = {}
     for i in range(1, depth + 1):

@@ -1,10 +1,3 @@
-//! `terraform init -json` and `terraform validate -json` for one module directory.
-//!
-//! Both commands run with `-chdir=<dir>`, so a diagnostic names its file relative to that
-//! directory (`main.tf`, or `../child/main.tf` for a sibling module). The parsers take the
-//! absolute directory, join and normalise each name, and hold it to the known files.
-//! Columns count Unicode characters.
-
 use std::path::Path;
 
 use super::{FileFinding, ParseError, as_text, code_name, known_lexical};
@@ -13,7 +6,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 const TOOL: &str = "terraform";
 const MESSAGE_LIMIT: usize = 300;
 
-/// One diagnostic after the range check: located in a known file, or not located at all.
 enum Diagnostic {
     Located(FileFinding),
     Unlocated { error: bool, text: String },
@@ -110,15 +102,6 @@ fn tail(stderr: &[u8]) -> String {
     clip(&lines.into_iter().rev().collect::<Vec<_>>().join(" | "))
 }
 
-/// Parses `terraform init -json` (JSON lines, Terraform 1.9 and later).
-///
-/// Only `diagnostic` lines matter. An error with a range is a finding (init reports HCL
-/// syntax and configuration errors this way). A failing exit with no located error, such as a
-/// provider missing from the mirror, fails the run so it is never read as clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform_init(
     stdout: &[u8],
     stderr: &[u8],
@@ -153,7 +136,6 @@ pub fn parse_terraform_init(
             Diagnostic::Unlocated { error: false, .. } => {}
         }
     }
-    // Range-less errors matter only when no located error explains the failure.
     match code {
         Some(0) if unlocated.is_empty() => Ok(findings),
         Some(0) => Err(ParseError::shape(
@@ -172,16 +154,6 @@ pub fn parse_terraform_init(
     }
 }
 
-/// Parses `terraform validate -json`: one object with `format_version`, `valid`,
-/// `error_count` and `diagnostics`; exit 0 when valid and 1 otherwise.
-///
-/// The three signals must agree. A located diagnostic is a finding. A range-less error
-/// (a failure outside any file) fails the run. A range-less warning is dropped: it has no
-/// file to report on and does not change validity.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform_validate(
     stdout: &[u8],
     code: Option<i32>,

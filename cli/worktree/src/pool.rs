@@ -11,7 +11,6 @@ use super::host;
 pub const POOL_LOCK_WAIT: Duration = Duration::from_secs(120);
 const QUIET_WAIT: Duration = Duration::from_millis(250);
 
-/// Who asks for a slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Who {
     pub session: Option<String>,
@@ -19,14 +18,11 @@ pub struct Who {
     pub pid: u32,
 }
 
-/// The variable that names the agent inside a session.
 pub(crate) const HOLDER_ENV: &str = "DX_WORKTREE_HOLDER";
 
-/// The variable `hook guard` sets for agents whose shells carry no session id.
 pub(crate) const SESSION_ENV: &str = "DX_WORKTREE_SESSION";
 
 impl Who {
-    /// The agent session and agent in the environment and the nearest non-shell ancestor.
     pub fn from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Who {
         Who {
             session: session_from_env(env_get),
@@ -36,7 +32,6 @@ impl Who {
     }
 }
 
-/// The agent session named by the environment, if any.
 pub(crate) fn session_from_env(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
     ["CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID", SESSION_ENV]
         .iter()
@@ -47,7 +42,6 @@ fn claude_pid(env_get: &dyn Fn(&str) -> Option<String>) -> Option<u32> {
     env_get("CLAUDE_PID").and_then(|value| value.trim().parse().ok())
 }
 
-/// Shells and wrappers that fork and wait for their child; wrappers that exec never show up in the chain.
 const SKIPPED: &[&str] = &[
     "dx",
     "dx.exe",
@@ -73,8 +67,6 @@ const SKIPPED: &[&str] = &[
     "gtimeout",
 ];
 
-/// `preferred` when it is in the chain, else the first ancestor that is not a shell, wrapper or dx.
-/// PID 1 is only chosen when preferred, so a host's init is never recorded.
 fn outliving_ancestor(chain: &[(u32, String)], preferred: Option<u32>) -> Option<u32> {
     if let Some(pid) = preferred.filter(|pid| chain.iter().any(|(entry, _)| entry == pid)) {
         return Some(pid);
@@ -119,7 +111,6 @@ fn ancestors() -> Vec<(u32, String)> {
 #[cfg(windows)]
 use dx_process::procs::process_table;
 
-/// The ancestors of `own` in `table`, nearest first, at most eight.
 #[cfg(windows)]
 fn chain_in(table: &[(u32, u32, String)], own: u32) -> Vec<(u32, String)> {
     let parent_of = |pid: u32| table.iter().find(|(entry, _, _)| *entry == pid);
@@ -137,7 +128,6 @@ fn chain_in(table: &[(u32, u32, String)], own: u32) -> Vec<(u32, String)> {
     chain
 }
 
-/// The parent pid of `own` in `table`, even if that parent has exited.
 #[cfg(windows)]
 fn parent_in(table: &[(u32, u32, String)], own: u32) -> Option<u32> {
     table
@@ -161,7 +151,6 @@ fn parent_pid(preferred: Option<u32>) -> u32 {
         .unwrap_or(0)
 }
 
-/// One slot's lease file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
     pub slot: u32,
@@ -171,16 +160,11 @@ pub struct Record {
     pub session: Option<String>,
     pub agent: Option<String>,
     pub pid: Option<u32>,
-    /// The holder's start time, to tell it from a process that reused the pid.
     pub pid_start: Option<String>,
-    /// The boot the pid belongs to.
     pub boot_id: Option<String>,
     pub gone: bool,
-    /// When the holder's agent last stopped. A stop ends a turn, so the agent may come back.
     pub stopped_at: Option<u64>,
-    /// The first agent that runs `dx worktree` inside the slot takes the lease.
     pub unclaimed: bool,
-    /// A delete left part of the checkout on disk; `add` never leases it, `prune` deletes it again.
     pub broken: bool,
     pub leased_at: u64,
     pub last_used: u64,
@@ -188,7 +172,6 @@ pub struct Record {
 }
 
 impl Record {
-    /// Whether `who` is the session that holds this lease, whichever agent.
     #[must_use]
     pub fn same_session(&self, who: &Who) -> bool {
         match (&self.session, &who.session) {
@@ -198,9 +181,6 @@ impl Record {
         }
     }
 
-    /// Whether `who` must stay out of this slot: another session holds it, or another agent
-    /// of the same session does. Agent-less callers, unclaimed hook slots and agents that
-    /// stopped keep the session rule.
     #[must_use]
     pub fn refuses(&self, who: &Who) -> bool {
         if !self.held || self.session.is_none() {
@@ -214,17 +194,14 @@ impl Record {
             && matches!((&self.agent, &who.agent), (Some(mine), Some(theirs)) if mine != theirs)
     }
 
-    /// Whether `who` is the very agent that holds this lease.
     pub(crate) fn held_by(&self, who: &Who) -> bool {
         self.same_session(who) && self.agent == who.agent
     }
 
-    /// Whether `who` may take this unclaimed lease.
     pub(crate) fn claimable_by(&self, who: &Who) -> bool {
         self.held && self.unclaimed && self.same_session(who)
     }
 
-    /// Hands the lease to `who`.
     pub(crate) fn lease_to(&mut self, who: &Who) {
         self.session.clone_from(&who.session);
         self.agent.clone_from(&who.agent);
@@ -234,7 +211,6 @@ impl Record {
         self.unclaimed = false;
     }
 
-    /// Clears the holder of a freed lease.
     pub(crate) fn free(&mut self) {
         self.held = false;
         self.branch = None;
@@ -248,7 +224,6 @@ impl Record {
         self.unclaimed = false;
     }
 
-    /// A short name for the holder, as `list` and refusals print it.
     #[must_use]
     pub fn holder(&self, alive: bool) -> Option<String> {
         if !self.held {
@@ -276,7 +251,6 @@ impl Record {
     }
 }
 
-/// The slots of one repository.
 #[derive(Debug, Clone)]
 pub struct Pool {
     pub(crate) main: PathBuf,
@@ -284,7 +258,6 @@ pub struct Pool {
     pub(crate) lock_wait: Duration,
 }
 
-/// The directory every repository's slots live under.
 pub fn cache_base(env_get: &dyn Fn(&str) -> Option<String>) -> Result<PathBuf, WorktreeError> {
     let cache = dx_process::user_cache_dir(env_get).ok_or_else(|| {
         WorktreeError::refused(
@@ -295,7 +268,6 @@ pub fn cache_base(env_get: &dyn Fn(&str) -> Option<String>) -> Result<PathBuf, W
     Ok(cache.join("dx").join("worktrees"))
 }
 
-/// The checkout that owns the git directory, whichever worktree `dir` is in.
 pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
     let dirs = git::line(
         dir,
@@ -356,7 +328,6 @@ fn pool_marker(dir: &Path) -> Option<PathBuf> {
 }
 
 impl Pool {
-    /// Opens the pool for the repository that holds `dir`.
     pub fn open(dir: &Path, cache_base: &Path) -> Result<Pool, WorktreeError> {
         Pool::locate(dir, cache_base, true)?.ok_or_else(|| {
             WorktreeError::refused(
@@ -369,7 +340,6 @@ impl Pool {
         })
     }
 
-    /// The existing pool holding slot directory `path`, found from its marker without git.
     #[must_use]
     pub fn open_slot(path: &Path) -> Option<Pool> {
         let path = super::host::resolved(path);
@@ -383,7 +353,6 @@ impl Pool {
         })
     }
 
-    /// The existing pool for the repository that holds `dir`, without creating one.
     pub(crate) fn find(dir: &Path, cache_base: &Path) -> Option<Pool> {
         Pool::locate(dir, cache_base, false).ok().flatten()
     }
@@ -432,7 +401,6 @@ impl Pool {
         Ok(None)
     }
 
-    /// Every checkout of the repository, with the main entry at `main`.
     pub(super) fn checkouts(&self) -> Result<Vec<git::Checkout>, WorktreeError> {
         let mut found = git::checkouts(&self.main)?;
         if let Some(first) = found.first_mut() {
@@ -454,12 +422,10 @@ impl Pool {
         self.meta_dir().join(format!("{slot}.json"))
     }
 
-    /// The lock file every dx command in `slot` holds shared while it runs.
     pub(crate) fn busy_path(&self, slot: u32) -> PathBuf {
         busy_file(&self.base, slot)
     }
 
-    /// Locks `slot` against dx commands; `None` means one runs there now.
     pub(crate) fn try_quiet(&self, slot: u32) -> Result<Option<std::fs::File>, WorktreeError> {
         match dx_atomic_fs::lease::acquire_exclusive_at(&self.busy_path(slot), QUIET_WAIT) {
             Ok(lease) => Ok(Some(lease.into_file())),
@@ -468,12 +434,10 @@ impl Pool {
         }
     }
 
-    /// Whether a dx command runs in `slot` now, or its lock cannot be checked.
     pub(crate) fn busy(&self, slot: u32) -> bool {
         !matches!(self.try_quiet(slot), Ok(Some(_)))
     }
 
-    /// Holds the pool lock while a slot is chosen.
     pub(crate) fn lock(&self) -> Result<dx_atomic_fs::lease::ExclusiveLease, WorktreeError> {
         dx_atomic_fs::lease::acquire_exclusive_at(
             &self.meta_dir().join("pool.lock"),
@@ -529,7 +493,6 @@ impl Pool {
         dx_atomic_fs::discard_file(self.record_path(slot));
     }
 
-    /// The slot a path is, or is inside.
     #[must_use]
     pub fn slot_of(&self, path: &Path) -> Option<u32> {
         let path = super::host::resolved(path);
@@ -542,7 +505,6 @@ impl Pool {
             .and_then(slot_number)
     }
 
-    /// Drops records whose checkout was removed by hand.
     pub(crate) fn forget_missing(&self) -> Vec<u32> {
         let mut gone = Vec::new();
         for record in self.records() {
@@ -567,7 +529,6 @@ impl Pool {
     }
 }
 
-/// The slot a directory name spells, only in its plain decimal form.
 fn slot_number(name: &str) -> Option<u32> {
     let slot = name.parse::<u32>().ok()?;
     (slot.to_string() == name).then_some(slot)
@@ -577,7 +538,6 @@ fn busy_file(base: &Path, slot: u32) -> PathBuf {
     state::dx_dir(base).join(format!("{slot}.busy"))
 }
 
-/// Holds the busy lock of the slot `workspace` is in; `None` outside a slot.
 #[must_use]
 pub fn hold_busy(
     workspace: &Path,
@@ -591,7 +551,6 @@ pub fn hold_busy(
     )
 }
 
-/// The lease of the slot a directory is in, after resolving links in the path.
 #[must_use]
 pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
     lease_for_workspace(&host::resolved(dir))
@@ -607,7 +566,6 @@ fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
     }
 }
 
-/// The slots of the pool whose primary checkout holds `dir`; none when `dir` is not in one.
 #[must_use]
 pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
     let dir = host::resolved(dir);
@@ -627,7 +585,6 @@ pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
     )
 }
 
-/// The slot a workspace is in and its lease, found from the path alone.
 #[must_use]
 pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
     let mut current = Some(workspace);
@@ -672,7 +629,6 @@ fn marker_bytes(main: &Path) -> Vec<u8> {
     main.to_string_lossy().into_owned().into_bytes()
 }
 
-/// Publishes the marker whole, and only if no other repository claimed it first.
 fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     static CLAIMS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let claim = CLAIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

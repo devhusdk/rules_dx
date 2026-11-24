@@ -1,5 +1,3 @@
-//! Checks the F# fixture shards: shapes, signatures, docs, sources and configuration.
-
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::validate_shard;
 use shard_test_support::{extension, shard};

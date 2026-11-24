@@ -101,7 +101,6 @@ py_binary(
     deps = ["@pypi//pypi_attestations"],
 )
 
-# rfc3161-client and cryptography have no win_arm64 wheel and their sdists need maturin, Rust and OpenSSL.
 alias(
     name = "pypi_attestations_tool",
     actual = select({
@@ -229,7 +228,6 @@ config_setting(
     ],
 )
 
-# cryptography has no win_arm64 wheel and its sdist needs maturin, Rust and OpenSSL.
 alias(
     name = "ansible_lint_tool",
     actual = select({

@@ -2,11 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::Value;
 
-/// Rule ID to setting, read from the rule keys of a tool's base.
 pub type RuleSettings = BTreeMap<String, String>;
 
-/// The rule settings under `keys` in a base of format `ext` (`toml`, `json` or `yaml`).
-/// None when the text does not parse or the format has no extractor.
 pub fn rule_settings(ext: &str, keys: &[&str], text: &str) -> Option<RuleSettings> {
     let root = match ext {
         "toml" => serde_json::to_value(text.parse::<toml::Table>().ok()?).ok()?,
@@ -84,7 +81,6 @@ fn yaml_scalar(text: &str) -> Value {
     Value::String(unquoted.to_owned())
 }
 
-/// Nested `key: value` mappings of a yaml file; lists and flow values stay plain text.
 fn yaml_value(text: &str) -> Value {
     let lines: Vec<(usize, &str)> = text
         .lines()
@@ -130,8 +126,6 @@ fn disabled(setting: &str) -> bool {
     )
 }
 
-/// `settings` with each `rule/option` key folded into `rule` when `other` has `rule` as a
-/// plain setting, so a rule that gains or loses options compares as one rule.
 fn fold_options(settings: &RuleSettings, other: &RuleSettings) -> RuleSettings {
     let mut folded = RuleSettings::new();
     let mut options: BTreeMap<&str, Vec<String>> = BTreeMap::new();
@@ -156,8 +150,6 @@ fn fold_options(settings: &RuleSettings, other: &RuleSettings) -> RuleSettings {
     folded
 }
 
-/// The `N rules enabled, M disabled, K changed` line and one indented line per rule,
-/// or nothing when no rule differs.
 pub fn rule_report(tool: &str, old: &RuleSettings, new: &RuleSettings) -> Vec<String> {
     let (old, new) = (&fold_options(old, new), &fold_options(new, old));
     let mut lines = Vec::new();

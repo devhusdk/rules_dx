@@ -27,7 +27,6 @@ struct Diagnostic {
     primary_label: Label,
 }
 
-/// One `--display-style=json2` line. `Summary` is ignored; the exit code carries the verdict.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 enum Line {
@@ -47,7 +46,6 @@ fn severity(value: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-/// Selene spans are 0-based lines and character columns.
 fn position(line: u64, column: u64) -> Result<TextPosition, ParseError> {
     let overflow = || ParseError::shape(TOOL, "position overflow");
     Ok(TextPosition {
@@ -56,15 +54,6 @@ fn position(line: u64, column: u64) -> Result<TextPosition, ParseError> {
     })
 }
 
-/// `selene --display-style=json2` prints one JSON object per line. Exit 0 means clean and no
-/// diagnostics; exit 1 with at least one diagnostic means findings (warnings also exit 1). Exit 1
-/// with no diagnostics is a tool failure (missing file, bad std or config) and is an error, as is
-/// any other exit, any non-JSON line and any finding for a file that was not passed. A parse
-/// error is a diagnostic with code `parse_error`, so it is a finding.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_selene(
     stdout: &[u8],
     code: Option<i32>,
@@ -106,7 +95,6 @@ pub fn parse_selene(
                 related: Vec::new(),
             },
         };
-        // selene reports a parse error once per recovered token; keep the first.
         if !findings.iter().any(|seen: &FileFinding| {
             seen.file == finding.file
                 && seen.finding.rule_id == finding.finding.rule_id
@@ -180,28 +168,21 @@ mod tests {
 
     #[test]
     fn selene_fails_closed() {
-        // Exit 1 without a diagnostic is a tool failure, never clean.
         assert!(parse_selene(b"", Some(1), &FILES).is_err());
         assert!(parse_selene(b"ERROR: no such file", Some(1), &FILES).is_err());
-        // Diagnostics with exit 0.
         assert!(parse_selene(DIRTY.as_bytes(), Some(0), &FILES).is_err());
-        // Other exits and signals.
         assert!(parse_selene(b"", Some(2), &FILES).is_err());
         assert!(parse_selene(DIRTY.as_bytes(), Some(101), &FILES).is_err());
         assert!(parse_selene(b"", None, &FILES).is_err());
-        // Garbage, truncation and non-UTF-8.
         assert!(parse_selene(&DIRTY.as_bytes()[..60], Some(1), &FILES).is_err());
         assert!(parse_selene(&[0xff, 0xfe], Some(1), &FILES).is_err());
-        // A finding in a file that was not passed.
         assert!(parse_selene(DIRTY.as_bytes(), Some(1), &["/s/other.lua"]).is_err());
-        // An unknown severity.
         let odd = DIRTY.replace("\"Warning\"", "\"Fatal\"");
         assert!(parse_selene(odd.as_bytes(), Some(1), &FILES).is_err());
     }
 
     #[test]
     fn selene_columns_are_scalars_not_bytes() {
-        // `local é = x`: the undefined `x` starts at scalar 10 (byte 11).
         let report = DIRTY
             .replace(
                 "\"start_line\":2,\"start_column\":4",

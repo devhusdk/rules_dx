@@ -11,7 +11,6 @@ fn crc32(bytes: &[u8]) -> u32 {
     !crc
 }
 
-/// A zip of stored entries, like the outputs.zip Bazel writes; names ending in '/' are directories.
 fn zip_of(entries: &[(&str, &[u8])]) -> Vec<u8> {
     let mut zip = Vec::new();
     let mut central = Vec::new();

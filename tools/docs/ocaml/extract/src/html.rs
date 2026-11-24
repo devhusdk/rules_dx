@@ -1,8 +1,5 @@
-//! A small tolerant HTML reader for the fragments odoc writes.
-
 use std::fmt::Write as _;
 
-/// One element, or a text node when `name` is empty.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Node {
     pub name: String,
@@ -14,7 +11,6 @@ pub struct Node {
 const VOID: [&str; 7] = ["br", "hr", "img", "meta", "link", "input", "wbr"];
 
 impl Node {
-    /// Wraps top-level nodes in an anonymous element.
     pub fn root(children: Vec<Node>) -> Node {
         Node {
             children,
@@ -22,7 +18,6 @@ impl Node {
         }
     }
 
-    /// Returns the value of one attribute.
     pub fn attr(&self, name: &str) -> Option<&str> {
         self.attrs
             .iter()
@@ -30,14 +25,12 @@ impl Node {
             .map(|(_, value)| value.as_str())
     }
 
-    /// Whether the class attribute lists `class`.
     pub fn has_class(&self, class: &str) -> bool {
         self.attr("class")
             .is_some_and(|list| list.split_whitespace().any(|c| c == class))
     }
 }
 
-/// Decodes the character references odoc emits.
 pub fn decode(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut rest = raw;
@@ -137,7 +130,6 @@ fn close(stack: &mut Vec<Node>, name: &str) {
     }
 }
 
-/// Parses a fragment into its top-level nodes.
 pub fn parse(source: &str) -> Vec<Node> {
     let mut stack = vec![Node::default()];
     let mut rest = source;
@@ -215,7 +207,6 @@ fn gather(node: &Node, skip: &[&str], out: &mut String) {
     }
 }
 
-/// Returns the text of an element on one line, without the elements that carry a skipped class.
 pub fn text(node: &Node, skip: &[&str]) -> String {
     let mut out = String::new();
     gather(node, skip, &mut out);
@@ -326,7 +317,6 @@ fn tidy(raw: &str) -> String {
     lines.join("\n").trim().to_owned()
 }
 
-/// Renders an element as markdown.
 pub fn markdown(node: &Node) -> String {
     let mut out = String::new();
     render(node, &mut out);

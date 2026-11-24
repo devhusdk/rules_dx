@@ -22,7 +22,9 @@ def _header_impl(ctx):
     headers = [f.short_path for f in analysistest.target_under_test(env)[CcInfo].compilation_context.headers.to_list()]
     found = [p for p in headers if p.endswith("/" + ctx.attr.file)]
     asserts.equals(env, ctx.attr.present, len(found) > 0, "headers: " + str(headers))
-    return analysistest.end(env)
+
+    # Without this, coverage compiles the target under test, which is meant not to compile.
+    return analysistest.end(env) + [coverage_common.instrumented_files_info(ctx)]
 
 def _define_impl(ctx):
     env = analysistest.begin(ctx)

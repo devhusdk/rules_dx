@@ -20,16 +20,13 @@ pub struct ProjectedFile {
     pub failure_code: Option<String>,
 }
 
-/// One generation failure reported by a language extension.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectedError {
     pub language: String,
-    /// `None` when the failing package is unknown; `Some("")` is the root.
     pub package: Option<String>,
     pub message: String,
     pub kind: Option<String>,
     pub import: Option<String>,
-    /// The BUILD file and directive that resolve the failure.
     pub fix: Option<(String, String)>,
 }
 
@@ -82,7 +79,6 @@ impl ProjectedManifest {
         ordered
     }
 
-    /// What happened to one file and why, proposed when nothing was written.
     #[must_use]
     pub fn effect_of(file: &ProjectedFile) -> (ChangeEffect, Option<&str>) {
         match file.outcome {
@@ -148,11 +144,6 @@ fn map_outcome(
     }
 }
 
-/// Projects a manifest the boundary already validated.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 #[expect(
     clippy::too_many_lines,
     reason = "one linear sequence of steps read top to bottom"
@@ -261,9 +252,6 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
     })
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_diff(projected: &ProjectedManifest) -> Result<String, DiffError> {
     let sorted = projected.sorted_files();
     let patches: Vec<FilePatch<'_>> = sorted

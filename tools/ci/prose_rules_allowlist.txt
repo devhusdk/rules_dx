@@ -1,10 +1,7 @@
-.github/workflows/README.md issue-number 4
+.github/workflows/README.md issue-number 1
 AGENTS.md history-word 2
-MODULE.bazel issue-number 10
-cli/plan/src/args/invocation.rs link-chain 2
 core/quality/policy.bzl link-chain 1
 docs/AGENTS.md history-word 1
 patches/README.md private-label 1
-tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1
 tools/docs/python/fixture/guide.md not-linted 1

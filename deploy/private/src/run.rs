@@ -1,30 +1,20 @@
-//! Shared run layer for the deploy launchers: preamble, owner gate and child env.
-
 use std::path::{Path, PathBuf};
 
 use crate::{deploy_outdir, resolve_runfile, resolve_runfile_anchored};
 
-/// Owner approval gate for one live-publish launcher.
 pub(crate) struct OwnerGate {
-    /// Launcher name used as the message prefix.
     pub(crate) tool: &'static str,
-    /// Live action named in refusals.
     pub(crate) action: &'static str,
-    /// Env vars that must be non-empty.
     pub(crate) credentials: &'static [&'static str],
-    /// Env var that must be exactly 1.
     pub(crate) approved: &'static str,
 }
 
-/// Set by dx deploy: 1 publishes, anything else is the dry run.
 pub(crate) const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
 
-/// Reads an env var, empty when unset.
 pub(crate) fn env_or_empty(key: &str) -> String {
     std::env::var(key).unwrap_or_default()
 }
 
-/// Returns the refusal when a version or tag is a placeholder (0.0.0 or 0.0.0-dryrun, with or without a leading v).
 pub(crate) fn placeholder_refusal(tool: &str, value: &str) -> Option<String> {
     let bare = value.strip_prefix('v').unwrap_or(value);
     (bare == "0.0.0" || bare == "0.0.0-dryrun").then(|| {
@@ -32,7 +22,6 @@ pub(crate) fn placeholder_refusal(tool: &str, value: &str) -> Option<String> {
     })
 }
 
-/// Returns the version to publish: the manifest's, which must equal `expected` when the BUILD file declares one.
 pub(crate) fn resolve_version(
     tool: &str,
     file: &str,
@@ -50,11 +39,9 @@ pub(crate) fn resolve_version(
     ))
 }
 
-/// Credential values read by a passed owner gate.
 pub(crate) struct Secrets(Vec<(&'static str, String)>);
 
 impl Secrets {
-    /// Returns one credential value, empty when the gate does not name it.
     pub(crate) fn get(&self, key: &str) -> &str {
         self.0
             .iter()
@@ -64,12 +51,10 @@ impl Secrets {
 }
 
 impl OwnerGate {
-    /// True when the live path is requested (DX_DEPLOY_LIVE is exactly 1).
     pub(crate) fn requested(var: impl Fn(&str) -> String) -> bool {
         var(DEPLOY_LIVE_ENV) == "1"
     }
 
-    /// Returns the refusal message, or None when credentials and approval are present.
     pub(crate) fn refusal(&self, var: impl Fn(&str) -> String) -> Option<String> {
         let (tool, action, approved) = (self.tool, self.action, self.approved);
         if self.credentials.iter().any(|key| var(key).is_empty()) {
@@ -86,7 +71,6 @@ impl OwnerGate {
         None
     }
 
-    /// Returns the credentials when the gate passes, else the refusal message.
     pub(crate) fn authorize(&self, var: impl Fn(&str) -> String) -> Result<Secrets, String> {
         if let Some(error) = self.refusal(&var) {
             return Err(error);
@@ -100,15 +84,12 @@ impl OwnerGate {
     }
 }
 
-/// Words that keep a prefix-matched env name out of a child env.
 const SECRET_WORDS: [&str; 5] = ["TOKEN", "PASSWORD", "SECRET", "JWT", "KEY"];
 
-/// True when one env name passes a keep-list, ignoring case on Windows.
 fn keeps(keep: &[&str], name: &str) -> bool {
     keeps_in(keep, name, cfg!(windows))
 }
 
-/// Keep-list match; a `_`-suffixed entry is a prefix that skips secret words.
 fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
     let same = |left: &str, right: &str| {
         if ignore_case {
@@ -129,7 +110,6 @@ fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
     })
 }
 
-/// Filters process env to a keep-list plus extras.
 fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::BTreeMap<String, String> {
     let mut env = std::collections::BTreeMap::new();
     for (key, value) in std::env::vars_os() {
@@ -146,7 +126,6 @@ fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::BTree
     env
 }
 
-/// Env names every publish child keeps; everything else is dropped.
 pub(crate) const PUBLISH_CHILD_ENV_KEEP: &[&str] = &[
     "HOME",
     "LANG",
@@ -175,7 +154,6 @@ pub(crate) const PUBLISH_CHILD_ENV_KEEP: &[&str] = &[
     "SSL_CERT_DIR",
 ];
 
-/// Extra env names `dotnet` needs to find its SDK and caches.
 pub(crate) const DOTNET_CHILD_ENV_EXTRA: &[&str] = &[
     "DOTNET_ROOT",
     "DOTNET_CLI_HOME",
@@ -184,7 +162,6 @@ pub(crate) const DOTNET_CHILD_ENV_EXTRA: &[&str] = &[
     "DOTNET_NOLOGO",
 ];
 
-/// Builds a child command with a cleared env, the keep-listed vars, then extras.
 pub(crate) fn scrubbed_command(
     program: &Path,
     keep: &[&[&str]],
@@ -199,17 +176,14 @@ pub(crate) fn scrubbed_command(
     cmd
 }
 
-/// Bound for one registry publisher child, long enough for a slow upload.
 pub(crate) const PUBLISH_TIMEOUT: std::time::Duration = std::time::Duration::from_mins(15);
 
-/// Runs one publisher child under `PUBLISH_TIMEOUT`.
 pub(crate) fn run_publish(
     cmd: &mut std::process::Command,
 ) -> Result<dx_process::capture::Captured, dx_process::capture::RunError> {
     dx_process::capture::run_captured(cmd, PUBLISH_TIMEOUT)
 }
 
-/// Describes how a captured child ended, like `std::process::ExitStatus`.
 pub(crate) fn exit_text(out: &dx_process::capture::Captured) -> String {
     match out.code {
         Some(code) => format!("exit status: {code}"),
@@ -217,7 +191,6 @@ pub(crate) fn exit_text(out: &dx_process::capture::Captured) -> String {
     }
 }
 
-/// Removes the token and control characters from tool output.
 pub(crate) fn pages_redact(text: &str, token: &str) -> String {
     let cleaned: String = text
         .chars()
@@ -230,7 +203,6 @@ pub(crate) fn pages_redact(text: &str, token: &str) -> String {
     }
 }
 
-/// Prints a publisher's captured stdout and stderr with the secret removed.
 pub(crate) fn print_redacted(out: &dx_process::capture::Captured, secret: &str) {
     let (stdout, stderr) = redacted_streams(out, secret);
     print!("{stdout}");
@@ -244,12 +216,10 @@ fn redacted_streams(out: &dx_process::capture::Captured, secret: &str) -> (Strin
     )
 }
 
-/// Returns the DX_BUILD_MODE the launcher runs under, `<unset>` when unset.
 pub fn deploy_build_mode() -> String {
     std::env::var("DX_BUILD_MODE").unwrap_or_else(|_| "<unset>".to_owned())
 }
 
-/// Returns the bytes in one file, or the total bytes of every file under one directory.
 pub(crate) fn tree_bytes(path: &Path) -> std::io::Result<u64> {
     let meta = std::fs::metadata(path)?;
     if !meta.is_dir() {
@@ -262,9 +232,6 @@ pub(crate) fn tree_bytes(path: &Path) -> std::io::Result<u64> {
     Ok(total)
 }
 
-/// Fails when one deployable is larger than its size budget, naming both sizes in bytes.
-///
-/// A budget of 0 means no budget.
 pub(crate) fn check_size_budget(
     tool: &str,
     what: &str,
@@ -279,7 +246,6 @@ pub(crate) fn check_size_budget(
     ))
 }
 
-/// Fails when the files under the given paths together exceed the budget.
 pub fn check_files_size_budget(paths: &[PathBuf], budget: u64) -> Result<u64, String> {
     let mut bytes = 0;
     for path in paths {
@@ -290,21 +256,16 @@ pub fn check_files_size_budget(paths: &[PathBuf], budget: u64) -> Result<u64, St
     Ok(bytes)
 }
 
-/// One deploy launcher run: its name and its output directory.
 pub struct DeployRun {
     tool: &'static str,
     outdir: PathBuf,
 }
 
 impl DeployRun {
-    /// Builds a run for one launcher and output directory.
     pub fn new(tool: &'static str, outdir: PathBuf) -> Self {
         Self { tool, outdir }
     }
 
-    /// Checks argv, then creates the output directory; prints why and returns None on failure.
-    ///
-    /// `pinned` finishes the extra-arguments refusal, naming what the target pins.
     pub fn start(tool: &'static str, pinned: &str, argv: &[String]) -> Option<Self> {
         if argv.len() > 2 {
             eprintln!("{tool}: this deploy target takes at most an output directory; {pinned}");
@@ -318,17 +279,14 @@ impl DeployRun {
         Some(Self::new(tool, outdir))
     }
 
-    /// Returns the launcher name.
     pub fn tool(&self) -> &'static str {
         self.tool
     }
 
-    /// Returns the output directory.
     pub fn outdir(&self) -> &Path {
         &self.outdir
     }
 
-    /// Resolves one runfile; prints `{tool}: {error}` and returns None on failure.
     pub fn resolve(&self, rloc: &str) -> Option<PathBuf> {
         match resolve_runfile(rloc) {
             Ok(path) => Some(path),
@@ -339,7 +297,6 @@ impl DeployRun {
         }
     }
 
-    /// Like `resolve`, but finds a directory through one file inside it.
     pub fn resolve_anchored(&self, rloc: &str, anchor: &str) -> Option<PathBuf> {
         match resolve_runfile_anchored(rloc, anchor) {
             Ok(path) => Some(path),
@@ -350,7 +307,6 @@ impl DeployRun {
         }
     }
 
-    /// Like `resolve`, but an empty rlocation yields `Some(None)`.
     pub fn resolve_optional(&self, rloc: &str) -> Option<Option<PathBuf>> {
         if rloc.is_empty() {
             return Some(None);
@@ -365,7 +321,6 @@ mod tests {
     use super::*;
     use crate::test_support::{env_test_in_child, scratch_dir, with_env};
 
-    /// Writes a fake sh tool that prints its env, one name=value per line.
     fn env_dumper(dir: &Path) -> PathBuf {
         let path = dir.join("dump-env");
         dx_testing::executable_script(&path, "#!/bin/sh\nexec env\n");

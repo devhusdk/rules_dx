@@ -4,7 +4,6 @@ pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
 pub const TOOL_LABEL: &str = dx_families::GITLEAKS;
 
-/// Shell command that exports the pinned Gitleaks path for a local run.
 #[must_use]
 pub fn resolve_command() -> String {
     format!("export \"$(dx tool_resolve --label {TOOL_LABEL} --var {TOOL_ENV_VAR} --print)\"")
@@ -24,13 +23,10 @@ pub const CONFIG_FLAG: &str = "--config";
 
 pub const CONFIG_FILE_NAME: &str = ".gitleaks.toml";
 
-/// The base dx renders, which `.gitleaks.toml` must extend.
 pub const BASE_CONFIG_PATH: &str = ".dx/config/gitleaks/base.toml";
 
 pub const IGNORE_PATH_FLAG: &str = "--gitleaks-ignore-path";
 
-/// Git arguments that list the workspace paths git ignores, NUL-separated and
-/// relative to the workspace; wholly ignored directories collapse to `dir/`.
 pub const IGNORED_QUERY: [&str; 6] = [
     "ls-files",
     "-z",
@@ -42,8 +38,6 @@ pub const IGNORED_QUERY: [&str; 6] = [
 
 const IGNORED_ALLOWLIST_DESCRIPTION: &str = "git-ignored paths";
 
-/// Splits `git ls-files -z` output into paths. Empty and non-UTF-8 entries are
-/// dropped, so those paths stay scanned.
 pub fn parse_ignored(stdout: &[u8]) -> Vec<String> {
     stdout
         .split(|byte| *byte == 0)
@@ -53,9 +47,6 @@ pub fn parse_ignored(stdout: &[u8]) -> Vec<String> {
         .collect()
 }
 
-/// Turns ignored paths into anchored gitleaks path regexes. A directory entry
-/// (trailing `/`) also matches the bare directory name, so gitleaks prunes the
-/// whole tree before reading it.
 #[must_use]
 pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
     paths
@@ -68,11 +59,6 @@ pub fn ignored_path_patterns(paths: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Builds the gitleaks config for a scan: the user's config (or the dx base
-/// when there is none) plus one paths-only allowlist for `patterns`. The
-/// `[extend] path` becomes `base`, which must be absolute because gitleaks
-/// resolves it from the working directory. Only `[[allowlists]]` is read; a
-/// `[allowlist]` table is an error. Every allowlist needs a description.
 pub fn scoped_config(
     user: Option<&str>,
     patterns: &[String],

@@ -1,21 +1,3 @@
-//! Reads a launch descriptor, resolves its runfiles and runs the program it names.
-//!
-//! The descriptor sits beside the executable, or in its runfiles, as `<name>.launch`, where
-//! `<name>` drops a trailing `.exe`, one entry per line:
-//! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
-//! `prefixed=<prefix>\t<key>`, `cwd=<before>\t<after>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
-//! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>`, `unset=<VAR>`, `verb=<word>` and
-//! `default_arg=<literal>`.
-//! A descriptor without a program holds either one `fail=<message>` line, which prints the
-//! message and exits 2, or `copy=<key>\t<path>` lines, which write runfiles files to paths
-//! below `BUILD_WORKSPACE_DIRECTORY`.
-//! The user's arguments follow the listed ones. With `verb` lines, the user's first argument
-//! goes before the listed ones when it is one of the verbs; otherwise the first verb goes
-//! before them and the `default_arg` values go after them. `unset` names variables removed
-//! from the child's environment, `env` sets one, `env_dir` sets one to the
-//! absolute directory of a runfiles file and `env_default` sets one only when
-//! it is unset or empty.
-
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -23,49 +5,30 @@ use std::process::Command;
 
 use dx_path::Resolver;
 
-/// One argument of the program, in order.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Item {
-    /// A literal argument.
     Arg(String),
-    /// The absolute path of a runfiles key.
     Path(String),
-    /// A prefix followed by the absolute path of a runfiles key.
     Prefixed(String, String),
-    /// A flag and the value of an environment variable, only when the variable is set and not empty.
     EnvFlag(String, String),
-    /// The absolute working directory between two literals.
     Cwd(String, String),
 }
 
-/// What one `<name>.launch` file describes.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Descriptor {
-    /// Runfiles key of the program, empty when `fail` or `copy` stands in for it.
     pub program: String,
-    /// The message of a launcher that only refuses to run.
     pub fail: Option<String>,
-    /// Runfiles keys written to paths below the workspace, as key and path.
     pub copy: Vec<(String, String)>,
-    /// Whether the program path is resolved through symlinks before it runs.
     pub real_program: bool,
-    /// The arguments before the user's.
     pub items: Vec<Item>,
-    /// Environment variables removed before the program starts.
     pub unset: Vec<String>,
-    /// Environment variables set for the program, as name and value.
     pub env: Vec<(String, String)>,
-    /// Environment variables set to the directory of a runfiles key, as name and key.
     pub env_dir: Vec<(String, String)>,
-    /// Environment variables set only when unset or empty, as name and value.
     pub env_default: Vec<(String, String)>,
-    /// Words the user may name first, in order; the first one is the default.
     pub verbs: Vec<String>,
-    /// Arguments after the listed ones when the user names no verb.
     pub default_args: Vec<String>,
 }
 
-/// The runfiles source a child process is told about.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Plan {
     pub program: PathBuf,
@@ -86,7 +49,6 @@ fn pair(line: &str, value: &str) -> io::Result<(String, String)> {
     Ok((first.to_owned(), second.to_owned()))
 }
 
-/// Whether `path` is relative and never leaves its root.
 fn below(path: &str) -> bool {
     let path = Path::new(path);
     path.components()
@@ -94,7 +56,6 @@ fn below(path: &str) -> bool {
         && path.file_name().is_some()
 }
 
-/// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut program: Option<String> = None;
     let mut real_program = false;
@@ -217,7 +178,6 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     })
 }
 
-/// Joins the resolved descriptor arguments and the user's, placing the verb first.
 pub fn arguments(
     descriptor: &Descriptor,
     planned: Vec<OsString>,
@@ -247,10 +207,6 @@ pub fn arguments(
         .collect()
 }
 
-/// Names the descriptors that can sit beside one executable, best first.
-///
-/// A wrapper macro may rename the executable of an `<name>_upstream` rule, so
-/// the descriptor of the `_upstream` target also counts.
 pub fn descriptor_candidates(exe: &Path) -> Vec<PathBuf> {
     let is_exe = exe
         .extension()
@@ -273,7 +229,6 @@ pub fn descriptor_candidates(exe: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Returns the first descriptor that exists beside one executable.
 pub fn descriptor_path(exe: &Path) -> PathBuf {
     let candidates = descriptor_candidates(exe);
     candidates
@@ -284,7 +239,6 @@ pub fn descriptor_path(exe: &Path) -> PathBuf {
         .unwrap_or_default()
 }
 
-/// Returns the runfiles key of one file under `bazel-out/<configuration>/bin`.
 fn output_key(path: &Path) -> Option<String> {
     let parts: Vec<String> = path
         .components()
@@ -302,7 +256,6 @@ fn output_key(path: &Path) -> Option<String> {
     }
 }
 
-/// Returns the runfiles keys of the descriptors of an executable under `bazel-out/<configuration>/bin`, best first.
 pub fn descriptor_keys(exe: &Path) -> Vec<String> {
     descriptor_candidates(exe)
         .iter()
@@ -310,7 +263,6 @@ pub fn descriptor_keys(exe: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Returns the descriptor beside one executable, or the one in its runfiles when none sits beside it.
 pub fn descriptor_for(resolver: &Resolver, exe: &Path) -> PathBuf {
     let beside = descriptor_path(exe);
     if beside.is_file() {
@@ -323,7 +275,6 @@ pub fn descriptor_for(resolver: &Resolver, exe: &Path) -> PathBuf {
         .unwrap_or(beside)
 }
 
-/// Resolves one key, reading a file inside a tree artifact through the tree's own manifest entry.
 fn locate(resolver: &Resolver, key: &str) -> io::Result<PathBuf> {
     let error = match resolver.lookup(key) {
         Ok(path) => return Ok(path),
@@ -345,7 +296,6 @@ fn locate(resolver: &Resolver, key: &str) -> io::Result<PathBuf> {
     Err(error)
 }
 
-/// Resolves every key of one descriptor into the program and its arguments.
 pub fn plan(
     resolver: &Resolver,
     descriptor: &Descriptor,
@@ -353,9 +303,6 @@ pub fn plan(
 ) -> io::Result<Plan> {
     let mut program = locate(resolver, &descriptor.program)?;
     if descriptor.real_program {
-        // On Windows canonicalize answers `\\?\D:\...`; hand the child the plain spelling so its
-        // application directory, where the loader probes for side-by-side assemblies and DLLs,
-        // reads like any other path. std adds the prefix back itself when a path is too long.
         program = dx_path::without_verbatim(&program.canonicalize()?);
     }
     let mut args: Vec<OsString> = Vec::new();
@@ -385,7 +332,6 @@ pub fn plan(
     Ok(Plan { program, args })
 }
 
-/// Resolves `env`, `env_dir` and `env_default` lines into the variables the child gets.
 pub fn child_env(
     resolver: &Resolver,
     descriptor: &Descriptor,
@@ -405,7 +351,6 @@ pub fn child_env(
     Ok(out)
 }
 
-/// Returns the environment entry that tells the child where the runfiles are.
 pub fn runfiles_env(resolver: &Resolver) -> (&'static str, PathBuf) {
     let source = resolver.source().to_path_buf();
     if source.is_dir() {
@@ -415,7 +360,6 @@ pub fn runfiles_env(resolver: &Resolver) -> (&'static str, PathBuf) {
     }
 }
 
-/// Builds the child process: unset variables are removed, descriptor variables are set, then the runfiles entry is set.
 pub fn command(
     plan: &Plan,
     unset: &[String],
@@ -433,7 +377,6 @@ pub fn command(
     command
 }
 
-/// Writes every `copy` file of one descriptor below `workspace`, creating the directories.
 pub fn copy_into(
     resolver: &Resolver,
     copy: &[(String, String)],
@@ -455,7 +398,6 @@ pub fn copy_into(
     Ok(())
 }
 
-/// Runs the program named by the descriptor beside `exe` and returns its exit code.
 pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     let resolver = Resolver::for_executable(exe);
     let path = match &resolver {
@@ -506,7 +448,6 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     Ok(status.code().unwrap_or(1))
 }
 
-/// Runs the executable this process was started as.
 pub fn run_from_env() -> io::Result<i32> {
     let argv: Vec<OsString> = std::env::args_os().collect();
     let exe = argv.first().ok_or_else(|| bad("no argv[0]"))?;

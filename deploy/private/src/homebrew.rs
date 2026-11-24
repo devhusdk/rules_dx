@@ -1,5 +1,3 @@
-//! Homebrew tap publisher: renders a formula from a GitHub release and pushes it to a tap.
-
 use crate::archive::*;
 use crate::config::GithubConfig;
 use crate::run::{
@@ -11,7 +9,6 @@ use base64::Engine as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Owner approval gate for homebrew_tap_deploy.
 pub(crate) const HOMEBREW_TAP_GATE: OwnerGate = OwnerGate {
     tool: "homebrew_tap_deploy",
     action: "publish",
@@ -19,7 +16,6 @@ pub(crate) const HOMEBREW_TAP_GATE: OwnerGate = OwnerGate {
     approved: "HOMEBREW_TAP_PUBLISH_APPROVED",
 };
 
-/// Env names `gh` keeps besides the token the gate read.
 const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "GH_HOST",
     "GH_CONFIG_DIR",
@@ -27,7 +23,6 @@ const GH_CHILD_ENV_EXTRA: &[&str] = &[
     "XDG_CONFIG_HOME",
 ];
 
-/// Names what the formula installs and where it is published.
 pub struct HomebrewLaunch<'a> {
     pub release_rloc: &'a str,
     pub deploy_name: &'a str,
@@ -39,7 +34,6 @@ pub struct HomebrewLaunch<'a> {
     pub homepage: &'a str,
 }
 
-/// One release archive with the platform it is built for and its digest.
 #[derive(Debug, PartialEq, Eq)]
 pub struct FormulaAsset {
     pub os: &'static str,
@@ -48,7 +42,6 @@ pub struct FormulaAsset {
     pub sha256: String,
 }
 
-/// Returns the os and arch a release archive name says it is built for.
 pub fn homebrew_asset_platform(base: &str) -> Option<(&'static str, &'static str)> {
     let lower = base.to_ascii_lowercase();
     let single = Path::new(&lower)
@@ -75,7 +68,6 @@ pub fn homebrew_asset_platform(base: &str) -> Option<(&'static str, &'static str
     Some((os, arch))
 }
 
-/// Returns the Ruby class name Homebrew expects for a formula name.
 pub fn homebrew_class_name(formula: &str) -> String {
     let mut out = String::new();
     let mut upper = true;
@@ -92,7 +84,6 @@ pub fn homebrew_class_name(formula: &str) -> String {
     out
 }
 
-/// Escapes a value for a double-quoted Ruby string.
 fn ruby_escape(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for c in value.chars() {
@@ -109,7 +100,6 @@ fn ruby_escape(value: &str) -> String {
     out
 }
 
-/// Renders the formula for the given release archives.
 pub fn homebrew_render_formula(
     launch: &HomebrewLaunch<'_>,
     tag: &str,
@@ -145,7 +135,6 @@ pub fn homebrew_render_formula(
     out
 }
 
-/// Picks the platform archives from the release assets and checks them against any `.sha256` file.
 pub fn homebrew_collect_assets(assets: &[PathBuf]) -> io::Result<Vec<FormulaAsset>> {
     let invalid = |message: String| io::Error::new(io::ErrorKind::InvalidInput, message);
     let mut found: Vec<FormulaAsset> = Vec::new();
@@ -188,7 +177,6 @@ pub fn homebrew_collect_assets(assets: &[PathBuf]) -> io::Result<Vec<FormulaAsse
     Ok(found)
 }
 
-/// Writes the formula under `<outdir>/<name>-tap/Formula` and the would-run manifest.
 pub fn homebrew_build_staging(
     launch: &HomebrewLaunch<'_>,
     formula_text: &str,
@@ -216,7 +204,6 @@ fn homebrew_formula_path(launch: &HomebrewLaunch<'_>) -> String {
     )
 }
 
-/// Formats the GitHub API call that writes the formula.
 pub fn homebrew_api_command(launch: &HomebrewLaunch<'_>) -> String {
     format!(
         "gh api -X PUT {} -f message=... -f content=<base64 formula>",
@@ -228,7 +215,6 @@ fn homebrew_commit_message(launch: &HomebrewLaunch<'_>, tag: &str) -> String {
     format!("{} {tag}", launch.formula)
 }
 
-/// Pushes the formula to the tap through `gh api`, replacing the file when it exists.
 fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &str) -> i32 {
     let gh = |args: &[&str]| {
         let mut cmd = scrubbed_command(
@@ -295,7 +281,6 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
     }
 }
 
-/// Runs `ruby -c` on the staged formula when ruby is on PATH.
 fn homebrew_syntax_check(formula: &Path) -> bool {
     if which_on_path("ruby").is_none() {
         println!("  syntax: skipped, ruby not on PATH");
@@ -322,7 +307,6 @@ fn homebrew_syntax_check(formula: &Path) -> bool {
     }
 }
 
-/// Runs the Homebrew tap deploy tool.
 pub fn homebrew_tap_main(launch: &HomebrewLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "homebrew_tap_deploy",

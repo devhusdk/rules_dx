@@ -113,7 +113,6 @@ impl UpdateSet {
         Self::names().join("|")
     }
 
-    /// Whether an update edits every manifest of the set that declares the package.
     #[must_use]
     pub fn spans_manifests(self) -> bool {
         matches!(self, UpdateSet::Cargo | UpdateSet::GithubActions)

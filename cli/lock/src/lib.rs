@@ -5,8 +5,6 @@
     clippy::string_slice
 )]
 
-//! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
-
 mod http;
 mod model;
 mod scratch;
@@ -22,12 +20,10 @@ pub use http::{DOWNLOADER_CONFIG_ENV, HttpFetch};
 pub use model::{Archive, Lock, PLATFORMS, Package, Resolution, SCHEMA, is_sha256};
 pub use scratch::{RESOLVER_TIMEOUT, Scratch};
 
-/// Why a lock step failed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Error(String);
 
 impl Error {
-    /// An error with the given message.
     pub fn new(message: impl Into<String>) -> Self {
         Self(message.into())
     }
@@ -41,87 +37,52 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// The registry values of one ecosystem that the lock step reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Spec {
-    /// The `ecosystem` value.
     pub ecosystem: String,
-    /// The `manifest` names, best first; each is a file name glob such as `*.opam`.
     pub manifest: Vec<String>,
-    /// The `state` names, best first; empty when the resolver keeps no state.
     pub state: Vec<String>,
 }
 
 impl Spec {
-    /// The lock file name.
     #[must_use]
     pub fn lock_name(&self) -> String {
         format!("{}.lock.json", self.ecosystem)
     }
 }
 
-/// Resolves the closure of one dependency set.
 pub trait Resolver {
-    /// Resolves the manifest in `scratch.set()`, writes the state file there, and returns the closure.
-    ///
-    /// `old` is the lock of the previous run, when it has one for this ecosystem.
-    ///
-    /// # Errors
-    /// Fails when the manifest has no resolution.
     fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error>;
 
-    /// The names of the further files the resolver reads; each is a file name glob such as `*.cabal`.
-    ///
-    /// Every file that any of them matches is copied into `scratch.set()` and digested with the manifest.
     fn sources(&self) -> Vec<String> {
         Vec::new()
     }
 }
 
-/// Reads archives the lock has no digest for.
-///
-/// It is called from several threads at once.
 pub trait Fetch: Sync {
-    /// Downloads `url` and returns the sha256 of its bytes.
-    ///
-    /// # Errors
-    /// Fails when the download does.
     fn sha256(&self, url: &str) -> Result<String, Error>;
 }
 
-/// How a lock step ended.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Outcome {
-    /// The lock matches its inputs; nothing ran.
     Fresh,
-    /// The lock was resolved and written.
     Written,
-    /// `--check` found the lock missing or stale.
     Stale,
 }
 
-/// The parsed flags of a lock step.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Args {
-    /// The set directory.
     pub dir: PathBuf,
-    /// Whether to compare only.
     pub check: bool,
-    /// The packages to resolve afresh instead of keeping their locked version.
     pub upgrade: Vec<String>,
 }
 
-/// The flags, one line each.
 pub const USAGE: &str = "\
 --dir <path>  the absolute directory of the dependency set
 --check       compare only; exit 1 when the lock is stale
 --upgrade <name>  resolve this package afresh; repeatable";
 
 impl Args {
-    /// Parses `--dir <path>`, `--check` and `--upgrade <name>`.
-    ///
-    /// # Errors
-    /// Fails on an unknown flag and on a missing or relative `--dir`.
     pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, Error> {
         let mut dir = None;
         let mut check = false;
@@ -158,12 +119,10 @@ impl Args {
     }
 }
 
-/// Parses `pattern`, a file name glob such as `*.opam`.
 fn glob(pattern: &str) -> Result<Glob, Error> {
     Glob::new(pattern).map_err(|error| Error::new(format!("file pattern {pattern}: {error}")))
 }
 
-/// The sorted names of the files in `dir`.
 fn file_names(dir: &Path) -> Result<Vec<String>, Error> {
     let mut names = Vec::new();
     let entries = std::fs::read_dir(dir)
@@ -178,7 +137,6 @@ fn file_names(dir: &Path) -> Result<Vec<String>, Error> {
     Ok(names)
 }
 
-/// The files of `dir` named by the first of `patterns` that names any, sorted.
 fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     let names = file_names(dir)?;
     for pattern in patterns {
@@ -195,7 +153,6 @@ fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     Ok(Vec::new())
 }
 
-/// The files of `dir` named by any of `patterns`, sorted.
 fn all_named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     let mut builder = GlobSetBuilder::new();
     for pattern in patterns {
@@ -219,7 +176,6 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), Error> {
         .map_err(|error| Error::new(format!("{}: {error}", path.display())))
 }
 
-/// The manifest and state files of a set.
 struct Inputs {
     manifest: Vec<String>,
     sources: Vec<String>,
@@ -259,7 +215,6 @@ impl Inputs {
     }
 }
 
-/// The digest of `wanted` in `old` when the package name, version and archive URLs are the same.
 fn kept<'a>(old: Option<&'a [Package]>, package: &Package, wanted: &Archive) -> Option<&'a str> {
     old?.iter()
         .find(|entry| entry.name == package.name && entry.version == package.version)?
@@ -269,18 +224,13 @@ fn kept<'a>(old: Option<&'a [Package]>, package: &Package, wanted: &Archive) -> 
         .map(|archive| archive.sha256.as_str())
 }
 
-/// The most archive downloads a lock step runs at once.
 const FETCH_JOBS: usize = 8;
 
-/// An archive that has no digest yet, with the package that names it.
 struct Job {
     package: Package,
     archive: Archive,
 }
 
-/// Fills every empty archive digest of `lock` from `old`, else from a download.
-///
-/// Downloads run on up to `FETCH_JOBS` threads, once per URL list; no new download starts after one fails.
 fn fill_all_digests(lock: &mut Lock, old: Option<&Lock>, fetch: &dyn Fetch) -> Result<(), Error> {
     let mut jobs: Vec<Job> = Vec::new();
     let mut queued = BTreeSet::new();
@@ -324,7 +274,6 @@ fn fill_all_digests(lock: &mut Lock, old: Option<&Lock>, fetch: &dyn Fetch) -> R
     Ok(())
 }
 
-/// The digest of every job's archive by its URL list, or one error naming every failed download.
 fn fetched_all(jobs: &[Job], fetch: &dyn Fetch) -> Result<BTreeMap<Vec<String>, String>, Error> {
     let next = AtomicUsize::new(0);
     let failed = AtomicBool::new(false);
@@ -393,10 +342,6 @@ fn fetched(fetch: &dyn Fetch, package: &Package, archive: &Archive) -> Result<St
     )))
 }
 
-/// Runs the lock step of one set.
-///
-/// # Errors
-/// Fails when the set has no manifest, the resolver or a download fails, or a file cannot be written.
 pub fn run(
     spec: &Spec,
     args: &Args,
@@ -479,15 +424,12 @@ pub fn run(
     Ok(Outcome::Written)
 }
 
-/// Reports that `ecosystem` has no registry entry and returns exit code 2.
 #[must_use]
 pub fn missing_hub(ecosystem: &str) -> i32 {
     dx_error::stdio::eprint_line(format_args!("{ecosystem} has no registry entry"));
     2
 }
 
-/// Runs the lock step on `args`, the arguments after the program or subcommand name: 0 when the
-/// lock is fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(spec: &Spec, resolver: &dyn Resolver, args: &[String]) -> i32 {
     let outcome = Args::parse(args.iter().cloned()).and_then(|args| {
         run(spec, &args, resolver, &HttpFetch::new()).map(|outcome| (outcome, args))
@@ -508,11 +450,6 @@ pub fn run_process(spec: &Spec, resolver: &dyn Resolver, args: &[String]) -> i32
     }
 }
 
-/// Splits the `<flag>=<path>` arguments a `dx_subcommand` `path_args` passes off `args`:
-/// returns one absolute path per entry of `flags`, in order, and the other arguments.
-///
-/// # Errors
-/// Fails when a flag is missing, given twice or not an absolute path.
 pub fn tool_paths(args: &[String], flags: &[&str]) -> Result<(Vec<PathBuf>, Vec<String>), Error> {
     let mut paths: Vec<Option<PathBuf>> = vec![None; flags.len()];
     let mut rest = Vec::new();
@@ -585,7 +522,6 @@ mod tests {
         assert_eq!(error.to_string(), "--java bin/java is not absolute");
     }
 
-    /// A directory holding empty files with `names`.
     fn dir_with(names: &[&str]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         for name in names {
@@ -669,7 +605,6 @@ mod tests {
 
     #[test]
     fn many_stars_match_in_linear_time() {
-        // A backtracking matcher tries every split of the name per `*`; it would not finish here.
         let name = "a".repeat(64);
         let dir = dir_with(&[name.as_str()]);
         let no_match = format!("{}b", "*a".repeat(16));
@@ -690,7 +625,6 @@ mod tests {
         assert!(all_named_files(dir.path(), &patterns(&["[.opam"])).is_err());
     }
 
-    /// A fetcher whose digest is the sha256 of the URL; it fails for URLs ending in `/missing`.
     #[derive(Default)]
     struct Counting {
         asked: std::sync::Mutex<Vec<String>>,

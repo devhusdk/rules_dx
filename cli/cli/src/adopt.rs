@@ -28,7 +28,6 @@ pub struct AdoptEnv<'a> {
     pub err: &'a mut dyn Write,
 }
 
-/// Classifies an adoption error: bad input is usage, a refused tree or version is a failure, and a file or process that cannot be read, written or started is infra. `prefix` goes in front of a path in the message.
 pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error::DxError {
     use dx_adopt::AdoptError as E;
     let message = match error {
@@ -301,8 +300,6 @@ mod tests {
         }
     }
 
-    /// Offsets where the record kind changes: the JSON `event` field, or the
-    /// first word of a text line. Lines of one kind share a write path.
     fn document_starts(output: &[u8]) -> Vec<usize> {
         let kind = |line: &[u8]| -> String {
             serde_json::from_slice::<serde_json::Value>(line)

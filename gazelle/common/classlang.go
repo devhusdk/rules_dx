@@ -5,38 +5,29 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/language"
 )
 
-// ClassLangSpec describes a one-library-per-directory language named by class.
 type ClassLangSpec struct {
-	LanguageName string
-	LibraryKind  string
-	MainRule     string
-	// Variant swaps LibraryKind for a platform kind; see KindVariant.
+	LanguageName   string
+	LibraryKind    string
+	MainRule       string
 	Variant        *KindVariant
 	DefsPackage    string
 	UnresolvedHint string
 	Exts           []string
 	TestSuffixes   []string
-	// ClassIDs indexes each source under its bare class identity.
-	ClassIDs bool
-	// PackageIDs indexes each source under its package and its package-qualified class identity.
-	PackageIDs   bool
-	ParsePackage func(content []byte) (string, error)
-	DefinesMain  func(content []byte) bool
-	ParseImports func(content []byte) []string
-	IsStdLib     func(name string) bool
-	Candidates   func(name string) []string
-	OrderSrcs    func(name string, sources []string, contents map[string][]byte) ([]string, error)
-	MakeRule     func(name string, sources []string, headers []string) *rule.Rule
-	// External is the dx_external ecosystem third-party imports resolve through.
-	External string
-	// Tests, when set, generates one test rule per test source; its IsSource
-	// defaults to the TestSuffixes match. TestMergeable names attributes of
-	// the test kind refreshed on merge beyond srcs and deps.
-	Tests         *TestSpec
-	TestMergeable []string
+	ClassIDs       bool
+	PackageIDs     bool
+	ParsePackage   func(content []byte) (string, error)
+	DefinesMain    func(content []byte) bool
+	ParseImports   func(content []byte) []string
+	IsStdLib       func(name string) bool
+	Candidates     func(name string) []string
+	OrderSrcs      func(name string, sources []string, contents map[string][]byte) ([]string, error)
+	MakeRule       func(name string, sources []string, headers []string) *rule.Rule
+	External       string
+	Tests          *TestSpec
+	TestMergeable  []string
 }
 
-// Spec returns the SingleLangSpec the class language runs on.
 func (s ClassLangSpec) Spec() SingleLangSpec {
 	isSource := func(name string) bool { return HasExt(name, s.Exts) }
 	isTest := func(name string) bool { return IsTestSource(name, s.Exts, s.TestSuffixes) }
@@ -102,5 +93,4 @@ func (s ClassLangSpec) Spec() SingleLangSpec {
 	return spec
 }
 
-// NewClassLang returns the language described by s.
 func NewClassLang(s ClassLangSpec) *SingleLang { return NewSingleLang(s.Spec()) }

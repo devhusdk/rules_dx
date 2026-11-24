@@ -1,15 +1,11 @@
-//! One validated workspace-relative path.
-
 use super::{PathProblem, classify};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// A serialized workspace-relative path, validated and canonically spelled.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WorkspaceRelativePath(String);
 
 impl WorkspaceRelativePath {
-    /// Validates a serialized path against the shared ladder.
     pub fn new(path: &str) -> Result<Self, PathProblem> {
         match classify(path) {
             Some(PathProblem::EmptyComponent) | None => {}
@@ -23,13 +19,11 @@ impl WorkspaceRelativePath {
         Ok(Self(canonical))
     }
 
-    /// The canonical spelling, with forward slashes and no empty component.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// Joins the path onto a root the caller owns.
     #[must_use]
     pub fn join_to_root(&self, root: &Path) -> PathBuf {
         root.join(&self.0)
@@ -42,20 +36,12 @@ impl fmt::Display for WorkspaceRelativePath {
     }
 }
 
-/// The message carried by the `InvalidInput` error of the resolvers.
 pub const LEAVES_WORKSPACE: &str = "path leaves the workspace";
 
 fn leaves_workspace() -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidInput, LEAVES_WORKSPACE)
 }
 
-/// Resolves an existing workspace-relative path and fails with
-/// `InvalidInput` if it leaves the workspace through a link.
-///
-/// `NotFound` passes through. The check is made before use, so a link
-/// created between the check and a later open is not caught; the threat is
-/// repository content, not a concurrent attacker. Messages should name the
-/// relative path, never the canonical one.
 pub fn resolve_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<PathBuf> {
     let root = std::fs::canonicalize(workspace)?;
     let target = std::fs::canonicalize(workspace.join(rel))?;
@@ -66,11 +52,6 @@ pub fn resolve_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<Path
     }
 }
 
-/// Like [`resolve_in_workspace`] for a write target that may not exist yet.
-///
-/// A dangling leaf link, or a missing leaf below a directory that links out
-/// of the workspace, fails with `InvalidInput`. A missing workspace root is
-/// `NotFound`.
 pub fn resolve_target_in_workspace(workspace: &Path, rel: &str) -> std::io::Result<PathBuf> {
     let root = std::fs::canonicalize(workspace)?;
     #[cfg(windows)]

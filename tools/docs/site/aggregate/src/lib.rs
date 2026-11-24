@@ -202,7 +202,6 @@ pub fn title(id: &str) -> String {
     let package = parts.next().unwrap_or_default();
     let qualified = parts.next().unwrap_or_default();
     if language == "rust" {
-        // `name@tag` and `name@tag-N` disambiguate items that share a name.
         let (qualified, note) = match qualified.rsplit_once('@') {
             Some((name, tag)) => {
                 let note = match tag.rsplit_once('-') {
@@ -239,7 +238,6 @@ pub fn code(text: &str) -> String {
     }
 }
 
-/// Escapes the characters that would end or nest a Markdown link text.
 fn link_text(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
@@ -251,7 +249,6 @@ fn link_text(text: &str) -> String {
     out
 }
 
-/// Reader-facing titles: a symbol's display name when its shard sets one, else `title(id)`.
 struct Titles<'a> {
     names: BTreeMap<&'a str, &'a str>,
     kinds: BTreeMap<&'a str, i32>,
@@ -351,7 +348,6 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, AggregateE
         return Err(AggregateError::NoSymbols);
     }
     let mut lowered: BTreeMap<String, &str> = BTreeMap::new();
-    // Only JVM and .NET languages are checked until `api_path` encodes case.
     for id in pages.keys().filter(|id| {
         ["java:", "kotlin:", "scala:", "csharp:", "fsharp:"]
             .iter()
@@ -598,8 +594,6 @@ pub fn relative(from: &str, to: &str) -> String {
     parts.join("/")
 }
 
-/// Rewrites `](dx:<id>)` link targets outside code fences and code spans. A known id becomes a
-/// relative page link; an unknown id degrades to a code span of its title.
 fn rewrite_dx_links(doc: &str, from: &str, known: &BTreeSet<&str>, titles: &Titles<'_>) -> String {
     let mut fenced = false;
     let lines: Vec<String> = doc

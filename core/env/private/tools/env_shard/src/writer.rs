@@ -27,7 +27,6 @@ impl ShardKind for EnvKind {
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 9370, policy: docs/cli/commands/build-test-coverage.md
-/// Runs the writer on the given arguments and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     dx_shard_writer::run_process::<EnvKind>(args)

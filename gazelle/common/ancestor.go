@@ -14,9 +14,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 )
 
-// AncestorOwner finds a rule in a package above rel whose attributes name a
-// file under rel by relative path. It returns the rule's label, such as
-// "//tests:mixed".
 func AncestorOwner(c *config.Config, rel string) (string, bool) {
 	for dir := path.Dir(rel); rel != "" && rel != "."; dir = path.Dir(dir) {
 		if dir == "." {
@@ -56,8 +53,6 @@ func namesUnder(r *rule.Rule, dir, rel string) bool {
 	return false
 }
 
-// AncestorOwnedNotice records that no BUILD file is created in Package
-// because Rule owns files under it.
 type AncestorOwnedNotice struct {
 	Package string `json:"package"`
 	Rule    string `json:"rule"`
@@ -68,16 +63,12 @@ var (
 	ancestorNotices []AncestorOwnedNotice
 )
 
-// NoticeAncestorOwned records that no BUILD file is created in rel because
-// the ancestor rule owns files under it.
 func NoticeAncestorOwned(rel, owner string) {
 	ancestorMu.Lock()
 	defer ancestorMu.Unlock()
 	ancestorNotices = append(ancestorNotices, AncestorOwnedNotice{Package: rel, Rule: owner})
 }
 
-// TakeAncestorOwned returns the recorded notices sorted by package and rule,
-// without duplicates, and empties the record.
 func TakeAncestorOwned() []AncestorOwnedNotice {
 	ancestorMu.Lock()
 	out := ancestorNotices

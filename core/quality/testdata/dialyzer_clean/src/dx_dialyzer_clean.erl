@@ -2,5 +2,5 @@
 
 -export([answer/0]).
 
--spec answer() -> integer().
+-spec answer() -> 42.
 answer() -> 42.

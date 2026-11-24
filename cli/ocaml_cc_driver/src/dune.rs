@@ -1,14 +1,8 @@
-//! Runs one dune step in a scratch copy of the sources with the toolchain environment.
-//!
-//! `dx ocaml_dune MODE ARG...` takes the toolchain variables from its environment, where
-//! `$ROOT` stands for the execution root, and paths in ARG relative to that root.
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-/// What one dune step builds.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
     Bootstrap {
@@ -32,7 +26,6 @@ pub enum Step {
     },
 }
 
-/// A parsed command line: the step, the job count and the OCaml compiler directory.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Request {
     pub step: Step,
@@ -83,7 +76,6 @@ fn pairs(
         .collect()
 }
 
-/// Parses `MODE --flag VALUE...` into a request.
 pub fn parse(args: &[String]) -> Result<Request, String> {
     let (mode, rest) = args.split_first().ok_or("a mode is required")?;
     let found = flags(rest)?;
@@ -116,7 +108,6 @@ pub fn parse(args: &[String]) -> Result<Request, String> {
     })
 }
 
-/// Drops the `(vendored_dirs` lines of a dune file; returns None when it has none.
 pub fn without_vendored_dirs(text: &str) -> Option<String> {
     if !text.lines().any(|line| line.starts_with("(vendored_dirs")) {
         return None;
@@ -150,7 +141,6 @@ fn add_write(path: &Path) {
 #[cfg(not(unix))]
 fn add_write(_path: &Path) {}
 
-/// Makes a tree writable so it can be removed.
 fn make_writable(path: &Path) {
     add_write(path);
     if let Ok(meta) = fs::symlink_metadata(path)
@@ -163,7 +153,6 @@ fn make_writable(path: &Path) {
     }
 }
 
-/// Copies `from` into `to`, following symlinks, and leaves the copies writable.
 pub fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
     let meta = fs::metadata(from).map_err(|e| io(&from.display().to_string(), &e))?;
     if meta.is_dir() {
@@ -184,7 +173,6 @@ pub fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// A scratch tree, removed on drop. Dune leaves read-only files, so it is made writable first.
 struct Scratch(tempfile::TempDir);
 
 impl Scratch {
@@ -194,7 +182,6 @@ impl Scratch {
 }
 
 impl Drop for Scratch {
-    // Runs before the inner `TempDir` drops and removes the tree.
     fn drop(&mut self) {
         make_writable(self.0.path());
     }
@@ -237,7 +224,6 @@ pub fn expand_root(
         .collect()
 }
 
-/// The environment of the step: the inherited variables with `$ROOT` expanded, plus the scratch ones.
 fn step_env(
     root: &Path,
     scratch: &Path,
@@ -296,7 +282,6 @@ fn require_file(path: &Path, message: &str) -> Result<(), String> {
     }
 }
 
-/// Runs the step in the current directory, the execution root.
 pub fn execute(request: &Request) -> Result<(), String> {
     let root = std::env::current_dir().map_err(|e| io("current directory", &e))?;
     let scratch = scratch_dir()?;
@@ -396,7 +381,6 @@ pub fn execute(request: &Request) -> Result<(), String> {
     }
 }
 
-/// Parses the arguments after `dune` and runs the step.
 pub fn run_from_args(args: &[String]) -> Result<i32, String> {
     execute(&parse(args)?)?;
     Ok(0)

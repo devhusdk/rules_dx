@@ -1,5 +1,3 @@
-//! Converts the XML tree Doxygen writes for the public headers of a library into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,7 +12,6 @@ use quick_xml::reader::Reader;
 
 const FORMAT: u64 = 1;
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub xml: String,
@@ -24,23 +21,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `cc_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("cc_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: cc_extract --xml DIR --srcs FILE --package NAME --language cc|cuda --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -55,11 +45,6 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let mut documents = Vec::new();
     let entries = fs::read_dir(&options.xml)
@@ -95,7 +80,6 @@ pub fn run(options: &Options) -> Result<(), String> {
 
 pub use documentation_ir::escape_segment;
 
-/// One XML element with its attributes and children.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Node {
     name: String,
@@ -132,7 +116,6 @@ impl Node {
         self.nodes().find(|node| node.name == name)
     }
 
-    /// The plain text of this element, links and markup flattened.
     fn text(&self) -> String {
         let mut out = String::new();
         for child in &self.children {
@@ -231,12 +214,10 @@ fn parse_xml(text: &str) -> Result<Node, String> {
     root.ok_or_else(|| "Doxygen XML has no root element".to_owned())
 }
 
-/// Squeezes runs of whitespace into single spaces.
 fn squeeze(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The pieces of one documentation block.
 #[derive(Default)]
 struct Described {
     markdown: String,
@@ -399,7 +380,6 @@ fn describe(member: &Node) -> Described {
     described
 }
 
-/// Where each header Doxygen read lives in the workspace.
 struct Sources {
     by_path: BTreeMap<String, (String, bool)>,
 }
@@ -430,7 +410,6 @@ impl Sources {
     }
 }
 
-/// Splits a qualified C++ name at top-level `::`, keeping template arguments whole.
 fn segments(name: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
@@ -474,7 +453,6 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// One symbol before ids are made unique.
 struct Draft {
     path: Vec<String>,
     order: (u8, String, u64),
@@ -770,7 +748,6 @@ fn enum_values(
         return Vec::new();
     };
     let enum_id = format!("{prefix}{}", qualified(enum_path));
-    // Values of a plain enum are visible in the enclosing scope; Doxygen nests them under the enum for docs.
     member
         .all("enumvalue")
         .filter(|value| value.attr("prot") == "public" || value.attr("prot").is_empty())
@@ -999,11 +976,6 @@ fn compound_drafts(
     drafts
 }
 
-/// Converts the Doxygen XML documents of one package into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     documents: &[&str],
     manifest: &str,
@@ -1030,7 +1002,6 @@ pub fn convert(
     let compound_names = compound_names_of(&compounds);
     let mut drafts = compound_drafts(&compounds, &compound_names, &context, &prefix);
 
-    // Namespaces appear when something public lives in them.
     let mut namespaces: BTreeMap<Vec<String>, &Node> = BTreeMap::new();
     for compound in compounds.iter().filter(|c| c.attr("kind") == "namespace") {
         if let Some(path) = compound_names.get(compound.attr("id")) {
@@ -1063,7 +1034,6 @@ pub fn convert(
         ));
     }
     drafts.sort_by(|a, b| (&a.path, &a.order).cmp(&(&b.path, &b.order)));
-    // Overloads and a struct that shares its typedef name get "@N" suffixes in source order.
     let mut count: BTreeMap<String, usize> = BTreeMap::new();
     let mut symbols = Vec::new();
     for mut draft in drafts {

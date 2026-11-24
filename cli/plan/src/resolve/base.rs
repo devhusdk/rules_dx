@@ -1,10 +1,7 @@
-//! Resolves the base branch and merge-base that `--affected` and the changed-line gate compare against.
-
 use super::{QueryRunner, ResolveError, merge_base, missing_base_shallow_error, shallow_clone};
 use dx_adopt::DEFAULT_BRANCH_CANDIDATES;
 use std::path::{Path, PathBuf};
 
-/// Why a base could not be resolved: a git problem or a plan error.
 #[derive(Debug)]
 pub enum PlanError {
     Git(String),
@@ -43,8 +40,6 @@ fn resolves_to_commit(runner: &dyn QueryRunner, workspace: &Path, name: &str) ->
     .is_some()
 }
 
-/// Fails with a plain message when `workspace` is not inside a git work tree, so
-/// a missing repository is not misreported as a missing default branch.
 fn require_work_tree(runner: &dyn QueryRunner, workspace: &Path) -> Result<(), PlanError> {
     match git_text(runner, workspace, &["rev-parse", "--is-inside-work-tree"]).as_deref() {
         Some("true") => Ok(()),
@@ -55,7 +50,6 @@ fn require_work_tree(runner: &dyn QueryRunner, workspace: &Path) -> Result<(), P
     }
 }
 
-/// The `[affected] base` ref from `dx.toml`, when set.
 fn configured_base(workspace: &Path) -> Result<Option<String>, PlanError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config.and_then(|config| config.affected.base)),
@@ -65,8 +59,6 @@ fn configured_base(workspace: &Path) -> Result<Option<String>, PlanError> {
     }
 }
 
-/// The branch to take the merge-base with: `--base`, else `dx.toml` `[affected] base`,
-/// else the detected default branch.
 fn base_branch(
     runner: &dyn QueryRunner,
     workspace: &Path,
@@ -118,11 +110,6 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
     )))
 }
 
-/// The commit a `--since` ref names.
-///
-/// # Errors
-///
-/// Returns `Err` when `workspace` is not a git work tree or `rev` names no commit.
 pub fn since_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -138,11 +125,6 @@ pub fn since_base(
     .ok_or_else(|| PlanError::Git(format!("--since {rev:?} does not name a commit")))
 }
 
-/// The merge-base `--affected` compares against.
-///
-/// # Errors
-///
-/// Returns `Err` when `workspace` is not a git work tree or no base branch is found.
 pub fn affected_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -152,11 +134,6 @@ pub fn affected_base(
     named_base(workspace, runner, requested).map(|(_, base)| base)
 }
 
-/// The base branch (see [`base_branch`]) and its merge-base with `HEAD`.
-///
-/// # Errors
-///
-/// Returns `Err` when no base branch is found or git cannot compute the merge-base.
 pub fn named_base(
     workspace: &Path,
     runner: &dyn QueryRunner,

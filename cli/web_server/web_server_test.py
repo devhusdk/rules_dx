@@ -153,8 +153,6 @@ def _stop(process):
 
 
 def _ready_line(process, timeout=20):
-    # A reader thread gives readline() a deadline; select() does not work on
-    # Windows pipes.
     lines = queue.Queue()
     threading.Thread(
         target=lambda: lines.put(process.stdout.readline()), daemon=True
@@ -166,10 +164,6 @@ def _ready_line(process, timeout=20):
 
 
 def _listening_inodes(port):
-    # Linux names each socket by inode in /proc/net, so this tells our listener
-    # apart from one a parallel test may later bind to the same port. Other
-    # hosts return None and rely on the exit check: the kernel closes every
-    # socket of a process that exited.
     inodes = set()
     tables = [
         table for table in ("/proc/net/tcp", "/proc/net/tcp6") if os.path.exists(table)

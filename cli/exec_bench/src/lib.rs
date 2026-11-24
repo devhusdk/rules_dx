@@ -7,8 +7,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The `dx bench` verb: runs the tests tagged dx-bench, prints their results and compares them with a baseline.
-
 use dx_bep::{TestResultRecord, collect_test_events};
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -54,7 +52,6 @@ struct TargetResults {
     results: Vec<Measurement>,
 }
 
-/// The results of an earlier run, keyed by target label when the document has one.
 #[derive(Debug, Default)]
 struct Baseline {
     rows: Vec<(Option<String>, Measurement)>,
@@ -108,7 +105,6 @@ impl Baseline {
     }
 }
 
-/// One result set against its baseline row.
 struct Delta {
     baseline: f64,
     percent: f64,
@@ -154,7 +150,6 @@ fn gh_output(gh: &Path, args: &[&str]) -> Result<String, DxError> {
     .map_err(|error| DxError::infra(error.to_string()))
 }
 
-/// Downloads the `dx-bench-<platform>` artifact of the latest run on a ref.
 fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u8>, DxError> {
     let platform = dx_plan::platform::platform_key(std::env::consts::OS, std::env::consts::ARCH)
         .ok_or_else(|| DxError::failure("this platform has no dx-bench artifact"))?;
@@ -207,7 +202,6 @@ fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u
     })
 }
 
-/// The query that keeps the `dx-bench` tagged tests of a scope.
 fn bench_expression(resolved: &ResolvedScope) -> String {
     format!(
         "attr(tags, \"[\\[ ]dx-bench[,\\]]\", tests({}))",
@@ -229,7 +223,6 @@ fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, DxError> {
 
 const MAX_BENCH_BYTES: u64 = 16 << 20;
 
-/// Reads `dx-bench.json` out of the undeclared outputs zip one test result reports.
 fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, DxError> {
     let zip = result
         .files
@@ -297,7 +290,6 @@ fn merged_document(targets: &[TargetResults]) -> serde_json::Value {
     serde_json::json!({"schema": SCHEMA, "targets": targets})
 }
 
-/// Adds `baseline` and `delta_pct` to every result the baseline covers.
 fn add_deltas(document: &mut serde_json::Value, baseline: &Baseline) {
     let Some(targets) = document["targets"].as_array_mut() else {
         return;
@@ -322,7 +314,6 @@ fn add_deltas(document: &mut serde_json::Value, baseline: &Baseline) {
     }
 }
 
-/// The results slower than the baseline by more than `limit` percent and by more than two stddevs.
 fn regressions(targets: &[TargetResults], baseline: &Baseline, limit: u32) -> Vec<String> {
     let mut found = Vec::new();
     for target in targets {

@@ -125,7 +125,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     )
     .unwrap_or_else(|error| panic!("{error}"));
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
         rules_flutter_override(),
@@ -133,7 +133,8 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         llvm_override(),
         windows_support_override(),
         rules_python,
-    ) + &crate::quickstart_consumer_test::apple_overrides(&source, &root);
+        crate::quickstart_consumer_test::apple_overrides(&source, &root),
+    );
     assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
     write_rules_rust_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));

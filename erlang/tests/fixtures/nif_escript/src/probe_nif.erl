@@ -5,8 +5,10 @@
 init() ->
     erlang:load_nif(filename:join(code:priv_dir(nif_escript), "probe_nif"), 0).
 
+-spec probe() -> no_return().
 probe() ->
     erlang:nif_error(not_loaded).
 
+-spec main([string()]) -> no_return().
 main(_) ->
     probe().

@@ -8,7 +8,6 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// goModManifest holds the module paths the Go module file requires.
 type goModManifest struct {
 	direct   []string
 	indirect []string
@@ -61,8 +60,6 @@ func (m *goModManifest) Lookup(_, imp string) ([]label.Label, string) {
 	return []label.Label{label.New(label.ImportPathToBazelRepoName(mod), pkg, goLibName(imp))}, ""
 }
 
-// goLibName is the go_library name Gazelle's import naming convention gives
-// an import path.
 func goLibName(imp string) string {
 	name := path.Base(imp)
 	if isMajorVersion(name) {

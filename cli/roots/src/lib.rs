@@ -25,11 +25,6 @@ impl std::fmt::Display for ExactScopeError {
 
 impl std::error::Error for ExactScopeError {}
 
-/// The one exact target in `targets`, or `None` when it is empty.
-///
-/// # Errors
-///
-/// Returns `Err` when `targets` holds more than one target or a pattern that is not an exact label.
 pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactScopeError> {
     match targets {
         [] => Ok(None),
@@ -58,7 +53,6 @@ pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactS
 }
 
 fn is_exact_label(value: &str) -> bool {
-    // Bazel never reads a label with whitespace, control or invisible characters as the label the user typed.
     if value.chars().any(is_unreadable) || value.contains('\\') {
         return false;
     }
@@ -95,7 +89,6 @@ fn is_package_name(package: &str) -> bool {
         })
 }
 
-// Bazel accepts a lone "." target and a trailing "/." segment, but no other dot segment.
 fn is_target_name(target: &str) -> bool {
     if target == "." {
         return true;

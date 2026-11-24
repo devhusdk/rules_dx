@@ -365,7 +365,16 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
                 ("DL3008", crate::ToolSeverity::Error),
                 ("DL3018", crate::ToolSeverity::Error),
                 ("DL4006", crate::ToolSeverity::Error),
+                ("guard/", crate::ToolSeverity::Error),
             ],
+        },
+    ),
+    (
+        "hlint",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            floor: None,
+            categories: &[("Avoid restricted", crate::ToolSeverity::Error)],
         },
     ),
     (

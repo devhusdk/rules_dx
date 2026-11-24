@@ -9,7 +9,6 @@ use super::{
     dependency_failure, execution, parsed, spawn_argv, tier_lines,
 };
 
-/// What a tool module needs to launch one check.
 pub(super) struct CheckCall<'a> {
     pub tool_id: &'a str,
     pub tool: &'a RealTool,
@@ -18,7 +17,6 @@ pub(super) struct CheckCall<'a> {
     pub config: Option<&'a Path>,
 }
 
-/// A tool that owns its launch and parse in its own module.
 pub(super) struct ToolDef {
     pub id: &'static str,
     pub run: fn(&RealBackend, &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError>,
@@ -77,10 +75,6 @@ impl RealBackend {
         ))
     }
 
-    /// zanuda reads the typed trees the compile wrote, not the sources: the aspect stages each
-    /// `.cmt`/`.cmti` as `dx-zanuda/{impl,intf}/<source workspace path>.cmt[i]`. This batch lints
-    /// the entries whose source is in `pairs` and fails when an owned source has none, so a
-    /// target built with `-no-bin-annot` never reads as clean.
     pub(super) fn check_zanuda(
         &self,
         tool_id: &str,
@@ -154,7 +148,6 @@ impl RealBackend {
         parsed(tool_id, parsers::parse_zanuda(&bytes, out.code, &strs))
     }
 
-    /// Runs `cue vet -c=false` once per package, by import path from the enclosing CUE module root.
     pub(super) fn check_cue_vet(
         &self,
         tool_id: &str,
@@ -211,7 +204,6 @@ impl RealBackend {
         let mut findings = Vec::new();
         let mut reported = Vec::new();
         for (root, dir, package) in &groups {
-            // Vet by import path so cue builds the real instance.
             let rel = if root.is_empty() {
                 dir.as_str()
             } else {
@@ -254,11 +246,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// `pkl eval` once per owned module with imports staged beside it. Pkl stops at the first
-    /// error, so a batched run would lose findings and misattribute them. Abstract modules are
-    /// only loaded (`-x 1`), since rendering one reports its by-design unset properties. Values
-    /// are lazy: only what the module renders is forced, so hidden or unused members are not
-    /// checked. An error whose first frame is a non-owned file is an execution error.
     pub(super) fn check_pkl_eval(
         &self,
         tool_id: &str,
@@ -315,17 +302,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// `terraform init` then `terraform validate` once per directory that owns `.tf` files.
-    ///
-    /// Init is offline: every provider comes from the `-plugin-dir` mirrors the request names
-    /// in `DX_TERRAFORM_PLUGIN_DIRS` (an empty directory when there are none, so init never
-    /// reaches a registry), and a directory where any file init reads (a dependency's files
-    /// and test files included) calls a module init would download gets a module-source
-    /// finding instead of an init. Init findings (syntax and configuration errors) skip
-    /// validate for that directory. A failure that names no file is an execution error, never
-    /// clean. The root run and a child module's own run both see the child's errors, so
-    /// findings are de-duplicated. An error only in a non-owned file is an execution error, as
-    /// for pkl.
     pub(super) fn check_terraform_validate(
         &self,
         tool_id: &str,
@@ -430,7 +406,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// Runs one tool over the selection, in argv-budget batches when its transport allows.
     pub(super) fn check_files(
         &self,
         tool_id: &str,
@@ -493,21 +468,18 @@ impl RealBackend {
     }
 }
 
-/// Drops the scratch directory from `file://` links so messages read the same on every host.
 pub(super) fn without_scratch_url(message: &str, root: &Path) -> String {
     let root = root.to_string_lossy().replace('\\', "/");
     let root = root.trim_start_matches('/');
     message.replace(&format!("file:///{root}/"), "")
 }
 
-/// Drops the scratch directory from paths in a message, spelled with either separator.
 pub(super) fn without_scratch_root(message: &str, root: &Path) -> String {
     let native = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
     let forward = native.replace('\\', "/");
     message.replace(&native, "").replace(&forward, "")
 }
 
-/// Names the file whose output failed to parse.
 pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
     match err {
         RunnerError::ToolExecution { tool_id, detail } => RunnerError::ToolExecution {
@@ -532,7 +504,6 @@ pub(super) fn in_file(err: RunnerError, name: &str) -> RunnerError {
     }
 }
 
-/// Names the failing batch in an error when a selection ran as several spawns.
 fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
     if total <= 1 {
         return err;
@@ -560,11 +531,6 @@ fn in_batch(err: RunnerError, index: usize, total: usize) -> RunnerError {
     }
 }
 
-/// Groups staged files by their directory under the scratch root, in sorted directory order.
-///
-/// Each member is the file name inside its directory, its scratch-root-relative path
-/// (the spelling a `--chdir` tool reports) and its absolute path. A file at the root
-/// belongs to the directory `.`. Reusable by any directory-scoped linter.
 pub(super) type DirGroups = std::collections::BTreeMap<String, Vec<(String, String, String)>>;
 
 pub(super) fn group_by_parent(root: &Path, pairs: &[(String, PathBuf)]) -> DirGroups {
@@ -596,8 +562,6 @@ pub(super) fn group_by_parent(root: &Path, pairs: &[(String, PathBuf)]) -> DirGr
     groups
 }
 
-/// The package name of a CUE file: skips blank lines, `//` comments and file-level `@attr(...)`
-/// lines before the clause, and drops a trailing `//` comment. Empty when there is no clause.
 fn cue_package_clause(text: &str) -> String {
     text.lines()
         .map(str::trim)
@@ -610,8 +574,6 @@ fn cue_package_clause(text: &str) -> String {
         .unwrap_or_default()
 }
 
-/// The JVM finds its modules file beside the launcher it was started from, and a
-/// runfiles symlink on Windows does not lead there, so the launcher is named by its real path.
 pub(super) fn real_launcher(path: &Path) -> PathBuf {
     match std::fs::canonicalize(path) {
         Ok(real) => dx_path::without_verbatim(&real),

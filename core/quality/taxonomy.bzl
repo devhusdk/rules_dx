@@ -1,118 +1,19 @@
 """Quality taxonomy: every family with its wrapper owner and file classes."""
 
-load("//core/modules:langs.bzl", "LANGS")
+load("//core/modules:langs.bzl", "CORE_FAMILIES", "LANGS")
 
 visibility("private")
 
-OTHER_FAMILIES = {
-    "core": struct(
-        owner = "other",
-        classes = ["github_workflow"],
-    ),
-    "css": struct(
-        owner = "//javascript:defs.bzl",
-        classes = ["css", "less", "scss"],
-    ),
-    "cue": struct(
-        owner = "//core:defs.bzl",
-        classes = ["cue"],
-    ),
-    "gherkin": struct(
-        owner = "//core:defs.bzl",
-        classes = ["gherkin"],
-    ),
-    "go_module": struct(
-        owner = "other",
-        classes = ["go_module"],
-    ),
-    "graphql": struct(
-        owner = "//javascript:defs.bzl",
-        classes = ["graphql"],
-    ),
-    "html": struct(
-        owner = "//javascript:defs.bzl",
-        classes = ["html"],
-    ),
-    "html_template": struct(
-        owner = "//core:defs.bzl",
-        classes = ["html_template"],
-    ),
-    "json": struct(
-        owner = "other",
-        classes = ["json", "json5", "jsonc"],
-    ),
-    "jsonnet": struct(
-        owner = "//core:defs.bzl",
-        classes = ["jsonnet"],
-    ),
-    "jupyter": struct(
-        owner = "//core:defs.bzl",
-        classes = ["jupyter"],
-    ),
-    "latex": struct(
-        owner = "//core:defs.bzl",
-        classes = ["latex"],
-    ),
-    "markdown": struct(
-        owner = "other",
-        classes = ["markdown"],
-    ),
-    "nix": struct(
-        owner = "//core:defs.bzl",
-        classes = ["nix"],
-    ),
-    "objc": struct(
-        owner = "//cc:defs.bzl",
-        classes = ["objc", "objcpp"],
-    ),
-    "oci_image": struct(
-        owner = "//deploy:defs.bzl",
-        classes = ["oci_image"],
-    ),
-    "pkl": struct(
-        owner = "//core:defs.bzl",
-        classes = ["pkl"],
-    ),
-    "protobuf": struct(
-        owner = "other",
-        classes = ["protobuf"],
-    ),
-    "rst": struct(
-        owner = "//rst:defs.bzl",
-        classes = ["rst"],
-    ),
-    "shell": struct(
-        owner = "other",
-        classes = ["shell"],
-    ),
-    "starlark": struct(
-        owner = "other",
-        classes = ["starlark"],
-    ),
-    "text": struct(
-        owner = "other",
-        classes = ["text"],
-    ),
-    "toml": struct(
-        owner = "other",
-        classes = ["toml"],
-    ),
-    "typst": struct(
-        owner = "//core:defs.bzl",
-        classes = ["typst"],
-    ),
-    "xml": struct(
-        owner = "//core:defs.bzl",
-        classes = ["xml"],
-    ),
-    "yaml": struct(
-        owner = "//core:defs.bzl",
-        classes = ["yaml"],
-    ),
-}
-
 # Kept apart from the label: the consumer surface walk reads a bare colon-defs string as a load from this package.
 _PUBLIC_DEFS = "defs.bzl"
+
+def _owner(name):
+    return "other" if name == "other" else "//" + name + ":" + _PUBLIC_DEFS
+
+CORE_TAXONOMY = {
+    family: struct(owner = _owner(row["owner"]), classes = row["classes"])
+    for family, row in CORE_FAMILIES.items()
+}
 
 LANG_JSON_FAMILIES = {
     row["quality"].get("family", lang): struct(
@@ -123,7 +24,7 @@ LANG_JSON_FAMILIES = {
     if "classes" in row.get("quality", {})
 }
 
-_ROWS = OTHER_FAMILIES | LANG_JSON_FAMILIES
+_ROWS = CORE_TAXONOMY | LANG_JSON_FAMILIES
 
 TAXONOMY = {family: _ROWS[family] for family in sorted(_ROWS.keys())}
 

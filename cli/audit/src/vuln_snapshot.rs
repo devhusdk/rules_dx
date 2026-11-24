@@ -1,8 +1,6 @@
 use super::{Advisory, AdvisoryKind, is_version_family};
 use dx_error::DxError;
 
-/// The set opam advisories belong to. The osv crate has no opam ecosystem, so those entries are
-/// read under `GHC`, an ecosystem no snapshot family downloads.
 const OPAM_SET: &str = "opam";
 
 pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, DxError> {

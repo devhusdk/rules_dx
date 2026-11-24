@@ -1,17 +1,11 @@
-//! The one-line notice before the first Bazel run in a workspace.
-
 use std::path::{Path, PathBuf};
 
 use dx_plan::args::{Command, Invocation};
 
-/// What dx prints to stderr before the first Bazel call in a workspace.
 pub const FIRST_RUN_NOTICE: &str = "dx: first run in this workspace; Bazel will fetch toolchains and dependencies and this can take several minutes";
 
-/// Startup flags that move the output base; an rc that sets one makes the answer unknown.
 const ROOT_FLAGS: [&str; 2] = ["--output_user_root", "--output_base"];
 
-/// The rc files Bazel reads that can move the output root: the workspace `.bazelrc` and what
-/// it imports, the user's `~/.bazelrc` and the system rc.
 fn rc_files(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
     let mut files = vec![workspace.join(".bazelrc")];
     if let Some(home) = env_get("HOME")
@@ -24,7 +18,6 @@ fn rc_files(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> Vec<P
     files
 }
 
-/// Paths named by `import` and `try-import` lines, with `%workspace%` expanded.
 fn rc_imports(text: &str, workspace: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     for line in text.lines() {
@@ -43,7 +36,6 @@ fn rc_imports(text: &str, workspace: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// Whether a `startup` line of the rc text sets an output root flag, ignoring comments.
 fn startup_moves_root(text: &str) -> bool {
     text.lines().any(|line| {
         let line = line.split('#').next().unwrap_or("");
@@ -59,7 +51,6 @@ fn startup_moves_root(text: &str) -> bool {
     })
 }
 
-/// Whether any rc file Bazel reads for `workspace` names an output root flag.
 fn rc_moves_output_root(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> bool {
     let mut pending = rc_files(workspace, env_get);
     let mut seen: Vec<PathBuf> = Vec::new();
@@ -79,8 +70,6 @@ fn rc_moves_output_root(workspace: &Path, env_get: &dyn Fn(&str) -> Option<Strin
     false
 }
 
-/// Whether Bazel has never run in `workspace`: `Some(true)` when no output base records it,
-/// `Some(false)` when one does, and `None` when the output root is not where dx can see it.
 pub fn first_run(
     workspace: &Path,
     startup_options: &[String],
@@ -109,8 +98,6 @@ pub fn first_run(
     Some(!dx_worktree::host::has_output_base(&roots, workspace))
 }
 
-/// The notice to print before running `invocation`, if it is a chatty Bazel-backed command
-/// in a workspace where Bazel has never run.
 pub fn first_run_notice(
     invocation: &Invocation,
     workspace: &Path,

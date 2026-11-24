@@ -10,7 +10,6 @@ use dx_plan::resolve::base::{PlanError, named_base};
 use std::io::Write;
 use std::path::Path;
 
-/// What the changed-line gate needs from one `dx coverage` run.
 pub(super) struct ChangedGate<'a> {
     pub(super) minimum: Option<u32>,
     pub(super) account: Option<&'a CellAccount>,
@@ -20,11 +19,6 @@ pub(super) struct ChangedGate<'a> {
     pub(super) output: OutputMode,
 }
 
-/// The lines the working tree adds since `merge_base`, with every untracked file counted in full.
-///
-/// # Errors
-///
-/// Returns `Err` when a git command fails or its output cannot be read.
 pub fn changed_lines(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -87,7 +81,6 @@ fn percent(covered: u64, eligible: u64) -> String {
     )
 }
 
-/// One gate verdict, ready to print.
 struct Verdict {
     event: ChangedLineCoverageEvent,
     error: Option<(&'static str, String)>,
@@ -210,7 +203,6 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
     }
 }
 
-/// Gates the lines changed since the merge-base on `--min-changed-line-coverage`; true without the flag.
 pub(super) fn changed_line_threshold(
     gate: &ChangedGate<'_>,
     out: &mut dyn Write,

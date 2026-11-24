@@ -52,8 +52,6 @@ fn depcheck_language(set: &ResolvedSet) -> Result<Option<Language>, dx_adopt::Ad
     Ok(Language::of_ecosystem(set.ecosystem, prefer))
 }
 
-/// Crate name behind a label of a `crate_universe` hub: `serde-1.0.229` is `serde`, `cc` stays, and
-/// the binary target `ripgrep__rg` of a tool crate is `ripgrep`.
 fn crate_name(label: &str) -> Option<String> {
     let parsed = Label::parse(label)?;
     parsed.repo_name()?;
@@ -77,12 +75,10 @@ fn crate_name(label: &str) -> Option<String> {
     (!name.is_empty()).then(|| name.to_owned())
 }
 
-/// Maven and nuget packages are not imported by name, so only the Bazel graph can tell.
 fn graph_only(ecosystem: Ecosystem) -> bool {
     ecosystem.graph_only()
 }
 
-/// The hub of the `uv.project` whose pyproject is `manifest`.
 fn uv_hub(workspace: &Path, manifest: &str) -> Option<String> {
     let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).ok()?;
     let module = dx_module_bazel::ModuleFile::parse(&text).ok()?;
@@ -93,7 +89,6 @@ fn uv_hub(workspace: &Path, manifest: &str) -> Option<String> {
     Some(project.hub_name.to_owned())
 }
 
-/// The hub repositories of a nuget set: `@<name>` for `main`, `@<name>.<group>` for the others.
 fn nuget_hubs(workspace: &Path, set: &ResolvedSet) -> Vec<String> {
     let Some(lock) = set.locks.iter().find(|lock| lock.ends_with(".lock.json")) else {
         return Vec::new();
@@ -120,8 +115,6 @@ fn nuget_hubs(workspace: &Path, set: &ResolvedSet) -> Vec<String> {
         .collect()
 }
 
-/// Labels without repository and without a target that repeats the last package segment, so
-/// `@<hub>//numpy:numpy` and `@<hub>//numpy` agree.
 fn label_key(label: &str) -> Option<String> {
     let Label { package, name, .. } = Label::parse(label).filter(|parsed| !parsed.relative)?;
     if package.is_empty() {
@@ -137,8 +130,6 @@ fn manifest_dir(manifest: &str) -> &str {
     manifest.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-/// Keys of the labels that some target in the workspace depends on, each with the first label
-/// seen for it, or `None` when the set has no hub to ask or the query fails.
 fn used_labels(
     target: &ResolvedTarget,
     manifest: &str,
@@ -236,7 +227,6 @@ fn underscored(text: &str) -> String {
         .collect()
 }
 
-/// The label keys under which the Bazel graph would show `dep`.
 fn dep_keys(ecosystem: Ecosystem, dir: &str, dep: &dx_depcheck::DeclaredDep) -> Vec<String> {
     match ecosystem {
         Ecosystem::Cargo => vec![
@@ -269,7 +259,6 @@ fn dep_keys(ecosystem: Ecosystem, dir: &str, dep: &dx_depcheck::DeclaredDep) -> 
     }
 }
 
-/// Declared dependencies no BUILD target depends on, read from the Bazel graph.
 fn find_unused_in_graph(
     target: &ResolvedTarget,
     eco: Language,
@@ -301,7 +290,6 @@ fn find_unused_in_graph(
     )
 }
 
-/// Name of a Go module as gazelle spells its repository: `github.com/a/b` is `com_github_a_b`.
 fn go_repo_name(module: &str) -> String {
     let (host, rest) = module.split_once('/').unwrap_or((module, ""));
     let mut parts: Vec<&str> = host.split('.').collect();
@@ -309,8 +297,6 @@ fn go_repo_name(module: &str) -> String {
     underscored(&format!("{}/{rest}", parts.join(".")).replace('.', "_")).to_lowercase()
 }
 
-/// Manifest entries named in the deps of any target, for sets without a hub to query (go, ruby,
-/// cc).
 fn named_in_deps(
     target: &ResolvedTarget,
     eco: Language,
@@ -344,8 +330,6 @@ fn named_in_deps(
         .collect()
 }
 
-/// Declared dependencies of the resolved sets that nothing uses: no BUILD target for sets with a
-/// hub, no source under the manifest's directory otherwise.
 pub(super) fn find(
     workspace: &Path,
     resolved: &[ResolvedTarget],
@@ -413,9 +397,6 @@ fn lock_file_name(set: &ResolvedSet) -> Result<&'static str, dx_adopt::AdoptErro
         .unwrap_or(wanted))
 }
 
-/// Imports under the manifest's directory that no declared dependency covers, and hub labels
-/// that BUILD targets use but the manifest does not declare. Go reads its manifest; the other sets
-/// compare their lock's packages with the manifest.
 pub(super) fn find_missing(
     workspace: &Path,
     resolved: &[ResolvedTarget],
@@ -487,7 +468,6 @@ pub(super) fn find_missing(
     Ok(out)
 }
 
-/// Hub labels that a BUILD target depends on and the manifest does not declare.
 fn missing_hubs(
     workspace: &Path,
     target: &ResolvedTarget,
@@ -648,10 +628,8 @@ mod tests {
 
     struct Labels<'a>(&'a str);
 
-    /// Answers the hub query with `Labels` and the `rdeps` query with one BUILD target.
     struct HubAndUser<'a>(&'a str, &'a str);
 
-    /// `text` with each `{hub}` replaced by the hub name of `ecosystem`.
     fn at_hub(ecosystem: &str, text: &str) -> String {
         let hub = dx_families::hub(ecosystem)
             .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem}"))

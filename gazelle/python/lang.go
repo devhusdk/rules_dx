@@ -36,7 +36,7 @@ func kindInfo() rule.KindInfo {
 		MatchAttrs:    []string{"srcs"},
 		NonEmptyAttrs: map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{
-			"srcs":    true,
+			"srcs":         true,
 			"imports":      true,
 			"deps":         true,
 			"aspect_hints": true,
@@ -89,8 +89,6 @@ func newLang() *pythonLang {
 	})}
 }
 
-// Imports indexes each library source under its dotted module name, relative
-// to the first entry of the library's imports.
 func (l *pythonLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != libraryKind {
 		return nil
@@ -128,7 +126,6 @@ func (l *pythonLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []res
 	return specs
 }
 
-// findModule looks the longest dotted prefix of ref up, overrides first.
 func findModule(c *config.Config, ix *resolve.RuleIndex, ref common.ImportRef) common.JSLookup {
 	name := ref.Spec
 	if name == "" {
@@ -150,8 +147,6 @@ func findModule(c *config.Config, ix *resolve.RuleIndex, ref common.ImportRef) c
 	}
 }
 
-// packageDepth counts the directories from rel upward that hold an
-// __init__.py, never leaving the repository.
 func packageDepth(root, rel string) int {
 	depth := 0
 	for dir := rel; dir != "" && dir != "."; dir = path.Dir(dir) {
@@ -163,8 +158,6 @@ func packageDepth(root, rel string) int {
 	return depth
 }
 
-// existingDepth returns the depth that the imports attr of the existing
-// python rules names, when they all agree on one.
 func existingDepth(file *rule.File, rel string) (int, bool) {
 	if file == nil {
 		return 0, false
@@ -210,8 +203,6 @@ func importsFor(depth int) []string {
 	return []string{strings.TrimSuffix(strings.Repeat("../", depth), "/")}
 }
 
-// importRefs turns the imports of one module in package pkg (dotted) into
-// refs. Relative imports become absolute dotted names.
 func importRefs(imps []Import, pkg string) ([]common.ImportRef, error) {
 	var refs []common.ImportRef
 	for _, imp := range imps {
@@ -255,7 +246,6 @@ func mergeRefs(refs []common.ImportRef) []common.ImportRef {
 
 func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	if args.Rel == ".dx" || strings.HasPrefix(args.Rel, ".dx/") {
-		// dx init owns these packages, including the root ruff config.
 		return language.GenerateResult{}
 	}
 	var sources []string
@@ -445,8 +435,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	return mergeStale(args.File, result)
 }
 
-// keepIgnoredDeps keeps the existing deps of a rule that imports an ignored
-// module, since resolution cannot rebuild the dep that provides it.
 func keepIgnoredDeps(args language.GenerateArgs, r *rule.Rule, refs []common.ImportRef) {
 	if !slices.ContainsFunc(refs, func(ref common.ImportRef) bool {
 		return common.MatchingIgnore(args.Config, languageName, ref.Root) != nil
@@ -467,8 +455,6 @@ func keepIgnoredDeps(args language.GenerateArgs, r *rule.Rule, refs []common.Imp
 
 var bareTestFunc = regexp.MustCompile(`(?m)^(?:async\s+)?def\s+test`)
 
-// unittestOnly reports whether a test file is plain unittest: it imports
-// unittest and nothing of pytest, and defines no bare test functions.
 func unittestOnly(content []byte) bool {
 	usesUnittest := false
 	for _, imp := range ParseImports(content) {
@@ -516,8 +502,6 @@ func claimKind(c Claimant) string {
 	return libraryKind
 }
 
-// keptSources returns srcs plus the entries of the existing rule's srcs that
-// generation does not produce: labels, and existing files another rule owns.
 func keptSources(args language.GenerateArgs, existing *rule.Rule, owned map[string]bool, srcs []string) []string {
 	if existing == nil {
 		return srcs
@@ -541,7 +525,6 @@ func keptSources(args language.GenerateArgs, existing *rule.Rule, owned map[stri
 	return out
 }
 
-// dropLocalRefs drops the refs to modules that srcs provides.
 func dropLocalRefs(refs []common.ImportRef, srcs []string, pkgDotted string) []common.ImportRef {
 	var modules []string
 	for _, src := range srcs {
@@ -561,9 +544,6 @@ func dropLocalRefs(refs []common.ImportRef, srcs []string, pkgDotted string) []c
 	})
 }
 
-// ownedSources lists the sources that rules other than generated ones own:
-// other py_ and python_ rules, exports_files, binary srcs, and
-// the non-test sources of tests.
 func ownedSources(file *rule.File) map[string]bool {
 	owned := make(map[string]bool)
 	if file == nil {
@@ -614,8 +594,6 @@ func checkClaims(file *rule.File, other []*rule.Rule, claimants []Claimant) erro
 	return common.CheckClaims(file, other, filled)
 }
 
-// servesMain reports whether a binary runs main: its main attr names it, or it
-// has no main attr and lists it in srcs.
 func servesMain(main string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if m := r.AttrString("main"); m != "" {
@@ -625,8 +603,6 @@ func servesMain(main string) func(*rule.Rule) bool {
 	}
 }
 
-// ownerName returns the name of the existing rule of kind that lists src, so
-// a renamed target keeps its label.
 func ownerName(file *rule.File, kind, src string) string {
 	if file == nil {
 		return ""

@@ -1,17 +1,12 @@
-//! OS-held shared generation-use leases under one managed root.
-
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// Directory inside a managed root that holds generation lease files.
 pub const LEASES_DIR_NAME: &str = dx_path::state::LEASES;
 
-/// Suffix of every generation lease file.
 pub const LEASE_FILE_SUFFIX: &str = ".lock";
 
-/// Which managed generation family one lease protects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerationUse {
     Environment,
@@ -19,7 +14,6 @@ pub enum GenerationUse {
 }
 
 impl GenerationUse {
-    /// Generation directory this use protects.
     #[must_use]
     pub const fn dir_name(self) -> &'static str {
         match self {
@@ -28,7 +22,6 @@ impl GenerationUse {
         }
     }
 
-    /// Parses the `kind` half of a `kind:hex` lease entry.
     #[must_use]
     pub fn parse(kind: &str) -> Option<GenerationUse> {
         [GenerationUse::Environment, GenerationUse::Generated]
@@ -37,28 +30,24 @@ impl GenerationUse {
     }
 }
 
-/// A held shared generation-use lease; dropping releases it.
 #[derive(Debug)]
 pub struct SharedLease {
     file: File,
 }
 
 impl SharedLease {
-    /// Hands the locked file to a caller that keeps the raw handle.
     #[must_use]
     pub fn into_file(self) -> File {
         self.file
     }
 }
 
-/// A held exclusive generation lease; dropping releases it.
 #[derive(Debug)]
 pub struct ExclusiveLease {
     file: File,
 }
 
 impl ExclusiveLease {
-    /// Hands the locked file to a caller that keeps the raw handle.
     #[must_use]
     pub fn into_file(self) -> File {
         self.file
@@ -72,7 +61,6 @@ fn valid_hex(hex: &str) -> bool {
             .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
 }
 
-/// Names the lease file for one generation; rejects malformed identity.
 pub fn lease_path(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<PathBuf> {
     if !valid_hex(hex) {
         return Err(io::Error::new(
@@ -98,7 +86,6 @@ fn busy(path: &Path) -> io::Error {
     with_path(path, &io::Error::from(io::ErrorKind::WouldBlock))
 }
 
-/// Holds a shared lease, waiting up to `timeout` for exclusive holders.
 pub fn acquire_shared(
     root: &Path,
     kind: GenerationUse,
@@ -108,7 +95,6 @@ pub fn acquire_shared(
     acquire_shared_at(&lease_path(root, kind, hex)?, timeout)
 }
 
-/// Holds a shared lease on the file at `path`, waiting up to `timeout` for exclusive holders.
 pub fn acquire_shared_at(path: &Path, timeout: Duration) -> io::Result<SharedLease> {
     let file = open_lease_file(path)?;
     let start = std::time::Instant::now();
@@ -126,7 +112,6 @@ pub fn acquire_shared_at(path: &Path, timeout: Duration) -> io::Result<SharedLea
     }
 }
 
-/// Holds the exclusive lease when no shared holder exists.
 pub fn try_acquire_exclusive(
     root: &Path,
     kind: GenerationUse,
@@ -154,7 +139,6 @@ fn open_lock_file(path: &Path, create: bool) -> io::Result<File> {
         .map_err(|error| with_path(path, &error))
 }
 
-/// Locks the file at `path` exclusively without waiting; `None` means another holder has it.
 pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
     let file = open_lock_file(path, create)?;
     match file.try_lock() {
@@ -164,7 +148,6 @@ pub fn try_lock_file(path: &Path, create: bool) -> io::Result<Option<File>> {
     }
 }
 
-/// Locks the file at `path` shared without waiting; `None` means an exclusive holder has it.
 pub fn try_lock_file_shared(path: &Path, create: bool) -> io::Result<Option<File>> {
     let file = open_lock_file(path, create)?;
     match file.try_lock_shared() {
@@ -174,7 +157,6 @@ pub fn try_lock_file_shared(path: &Path, create: bool) -> io::Result<Option<File
     }
 }
 
-/// Holds the exclusive lease file at `path`, waiting up to `timeout`.
 pub fn acquire_exclusive_at(path: &Path, timeout: Duration) -> io::Result<ExclusiveLease> {
     let file = open_lease_file(path)?;
     match super::lock_exclusive(&file, timeout) {
@@ -184,7 +166,6 @@ pub fn acquire_exclusive_at(path: &Path, timeout: Duration) -> io::Result<Exclus
     }
 }
 
-/// Reports whether a live shared holder blocks exclusive acquisition.
 pub fn shared_held(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<bool> {
     Ok(try_acquire_exclusive(root, kind, hex)?.is_none())
 }

@@ -14,7 +14,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return fsharp.Language() })
 
-// openPaths returns the dotted target of every open declaration in source order.
 func openPaths(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -39,8 +38,6 @@ func openPaths(content []byte) []string {
 	return out
 }
 
-// openTypePath reads the path of `open type X.Y.Z`, which the grammar places
-// in the sibling after the import_decl.
 func openTypePath(tree *treesitter.Tree, n *treesitter.Node) string {
 	if n == nil {
 		return ""
@@ -59,7 +56,6 @@ func openTypePath(tree *treesitter.Tree, n *treesitter.Node) string {
 	return ""
 }
 
-// topDeclTree reads the file-level namespace or module declaration.
 func topDeclTree(content []byte) (topDecl, bool) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -74,7 +70,6 @@ func topDeclTree(content []byte) (topDecl, bool) {
 		for _, c := range d.Children() {
 			switch tree.Type(c) {
 			case "long_identifier":
-				// "module rec A.B" parses rec as the first identifier.
 				if tree.Text(c) == "rec" {
 					continue
 				}
@@ -108,8 +103,6 @@ func ParseImports(content []byte) []string {
 	return sortedKeys(set)
 }
 
-// namespaceCandidates lists the shorter prefixes of a dotted open path, longest
-// first, then its last segment.
 func namespaceCandidates(name string) []string {
 	if IsStdLib(name) {
 		return nil
@@ -125,7 +118,6 @@ func namespaceCandidates(name string) []string {
 	return out
 }
 
-// ParseOpenPaths returns the dotted paths of non-stdlib open declarations.
 func ParseOpenPaths(content []byte) []string {
 	set := make(map[string]struct{})
 	for _, dotted := range openPaths(content) {
@@ -136,7 +128,6 @@ func ParseOpenPaths(content []byte) []string {
 	return sortedKeys(set)
 }
 
-// TopModuleName returns the fully qualified name of a file-level module, or "".
 func TopModuleName(content []byte) string {
 	if decl, ok := topDeclTree(content); ok && !decl.namespace {
 		return decl.name
@@ -144,9 +135,6 @@ func TopModuleName(content []byte) string {
 	return ""
 }
 
-// localOpenKeys returns the owner keys an open path can match: the full path,
-// its last segment (the file identity, as Imports reports it), and its head
-// segment after stripping the file's own namespace prefix.
 func localOpenKeys(dotted, pkg string) []string {
 	keys := []string{dotted}
 	if id := normalizeImport(dotted); id != dotted {

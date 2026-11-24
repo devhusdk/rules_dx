@@ -329,7 +329,7 @@ fn the_readme_quickstart_runs_as_written() {
     );
     write_text(
         &case.root().join("app/lib.rs"),
-        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\npub fn answer() -> u32 {\n    42\n}\n",
+        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\n#[must_use]\npub fn answer() -> u32 {\n    42\n}\n",
     );
     run_in(
         &case,
@@ -420,11 +420,11 @@ fn write_python_package(case: &Case) {
     );
     write_text(
         &case.root().join("greet/greet.py"),
-        "\"\"\"Greeting helper.\"\"\"\n\n\ndef greet(name):\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {name}!\"\n",
+        "\"\"\"Greeting helper.\"\"\"\n\n\ndef greet(name: str) -> str:\n    \"\"\"Return a greeting for name.\"\"\"\n    return f\"Hello, {name}!\"\n",
     );
     write_text(
         &case.root().join("greet/greet_test.py"),
-        "\"\"\"Stdlib test of greet.\"\"\"\n\nimport unittest\n\nfrom greet import greet\n\n\nclass GreetTest(unittest.TestCase):\n    def test_greet(self) -> None:\n        self.assertEqual(greet(\"world\"), \"Hello, world!\")\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
+        "\"\"\"Stdlib test of greet.\"\"\"\n\nimport unittest\n\nfrom greet import greet\n\n\nclass GreetTest(unittest.TestCase):\n    \"\"\"Tests of greet.\"\"\"\n\n    def test_greet(self) -> None:\n        \"\"\"Greet the world by name.\"\"\"\n        assert greet(\"world\") == \"Hello, world!\"\n\n\nif __name__ == \"__main__\":\n    unittest.main()\n",
     );
 }
 

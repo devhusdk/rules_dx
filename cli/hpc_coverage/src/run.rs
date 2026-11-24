@@ -1,10 +1,7 @@
-//! The test run and the conversion of its `.tix` file.
-
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The `.hpc` directory a `.mix` file belongs to: its first ancestor named `*_.hpc`, else its parent.
 pub fn hpc_dir(mix: &Path) -> PathBuf {
     let parent = mix.parent().unwrap_or(mix);
     let mut ancestors: Vec<&Path> = parent.ancestors().collect();
@@ -19,7 +16,6 @@ pub fn hpc_dir(mix: &Path) -> PathBuf {
         .to_path_buf()
 }
 
-/// The distinct `.hpc` directories of `mix` files, sorted.
 pub fn hpc_dirs(mix: &[OsString]) -> Vec<PathBuf> {
     let mut dirs: Vec<PathBuf> = mix.iter().map(|file| hpc_dir(Path::new(file))).collect();
     dirs.sort();
@@ -27,7 +23,6 @@ pub fn hpc_dirs(mix: &[OsString]) -> Vec<PathBuf> {
     dirs
 }
 
-/// The `.tix` file the test writes below `outputs`, named after the test binary.
 pub fn tix_path(outputs: &Path, test: &Path) -> PathBuf {
     let stem = test
         .file_stem()
@@ -37,7 +32,6 @@ pub fn tix_path(outputs: &Path, test: &Path) -> PathBuf {
     outputs.join(name)
 }
 
-/// The arguments `hpc_lcov` gets: the LCOV file below `coverage`, the `.tix` file and the `.hpc` directories.
 pub fn lcov_args(coverage: &Path, tix: &Path, dirs: &[PathBuf]) -> Vec<OsString> {
     let mut args = vec![
         coverage.join("haskell.dat").into_os_string(),
@@ -58,7 +52,6 @@ fn status(program: &OsString, args: &[OsString], env: &[(&str, &OsString)]) -> R
 
 const USAGE: &str = "usage: hpc_coverage <test> <hpc_lcov> [<mix file>...] -- [<test argument>...]";
 
-/// Runs the test and returns its exit code, or the one of the conversion after a passing test under coverage.
 pub fn run(args: &[OsString], env: &dyn Fn(&str) -> Option<OsString>) -> Result<i32, String> {
     let [test, lcov, rest @ ..] = args else {
         return Err(USAGE.to_owned());

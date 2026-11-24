@@ -56,10 +56,10 @@ func failed(lang language.Language) bool { return lang.(*zigLang).Failed() }
 func TestGenerateLibraryWithRootAndSources(t *testing.T) {
 	lang := NewLanguage()
 	result := generate(t, lang, map[string]string{
-		"greet.zig":      "const util = @import(\"util.zig\");\nconst fmt = @import(\"fmt_lib\");\n",
-		"util.zig":       "const std = @import(\"std\");\n",
-		"build.zig":      "const b = @import(\"never_parsed\");\n",
-		"notes.txt":      "not a source\n",
+		"greet.zig": "const util = @import(\"util.zig\");\nconst fmt = @import(\"fmt_lib\");\n",
+		"util.zig":  "const std = @import(\"std\");\n",
+		"build.zig": "const b = @import(\"never_parsed\");\n",
+		"notes.txt": "not a source\n",
 	})
 	if failed(lang) || len(result.Gen) != 1 {
 		t.Fatalf("generated %d rules (failed=%v), want 1", len(result.Gen), failed(lang))

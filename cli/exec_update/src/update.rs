@@ -78,7 +78,6 @@ pub(crate) fn execute_update(invocation: &Invocation, env: Env<'_>) -> i32 {
     pre_exec(invocation.output, env.out, env.err, &message)
 }
 
-/// Why update has nothing to do: a manifest generate has not locked yet, or no sets at all.
 pub(super) fn no_sets_message(workspace: &std::path::Path) -> String {
     let unlocked = match dx_adopt::unlocked_manifests(workspace) {
         Ok(unlocked) => unlocked,
@@ -330,14 +329,11 @@ pub(super) fn record_named(
     );
 }
 
-/// What the emitters need to know about one set beyond its status.
 pub(super) struct SetDetail {
     message: String,
-    /// Typed code for a `Failed` set; `None` falls back to `update_failed`.
     failure_code: Option<&'static str>,
 }
 
-/// Record a backend error, keeping its typed code for failed sets.
 pub(super) fn record_backend_error(
     attempted: &mut Vec<dx_update::outcome::SetOutcome>,
     details: &mut BTreeMap<String, SetDetail>,
@@ -412,12 +408,10 @@ struct SlotGate<'a> {
     err: &'a mut dyn std::io::Write,
     events: &'a mut dyn std::io::Write,
     phase: dx_plan::slots::Phase,
-    /// Who held the slots when a wait limit ran out, kept for the caller to report.
     busy: Option<String>,
 }
 
 impl SlotGate<'_> {
-    /// Takes the slot before a Bazel run; `Err` carries the stop signal, or 1 with `busy` set.
     fn before(&mut self, argv: &[String]) -> Result<(), i32> {
         let taken = self.phase.need(
             dx_update::backend::runs_bazel(argv),

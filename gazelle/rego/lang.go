@@ -9,7 +9,6 @@ import (
 
 const languageName = "rego"
 
-// UnresolvedHint tells users how to settle a data import no rule declares.
 const UnresolvedHint = "add a rego_library that declares that package or an exact # gazelle:resolve rego mapping"
 
 var regoKinds = map[string]rule.KindInfo{

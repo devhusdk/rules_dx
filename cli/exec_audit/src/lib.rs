@@ -5,9 +5,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The `dx security` and `dx license` verbs: lockfile advisories, license
-//! policy, secret scanning, image scans and the SBOM reports.
-
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -110,7 +107,6 @@ impl From<PolicyError> for AuditError {
 }
 
 impl AuditError {
-    /// Returns the error code reported for this failure.
     pub fn code(&self) -> &'static str {
         match self {
             AuditError::AdvisoryPinMissing { .. } => dx_audit::advisory::CODE_ADVISORY_PIN_MISSING,
@@ -192,7 +188,6 @@ impl AuditTarget<'_> {
     }
 }
 
-/// The package label of the directory holding a set's first manifest.
 fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
     match dx_adopt::dependency_sets::manifest_dir(&set.manifests).as_str() {
         "." => "//:all".to_owned(),
@@ -200,12 +195,6 @@ fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
     }
 }
 
-/// The sets `scopes` name or own. A set found through a scope, not by its name,
-/// is skipped when a `dx.toml` exclude covers its package.
-///
-/// # Errors
-///
-/// Returns `Err` when a scope names no set and no set owns it.
 pub fn resolve_configured_audit_sets(
     registry: &dx_adopt::dependency_sets::Registry,
     scopes: &[String],
@@ -248,11 +237,6 @@ fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError
     )?)
 }
 
-/// Loads the pinned advisories for the `key` ecosystem and their pin.
-///
-/// # Errors
-///
-/// Returns `Err` when `key` has no advisory source, or the pinned snapshot cannot be read or fetched.
 pub fn load_advisories(
     workspace: &Path,
     key: &str,
@@ -273,8 +257,6 @@ pub fn load_advisories(
     load_pinned(workspace, family, label, offline)
 }
 
-/// Reads the snapshot `.dx/pins` names for one family, fetching it into the
-/// cache on a miss, and checks it against the pinned sha256.
 fn load_pinned(
     workspace: &Path,
     family: &str,
@@ -386,7 +368,6 @@ fn no_dependency_sets() -> String {
     )
 }
 
-/// Which lockfile each parsed package was read from.
 #[derive(Clone, Debug)]
 struct LockPaths {
     by_package: BTreeMap<(String, String), String>,
@@ -517,7 +498,6 @@ fn parse_one_lock(
             }
             _ => Ok(Vec::new()),
         },
-        // The versions live in the manifest; the lock only holds hashes (see the builtin set).
         dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
         dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
             Some(name)
@@ -602,7 +582,6 @@ fn lock_texts_for_configured(
     set: &dx_adopt::dependency_sets::ResolvedSet,
 ) -> Result<Vec<(String, String)>, AuditError> {
     let mut out = Vec::new();
-    // A go set audits its manifest; the lock lists hashes, not the requirement versions.
     let files = if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Go {
         &set.manifests
     } else {
@@ -712,7 +691,6 @@ fn bazel_coverage_diagnostic(
     }
 }
 
-/// Names the dependency a finding is about, or nothing when its identity would not validate.
 fn package_ref(
     name: &str,
     version: &str,
@@ -731,11 +709,6 @@ fn package_ref(
     })
 }
 
-/// Loads the workspace licence policy.
-///
-/// # Errors
-///
-/// Returns `Err` when the policy file cannot be read or does not parse.
 pub fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
@@ -801,7 +774,6 @@ struct LicenseResult {
     candidates: Vec<LicenseCandidate>,
 }
 
-/// Returns the pinned Gitleaks path from the environment, else from Bazel.
 fn gitleaks_path(
     runner: &dyn dx_process::Runner,
     bazel: &dyn dx_tool_resolve::Bazel,
@@ -825,8 +797,6 @@ fn gitleaks_path(
     })
 }
 
-/// The directories of recursive `dx.toml` excludes, spelled like `git ls-files`
-/// directory entries. `//...` itself is left out so the scan never skips the repo.
 pub fn excluded_dirs(excludes: &[String]) -> Vec<String> {
     excludes
         .iter()
@@ -835,9 +805,6 @@ pub fn excluded_dirs(excludes: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Writes the gitleaks config for a scan: the workspace `.gitleaks.toml` (or the
-/// dx base) with its base path made absolute, plus the paths git ignores and the
-/// `dx.toml` excludes, because `gitleaks dir` reads every file under the workspace.
 fn scoped_secrets_config(
     workspace: &Path,
     query_runner: &dyn QueryRunner,

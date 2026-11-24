@@ -62,8 +62,8 @@ func corpusLoads(rulesRepo string) rule.LoadInfo {
 }
 
 type corpusPlan struct {
-	gen   []*rule.Rule
-	errs  []error
+	gen  []*rule.Rule
+	errs []error
 }
 
 func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
@@ -72,8 +72,6 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if rel == "node_modules" || strings.Contains(rel, "/node_modules/") || strings.HasPrefix(rel, "node_modules/") {
 		return plan
 	}
-	// Languages that run before rust put their rules in OtherGen; they still
-	// create the BUILD file, so the corpus must land in the same pass.
 	hasOtherGen = hasOtherGen || len(args.OtherGen) > 0
 	if args.File == nil && !hasOtherGen {
 		return plan
@@ -205,6 +203,16 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			}
 		}
 	}
+	for typ, attr := range map[string]string{"markdown": "markdown_srcs", "starlark": "starlark_srcs", "toml": "toml_srcs", "json": "json_srcs"} {
+		if r, ok := existing["corpus_"+typ]; ok && r.Kind() == corpusKind {
+			for _, src := range r.AttrStrings(attr) {
+				if strings.HasPrefix(src, "//") && !seen[typ+"\x00"+src] {
+					seen[typ+"\x00"+src] = true
+					collected[typ] = append(collected[typ], src)
+				}
+			}
+		}
+	}
 	for _, typ := range collected {
 		sort.Strings(typ)
 	}
@@ -278,8 +286,6 @@ var (
 	foreignCorpusIdx = map[string]map[string]map[string]bool{}
 )
 
-// foreignCorpusFiles returns the files of package rel that a language corpus
-// rule such as php_corpus lists by label from any package of the repository.
 func foreignCorpusFiles(c *config.Config, rel string) (map[string]bool, error) {
 	if c == nil || c.RepoRoot == "" {
 		return nil, nil
@@ -321,7 +327,7 @@ func indexForeignCorpus(root string) (map[string]map[string]bool, error) {
 		if err != nil {
 			return fmt.Errorf("rust: cannot read %s: %w", name, err)
 		}
-		if !bytes.Contains(data, []byte("_corpus(")) {
+		if !bytes.Contains(data, []byte("_corpus(")) && !bytes.Contains(data, []byte("\"corpus_")) {
 			return nil
 		}
 		file, err := rule.LoadData(name, "", data)
@@ -329,7 +335,11 @@ func indexForeignCorpus(root string) (map[string]map[string]bool, error) {
 			return nil
 		}
 		for _, r := range file.Rules {
-			if r.Kind() == corpusKind || !strings.HasSuffix(r.Kind(), "_corpus") {
+			if r.Kind() == corpusKind {
+				if !isGeneratedCorpusName(r.Name()) {
+					continue
+				}
+			} else if !strings.HasSuffix(r.Kind(), "_corpus") {
 				continue
 			}
 			for _, attr := range r.AttrKeys() {

@@ -1,8 +1,3 @@
-//! Places rustc's `unused_crate_dependencies` warnings on the BUILD file entry that causes them.
-//!
-//! The Rust aspect writes one `dx_crate_deps` line per crate next to the compiler diagnostics. It
-//! maps each dependency's crate name to its target name, which is all the BUILD file needs.
-
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
@@ -33,7 +28,6 @@ struct Code {
     code: String,
 }
 
-/// A dependency of one rule that its sources never use.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnusedDependency {
     pub package: String,
@@ -52,11 +46,6 @@ impl UnusedDependency {
     }
 }
 
-/// Reads the diagnostics and `dx_crate_deps` lines and names every unused dependency once.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_dependencies(stream: &[u8]) -> Result<Vec<UnusedDependency>, ParseError> {
     let tool = "rustc";
     let text = std::str::from_utf8(stream).map_err(|err| ParseError::Shape {
@@ -117,7 +106,6 @@ pub fn parse_unused_dependencies(stream: &[u8]) -> Result<Vec<UnusedDependency>,
     Ok(found)
 }
 
-/// Splits "external crate `a` unused in `b`: ..." into the dependency and the crate using it.
 fn unused_names(message: &str) -> Option<(String, String)> {
     let rest = message.strip_prefix("external crate `")?;
     let (extern_crate, rest) = rest.split_once('`')?;

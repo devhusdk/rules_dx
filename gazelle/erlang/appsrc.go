@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-// AppSrc holds the literal facts dx generate reads from src/<app>.app.src.
 type AppSrc struct {
 	Name        string
 	Version     string
@@ -20,8 +19,6 @@ var (
 	modPattern     = regexp.MustCompile(`\{\s*mod\s*,\s*\{\s*'?([a-z][A-Za-z0-9_@]*)'?`)
 )
 
-// ParseAppSrc reads the application name, vsn, description and mod from an
-// .app.src. Comments are dropped first; non-literal values stay empty.
 func ParseAppSrc(content []byte) AppSrc {
 	text := stripComments(string(content))
 	first := func(re *regexp.Regexp) string {

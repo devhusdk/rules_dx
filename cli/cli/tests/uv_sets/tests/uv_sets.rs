@@ -113,7 +113,6 @@ struct Consumer {
     root: PathBuf,
     ambient: PathBuf,
     index: Index,
-    /// Declared last so it drops after the index server stops.
     _guard: TempDir,
 }
 
@@ -167,7 +166,6 @@ impl Consumer {
                     ambient.join("ambient-uv-ran").display()
                 ),
             );
-            // An unset DX_UV_BIN makes dx ask Bazel; this one fails fast without a server.
             let bazel = ambient.join("bin/bazel");
             dx_testing::executable_script(
                 &bazel,

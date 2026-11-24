@@ -62,7 +62,6 @@ fn tokens(text: &str) -> Vec<Token> {
     out
 }
 
-/// Rewrites the version of the one constraint on `package` in the `depends:` list of an opam file.
 pub(super) fn plan_opam(
     manifest: &str,
     content: &str,

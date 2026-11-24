@@ -2,9 +2,8 @@ load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "jar_lsp_tool")
 load("//java/private/quality/tools:java_runtime_pin.bzl", "pinned_java_runtime")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_TOOLS_PUBLIC)
+package(default_visibility = ["//:__subpackages__"])
 
 java_import(
     name = "google_java_format_import",

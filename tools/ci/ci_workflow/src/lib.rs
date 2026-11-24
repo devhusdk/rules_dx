@@ -1,5 +1,3 @@
-//! Reads GitHub Actions workflows from runfiles for the CI policy tests.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use serde_json::Value;
@@ -8,30 +6,15 @@ use dx_testing::read_runfiles;
 
 static NULL: Value = Value::Null;
 
-/// Returns the parsed workflow `text`, named `name` in failures, which must be valid Actions YAML.
-///
-/// # Errors
-///
-/// Fails when `text` is not valid YAML.
 pub fn parse(name: &str, text: &str) -> Result<Value, String> {
     yaml_serde::from_str(text)
         .map_err(|error| format!("{name} is not valid workflow YAML: {error}"))
 }
 
-/// Returns the parsed workflow at `path`, which must be valid Actions YAML.
-///
-/// # Errors
-///
-/// Fails when the workflow is not valid YAML.
 pub fn document(path: &str) -> Result<Value, String> {
     parse(path, &read_runfiles(path))
 }
 
-/// Returns (path, document) for every workflow in `DX_WORKFLOWS`, parsed once per process.
-///
-/// # Errors
-///
-/// Fails when a workflow is not valid YAML.
 pub fn all() -> Result<Vec<(String, Value)>, String> {
     type Parsed = Result<Vec<(String, Value)>, String>;
     static PARSED: std::sync::OnceLock<Parsed> = std::sync::OnceLock::new();
@@ -48,7 +31,6 @@ pub fn all() -> Result<Vec<(String, Value)>, String> {
         .clone()
 }
 
-/// Returns (id, job) for every job of `document`, or none when it declares no jobs.
 pub fn jobs_of(document: &Value) -> Vec<(&str, &Value)> {
     document
         .get("jobs")
@@ -57,14 +39,12 @@ pub fn jobs_of(document: &Value) -> Vec<(&str, &Value)> {
         .unwrap_or_default()
 }
 
-/// Returns the steps of `job`, or none for a job that calls a reusable workflow.
 pub fn steps_of(job: &Value) -> &[Value] {
     job.get("steps")
         .and_then(Value::as_array)
         .map_or(&[], Vec::as_slice)
 }
 
-/// Returns the shell and `actions/github-script` code a step runs.
 pub fn step_code(step: &Value) -> Vec<&str> {
     let mut code = Vec::new();
     if let Some(run) = step.get("run").and_then(Value::as_str) {
@@ -80,7 +60,6 @@ pub fn step_code(step: &Value) -> Vec<&str> {
     code
 }
 
-/// Returns the permissions a job holds: its own, else the workflow's.
 #[must_use]
 pub fn effective_permissions<'a>(document: &'a Value, job: &'a Value) -> &'a Value {
     job.get("permissions")
@@ -88,7 +67,6 @@ pub fn effective_permissions<'a>(document: &'a Value, job: &'a Value) -> &'a Val
         .unwrap_or(&NULL)
 }
 
-/// Returns the keys that a job's `strategy.matrix` defines, including `include` entries.
 pub fn matrix_keys(job: &Value) -> Vec<String> {
     let Some(matrix) = job.pointer("/strategy/matrix").and_then(Value::as_object) else {
         return Vec::new();
@@ -114,7 +92,6 @@ pub fn matrix_keys(job: &Value) -> Vec<String> {
     keys
 }
 
-/// Pushes the name of every `matrix.<name>` read inside a `${{ }}` expression of `value`.
 pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
     match value {
         Value::String(text) => {
@@ -147,11 +124,6 @@ pub fn matrix_refs(value: &Value, found: &mut Vec<String>) {
     }
 }
 
-/// Returns one job of the workflow at `path`, which must declare it.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn job(path: &str, name: &str) -> Result<Value, String> {
     let document = document(path)?;
     let jobs = document.get("jobs").unwrap_or(&NULL);
@@ -161,11 +133,6 @@ pub fn job(path: &str, name: &str) -> Result<Value, String> {
         .ok_or_else(|| format!("{path} names no {name:?} job: {jobs}"))
 }
 
-/// Returns the steps of one job, which must declare some.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn steps(path: &str, name: &str) -> Result<Vec<Value>, String> {
     job(path, name)?
         .get("steps")
@@ -174,11 +141,6 @@ pub fn steps(path: &str, name: &str) -> Result<Vec<Value>, String> {
         .ok_or_else(|| format!("{path} job {name} declares no steps"))
 }
 
-/// Returns the `run` scripts of one job, joined.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn scripts(path: &str, name: &str) -> Result<String, String> {
     Ok(steps(path, name)?
         .iter()
@@ -187,11 +149,6 @@ pub fn scripts(path: &str, name: &str) -> Result<String, String> {
         .join("\n"))
 }
 
-/// Returns one string value of a parsed workflow.
-///
-/// # Errors
-///
-/// Fails when `value` is not a string.
 pub fn text_at(value: &Value, what: &str) -> Result<String, String> {
     value
         .as_str()
@@ -199,11 +156,6 @@ pub fn text_at(value: &Value, what: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{what} is not a string: {value}"))
 }
 
-/// Returns every job of the workflow at `path` with its id, sorted by id.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn jobs(path: &str) -> Result<Vec<(String, Value)>, String> {
     let document = document(path)?;
     let found = document
@@ -216,11 +168,6 @@ pub fn jobs(path: &str) -> Result<Vec<(String, Value)>, String> {
         .collect())
 }
 
-/// Returns the trigger table of a workflow, whichever way the parser keys `on`.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn triggers(path: &str) -> Result<Value, String> {
     let document = document(path)?;
     if let Some(on) = document.get("on").filter(|on| on.is_object()) {
@@ -229,11 +176,6 @@ pub fn triggers(path: &str) -> Result<Value, String> {
     Ok(document.get("true").cloned().unwrap_or(Value::Null))
 }
 
-/// Returns `on.workflow_call` of the reusable workflow at `path`, which must declare it.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn workflow_call(path: &str) -> Result<Value, String> {
     triggers(path)?
         .get("workflow_call")
@@ -242,7 +184,6 @@ pub fn workflow_call(path: &str) -> Result<Value, String> {
         .ok_or_else(|| format!("{path} declares no on.workflow_call"))
 }
 
-/// Returns the called workflow file name of a `uses` value, when it names a reusable workflow.
 #[must_use]
 pub fn called_workflow(uses: &str) -> Option<String> {
     if !uses.contains("/.github/workflows/") {
@@ -252,11 +193,6 @@ pub fn called_workflow(uses: &str) -> Option<String> {
     Some(pinned.rsplit('/').next().unwrap_or(pinned).to_owned())
 }
 
-/// Returns (job id, called workflow file name, job) for every job that calls a reusable workflow.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn reusable_calls(path: &str) -> Result<Vec<(String, String, Value)>, String> {
     Ok(jobs(path)?
         .into_iter()
@@ -267,11 +203,6 @@ pub fn reusable_calls(path: &str) -> Result<Vec<(String, String, Value)>, String
         .collect())
 }
 
-/// Returns every string value of the workflow at `path`, so scans skip comments and keys.
-///
-/// # Errors
-///
-/// Fails when the workflow is not valid YAML.
 pub fn strings(path: &str) -> Result<Vec<String>, String> {
     fn walk(value: &Value, out: &mut Vec<String>) {
         match value {
@@ -286,11 +217,6 @@ pub fn strings(path: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// Returns (job id, step name or `uses`, "|| true" or "continue-on-error") for every failure the workflow at `path` swallows.
-///
-/// # Errors
-///
-/// Fails when the workflow is missing or does not have the expected shape.
 pub fn swallows(path: &str) -> Result<Vec<(String, String, String)>, String> {
     let mut found = Vec::new();
     for (id, job) in jobs(path)? {

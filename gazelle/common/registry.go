@@ -14,16 +14,12 @@ var (
 	registry   []func() language.Language
 )
 
-// RegisterLanguage adds a language constructor to the set that dispatch
-// composes. Language packages call it from init.
 func RegisterLanguage(newLang func() language.Language) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	registry = append(registry, newLang)
 }
 
-// RegisteredLanguages returns a new instance of every registered language,
-// sorted by Name. It panics when two languages share a name.
 func RegisteredLanguages() []language.Language {
 	registryMu.Lock()
 	defer registryMu.Unlock()

@@ -1,5 +1,3 @@
-//! Win32 process, thread and memory queries.
-
 #![expect(unsafe_code, reason = "these Win32 process calls have no safe std API")]
 
 use std::ffi::OsString;
@@ -31,12 +29,10 @@ use windows_sys::Win32::System::Threading::{
     PROCESS_TERMINATE, ResumeThread, THREAD_SUSPEND_RESUME, TerminateProcess, WaitForSingleObject,
 };
 
-/// The byte size of `T` as the `u32` that Win32 size fields and parameters take.
 pub(crate) fn struct_size<T>() -> io::Result<u32> {
     u32::try_from(size_of::<T>()).map_err(io::Error::other)
 }
 
-// windows-sys does not bind these undocumented ntdll exports.
 #[link(name = "ntdll", kind = "raw-dylib")]
 unsafe extern "system" {
     fn NtSuspendProcess(process: HANDLE) -> NTSTATUS;
@@ -45,17 +41,12 @@ unsafe extern "system" {
 
 pub use windows_sys::Win32::System::Threading::{CREATE_BREAKAWAY_FROM_JOB, CREATE_SUSPENDED};
 
-/// What a process handle from [`open`] may do. Every level can query the process.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Access {
     Query,
-    /// Query and wait, as [`is_running`] needs.
     Wait,
-    /// Query and terminate.
     Terminate,
-    /// Query, suspend and resume.
     SuspendResume,
-    /// Query and duplicate the process's handles.
     Duplicate,
 }
 
@@ -71,17 +62,13 @@ impl Access {
     }
 }
 
-/// One process from a snapshot of the process table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcessEntry {
     pub pid: u32,
     pub parent: u32,
-    /// The executable's file name, without its directory.
     pub exe: String,
 }
 
-/// The owned handle, or the calling thread's last OS error when `handle` is null or invalid.
-/// The rejected handle carries no cause; `GetLastError` holds it.
 pub(crate) fn owned_or_last_error<H: TryInto<OwnedHandle>>(handle: H) -> io::Result<OwnedHandle> {
     match handle.try_into() {
         Ok(handle) => Ok(handle),
@@ -89,7 +76,6 @@ pub(crate) fn owned_or_last_error<H: TryInto<OwnedHandle>>(handle: H) -> io::Res
     }
 }
 
-/// Opens process `pid` with `access`.
 pub fn open(pid: u32, access: Access) -> io::Result<OwnedHandle> {
     // SAFETY: OpenProcess takes plain integers.
     let raw = unsafe { OpenProcess(access.rights(), 0, pid) };
@@ -98,18 +84,13 @@ pub fn open(pid: u32, access: Access) -> io::Result<OwnedHandle> {
     owned_or_last_error(handle)
 }
 
-/// Whether the process has not exited. The handle needs [`Access::Wait`].
 pub fn is_running(process: BorrowedHandle<'_>) -> io::Result<bool> {
     wait(process, Some(Duration::ZERO)).map(|signaled| !signaled)
 }
 
-/// Waits until `object` is signaled or `timeout` passes, and returns whether it was signaled.
-/// `None` waits forever. A mutex abandoned by its owner counts as signaled and is now owned
-/// by the caller.
 pub fn wait(object: BorrowedHandle<'_>, timeout: Option<Duration>) -> io::Result<bool> {
     let millis = match timeout {
         None => INFINITE,
-        // INFINITE would wait forever, so the longest finite wait stops just short of it.
         Some(timeout) => u32::try_from(timeout.as_millis())
             .unwrap_or(u32::MAX)
             .min(INFINITE - 1),
@@ -126,7 +107,6 @@ pub fn wait(object: BorrowedHandle<'_>, timeout: Option<Duration>) -> io::Result
     }
 }
 
-/// Ends process `pid` with `exit_code`.
 pub fn terminate(pid: u32, exit_code: u32) -> io::Result<()> {
     let process = open(pid, Access::Terminate)?;
     // SAFETY: process is a live handle with PROCESS_TERMINATE access.
@@ -146,7 +126,6 @@ fn nt_status(what: &str, pid: u32, status: NTSTATUS) -> io::Result<()> {
     Ok(())
 }
 
-/// Freezes every thread of process `pid` until [`resume`].
 pub fn suspend(pid: u32) -> io::Result<()> {
     let process = open(pid, Access::SuspendResume)?;
     // SAFETY: process is a live handle with PROCESS_SUSPEND_RESUME access.
@@ -154,7 +133,6 @@ pub fn suspend(pid: u32) -> io::Result<()> {
     nt_status("NtSuspendProcess", pid, status)
 }
 
-/// Undoes one [`suspend`] of process `pid`.
 pub fn resume(pid: u32) -> io::Result<()> {
     let process = open(pid, Access::SuspendResume)?;
     // SAFETY: process is a live handle with PROCESS_SUSPEND_RESUME access.
@@ -162,7 +140,6 @@ pub fn resume(pid: u32) -> io::Result<()> {
     nt_status("NtResumeProcess", pid, status)
 }
 
-/// Stops children from inheriting this process's standard handles; a missing handle is skipped.
 pub fn disinherit_std_handles() -> io::Result<()> {
     let which: [STD_HANDLE; 3] = [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE];
     for std_handle in which {
@@ -183,7 +160,6 @@ pub fn disinherit_std_handles() -> io::Result<()> {
     Ok(())
 }
 
-/// The exit code of a process, or `STILL_ACTIVE` (259) while it runs.
 pub fn exit_code(process: BorrowedHandle<'_>) -> io::Result<u32> {
     let mut code = 0u32;
     // SAFETY: process is a live handle and code is writable.
@@ -194,7 +170,6 @@ pub fn exit_code(process: BorrowedHandle<'_>) -> io::Result<u32> {
     Ok(code)
 }
 
-/// Resumes one suspended thread. The handle needs `THREAD_SUSPEND_RESUME` access.
 pub fn resume_thread(thread: BorrowedHandle<'_>) -> io::Result<()> {
     // SAFETY: thread is a live handle.
     let previous = unsafe { ResumeThread(thread.as_raw_handle()) };
@@ -204,7 +179,6 @@ pub fn resume_thread(thread: BorrowedHandle<'_>) -> io::Result<()> {
     Ok(())
 }
 
-/// The process's creation time in 100 ns ticks since 1601.
 pub fn creation_time(process: BorrowedHandle<'_>) -> io::Result<u64> {
     let zero = FILETIME {
         dwLowDateTime: 0,
@@ -220,7 +194,6 @@ pub fn creation_time(process: BorrowedHandle<'_>) -> io::Result<u64> {
     Ok((u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime))
 }
 
-/// The process's working set in bytes.
 pub fn working_set_bytes(process: BorrowedHandle<'_>) -> io::Result<u64> {
     let size = struct_size::<PROCESS_MEMORY_COUNTERS>()?;
     let mut counters = PROCESS_MEMORY_COUNTERS {
@@ -243,7 +216,6 @@ fn snapshot(flags: u32) -> io::Result<OwnedHandle> {
     owned_or_last_error(handle)
 }
 
-/// Every process in the process table.
 pub fn processes() -> io::Result<Vec<ProcessEntry>> {
     let snapshot = snapshot(TH32CS_SNAPPROCESS)?;
     let mut entry = PROCESSENTRY32W {
@@ -279,7 +251,6 @@ fn open_thread(thread_id: u32) -> io::Result<OwnedHandle> {
     owned_or_last_error(handle)
 }
 
-/// Resumes every thread of process `pid`, as a child started with [`CREATE_SUSPENDED`] needs.
 pub fn resume_threads(pid: u32) -> io::Result<()> {
     let snapshot = snapshot(TH32CS_SNAPTHREAD)?;
     let mut entry = THREADENTRY32 {
@@ -307,7 +278,6 @@ pub fn resume_threads(pid: u32) -> io::Result<()> {
     Ok(())
 }
 
-/// The installed physical memory in bytes.
 pub fn total_physical_memory() -> io::Result<u64> {
     let mut status = MEMORYSTATUSEX {
         dwLength: struct_size::<MEMORYSTATUSEX>()?,
@@ -321,7 +291,6 @@ pub fn total_physical_memory() -> io::Result<u64> {
     Ok(status.ullTotalPhys)
 }
 
-/// The system directory (`System32`) and the Windows directory, as Windows reports them.
 pub fn system_dirs() -> io::Result<[PathBuf; 2]> {
     Ok([
         // SAFETY: wide_dir passes a writable buffer of the length it names.
@@ -331,8 +300,6 @@ pub fn system_dirs() -> io::Result<[PathBuf; 2]> {
     ])
 }
 
-/// The directory `get` writes into a buffer; `get` returns 0 on failure, the length it
-/// wrote, or the length it needs when the buffer is too short.
 fn wide_dir(get: impl Fn(*mut u16, u32) -> u32) -> io::Result<PathBuf> {
     let mut buffer = vec![0u16; 260];
     loop {

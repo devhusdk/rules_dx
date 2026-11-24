@@ -23,7 +23,6 @@ struct BufLintRecord {
     message: String,
 }
 
-/// A `PACKAGE_DIRECTORY_MATCH` message with its directories in `/` separators.
 fn posix_directories(kind: &str, message: String) -> String {
     if kind == "PACKAGE_DIRECTORY_MATCH" {
         message.replace("\\\\", "/").replace('\\', "/")
@@ -88,9 +87,6 @@ fn record_positions(
     Ok((start_line, start_column, end))
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buf_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -177,9 +173,6 @@ pub fn parse_buf_lint(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buf_format(
     stdout: &[u8],
     stderr: &[u8],

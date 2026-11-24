@@ -1,13 +1,9 @@
-//! Lists Swift packages whose newest semver tag on GitHub is newer than the lock pin.
-
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::Version;
 use serde_json::Value;
 
 pub const DEFAULT_BASE: &str = "https://api.github.com";
 
-/// Checks each versioned pin of the lock files against the tags API at `base`.
-/// Pins outside GitHub are skipped.
 pub fn outdated(
     set: &str,
     resolved: &[String],
@@ -82,7 +78,6 @@ pub fn outdated(
     found
 }
 
-/// Host and path of a pin location, without scheme, credentials or `.git`.
 fn name(location: &str) -> String {
     let url = location.trim().trim_end_matches('/');
     let url = url.strip_suffix(".git").unwrap_or(url);

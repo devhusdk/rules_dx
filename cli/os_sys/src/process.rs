@@ -1,8 +1,3 @@
-//! Process and process-group ids and signals.
-//!
-//! Group and session ids come from libc, not rustix: inside a PID namespace they
-//! can be 0 (the leader lives outside), which rustix's non-zero `Pid` cannot hold.
-
 #![expect(
     unsafe_code,
     reason = "getpgrp, getpgid and getsid may return 0, which rustix cannot represent, and rustix has no rt_sigqueueinfo"
@@ -15,20 +10,14 @@ pub use libc::{
     SIGCONT, SIGHUP, SIGINT, SIGKILL, SIGSTOP, SIGTERM, SIGTSTP, SIGTTIN, SIGTTOU, SIGUSR1,
 };
 
-/// What a signal-0 probe learned about a process or group.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Presence {
-    /// It exists and this process may signal it.
     Reachable,
-    /// It exists but belongs to someone this process may not signal.
     NotPermitted,
-    /// Nothing has that id.
     Missing,
-    /// The probe failed for another reason.
     Unknown,
 }
 
-// Both errors are built without allocating, so signal handlers can call these paths.
 fn pid(raw: i32) -> io::Result<Pid> {
     Pid::from_raw(raw).ok_or(io::Error::from(io::ErrorKind::InvalidInput))
 }
@@ -37,8 +26,6 @@ fn signal_of(signo: i32) -> io::Result<Signal> {
     Signal::from_named_raw(signo).ok_or(io::Error::from(io::ErrorKind::InvalidInput))
 }
 
-/// Sends `signo` like `kill(2)`: a positive `target` is a process, a negative one a group.
-/// Async-signal-safe.
 pub fn signal(target: i32, signo: i32) -> io::Result<()> {
     let sig = signal_of(signo)?;
     if target < 0 {
@@ -49,7 +36,6 @@ pub fn signal(target: i32, signo: i32) -> io::Result<()> {
     Ok(())
 }
 
-/// Probes `target` with signal 0: a positive `target` is a process, a negative one a group.
 #[must_use]
 pub fn probe(target: i32) -> Presence {
     let probed = if target < 0 {
@@ -65,7 +51,6 @@ pub fn probe(target: i32) -> Presence {
     }
 }
 
-/// `-1` from a libc id call means failure, with the reason in `errno`.
 fn id_result(id: libc::pid_t) -> io::Result<i32> {
     if id < 0 {
         Err(io::Error::last_os_error())
@@ -74,45 +59,38 @@ fn id_result(id: libc::pid_t) -> io::Result<i32> {
     }
 }
 
-/// The calling process's group id; 0 when the group leader is outside this PID namespace.
 #[must_use]
 pub fn own_group() -> i32 {
     // SAFETY: getpgrp has no preconditions and cannot fail.
     unsafe { libc::getpgrp() }
 }
 
-/// The calling process's session id; 0 when the session leader is outside this PID namespace.
 pub fn own_session() -> io::Result<i32> {
     // SAFETY: getsid takes a plain pid; 0 names the calling process.
     id_result(unsafe { libc::getsid(0) })
 }
 
-/// The group id of `target`; 0 when the group leader is outside this PID namespace.
 pub fn group_of(target: i32) -> io::Result<i32> {
     let target = pid(target)?.as_raw_nonzero().get();
     // SAFETY: getpgid takes a plain pid and has no memory preconditions.
     id_result(unsafe { libc::getpgid(target) })
 }
 
-/// The real user id of the calling process.
 #[must_use]
 pub fn user_id() -> u32 {
     rustix::process::getuid().as_raw()
 }
 
-/// The effective user id of the calling process; 0 means root, which ignores file mode bits.
 #[must_use]
 pub fn effective_user_id() -> u32 {
     rustix::process::geteuid().as_raw()
 }
 
-/// Moves `target` into the group `group`, like `setpgid(2)`.
 pub fn set_group(target: i32, group: i32) -> io::Result<()> {
     rustix::process::setpgid(Some(pid(target)?), Some(pid(group)?))?;
     Ok(())
 }
 
-/// The job-control signal that stopped `child`, if it is stopped now; never blocks.
 pub fn stopped_by(child: i32) -> io::Result<Option<i32>> {
     let status = rustix::process::waitid(
         WaitId::Pid(pid(child)?),
@@ -121,19 +99,16 @@ pub fn stopped_by(child: i32) -> io::Result<Option<i32>> {
     Ok(status.and_then(|status| status.stopping_signal()))
 }
 
-/// Waits for `child` to exit and reaps it.
 pub fn reap(child: i32) -> io::Result<()> {
     rustix::process::waitpid(Some(pid(child)?), WaitOptions::empty())?;
     Ok(())
 }
 
-/// Stops the calling process with SIGTSTP, as a shell expects of a stopped job.
 pub fn stop_self() -> io::Result<()> {
     rustix::process::kill_process(rustix::process::getpid(), Signal::TSTP)?;
     Ok(())
 }
 
-/// Queues `signo` to the process `target` with `SI_QUEUE` and no sender pid.
 #[cfg(target_os = "linux")]
 pub fn queue_unattributed(target: i32, signo: i32) -> io::Result<()> {
     let target = pid(target)?.as_raw_nonzero().get();
@@ -151,14 +126,12 @@ pub fn queue_unattributed(target: i32, signo: i32) -> io::Result<()> {
     }
 }
 
-/// Asks the kernel to send `signo` to the calling process when its parent dies; async-signal-safe.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn die_with_parent(signo: i32) -> io::Result<()> {
     rustix::process::set_parent_process_death_signal(Some(signal_of(signo)?))?;
     Ok(())
 }
 
-/// The start time field of a `/proc/<pid>/stat` text; never allocates.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[must_use]
 pub fn stat_start(stat: &[u8]) -> Option<&[u8]> {
@@ -169,7 +142,6 @@ pub fn stat_start(stat: &[u8]) -> Option<&[u8]> {
         .nth(19)
 }
 
-/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[must_use]
 pub fn start_time(pid: u32) -> Option<String> {
@@ -179,7 +151,6 @@ pub fn start_time(pid: u32) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// The start time of `pid` as an opaque string, or `None` when it cannot be read.
 #[cfg(target_os = "macos")]
 #[must_use]
 pub fn start_time(pid: u32) -> Option<String> {

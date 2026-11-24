@@ -1,5 +1,3 @@
-//! Serves a rendered docs site over loopback for the Firefox-driven site tests.
-
 use dx_testing::env_file;
 use std::path::PathBuf;
 

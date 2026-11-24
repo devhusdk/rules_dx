@@ -1,5 +1,3 @@
-//! The lock model: its keys, its checks and its bytes.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
@@ -7,10 +5,8 @@ use serde_json::Value;
 
 use crate::Error;
 
-/// The `schema` value this writer writes.
 pub const SCHEMA: u32 = 1;
 
-/// The values of an archive `platform`.
 pub const PLATFORMS: [&str; 6] = [
     "linux_arm64",
     "linux_x86_64",
@@ -20,83 +16,56 @@ pub const PLATFORMS: [&str; 6] = [
     "windows_x86_64",
 ];
 
-/// One `<ecosystem>.lock.json`.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Lock {
-    /// The schema version.
     pub schema: u32,
-    /// The ecosystem name.
     pub ecosystem: String,
-    /// The sha256 of the manifest and state files, by file name.
     pub inputs: BTreeMap<String, String>,
-    /// Every package of the closure, sorted by name.
     pub packages: Vec<Package>,
-    /// One closure per group, by group name.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub groups: BTreeMap<String, Vec<Package>>,
 }
 
-/// One package at one exact version.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Package {
-    /// The name as the ecosystem writes it.
     pub name: String,
-    /// The exact version.
     pub version: String,
-    /// The archives that hold the package.
     pub archives: Vec<Archive>,
-    /// The names of the packages this one needs.
     #[serde(default)]
     pub deps: Vec<String>,
-    /// The import names of the package.
     #[serde(default)]
     pub provides: Vec<String>,
-    /// Whether only development needs the package.
     #[serde(default, skip_serializing_if = "is_false")]
     pub dev: bool,
-    /// Other ecosystem data.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub extra: BTreeMap<String, Value>,
 }
 
-/// One archive of a package.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Archive {
-    /// Where the archive is, best first.
     pub urls: Vec<String>,
-    /// The archive digest; a resolver leaves it empty when its registry states none.
     #[serde(default)]
     pub sha256: String,
-    /// The directory to strip on extraction.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub strip_prefix: String,
-    /// The platform the archive is for; empty means every platform.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub platform: String,
-    /// The archive type when the URL does not end in its suffix.
     #[serde(default, rename = "type", skip_serializing_if = "String::is_empty")]
     pub kind: String,
 }
 
-/// What a resolver returns: the closure, with a digest only where its registry states one.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Resolution {
-    /// Every package of the closure, in any order.
     pub packages: Vec<Package>,
-    /// One closure per group, by group name, each in any order.
     #[serde(default)]
     pub groups: BTreeMap<String, Vec<Package>>,
 }
 
 impl Resolution {
-    /// Reads a resolution a resolver printed as JSON.
-    ///
-    /// # Errors
-    /// Fails when the bytes are not a resolution.
     pub fn from_json(bytes: &[u8]) -> Result<Self, Error> {
         serde_json::from_slice(bytes).map_err(|error| Error::new(format!("resolution: {error}")))
     }
@@ -110,7 +79,6 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
-/// Whether `text` is 64 lowercase hex characters.
 #[must_use]
 pub fn is_sha256(text: &str) -> bool {
     text.len() == 64
@@ -155,7 +123,6 @@ fn group_problem(group: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
-/// What breaks the schema in one closure, one line each.
 fn closure_problems(packages: &[Package]) -> Vec<String> {
     let mut problems = Vec::new();
     let names: BTreeSet<&str> = packages.iter().map(|p| p.name.as_str()).collect();
@@ -220,10 +187,6 @@ fn closure_problems(packages: &[Package]) -> Vec<String> {
 }
 
 impl Lock {
-    /// Reads a lock file.
-    ///
-    /// # Errors
-    /// Fails when the text is not a lock that passes [`Lock::problems`].
     pub fn from_json(text: &str) -> Result<Self, Error> {
         let lock: Self =
             serde_json::from_str(text).map_err(|error| Error::new(error.to_string()))?;
@@ -233,7 +196,6 @@ impl Lock {
         }
     }
 
-    /// Puts every list in its fixed order.
     pub fn normalize(&mut self) {
         normalize(&mut self.packages);
         self.groups
@@ -241,7 +203,6 @@ impl Lock {
             .for_each(|packages| normalize(packages));
     }
 
-    /// What breaks the schema, one line each; archive digests may still be empty.
     #[must_use]
     pub fn shape_problems(&self) -> Vec<String> {
         let mut problems = closure_problems(&self.packages);
@@ -263,7 +224,6 @@ impl Lock {
         problems
     }
 
-    /// What keeps a hub from building this lock, one line each.
     #[must_use]
     pub fn problems(&self) -> Vec<String> {
         let mut problems = Vec::new();
@@ -292,7 +252,6 @@ impl Lock {
         problems
     }
 
-    /// The bytes of the lock file: sorted keys, two spaces, one final newline.
     #[must_use]
     pub fn to_bytes(&self) -> String {
         let value = serde_json::to_value(self).unwrap_or(Value::Null);
@@ -302,7 +261,6 @@ impl Lock {
     }
 }
 
-/// `value` with every object rebuilt in key order.
 fn sorted(value: Value) -> Value {
     match value {
         Value::Object(map) => {

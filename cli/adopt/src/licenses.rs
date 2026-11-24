@@ -1,40 +1,30 @@
-//! The license ids of `<lang>/lang.json` `setup.licenses` and the `dx_licenses.accept` tags of a
-//! `MODULE.bazel`.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::LazyLock;
 
-/// The `use_extension` line that binds the `dx_licenses` extension.
 pub const LICENSE_EXTENSION_LINE: &str =
     "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")";
 
-/// `core/licenses/pins.json`, the one source of each license's terms hash.
 const LICENSE_TERMS: &str = include_str!("../../../core/licenses/pins.json");
 
-/// The decoded `LICENSE_TERMS`, an object from license id to its `url` and `terms_sha256`.
 static TERMS: LazyLock<serde_json::Value> =
     LazyLock::new(|| serde_json::from_str(LICENSE_TERMS).unwrap_or_default());
 
-/// The `terms_sha256` that `core/licenses/pins.json` pins for `id`.
 #[must_use]
 pub fn terms_sha256(id: &str) -> Option<&'static str> {
     TERMS.get(id)?.get("terms_sha256")?.as_str()
 }
 
-/// Whether `word` is a sha256 hex digest, the value side of a `terms_sha256` entry.
 fn is_sha256(word: &str) -> bool {
     word.len() == 64 && word.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-/// A license id the workspace needs and the language that needs it.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct NeededLicense {
     pub id: String,
     pub language: String,
 }
 
-/// Every id a `lang.json` lists.
 #[must_use]
 pub fn known_license_ids() -> BTreeSet<String> {
     dx_families::licenses()
@@ -43,13 +33,11 @@ pub fn known_license_ids() -> BTreeSet<String> {
         .collect()
 }
 
-/// The `<os>_<arch>` name of the running host, like `linux_x86_64`.
 #[must_use]
 pub fn host_platform() -> Option<&'static str> {
     crate::status::host_name(std::env::consts::OS, std::env::consts::ARCH)
 }
 
-/// The ids that the languages found under `root` need on `platform`.
 #[must_use]
 pub fn needed_licenses(root: &Path, platform: &str) -> BTreeSet<NeededLicense> {
     let marks = crate::families::file_extensions(root);
@@ -69,8 +57,6 @@ pub fn needed_licenses(root: &Path, platform: &str) -> BTreeSet<NeededLicense> {
         .collect()
 }
 
-/// A scan over Starlark string literals: `"` or `'` opens one, the same quote closes it, and a
-/// backslash escapes the next character, so `'it"s'` and `"it's"` each read as one string.
 #[derive(Clone, Copy, Default)]
 struct Strings {
     open: Option<char>,
@@ -78,7 +64,6 @@ struct Strings {
 }
 
 impl Strings {
-    /// Reads `ch` and tells whether it is code, outside every string and its quotes.
     fn code(&mut self, ch: char) -> bool {
         match self.open {
             Some(_) if self.escaped => self.escaped = false,
@@ -102,7 +87,6 @@ fn strip_comment(line: &str) -> &str {
     line
 }
 
-/// The text of the call whose body is `text`, the text just after its `(`.
 fn call_body(text: &str) -> &str {
     let mut depth = 1usize;
     for (index, ch) in text.char_indices() {
@@ -120,8 +104,6 @@ fn call_body(text: &str) -> &str {
     text
 }
 
-/// The string literals in `text`, single- or double-quoted, each escape kept as the bare escaped
-/// character.
 fn quoted(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut strings = Strings::default();
@@ -144,7 +126,6 @@ fn quoted(text: &str) -> Vec<String> {
     found
 }
 
-/// The names bound to the `dx_licenses` extension by `use_extension`.
 fn extension_names(text: &str) -> Vec<String> {
     let mut names = Vec::new();
     let mut rest = text;
@@ -161,7 +142,6 @@ fn extension_names(text: &str) -> Vec<String> {
     names
 }
 
-/// The ids of every `dx_licenses.accept` tag in `module`, the text of a `MODULE.bazel`.
 pub fn accepted_license_ids(module: &str) -> BTreeSet<String> {
     let text: String = module
         .lines()
@@ -190,9 +170,6 @@ pub fn accepted_license_ids(module: &str) -> BTreeSet<String> {
     ids
 }
 
-/// The lines that accept `ids` in `module`: the `use_extension` line when no name binds the
-/// extension, then one `accept` tag that pins the current terms hash of each id, so a later
-/// change of the terms asks for a new acceptance. Empty when `ids` is empty.
 pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
     if ids.is_empty() {
         return String::new();

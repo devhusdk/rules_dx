@@ -38,9 +38,6 @@ pub(crate) fn run_label_query(
 }
 
 #[expect(clippy::disallowed_methods, reason = "query takes no build settings")]
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run_label_query_file(
     expression: &str,
     label: &str,

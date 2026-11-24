@@ -309,21 +309,19 @@ dx_wrapper_contract_tests(
             ],
         ),
         expect_equal(
-            "strict enables shadowing warnings and drops the deprecated alert",
+            "strict enables shadowing warnings and keeps the deprecated alert",
             STRICT_WARNING_OPTS,
             [
                 "-w",
                 "+a-4-70",
-                "-alert",
-                "-deprecated",
             ],
         ),
         expect_equal(
-            "warnings become errors except 3",
+            "every warning becomes an error",
             WARNINGS_AS_ERRORS_OPTS,
             [
                 "-warn-error",
-                "+a-3",
+                "+a",
             ],
         ),
         expect_equal(

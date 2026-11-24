@@ -153,9 +153,6 @@ fn dx_builds_and_executes() {
     println!("{}", report());
 }
 
-/// `--help` returns before the host check, so it cannot catch a released
-/// binary that refuses its own host. `completion` needs no workspace and runs
-/// after `dx_plan::platform::host_refusal`.
 #[test]
 fn dx_passes_host_check() {
     let dx = dx_testing::env_file("DX_PREFLIGHT_DX");

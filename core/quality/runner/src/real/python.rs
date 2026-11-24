@@ -3,7 +3,6 @@ use quality_adapter::{commands, parsers};
 use super::check::ToolDef;
 use super::{Path, PathBuf, RealBackend, RunnerError, execution, parsed, reanchor};
 
-/// Python linters, formatters and notebook checks.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "ruff",
@@ -90,7 +89,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let resolve_pairs = &call.staged.resolve_pairs;
             {
-                // Each notebook is checked as a script of its code cells.
                 let notebooks = RealBackend::read_notebooks(tool_id, pairs)?;
                 let mut scripts: Vec<(String, String, quality_notebook::PythonScript)> = Vec::new();
                 let mut checked_pairs: Vec<(String, PathBuf)> = Vec::new();
@@ -171,7 +169,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                         let place = |position: quality_adapter::TextPosition| {
                             let (end_cell, end_row) =
                                 script.cell_row(position.line).ok_or_else(unplaced)?;
-                            // A span running into a later cell ends at the end of this one.
                             let (row, column) = if end_cell == cell {
                                 (end_row, position.column)
                             } else {
@@ -235,7 +232,6 @@ impl RealBackend {
         Self::read_notebooks_with(tool_id, pairs, quality_notebook::preflight)
     }
 
-    /// Like `read_notebooks`, for tools that accept any kernel language.
     pub(super) fn read_notebooks_any(
         tool_id: &str,
         pairs: &[(String, PathBuf)],

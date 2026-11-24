@@ -12,20 +12,12 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return erlang.Language() })
 
-// Refs holds what one Erlang file references.
 type Refs struct {
-	// Modules are modules named by remote calls, fun M:F/A, -behaviour,
-	// -import and -parse_transform. Variables and macros never appear.
-	Modules []string
-	// Apps are the first path segment of each -include_lib.
-	Apps []string
-	// NifNames are the base names of literal paths given to erlang:load_nif.
+	Modules  []string
+	Apps     []string
 	NifNames []string
 }
 
-// ParseRefs reads the references of one .erl or .hrl file. Text inside
-// comments and strings never counts, and references before a syntax error are
-// kept.
 func ParseRefs(content []byte) Refs {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -119,8 +111,6 @@ func remote(tree *treesitter.Tree, n *treesitter.Node, modules, nifs set) {
 	}
 }
 
-// firstAtom returns the first direct atom child of n, or "" when it is not a
-// plain module name.
 func firstAtom(tree *treesitter.Tree, n *treesitter.Node) string {
 	for _, c := range n.Children() {
 		if tree.Type(c) == "atom" {

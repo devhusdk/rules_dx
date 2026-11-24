@@ -47,6 +47,7 @@ apple_macos_app(
 
 apple_coverage_link_test(
     name = "desk_app_coverage_link_test",
+    size = "small",
     target_under_test = ":desk_app_bundle",
 )
 

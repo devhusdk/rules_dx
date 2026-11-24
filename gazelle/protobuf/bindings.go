@@ -28,8 +28,6 @@ const (
 	ccGRPCKind   = "cc_grpc_library"
 )
 
-// binding is a language rule that wraps a proto_library. It is generated when
-// the consumer's MODULE.bazel depends on the module that provides the rules.
 type binding struct {
 	module string
 	kind   string
@@ -101,8 +99,6 @@ func bindingExtraKinds() []string {
 
 var goPackage = regexp.MustCompile(`(?m)^\s*option\s+go_package\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
 
-// GoImportPath returns the import path of the go_package option, without the
-// optional ";name" suffix. It is empty when the option is missing.
 func GoImportPath(content []byte) string {
 	m := goPackage.FindSubmatch(stripComments(content))
 	if m == nil {
@@ -113,7 +109,6 @@ func GoImportPath(content []byte) string {
 	return value
 }
 
-// addBindings appends the binding rules for each generated proto_library.
 func addBindings(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	deps := common.ModuleDeps(args.Config.RepoRoot)
 	gen, imports := result.Gen, result.Imports
@@ -246,7 +241,6 @@ func goImportPath(dir string, srcs []string) string {
 	return ""
 }
 
-// libImports returns the import set Generate recorded for lib.
 func libImports(result language.GenerateResult, lib *rule.Rule) []string {
 	for i, r := range result.Gen {
 		if r == lib && i < len(result.Imports) {
@@ -263,8 +257,6 @@ var (
 	javaPackage  = regexp.MustCompile(`(?m)^\s*option\s+java_package\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
 )
 
-// JavaPackage returns the java_package option, or else the proto package. It
-// is empty when neither is set.
 func JavaPackage(content []byte) string {
 	content = stripComments(content)
 	if m := javaPackage.FindSubmatch(content); m != nil {
@@ -278,8 +270,6 @@ func JavaPackage(content []byte) string {
 
 var csharpNamespace = regexp.MustCompile(`(?m)^\s*option\s+csharp_namespace\s*=\s*(?:"([^"\n]*)"|'([^'\n]*)')\s*;`)
 
-// CSharpNamespace returns the csharp_namespace option, or else the proto
-// package with each segment in PascalCase. It is empty when neither is set.
 func CSharpNamespace(content []byte) string {
 	content = stripComments(content)
 	if m := csharpNamespace.FindSubmatch(content); m != nil {
@@ -314,8 +304,6 @@ func pascalCase(name string) string {
 	return out.String()
 }
 
-// Binding keys are indexed under the protobuf language as "<key>:<value>", so
-// other languages find the binding of the code they import.
 const (
 	keyGo      = "go"
 	keyGoProto = "go_proto"
@@ -325,7 +313,6 @@ const (
 	keyCC      = "cc"
 )
 
-// crossKeys maps the language of an importing rule to its binding key.
 var crossKeys = map[string]string{"go": keyGo, "python": keyPython, "java": keyJava, "cc": keyCC}
 
 func bindingKey(key, value string) string { return key + ":" + value }
@@ -334,8 +321,6 @@ func protoLabel(c *config.Config, pkg, name string) string {
 	return label.New(c.RepoName, pkg, name).String()
 }
 
-// bindingImports indexes a binding rule under the imports of the code it
-// generates.
 func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if f == nil {
 		return nil
@@ -387,9 +372,6 @@ func bindingImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.Impo
 	return specs
 }
 
-// CrossResolve lets Go, Python, Java and C++ imports of generated proto code
-// find the binding rule that produces it, and lets Rust imports of a prost
-// crate find its rust_prost_library.
 func (l *protoLang) CrossResolve(c *config.Config, ix *resolve.RuleIndex, imp resolve.ImportSpec, lang string) []resolve.FindResult {
 	if (imp.Lang == "rust" || imp.Lang == "typescript" || imp.Lang == "csharp") && imp.Lang == lang {
 		return ix.FindRulesByImport(imp, languageName)

@@ -8,14 +8,6 @@ const ERROR: &str = "[ERROR]  ";
 const CONFIG_WARNING: &str = "Warning: Error parsing config";
 const SYNTAX: &str = "Invalid syntax ";
 
-/// `helmfmt --check` exits 0 when every file is formatted and exits 1 for unformatted files and
-/// template errors alike. Exit 1 is read from stderr records: `[UNFORMATTED] <path>` and
-/// `[ERROR]  [Invalid syntax ]<path>: <message>`, followed by a blank line and a count line. Anything
-/// else is a shape error and never reads as clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_helmfmt(
     stdout: &[u8],
     stderr: &[u8],
@@ -65,7 +57,6 @@ fn records(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError>
     Ok(findings)
 }
 
-/// `<n> file(s) need formatting, <m> error(s)`.
 fn is_count(line: &str) -> bool {
     line.contains(" file(s) need formatting, ") && line.ends_with(" error(s)")
 }
@@ -95,7 +86,6 @@ fn failure(record: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     ))
 }
 
-/// The line a Go template error names: `template: <name>:<line>: <message>`.
 fn template_line(message: &str) -> u64 {
     message
         .split_once("template: ")

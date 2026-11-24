@@ -5,9 +5,6 @@ use super::{
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rustfmt(
     stdout: &[u8],
     stderr: &[u8],

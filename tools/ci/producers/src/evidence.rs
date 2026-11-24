@@ -1,12 +1,9 @@
-//! Compiler evidence: one JSON line per compiler row of the support matrix facts.
-
 use serde_json::{Map, Value, json};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 const PROBE_FIELD: &str = "field cc.compiler=";
 
-/// Where one evidence run reads its inputs and what it stamps on every line.
 pub struct Run<'a> {
     pub platform: &'a str,
     pub bin: &'a Path,
@@ -32,7 +29,6 @@ fn labels(array: &Value) -> Vec<&str> {
         .collect()
 }
 
-/// The output path of a label under an output root, with `suffix` appended to the file name.
 fn output(root: &Path, label: &str, suffix: &str) -> PathBuf {
     let path = label
         .strip_prefix("//")
@@ -83,7 +79,6 @@ fn marker(flag: &str) -> &'static str {
     }
 }
 
-/// The compiler signatures of the files, read from each file's bytes.
 pub fn observe(files: &[PathBuf]) -> Vec<String> {
     files
         .iter()
@@ -92,7 +87,6 @@ pub fn observe(files: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
-/// The blocker recorded in `facts` for the compiler row `name` on `platform`, or an empty string.
 fn blocker_of<'a>(facts: &'a Value, name: &str, platform: &str) -> &'a str {
     facts
         .get("compiler_blockers")
@@ -214,7 +208,6 @@ fn line(
     Ok(format!("{{{}}}", body.join(",")))
 }
 
-/// One evidence line per row of `facts` whose section is `compilers`; `row_labels` and `consumer_labels` map a row name to its tagged tests.
 pub fn lines(
     facts: &Value,
     row_labels: &Value,
@@ -254,7 +247,6 @@ fn var_or(name: &str, default: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| default.to_owned())
 }
 
-/// Appends the evidence lines to `OUT`. `args` is `OUT` `PLATFORM` `FACTS` `ROW_LABELS` `CONSUMER_LABELS`.
 pub fn append(args: &[String]) -> Result<(), String> {
     let [out, platform, facts, row_labels, consumer_labels] = args else {
         return Err(

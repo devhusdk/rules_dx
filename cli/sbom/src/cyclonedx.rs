@@ -1,5 +1,3 @@
-//! The `CycloneDX` 1.6 JSON data model dx writes next to the SPDX one.
-
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
@@ -15,7 +13,6 @@ pub struct CdxLicense {
     pub id: String,
 }
 
-/// One `licenses[]` entry: an SPDX id under `license`, or an SPDX `expression`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CdxLicenseChoice {
@@ -78,7 +75,6 @@ pub struct CycloneDxDocument {
 }
 
 impl CycloneDxDocument {
-    /// Returns a document whose root `application` component is `root`, with no dependencies yet.
     #[must_use]
     pub fn new(root_name: &str, timestamp: &str, tool: &str) -> Self {
         Self {
@@ -104,7 +100,6 @@ impl CycloneDxDocument {
         }
     }
 
-    /// Adds a library component and lists it under the root in `dependencies`.
     pub fn add_library(&mut self, component: CdxComponent) {
         let root = &self.metadata.component.bom_ref;
         if !self
@@ -137,7 +132,6 @@ impl CycloneDxDocument {
 
 pub const ROOT_REF: &str = "root";
 
-/// The `CycloneDX` `licenses` value for an SPDX expression: one id, an expression, or nothing.
 #[must_use]
 pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
     let expression = expression.trim();
@@ -167,15 +161,12 @@ struct SpdxEnum {
     ids: BTreeSet<String>,
 }
 
-// The `spdx` crate knows newer ids than the 1.6 schema enum, which rejects them under
-// `license.id`. An unreadable schema leaves the set empty, so every id falls back to `expression`.
 static SCHEMA_LICENSE_IDS: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
     serde_json::from_str::<SpdxEnum>(include_str!("../schema/spdx.schema.json"))
         .map(|schema| schema.ids)
         .unwrap_or_default()
 });
 
-/// Graph rules the schema cannot express: non-empty unique bom-refs and known, unrepeated dependency refs.
 #[must_use]
 pub fn reference_errors(document: &CycloneDxDocument) -> Vec<String> {
     let mut errors = Vec::new();

@@ -15,7 +15,6 @@ pub(crate) struct ApplyOutcome {
     pub(crate) not_applied: Vec<(String, &'static str)>,
 }
 
-/// Resolves links so a write lands on the real file, never replacing the link itself.
 fn resolve_source(workspace: &Path, path: &str) -> Result<PathBuf, &'static str> {
     match dx_path::workspace::resolve_target_in_workspace(workspace, path) {
         Ok(target) => Ok(target),
@@ -26,11 +25,6 @@ fn resolve_source(workspace: &Path, path: &str) -> Result<PathBuf, &'static str>
     }
 }
 
-/// Writes each verified candidate through `fs`; a failed write is reported
-/// as `write_failed` and does not roll back files already written. With
-/// `writable`, a change to any other path is reported as `outside_scope`.
-/// A path that links out of the workspace is never read and is reported as
-/// `outside_workspace`.
 pub(crate) fn apply_collected_changes(
     fs: &dyn FileSystem,
     workspace: &Path,
@@ -121,7 +115,6 @@ fn reappears(initial: &DiagnosticEvent, terminal: &[DiagnosticEvent], used: &mut
     found.is_some()
 }
 
-/// Marks unwritten paths whose terminal bytes differ from the original as not on disk.
 pub(crate) fn terminal_on_disk(
     applied: &BTreeMap<String, bool>,
     original_digests: &BTreeMap<String, [u8; 32]>,

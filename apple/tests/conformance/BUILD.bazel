@@ -114,6 +114,7 @@ apple_ios_app(
 
 dx_quality_error_tests(
     name = "ios",
+    size = "small",
     lang = "apple",
     quality = {
         "format_dirty": ":ios_format_dirty",

@@ -3,11 +3,6 @@ use super::{FileFinding, ParseError, Spelling, code_name, listed_paths};
 
 const TOOL: &str = "zig_fmt";
 
-/// Findings from `zig fmt --check`: listed files are unformatted, `path:line:col: error:` lines are syntax errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_fmt(
     stdout: &[u8],
     stderr: &[u8],

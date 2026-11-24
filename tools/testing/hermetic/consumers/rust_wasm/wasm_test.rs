@@ -1,5 +1,3 @@
-//! Runs the WASI binary under Wasmtime and checks the browser bundle.
-
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

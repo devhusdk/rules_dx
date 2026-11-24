@@ -98,7 +98,7 @@ core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 - selene: upstream zips lack the Lua 5.2 to 5.4 parsers. The default `std = "lua53+lua54"` (`lua/private/quality/selene.toml`) needs them, so every host is release-built from `@dx_selene_src`. Gate it on `//lua/tests:selene_smoke_test`.
 - kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with the `patches/elfutils/` patches) and zlib. `dx-kcov-source.tar.gz` holds the kcov tarball, its patches, `kcov.BUILD` and the elfutils and zlib sources. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`. elfutils, zlib and `@kcov` are rules_dx dev dependencies, so only the rules_dx root builds kcov from source. `DEV_SOURCE_FALLBACK` in `cli/prebuilt/tools.bzl` makes a consumer hub serve `@rules_dx//tools/coverage/kcov:none` on a platform with no kcov pin, and that test writes no coverage.
 - zanuda reads `.cmt` files of the consumer's OCaml, whose toolchain has no Windows cell.
-- weeder reads `.hie` files and is built with the consumer's GHC. `windows_arm64` is unsupported because GHC ships no bindist for it.
+- weeder reads `.hie` files and is built with the consumer's GHC. `windows_arm64` is unsupported.
 - hlint, ormolu and nixfmt: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the locked source archive.
 - Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`, compiling nothing. ansible-lint is unsupported on Windows.
 
@@ -110,5 +110,3 @@ nixfmt | GHC bindist, rules_haskell | 43 from Hackage
 deadnix, selene | Rust toolchain, rules_rust | 240 crates in the shared lock
 kcov | C and C++ toolchain | elfutils and zlib from the BCR
 zanuda | OCaml compiler, dune | 35 in the duniverse
-
-- A source build fetches the toolchain and every locked package; a release-built or fetched tool is one download.

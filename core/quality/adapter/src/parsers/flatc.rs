@@ -3,12 +3,9 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "flatc";
 
-/// What one `flatc -M --cpp` run reported about one schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlatcReport {
-    /// Errors and warnings flatc printed on stderr.
     pub findings: Vec<FileFinding>,
-    /// Every file the make rule on stdout lists as a dependency, in order.
     pub dependencies: Vec<String>,
 }
 
@@ -35,8 +32,6 @@ fn severity(text: &str) -> Option<ToolSeverity> {
     }
 }
 
-/// Reads `path:line: col: error|warning: message` (gcc style) or
-/// `path(line, col): error|warning: message` (the `_WIN32` style).
 fn locate(line: &str) -> Option<Located<'_>> {
     for (at, _) in line.match_indices(": ") {
         let (head, tail) = line.split_at_checked(at)?;
@@ -77,8 +72,6 @@ fn locate(line: &str) -> Option<Located<'_>> {
     None
 }
 
-/// Splits the make rule `target: dep dep ...` that `-M` prints, with the
-/// ` \` line continuations joined, into the dependency list.
 fn dependencies(stdout: &str) -> Result<Vec<String>, ParseError> {
     let joined = stdout.replace(" \\\r\n", " ").replace(" \\\n", " ");
     let mut deps = Vec::new();
@@ -105,15 +98,6 @@ fn dependencies(stdout: &str) -> Result<Vec<String>, ParseError> {
     Ok(deps)
 }
 
-/// Parses the stderr and the `-M` make rule of one flatc run over one schema.
-///
-/// Warnings are findings. Output the grammar cannot read is never clean: a
-/// nonzero exit needs an error finding, a zero exit allows warnings only, and
-/// any other stderr line is a shape error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_flatc(
     stdout: &[u8],
     stderr: &[u8],
@@ -149,7 +133,6 @@ pub fn parse_flatc(
         if found.severity == ToolSeverity::Error {
             errors += 1;
         }
-        // flatc parses every included schema in the same run.
         let Some(file) = files.iter().find(|file| **file == found.path) else {
             continue;
         };
@@ -170,7 +153,6 @@ pub fn parse_flatc(
                 severity: found.severity,
                 start: TextPosition {
                     line: found.line,
-                    // flatc reports the cursor offset, which is 0 on an empty file.
                     column: found.column.max(1),
                 },
                 end: None,

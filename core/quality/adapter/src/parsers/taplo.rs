@@ -83,9 +83,6 @@ fn taplo_location(location: &str) -> Result<(&str, u64, u64), ParseError> {
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_taplo_lint(
     stderr: &[u8],
     code: Option<i32>,
@@ -122,9 +119,6 @@ pub fn parse_taplo_lint(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_taplo_format_check(
     stderr: &[u8],
     code: Option<i32>,

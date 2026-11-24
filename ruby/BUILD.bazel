@@ -2,6 +2,8 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+# Upstream: bazel-contrib/rules_ruby#435
+# Upstream: bazel-contrib/rules_ruby#440
 exports_files([
     "README.md",
     "defs.bzl",

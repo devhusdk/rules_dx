@@ -1,5 +1,3 @@
-//! Tests for the site checker helpers.
-
 use std::path::Path;
 
 use documentation_ir::encode_shard;

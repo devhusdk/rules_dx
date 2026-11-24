@@ -1,5 +1,3 @@
-//! A resolver for the lock test: resolves `fixture.json` against a registry index file.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -35,11 +33,8 @@ fn closure(index: &Value, roots: &[String]) -> Result<BTreeSet<String>, String> 
     Ok(found)
 }
 
-/// The scratch directory a variable points at, when it is a directory beside the working directory.
 fn scratch_dir(variable: &str, cwd: &Path) -> Result<PathBuf, String> {
     let dir = PathBuf::from(std::env::var(variable).map_err(|e| format!("{variable}: {e}"))?);
-    // Compare canonical paths: on macOS `current_dir()` resolves `/var` to `/private/var` while
-    // the variable keeps `/var`, so the raw parents never match.
     let canonical = |path: &Path| {
         std::fs::canonicalize(path)
             .map_err(|error| format!("{variable}: {}: {error}", path.display()))

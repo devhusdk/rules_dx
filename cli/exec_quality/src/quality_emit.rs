@@ -36,10 +36,8 @@ pub(crate) struct EmitCounts {
     pub(crate) findings_omitted: u64,
 }
 
-/// Findings per tool a JSON run prints when `--max-findings` is not given.
 const DEFAULT_MAX_FINDINGS: u32 = 50;
 
-/// Keeps the first `limit` records of each tool and says how many it dropped; 0 keeps all.
 fn cap_per_tool(
     records: Vec<FindingRecord>,
     limit: u32,
@@ -98,7 +96,6 @@ fn equivalent(a: &DiagnosticEvent, b: &DiagnosticEvent) -> bool {
         && a.package == b.package
 }
 
-/// Folds findings proven equal on one verified snapshot and attaches their verified lines.
 pub(crate) fn finding_records(
     status: &[DiagnosticEvent],
     snapshots: &Snapshots,

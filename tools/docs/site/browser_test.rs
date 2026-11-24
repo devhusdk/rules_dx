@@ -1,5 +1,3 @@
-//! Serves the rendered site and drives it in a real Firefox at every hosting base.
-
 use dx_site_browser::{Browser, wait_for};
 
 mod preview_server;
@@ -9,8 +7,6 @@ const DESKTOP: (u64, u64) = (1280, 900);
 const PHONE: (u64, u64) = (390, 780);
 const WIDE: (u64, u64) = (1600, 1000);
 
-/// A browser that owns its scratch profile; fields drop in order, so Firefox
-/// stops before the profile dir is removed.
 struct ProfiledBrowser {
     browser: Browser,
     _profile: dx_test_scratch::TempDir,

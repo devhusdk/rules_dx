@@ -15,6 +15,7 @@ TOOLS = [
             "DL3008": "error",
             "DL3018": "error",
             "DL4006": "error",
+            "guard/": "error",
         }),
         support = [
             row(

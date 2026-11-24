@@ -1,5 +1,3 @@
-//! Writes `docs/support-matrix.md`.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use serde as _;

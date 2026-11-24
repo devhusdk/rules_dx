@@ -83,9 +83,6 @@ fn is_run_pattern(label: &str) -> bool {
     label.contains("...") || label.contains('*')
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn resolve_run(
     scopes: &[String],
     workspace: &Path,
@@ -199,12 +196,9 @@ fn resolve_only_runnable(
 
 pub const DEPLOYMENTS_QUERY: &str = r#"kind("^deployment rule$", //...)"#;
 
-/// The query `reusable-release.yml` runs to pick the deployables.
 pub const RELEASE_DEPLOYMENTS_QUERY: &str =
     r#"attr(tags, "[\[ ]release[,\]]", kind("^deployment rule$", //...))"#;
 
-/// Lists the repo's `deployment` labels, marking the ones tagged release. Empty when the
-/// queries fail or find nothing.
 pub fn deploy_label_hint(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -239,9 +233,6 @@ pub fn format_deploy_labels(all: &[String], release: &[String]) -> String {
     text
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn resolve_deploy(scopes: &[String]) -> Result<String, ResolveError> {
     let [scope] = scopes else {
         return Err(ResolveError::DeployCount {
@@ -303,9 +294,6 @@ fn deploy_query_argv(label: &str, startup_options: &[String]) -> Result<Vec<Stri
         })
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn check_deployable(
     label: &str,
     workspace: &Path,

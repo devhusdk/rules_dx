@@ -19,7 +19,6 @@ var (
 	tsGrammar  = sync.OnceValue(func() *ts.Language { return typescript.Language() })
 )
 
-// Scan calls add with each module spec src imports, exports from or requires.
 func Scan(src []byte, add func(string)) {
 	src = bytes.TrimPrefix(src, []byte("\xef\xbb\xbf"))
 	tree := treesitter.Parse(tsxGrammar(), src)
@@ -80,9 +79,6 @@ func callSpec(n *treesitter.Node, src []byte, lang *ts.Language) *treesitter.Nod
 	return nil
 }
 
-// exportRepair finds the spec of two valid forms the grammars split apart:
-// export import x = require("a") and an export clause whose from sits on the
-// next line.
 func exportRepair(n *treesitter.Node, src []byte, lang *ts.Language) *treesitter.Node {
 	count := n.NamedChildCount()
 	if count == 0 {
@@ -123,26 +119,16 @@ func exportRepair(n *treesitter.Node, src []byte, lang *ts.Language) *treesitter
 	return nil
 }
 
-
 type ImportRef struct {
-	Spec string
-	Root string
-	// Ext is an asset extension (such as .json or .css) kept in Root.
-	Ext string
-	// ModuleExt is the module extension (such as .ts or .svelte) stripped
-	// from Root. It is empty when the spec named no module extension.
+	Spec      string
+	Root      string
+	Ext       string
 	ModuleExt string
 	Relative  bool
 }
 
-// JSModuleExts are the extensions stripped from a relative JavaScript or
-// TypeScript import to get its module identity.
 var JSModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
 
-// relativeRef returns the workspace-relative identity of a relative spec with
-// any extension in exts stripped and returned as moduleExt, and any other
-// extension (such as .json or .prod) left in the root and returned as ext.
-// A spec naming the workspace root itself, such as ".", resolves to index.
 func relativeRef(dir, spec string, exts []string) (root, ext, moduleExt string) {
 	spec = strings.TrimSpace(spec)
 	trimmed := strings.TrimSuffix(spec, "/")
@@ -188,8 +174,6 @@ func ParseImportRefs(src []byte, dir string) []ImportRef {
 	return parseRefs(src, dir, Scan)
 }
 
-// ParseSourceImportRefs is ParseImportRefs plus the setup modules a Jest,
-// Vitest, or Vite config named name declares.
 func ParseSourceImportRefs(name string, src []byte, dir string) []ImportRef {
 	if !IsJSTestConfig(name) {
 		return ParseImportRefs(src, dir)
@@ -230,10 +214,6 @@ func parseRefs(src []byte, dir string, scan func([]byte, func(string))) []Import
 
 var refSetExts = append(slices.Clone(JSModuleExts), ".vue", ".svelte", ".astro", ".mdx")
 
-// RefSet collects the imports of a web component (Svelte, Vue, Astro, MDX)
-// source in Dir. Relative specs get their workspace path as Root, with any
-// JavaScript, TypeScript or web component extension stripped into ModuleExt
-// and any other extension kept in Root and recorded as Ext.
 type RefSet struct {
 	Dir  string
 	refs map[refKey]ImportRef
@@ -261,7 +241,6 @@ func (s *RefSet) Add(spec string) {
 	s.refs[key] = ImportRef{Spec: spec, Root: root, Ext: ext, ModuleExt: moduleExt, Relative: relative}
 }
 
-// Refs returns the collected imports sorted by Root, then ModuleExt.
 func (s *RefSet) Refs() []ImportRef {
 	var out []ImportRef
 	for _, ref := range s.refs {
@@ -271,7 +250,6 @@ func (s *RefSet) Refs() []ImportRef {
 	return out
 }
 
-// SortRefs orders refs by Root, then ModuleExt.
 func SortRefs(refs []ImportRef) {
 	sort.Slice(refs, func(i, j int) bool {
 		if refs[i].Root != refs[j].Root {
@@ -281,7 +259,6 @@ func SortRefs(refs []ImportRef) {
 	})
 }
 
-// RefRoots returns the Root of each ref, in order.
 func RefRoots(refs []ImportRef) []string {
 	var out []string
 	for _, ref := range refs {
@@ -290,10 +267,6 @@ func RefRoots(refs []ImportRef) []string {
 	return out
 }
 
-
-// skipComment reports whether a comment starts at p and returns the index just
-// past it. A line comment stops at the newline; an unclosed block comment runs
-// to the end of src.
 func skipComment(src []byte, p int) (int, bool) {
 	n := len(src)
 	if p+1 >= n || src[p] != '/' {
@@ -318,7 +291,6 @@ func skipComment(src []byte, p int) (int, bool) {
 	}
 	return p, false
 }
-
 
 func skipTrivia(src []byte, pos int) int {
 	n := len(src)
@@ -472,7 +444,6 @@ func skipRegex(src []byte, pos int) int {
 	return n
 }
 
-
 func isIdentStart(c byte) bool {
 	return c == '_' || c == '$' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
@@ -481,9 +452,6 @@ func isIdentChar(c byte) bool {
 	return isIdentStart(c) || (c >= '0' && c <= '9')
 }
 
-// IncompleteJS is framing-only (it finds where an MDX ESM block ends; ScanEmbedded reads imports).
-// It reports whether src ends inside an open bracket, template
-// literal, or block comment, so later lines could still complete it.
 func IncompleteJS(src []byte) bool {
 	n := len(src)
 	var stack []byte
@@ -542,7 +510,6 @@ func IncompleteJS(src []byte) bool {
 	return len(stack) > 0
 }
 
-// ScanEmbedded calls add with each module spec an embedded script imports.
 func ScanEmbedded(src []byte, add func(string)) { Scan(src, add) }
 
 func isPrecededByDot(src []byte, pos int) bool {

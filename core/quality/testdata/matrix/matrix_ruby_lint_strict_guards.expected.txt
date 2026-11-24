@@ -1,0 +1,27 @@
+producer //core/quality/testdata:matrix_ruby_lint_strict_guards
+capability LINT
+stages 1
+stage rubocop classes=ruby sources=matrix/rubocop_guard_debugger.rb,matrix/rubocop_guard_disable.rb,matrix/rubocop_guard_rescue.rb,matrix/rubocop_guard_sigil.rb,matrix/rubocop_guard_unsafe.rb,matrix/spec/rubocop_guard_focus_spec.rb
+completed_rounds 1
+convergence STABLE
+initial 9
+initial WARNING rubocop Lint/Debugger matrix/rubocop_guard_debugger.rb 47 47 fixable=false "Remove debugger entry point `binding.pry`."
+initial WARNING rubocop Style/DisableCopsWithinSourceCodeDirective matrix/rubocop_guard_disable.rb 53 53 fixable=false "RuboCop disable/enable directives are not permitted."
+initial WARNING rubocop Lint/ConstantResolution matrix/rubocop_guard_rescue.rb 55 55 fixable=false "Fully qualify this constant to avoid possibly ambiguous resolution."
+initial WARNING rubocop Lint/RescueException matrix/rubocop_guard_rescue.rb 70 70 fixable=false "Avoid rescuing the `Exception` class. Perhaps you meant to rescue `StandardError`?"
+initial WARNING rubocop Sorbet/StrictSigil matrix/rubocop_guard_sigil.rb 30 30 fixable=false "Sorbet sigil should be at least `strict` got `false`."
+initial WARNING rubocop Lint/ConstantResolution matrix/rubocop_guard_unsafe.rb 47 47 fixable=false "Fully qualify this constant to avoid possibly ambiguous resolution."
+initial WARNING rubocop Sorbet/ForbidTUnsafe matrix/rubocop_guard_unsafe.rb 47 47 fixable=false "Do not use `T.unsafe`."
+initial WARNING rubocop RSpec/SpecFilePathFormat matrix/spec/rubocop_guard_focus_spec.rb 47 47 fixable=false "Spec path should end with `integer*_spec.rb`."
+initial WARNING rubocop RSpec/Focus matrix/spec/rubocop_guard_focus_spec.rb 91 91 fixable=false "Focused spec found."
+terminal 9
+terminal WARNING rubocop Lint/Debugger matrix/rubocop_guard_debugger.rb 47 47 fixable=false "Remove debugger entry point `binding.pry`."
+terminal WARNING rubocop Style/DisableCopsWithinSourceCodeDirective matrix/rubocop_guard_disable.rb 53 53 fixable=false "RuboCop disable/enable directives are not permitted."
+terminal WARNING rubocop Lint/ConstantResolution matrix/rubocop_guard_rescue.rb 55 55 fixable=false "Fully qualify this constant to avoid possibly ambiguous resolution."
+terminal WARNING rubocop Lint/RescueException matrix/rubocop_guard_rescue.rb 70 70 fixable=false "Avoid rescuing the `Exception` class. Perhaps you meant to rescue `StandardError`?"
+terminal WARNING rubocop Sorbet/StrictSigil matrix/rubocop_guard_sigil.rb 30 30 fixable=false "Sorbet sigil should be at least `strict` got `false`."
+terminal WARNING rubocop Lint/ConstantResolution matrix/rubocop_guard_unsafe.rb 47 47 fixable=false "Fully qualify this constant to avoid possibly ambiguous resolution."
+terminal WARNING rubocop Sorbet/ForbidTUnsafe matrix/rubocop_guard_unsafe.rb 47 47 fixable=false "Do not use `T.unsafe`."
+terminal WARNING rubocop RSpec/SpecFilePathFormat matrix/spec/rubocop_guard_focus_spec.rb 47 47 fixable=false "Spec path should end with `integer*_spec.rb`."
+terminal WARNING rubocop RSpec/Focus matrix/spec/rubocop_guard_focus_spec.rb 91 91 fixable=false "Focused spec found."
+replacements 0

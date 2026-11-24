@@ -1,5 +1,3 @@
-//! A deterministic child process for tests that must not need a host shell.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -12,7 +10,6 @@ use std::io::{self, Read, Write};
 use std::process::{Command, ExitCode, Stdio};
 use std::time::Duration;
 
-/// The usage text every run of the probe documents.
 const USAGE: &str = "\
 process_probe: a deterministic child for process tests.
 
@@ -63,32 +60,20 @@ PROCESS_PROBE_CALL_STDOUT to stdout and PROCESS_PROBE_CALL_STDERR to stderr, and
 exits with PROCESS_PROBE_CALL_EXIT.
 ";
 
-/// The file a logged call records its working directory and arguments into.
 const CALL_LOG: &str = "PROCESS_PROBE_CALL_LOG";
-/// The text a logged call writes to stdout.
 const CALL_STDOUT: &str = "PROCESS_PROBE_CALL_STDOUT";
-/// The text a logged call writes to stderr.
 const CALL_STDERR: &str = "PROCESS_PROBE_CALL_STDERR";
-/// The exit status a logged call reports.
 const CALL_EXIT: &str = "PROCESS_PROBE_CALL_EXIT";
-/// The directory a fake bazel run records its launches and app locks into.
 const BAZEL_DIR: &str = "PROCESS_PROBE_BAZEL_DIR";
 
-/// Extra flags a fake bazel run gives its app, split on whitespace.
 const APP_ARGS: &str = "PROCESS_PROBE_APP_ARGS";
 
-/// When set, the fake bazel app starts a descendant holding child-N.
 const APP_DESCENDANT: &str = "PROCESS_PROBE_APP_DESCENDANT";
 
-/// A malformed invocation.
 const EXIT_USAGE: i32 = 64;
-/// Output the child could not write.
 const EXIT_OUTPUT: i32 = 74;
-/// A required environment variable was unset or held another value.
 const EXIT_ENV_MISSING: i32 = 70;
-/// A forbidden environment variable was set.
 const EXIT_ENV_SET: i32 = 71;
-/// The probe's group did not hold the terminal.
 #[cfg(unix)]
 const EXIT_BACKGROUND: i32 = 3;
 
@@ -141,7 +126,6 @@ where
         .map_err(|error| format!("{flag} needs a number, got {value}: {error}"))
 }
 
-/// The flags that carry a value after `=`.
 const VALUE_FLAGS: &[&str] = &[
     "--exit-code",
     "--stdout-bytes",
@@ -168,7 +152,6 @@ const VALUE_FLAGS: &[&str] = &[
     "--ctrl-c-console",
 ];
 
-/// The flags that stand alone.
 const SWITCH_FLAGS: &[&str] = &[
     "--print-env-all",
     "--print-argv",
@@ -344,7 +327,6 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
         args.push("--ignore-console-ctrl".to_owned());
     }
     if let Some(lock) = &plan.nested_server_lock {
-        // The chain is wrapper -> client -> server.
         args = vec![
             "--detached-descendant".to_owned(),
             "--descendant-own-group".to_owned(),
@@ -526,7 +508,6 @@ fn sleep_until_gate(plan: &Plan) {
     }
 }
 
-/// An exit code with the message the probe prints before it exits.
 struct Failure {
     code: i32,
     message: String,
@@ -543,7 +524,6 @@ fn report_output_error(error: &io::Error) -> Failure {
     fail(EXIT_OUTPUT, &format!("cannot write the report: {error}"))
 }
 
-/// The working directory without a Windows verbatim prefix.
 fn plain_cwd() -> io::Result<String> {
     let cwd = dx_path::without_verbatim(&env::current_dir()?);
     Ok(cwd.to_string_lossy().into_owned())

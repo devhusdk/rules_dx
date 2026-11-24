@@ -12,7 +12,6 @@ fn shape(detail: impl Into<String>) -> ParseError {
     }
 }
 
-/// A path with `.` dropped, `..` folded and separators spelled `/`, or `None` when `..` climbs past the start.
 fn lexical(path: &Path) -> Option<String> {
     let mut clean = PathBuf::new();
     for part in path.components() {
@@ -31,7 +30,6 @@ fn lexical(path: &Path) -> Option<String> {
     Some(dx_path::posix(&clean))
 }
 
-/// The staged file a `source.ref` names, spelled as `staged` spells it.
 fn staged_file<'a>(cwd: &Path, staged: &[&'a str], reference: &str) -> Option<&'a str> {
     let named = Path::new(reference);
     let absolute = if named.is_absolute() || dx_path::drive_rooted(reference) {
@@ -46,7 +44,6 @@ fn staged_file<'a>(cwd: &Path, staged: &[&'a str], reference: &str) -> Option<&'
         .find(|file| lexical(Path::new(file)).is_some_and(|known| known == wanted))
 }
 
-/// The workspace spelling of a staged file: its path under `cwd`, else the path itself.
 fn display(cwd: &Path, file: &str) -> String {
     Path::new(file)
         .strip_prefix(cwd)
@@ -128,16 +125,6 @@ fn problem_finding(
     })
 }
 
-/// Findings from one `redocly lint --format=json` run over the single root `root`.
-///
-/// `staged` lists every staged spec file (the root, refs and dep files), spelled as absolute
-/// paths. A problem in a fragment lands on the root at line 1, prefixed with the fragment
-/// location, since a fragment is never an owned source. Output that does not account for
-/// every counted problem, or names an unstaged file, is never read as clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_redocly(
     stdout: &[u8],
     code: Option<i32>,

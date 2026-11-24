@@ -20,6 +20,13 @@ const FIXTURE_DIR: &str = "tools/ci/actionlint_fixtures";
 
 const FIXTURE_WORKFLOWS: [&str; 2] = ["invalid.yml", "reusable.yml"];
 
+const OVERSIZED_HEADER: &str =
+    "on: push\njobs:\n  oversized:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n";
+
+const OVERSIZED_SCRIPT_LINES: usize = 2048;
+
+const LARGEST_PIPE_BUFFER: usize = 64 * 1024;
+
 const PLATFORM_RUNNERS: &str = "tools/ci/input_validation/src/lib.rs";
 
 const SUPPORTED_PLATFORMS: usize = 5;
@@ -153,6 +160,41 @@ fn the_invalid_fixture_reports_every_semantic_failure() {
             reported.join("\n")
         );
     }
+}
+
+fn oversized_script() -> String {
+    let mut lines: Vec<String> = (0..OVERSIZED_SCRIPT_LINES)
+        .map(|line| {
+            format!("          echo \"line {line} pads the script past every pipe buffer\"")
+        })
+        .collect();
+    lines.push("          echo $HOME".to_owned());
+    lines.join("\n")
+}
+
+#[test]
+fn a_run_script_larger_than_a_pipe_buffer_reaches_shellcheck() {
+    let script = oversized_script();
+    assert!(
+        script.len() > LARGEST_PIPE_BUFFER,
+        "the script must overrun the pipe buffer on every platform"
+    );
+    let staged = stage(&[(CONFIG.to_owned(), CONFIG.to_owned())]);
+    let root = staged.path();
+    let target = format!("{WORKFLOWS}/oversized.yml");
+    std::fs::create_dir_all(root.join(WORKFLOWS)).expect("workflow directory");
+    std::fs::write(root.join(&target), format!("{OVERSIZED_HEADER}{script}\n"))
+        .expect("oversized workflow");
+    let run = lint(root, &[target]);
+    let reported = findings(&run);
+    assert!(
+        matches!(
+            reported.as_slice(),
+            [only] if only.contains("shellcheck reported issue in this script: SC2086:")
+        ),
+        "shellcheck must report only the unquoted expansion at the end of the oversized script:\n{}",
+        reported.join("\n")
+    );
 }
 
 fn configured_runners() -> Vec<String> {

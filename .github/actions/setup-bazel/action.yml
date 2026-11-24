@@ -67,10 +67,16 @@ runs:
           contents="$(cygpath -m "$contents")"
           nested="$(cygpath -m "$nested")"
         fi
+        case "$RUNNER_OS" in
+          macOS) heap=50 memory=.5 ;;
+          *) heap=50 memory=.25 ;;
+        esac
         {
           echo "common --repository_cache=$cache"
           echo "common --repo_contents_cache=$contents"
           echo "test --sandbox_writable_path=$nested"
+          echo "startup --host_jvm_args=-XX:MaxRAMPercentage=$heap"
+          echo "common --local_resources=memory=HOST_RAM*$memory"
         } >> user.bazelrc
         echo "DX_NESTED_SHARED=$nested" >> "$GITHUB_ENV"
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1

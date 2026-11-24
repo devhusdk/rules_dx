@@ -88,7 +88,9 @@ fn check_verifies_every_generated_file_on_one_platform() {
         .expect("whole-repo generate step");
     assert_eq!(
         step["if"].as_str(),
-        Some("${{ !cancelled() && matrix.platform == 'linux_x86_64' }}")
+        Some(
+            "${{ !cancelled() && matrix.platform == 'linux_x86_64' && github.event_name != 'pull_request' }}"
+        )
     );
 }
 

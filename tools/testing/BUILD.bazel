@@ -166,13 +166,7 @@ rust_binary(
     ),
     crate_name = "nested_bazel_probe",
     crate_root = "nested_bazel_probe.rs",
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ) + [
-        ":dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
+    deps = ["//tools/testing/nested:dx_nested"],
 )
 
 rust_binary(

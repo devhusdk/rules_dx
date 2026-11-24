@@ -2362,7 +2362,8 @@ fn reaper_waiting(reaper: &mut Child) -> std::thread::JoinHandle<String> {
     log
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 #[track_caller]
 fn exited_unreaped(pid: u32) {
     let raw = i32::try_from(pid).expect("pid");

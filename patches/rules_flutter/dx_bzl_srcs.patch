@@ -15,15 +15,13 @@ diff -u a/flutter/BUILD.bazel b/flutter/BUILD.bazel
 diff -u a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
 --- a/flutter/private/BUILD.bazel
 +++ b/flutter/private/BUILD.bazel
-@@ -1083,3 +1083,11 @@
+@@ -1083,3 +1083,9 @@
      visibility = ["//flutter:__subpackages__"],
      deps = [":engine_labels"],
  )
 +
 +filegroup(
 +    name = "dx_bzl_srcs",
-+    srcs = glob(["*.bzl"]) + [
-+        "@rules_swift_package_manager//swiftpkg:defs",
-+    ],
++    srcs = glob(["*.bzl"]),
 +    visibility = ["//visibility:public"],
 +)

@@ -2573,12 +2573,6 @@ Tag `dx_gazelle.language`:
 | --- | --- | --- | --- |
 | `library` | `label` | yes |  |
 
-#### `dx_launchers`
-
-Module extension.
-
-No tags.
-
 #### `dx_licenses`
 
 Module extension.
@@ -2645,6 +2639,17 @@ Tag `dx_prebuilt.asset`:
 Tag `dx_prebuilt.from_source`:
 
 No attributes.
+
+#### `dx_toolchains`
+
+Module extension.
+
+Tag `dx_toolchains.package`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build` | `label` | yes |  |
+| `name` | `name` | yes |  |
 
 ### `@rules_dx//csharp:defs.bzl`
 
@@ -5168,12 +5173,6 @@ Tag `julia.pkg_annotation`:
 | `patch_args` | `string_list` | no | `[]` |
 | `patch_tool` | `string` | no | `""` |
 | `patches` | `label_list` | no | `[]` |
-
-#### `julia_runtime`
-
-Module extension.
-
-No tags.
 
 #### `julia_toolchain`
 

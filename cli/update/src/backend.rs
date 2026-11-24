@@ -543,6 +543,11 @@ pub fn pnpm_run_argv(
 }
 
 #[must_use]
+pub fn resolver_build_argv(head: &dx_process::BazelHead, resolver: &str) -> Vec<String> {
+    bazel(head, "build", &[resolver])
+}
+
+#[must_use]
 pub fn resolver_run_argv(head: &dx_process::BazelHead, resolver: &str, dir: &str) -> Vec<String> {
     bazel(head, "run", &[resolver, "--", "--dir", dir])
 }

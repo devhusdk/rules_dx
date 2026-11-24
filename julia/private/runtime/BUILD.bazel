@@ -26,7 +26,7 @@ config_setting(
     flag_values = {":stock": "false"},
     visibility = [
         "//julia:__subpackages__",
-        "@dx_julia_toolchains//:__pkg__",
+        "@dx_toolchains//julia:__pkg__",
     ],
 )
 
@@ -40,7 +40,7 @@ julia_source_toolchain(
     target_compatible_with = _LINUX_X86_64,
     visibility = [
         "//julia:__subpackages__",
-        "@dx_julia_toolchains//:__pkg__",
+        "@dx_toolchains//julia:__pkg__",
     ],
 )
 
@@ -99,7 +99,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "hub.bzl",
     ],
     tags = ["corpus"],
 )

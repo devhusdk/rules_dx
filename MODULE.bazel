@@ -1837,15 +1837,10 @@ single_version_override(
         "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:dx_bzl_srcs.patch",
         "//patches/rules_flutter:deterministic_web_compile.patch",
+        "//patches/rules_flutter:flutter_extension_loads.patch",
+        "//patches/rules_flutter:no_swift_packages.patch",
     ],
     version = "0.1.0",
-)
-
-single_version_override(
-    module_name = "cgrindel_bazel_starlib",
-    patch_strip = 1,
-    patches = ["//patches/cgrindel_bazel_starlib:absent_local_git.patch"],
-    version = "0.30.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
@@ -1921,10 +1916,22 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
 
-dx_julia_toolchains = use_extension("//julia:extensions.bzl", "julia_runtime")
-use_repo(dx_julia_toolchains, "dx_julia_toolchains")
+dx_toolchains = use_extension("//core:extensions.bzl", "dx_toolchains")
+dx_toolchains.package(
+    name = "cuda",
+    build = "//cuda/private:toolchains.BUILD.bazel",
+)
+dx_toolchains.package(
+    name = "julia",
+    build = "//julia/private:toolchains.BUILD.bazel",
+)
+dx_toolchains.package(
+    name = "launcher",
+    build = "//core/hermetic_launcher:toolchains.BUILD.bazel",
+)
+use_repo(dx_toolchains, "dx_toolchains")
 
-register_toolchains("@dx_julia_toolchains//:all")
+register_toolchains("@dx_toolchains//julia:all")
 
 register_toolchains("@julia_toolchains//:all")
 
@@ -2033,9 +2040,9 @@ cpan.lock(
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("//cuda:extensions.bzl", "cuda")
-use_repo(cuda, "cuda", "dx_cuda_toolchains")
+use_repo(cuda, "cuda", "dx_cuda_toolchain")
 
-register_toolchains("@dx_cuda_toolchains//:all")
+register_toolchains("@dx_toolchains//cuda:all")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlang_toolchains__windows_arm64", "dx_erlang_toolchains__windows_x86_64", "dx_erlperf")
@@ -2301,16 +2308,13 @@ use_repo(
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; @dx_launcher_toolchains registers the Windows aarch64 stubs until a release has hermetic-launcher#94
+# floor: equals tested; @dx_toolchains//launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
 use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_aarch64_macos", "finalize_stub_aarch64_windows", "finalize_stub_s390x_linux", "finalize_stub_x86_64_linux", "finalize_stub_x86_64_macos", "finalize_stub_x86_64_windows", "runfiles_stub_aarch64_linux", "runfiles_stub_aarch64_macos", "runfiles_stub_aarch64_windows", "runfiles_stub_s390x_linux", "runfiles_stub_x86_64_linux", "runfiles_stub_x86_64_macos", "runfiles_stub_x86_64_windows")
 
-dx_launchers = use_extension("//core:extensions.bzl", "dx_launchers")
-use_repo(dx_launchers, "dx_launcher_toolchains")
-
-register_toolchains("@dx_launcher_toolchains//:all")
+register_toolchains("@dx_toolchains//launcher:all")
 
 # floor: equals tested; patched
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")

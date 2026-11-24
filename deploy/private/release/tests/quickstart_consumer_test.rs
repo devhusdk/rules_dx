@@ -193,7 +193,6 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     for package in [
         "rules_py",
         "rules_flutter",
-        "cgrindel_bazel_starlib",
         "rules_rust",
         "llvm",
         "windows_support",

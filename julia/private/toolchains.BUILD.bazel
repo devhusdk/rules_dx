@@ -1,0 +1,6 @@
+# The julia package of the dx_toolchains hub: Julia on Linux x86_64 resolves to
+# the source-built runtime. Labels resolve as in rules_dx.
+
+load("@rules_dx//julia/private/runtime:defs.bzl", "julia_source_toolchain_target")
+
+julia_source_toolchain_target(name = "source_toolchain")

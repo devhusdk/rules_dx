@@ -1,0 +1,20 @@
+# The cuda package of the dx_toolchains hub: one nvcc toolchain per host OS of
+# the toolkit repo. Labels resolve as in rules_dx.
+
+toolchain(
+    name = "nvcc_linux",
+    exec_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_cuda_toolchain//toolchain:nvcc-linux",
+    toolchain_type = "@rules_dx//cuda:toolchain_type",
+)
+
+toolchain(
+    name = "nvcc_windows",
+    exec_compatible_with = ["@platforms//os:windows"],
+    target_compatible_with = ["@platforms//os:windows"],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_cuda_toolchain//toolchain:nvcc-windows",
+    toolchain_type = "@rules_dx//cuda:toolchain_type",
+)

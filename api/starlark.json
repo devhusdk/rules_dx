@@ -5338,10 +5338,6 @@
         ]
       },
       {
-        "name": "dx_launchers",
-        "tag_classes": []
-      },
-      {
         "name": "dx_licenses",
         "tag_classes": [
           {
@@ -5538,6 +5534,28 @@
           {
             "attrs": [],
             "name": "from_source"
+          }
+        ]
+      },
+      {
+        "name": "dx_toolchains",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "build",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "package"
           }
         ]
       }
@@ -13952,10 +13970,6 @@
             "name": "pkg_annotation"
           }
         ]
-      },
-      {
-        "name": "julia_runtime",
-        "tag_classes": []
       },
       {
         "name": "julia_toolchain",

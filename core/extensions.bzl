@@ -2,7 +2,6 @@
 
 load("//cli/prebuilt:extension.bzl", _dx_prebuilt = "dx_prebuilt")
 load("//cli/prebuilt:gazelle.bzl", _dx_gazelle = "dx_gazelle")
-load("//core/hermetic_launcher:hub.bzl", _dx_launchers = "dx_launchers")
 load(":license.bzl", "LICENSE_IDS", "TERMS_LABEL", "accepted_terms", "terms_errors", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
 load(":root_only.bzl", "warn_dropped_tags")
@@ -171,8 +170,37 @@ dx_licenses = module_extension(
     },
 )
 
+def _dx_toolchains_impl(mctx):
+    files = {"BUILD.bazel": ""}
+    for mod in mctx.modules:
+        for tag in mod.tags.package:
+            if mod.name != "rules_dx":
+                fail("dx_toolchains: {} sets package {}; only rules_dx declares the packages of @dx_toolchains".format(mod.name, tag.name))
+            path = tag.name + "/BUILD.bazel"
+            if path in files:
+                fail("dx_toolchains: package {} is declared twice".format(tag.name))
+            files[path] = mctx.read(tag.build)
+    hub_repo(name = "dx_toolchains", files = files)
+    return mctx.extension_metadata(reproducible = True)
+
+# One hub for every toolchain() rules_dx declares itself. Registering a hub
+# fetches it and the load closure of its extension, and dx_pins already loads
+# this file, so these toolchains cost every consumer one repository and no
+# ruleset (cuda/extensions.bzl, for one, loads rules_cuda).
+dx_toolchains = module_extension(
+    implementation = _dx_toolchains_impl,
+    doc = "Declares the `dx_toolchains` hub that rules_dx registers for consumers: one package per `package` tag.",
+    tag_classes = {
+        "package": tag_class(
+            doc = "One package of the hub, registered as `@dx_toolchains//<name>:all`.",
+            attrs = {
+                "build": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD file of the package; its labels resolve as in rules_dx."),
+                "name": attr.string(mandatory = True, doc = "Package name."),
+            },
+        ),
+    },
+)
+
 dx_prebuilt = _dx_prebuilt
 
 dx_gazelle = _dx_gazelle
-
-dx_launchers = _dx_launchers

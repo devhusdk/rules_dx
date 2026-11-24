@@ -33,10 +33,6 @@ bazel_skylib+
 bazel_tools
 bazel_tools+winsdk_configure+local_config_winsdk
 bazel_tools+xcode_configure_extension+local_config_xcode
-buildifier_prebuilt+
-buildifier_prebuilt++buildifier_prebuilt_deps_extension+buildifier_prebuilt_toolchains
-cgrindel_bazel_starlib+
-cgrindel_bazel_starlib++local_git_ext+bazel_starlib_git_toolchains
 hermetic_launcher+
 jq.bzl+
 jq.bzl++toolchains+jq_toolchains
@@ -79,6 +75,7 @@ rules_dx++dx_pins+rules_julia
 rules_dx++dx_pins+rules_powershell
 rules_dx++dx_pins+rules_ruby
 rules_dx++dx_prebuilt+dx_prebuilt
+rules_dx++dx_toolchains+dx_toolchains
 rules_dx++elixir+dx_elixir_toolchains
 rules_dx++erlang+dx_erlang_toolchains
 rules_dx++haskell+dx_haskell_toolchains
@@ -145,8 +142,6 @@ rules_java++toolchains+remotejdk25_win_arm64_toolchain_config_repo
 rules_java++toolchains+remotejdk25_win_toolchain_config_repo
 rules_kotlin+
 rules_license+
-rules_multitool+
-rules_multitool++multitool+multitool
 rules_nodejs+
 rules_nodejs++node+nodejs_toolchains
 rules_oci+
@@ -168,7 +163,6 @@ rules_rust_wasm_bindgen+
 rules_shell+
 rules_shell++sh_configure+local_config_shell
 rules_swift+
-rules_swift_package_manager+
 rules_zig+
 rules_zig++zig+zig_toolchains
 rules_zig++zls+zls_toolchains
@@ -177,6 +171,5 @@ tar.bzl++toolchains+bsd_tar_toolchains
 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64
 toml.bzl+
 with_cfg.bzl+
-yaml.bzl+
 yq.bzl+
 yq.bzl++yq+yq_toolchains

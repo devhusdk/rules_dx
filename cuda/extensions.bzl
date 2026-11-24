@@ -4,8 +4,6 @@ load("@rules_cuda//cuda:platform_alias_extension.bzl", "platform_alias_repo")
 load("@rules_cuda//cuda/private:platforms.bzl", "SUPPORTED_PLATFORMS")
 load("@rules_cuda//cuda/private:repositories.bzl", "cuda_component", "cuda_toolkit")
 load("//core:license.bzl", "accepted_ids", "unaccepted")
-load("//core:repo.bzl", "hub_repo")
-load("//core:toolchain.bzl", "toolchain_target")
 load("//core/modules:cuda.bzl", "CUDA_PLATFORMS")
 load("//cuda/private:license.bzl", "cuda_unaccepted")
 
@@ -27,20 +25,6 @@ def cuda_component_repo(name, license_error, **kwargs):
         cuda_unaccepted(name = name, error = license_error)
     else:
         cuda_component(name = name, **kwargs)
-
-def _cuda_hub(toolkit):
-    """Returns the BUILD file of the dx_cuda_toolchains hub: one nvcc toolchain per host OS of the toolkit repo."""
-    return "\n".join([
-        toolchain_target(
-            name = "nvcc_" + os,
-            exec_compatible_with = ["@platforms//os:" + os],
-            target_compatible_with = ["@platforms//os:" + os],
-            target_settings = [str(Label("//config:toolchains_on"))],
-            toolchain = "@{}//toolchain:nvcc-{}".format(toolkit, os),
-            toolchain_type = str(Label("//cuda:toolchain_type")),
-        )
-        for os in ["linux", "windows"]
-    ])
 
 def _impl(module_ctx):
     pins = json.decode(module_ctx.read(Label("//cuda:pins.json")))
@@ -89,10 +73,9 @@ def _impl(module_ctx):
         version = version,
         toolchain_repositories = {version: "@" + impl_name},
     )
-    hub_repo(name = "dx_cuda_toolchains", files = {"BUILD.bazel": _cuda_hub(impl_name)})
     return module_ctx.extension_metadata(reproducible = True)
 
 cuda = module_extension(
     implementation = _impl,
-    doc = "Declares the pinned CUDA Toolkit components, the toolkit repo `cuda` and the `dx_cuda_toolchains` hub from cuda/pins.json.",
+    doc = "Declares the pinned CUDA Toolkit components, the toolkit repo `cuda` and the `dx_cuda_toolchain` toolkit that `@dx_toolchains//cuda` registers, from cuda/pins.json.",
 )

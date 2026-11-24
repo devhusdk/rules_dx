@@ -1,0 +1,50 @@
+# The launcher package of the dx_toolchains hub: the Windows aarch64
+# hermetic_launcher stubs (upstream: hermeticbuild/hermetic-launcher#94).
+# Labels resolve as in rules_dx.
+
+load("@hermetic_launcher//launcher/private:stub_finalizer_toolchain.bzl", "stub_finalizer_toolchain")
+load("@hermetic_launcher//launcher/private:stub_template_toolchain.bzl", "stub_template_toolchain")
+
+_CONSTRAINTS = [
+    "@platforms//cpu:aarch64",
+    "@platforms//os:windows",
+]
+
+_TARGET_SETTINGS = [
+    "@rules_dx//config:toolchains_on",
+    "@hermetic_launcher//launcher/private:stub_source_prebuilt",
+]
+
+stub_template_toolchain(
+    name = "template_aarch64_windows",
+    template_exe = "@runfiles_stub_aarch64_windows//file",
+)
+
+toolchain(
+    name = "template_aarch64_windows_toolchain",
+    target_compatible_with = _CONSTRAINTS,
+    target_settings = _TARGET_SETTINGS,
+    toolchain = ":template_aarch64_windows",
+    toolchain_type = "@hermetic_launcher//launcher:template_toolchain_type",
+)
+
+toolchain(
+    name = "template_aarch64_windows_exec_toolchain",
+    exec_compatible_with = _CONSTRAINTS,
+    target_settings = _TARGET_SETTINGS,
+    toolchain = ":template_aarch64_windows",
+    toolchain_type = "@hermetic_launcher//launcher:template_exec_toolchain_type",
+)
+
+stub_finalizer_toolchain(
+    name = "finalizer_aarch64_windows",
+    finalizer = "@finalize_stub_aarch64_windows//file",
+)
+
+toolchain(
+    name = "finalizer_aarch64_windows_toolchain",
+    exec_compatible_with = _CONSTRAINTS,
+    target_settings = _TARGET_SETTINGS,
+    toolchain = ":finalizer_aarch64_windows",
+    toolchain_type = "@hermetic_launcher//launcher:finalizer_toolchain_type",
+)

@@ -9,6 +9,10 @@ name = "browser_test"
 path = "browser_test.rs"
 
 [[test]]
+name = "docs_lint_test"
+path = "docs_lint_test.rs"
+
+[[test]]
 name = "deploy_smoke_test"
 path = "deploy_smoke_test.rs"
 

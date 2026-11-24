@@ -20332,6 +20332,7 @@
             "attrs": [
               "actual",
               "tags",
+              "testonly",
               "visibility"
             ],
             "kind": "alias"
@@ -20413,6 +20414,7 @@
           {
             "attrs": [
               "tags",
+              "testonly",
               "tool",
               "visibility"
             ],
@@ -20632,6 +20634,7 @@
             "attrs": [
               "actual",
               "tags",
+              "testonly",
               "visibility"
             ],
             "kind": "alias"
@@ -20683,6 +20686,7 @@
           {
             "attrs": [
               "tags",
+              "testonly",
               "tool",
               "visibility"
             ],

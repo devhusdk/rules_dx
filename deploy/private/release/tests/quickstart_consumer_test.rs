@@ -246,6 +246,59 @@ fn copy_patches(source: &std::path::Path, case: &Case, package: &str) {
     );
 }
 
+pub(crate) fn init_consumer(
+    case: &Case,
+    source: &std::path::Path,
+    dx: &std::path::Path,
+    init: &[String],
+    test: &str,
+) {
+    let root = case.root().to_string_lossy().into_owned();
+    let env = nested_env();
+    let mut pairs: Vec<(&str, &str)> = env
+        .iter()
+        .map(|(key, value)| (*key, value.as_str()))
+        .collect();
+    pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
+    let what = format!("dx {}", init.join(" "));
+    // A local test's case root sits under its execroot, whose MODULE.bazel discovery would pick.
+    let workspace = format!("--workspace={root}");
+    let mut args: Vec<&str> = init.iter().map(String::as_str).collect();
+    args.push(&workspace);
+    crate::stage(test, &what);
+    let run = case.run(dx, &args, &pairs);
+    ok(&run, &what);
+    for name in ["MODULE.bazel", ".bazelversion"] {
+        assert!(
+            case.root().join(name).is_file(),
+            "dx init --apply writes {name} in an empty directory"
+        );
+    }
+    copy_rules_py_patches(source, case);
+    let module_path = case.root().join("MODULE.bazel");
+    let mut module = read_text(&module_path);
+    module.push('\n');
+    module.push_str(&rules_py_override());
+    module.push_str(&rules_flutter_override());
+    module.push_str(&rules_rust_override());
+    module.push_str(&llvm_override());
+    module.push_str(&windows_support_override());
+    module.push_str(&apple_overrides(source, case.root()));
+    module.push_str(&rules_dx_override(source));
+    // The nested server has no PATH; see candidate_consumer_test's rules_python override.
+    module.push_str(
+        &write_root_patch_override(case.root(), source, "rules_python", &RULES_PYTHON_SKIP)
+            .unwrap_or_else(|error| panic!("{error}")),
+    );
+    module.push_str(&built_dx_asset(dx));
+    write_text(&module_path, &module);
+    if cfg!(windows) {
+        let rc_path = case.root().join(".bazelrc");
+        let rc = std::fs::read_to_string(&rc_path).unwrap_or_default();
+        write_text(&rc_path, &format!("{WINDOWS_SYMLINKS}{rc}"));
+    }
+}
+
 #[test]
 fn the_readme_quickstart_runs_as_written() {
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
@@ -264,55 +317,11 @@ fn the_readme_quickstart_runs_as_written() {
 
     let case = nested::case("quickstart_readme");
     let dx = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must name dx"));
-    let root = case.root().to_string_lossy().into_owned();
-    let env = nested_env();
-    let mut pairs: Vec<(&str, &str)> = env
-        .iter()
-        .map(|(key, value)| (*key, value.as_str()))
-        .collect();
-    pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
-    // The unreleased rules_dx resolves only after the overrides below; adopt-polyglot's
+    // The unreleased rules_dx resolves only after the overrides; adopt-polyglot's
     // consumer_test covers generate.
     let mut args = init_args(&blocks);
     args.push("--no-generate".to_owned());
-    // A local test's case root sits under its execroot, whose MODULE.bazel discovery would pick.
-    args.push(format!("--workspace={root}"));
-    let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    crate::stage("quickstart_consumer_test", "dx init --apply --no-generate");
-    let init = case.run(&dx, &args, &pairs);
-    ok(&init, "dx init --apply --no-generate");
-    for name in ["MODULE.bazel", ".bazelversion"] {
-        assert!(
-            case.root().join(name).is_file(),
-            "dx init --apply writes {name} in an empty directory"
-        );
-    }
-
-    // The overrides `tools/testing/consumer/pending.txt` still lists; a registry release needs none.
-    // The consumer pins the dx and launcher this test built, as a release's `pins.bzl` serves them.
-    copy_rules_py_patches(&source, &case);
-    let module_path = case.root().join("MODULE.bazel");
-    let mut module = read_text(&module_path);
-    module.push('\n');
-    module.push_str(&rules_py_override());
-    module.push_str(&rules_flutter_override());
-    module.push_str(&rules_rust_override());
-    module.push_str(&llvm_override());
-    module.push_str(&windows_support_override());
-    module.push_str(&apple_overrides(&source, case.root()));
-    module.push_str(&rules_dx_override(&source));
-    // The nested server has no PATH; see candidate_consumer_test's rules_python override.
-    module.push_str(
-        &write_root_patch_override(case.root(), &source, "rules_python", &RULES_PYTHON_SKIP)
-            .unwrap_or_else(|error| panic!("{error}")),
-    );
-    module.push_str(&built_dx_asset(&dx));
-    write_text(&module_path, &module);
-    if cfg!(windows) {
-        let rc_path = case.root().join(".bazelrc");
-        let rc = std::fs::read_to_string(&rc_path).unwrap_or_default();
-        write_text(&rc_path, &format!("{WINDOWS_SYMLINKS}{rc}"));
-    }
+    init_consumer(&case, &source, &dx, &args, "quickstart_consumer_test");
     case.use_lock("release_quickstart");
 
     let root_build_path = case.root().join("BUILD.bazel");

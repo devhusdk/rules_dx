@@ -660,7 +660,7 @@ fn the_ruleset_requires_every_test_shard_and_queues_merges() {
     );
     assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
     let contexts = required_contexts();
-    assert_eq!(contexts.len(), 25, "{contexts:?}");
+    assert_eq!(contexts.len(), 40, "{contexts:?}");
     let wanted: Vec<Value> = contexts
         .iter()
         .map(|context| json!({"context": context, "integration_id": 15368}))

@@ -5,7 +5,7 @@ inputs:
     description: The dx command, such as check, coverage or test, or several separated by spaces, which run in order.
     required: true
   scopes:
-    description: Space-separated target patterns that narrow the affected targets, such as one shard's top-level packages.
+    description: Space-separated target patterns that narrow the affected targets, such as one shard's top-level packages. dx generate ignores them, because it covers the whole repo.
     required: false
     default: ""
   lcov:
@@ -100,7 +100,9 @@ runs:
         for COMMAND in $COMMANDS; do
           filters=("--test_tag_filters=$tags")
           report=()
+          targets=("${scopes[@]}")
           case "$COMMAND" in
+            generate) targets=() ;;
             check | format | lint | typecheck) report=(--max-findings 0) ;;
             coverage) filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags") ;;
             test) filters=() ;;
@@ -109,7 +111,7 @@ runs:
             mkdir -p "$(dirname "$LCOV")"
             report+=(--report "lcov=$LCOV")
           fi
-          "$dx" "$COMMAND" --affected --output=json "${report[@]}" "${scopes[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
+          "$dx" "$COMMAND" --affected --output=json "${report[@]}" "${targets[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
         done
         exit "$status"
     - name: Save the dx rule graph

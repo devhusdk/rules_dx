@@ -5,7 +5,7 @@ const WORKFLOW: &str = ".github/workflows/ci.yml";
 const GATE_ACTION: &str = "./.github/actions/gate";
 const JOB: &str = "test";
 const LCOV: &str = "${{ runner.temp }}/coverage/lcov.info";
-const GATE: &str = "${{ matrix.platform != 'linux_x86_64' && 'test' || matrix.shard == 0 && 'generate format lint typecheck test coverage' || 'generate format lint typecheck test' }}";
+const GATE: &str = "${{ matrix.platform != 'linux_x86_64' && 'test' || matrix.shard == 0 && 'generate format lint typecheck coverage' || 'format lint typecheck test' }}";
 
 fn table() -> Vec<(String, String)> {
     PLATFORMS
@@ -87,7 +87,7 @@ fn the_test_job_runs_dx_affected_through_the_gate_action() {
 }
 
 #[test]
-fn only_linux_x86_64_checks_sources_and_only_its_first_shard_measures_coverage() {
+fn only_linux_x86_64_checks_sources_and_only_its_first_shard_generates_and_measures_coverage() {
     let job = job(WORKFLOW, JOB).unwrap();
     assert_eq!(job["env"]["GATE"].as_str(), Some(GATE));
 }

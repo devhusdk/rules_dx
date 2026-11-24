@@ -13,6 +13,8 @@ pub struct ActionSummary {
 
 const DISK_RUNNER: &str = "disk cache hit";
 const REMOTE_RUNNER: &str = "remote cache hit";
+const TOTAL_RUNNER: &str = "total";
+const INTERNAL_RUNNER: &str = "internal";
 
 pub fn collect_action_summary(reader: impl BufRead) -> Option<ActionSummary> {
     let mut found = None;
@@ -121,20 +123,21 @@ fn parse_totals(metrics: &Value) -> BuildTotals {
 fn parse_summary(summary: &Value) -> ActionSummary {
     let mut disk = 0u64;
     let mut remote = 0u64;
+    let mut spawned = 0u64;
     if let Some(runners) = summary.get("runnerCount").and_then(Value::as_array) {
         for runner in runners {
             let count = count_of(runner.get("count"));
             match runner.get("name").and_then(Value::as_str) {
                 Some(DISK_RUNNER) => disk = disk.saturating_add(count),
                 Some(REMOTE_RUNNER) => remote = remote.saturating_add(count),
-                _ => {}
+                Some(TOTAL_RUNNER | INTERNAL_RUNNER) | None => {}
+                Some(_) => spawned = spawned.saturating_add(count),
             }
         }
     }
-    let executed_raw = count_of(summary.get("actionsExecuted"));
     ActionSummary {
         created: count_of(summary.get("actionsCreated")),
-        executed: executed_raw.saturating_sub(disk.saturating_add(remote)),
+        executed: spawned,
         disk_cache_hits: disk,
         remote_cache_hits: remote,
         local_cache_hits: count_of(summary.pointer("/actionCacheStatistics/hits")),
@@ -177,7 +180,7 @@ mod tests {
         collect_action_summary(lines.join("\n").as_bytes())
     }
 
-    const FULL: &str = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsCreated":"12","actionsExecuted":"9","runnerCount":[{"name":"total","count":9},{"name":"disk cache hit","count":2,"execKind":"Remote"},{"name":"remote cache hit","count":3,"execKind":"Remote"},{"name":"linux-sandbox","count":4}],"actionCacheStatistics":{"hits":5,"misses":9}}},"lastMessage":true}"#;
+    const FULL: &str = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsCreated":"12","actionsExecuted":"13","runnerCount":[{"name":"total","count":13},{"name":"internal","count":4},{"name":"disk cache hit","count":2,"execKind":"Remote"},{"name":"remote cache hit","count":3,"execKind":"Remote"},{"name":"linux-sandbox","count":4}],"actionCacheStatistics":{"hits":5,"misses":9}}},"lastMessage":true}"#;
 
     #[test]
     fn metrics_reads_action_counts_from_string_int64() {
@@ -232,7 +235,7 @@ mod tests {
 
     #[test]
     fn metrics_accepts_numeric_int64_action_counts() {
-        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsCreated":7,"actionsExecuted":6,"actionCacheStatistics":{"hits":"1"}}}}"#;
+        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsCreated":7,"actionsExecuted":6,"runnerCount":[{"name":"local","count":6}],"actionCacheStatistics":{"hits":"1"}}}}"#;
         let summary = collect(&[line]).expect("summary");
         assert_eq!(summary.created, 7);
         assert_eq!(summary.executed, 6);
@@ -259,15 +262,27 @@ mod tests {
         let summary = collect(&[line]).expect("summary");
         assert_eq!(summary.disk_cache_hits, 0);
         assert_eq!(summary.remote_cache_hits, 1);
-        assert_eq!(summary.executed, 9);
+        assert_eq!(summary.executed, 8);
     }
 
     #[test]
     fn metrics_saturates_executed_action_counts() {
-        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsExecuted":"1","runnerCount":[{"name":"disk cache hit","count":3}]}}}"#;
+        let line = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsExecuted":"1","runnerCount":[{"name":"local","count":"18446744073709551615"},{"name":"remote","count":1},{"name":"disk cache hit","count":3}]}}}"#;
         let summary = collect(&[line]).expect("summary");
-        assert_eq!(summary.executed, 0);
+        assert_eq!(summary.executed, u64::MAX);
         assert_eq!(summary.disk_cache_hits, 3);
+    }
+
+    #[test]
+    fn metrics_does_not_count_internal_actions_as_executed() {
+        let internal_only = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsCreated":"2400","actionsExecuted":"2015","runnerCount":[{"name":"total","count":2015},{"name":"internal","count":2015}]}}}"#;
+        let summary = collect(&[internal_only]).expect("summary");
+        assert_eq!(summary.created, 2400);
+        assert_eq!(summary.executed, 0);
+        let with_tests = r#"{"id":{"buildMetrics":{}},"buildMetrics":{"actionSummary":{"actionsExecuted":"2015","runnerCount":[{"name":"total","count":2015},{"name":"internal","count":2005},{"name":"remote cache hit","count":2},{"name":"linux-sandbox","count":5,"execKind":"Local"},{"name":"remote","count":3,"execKind":"Remote"}]}}}"#;
+        let summary = collect(&[with_tests]).expect("summary");
+        assert_eq!(summary.executed, 8);
+        assert_eq!(summary.remote_cache_hits, 2);
     }
 
     #[test]

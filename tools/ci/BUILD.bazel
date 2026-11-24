@@ -862,29 +862,6 @@ rust_test(
     ],
 )
 
-rust_test(
-    name = "compiler_evidence_test",
-    size = "small",
-    srcs = ["compiler_evidence_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "compiler_evidence_test",
-    crate_root = "compiler_evidence_test.rs",
-    data = [
-        "//.github:actions",
-        "//tools/ci/producers:producers_bin",
-    ],
-    env = {"DX_PRODUCERS_BIN": "$(rootpath //tools/ci/producers:producers_bin)"},
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
@@ -1375,14 +1352,14 @@ rust_test(
     crate_root = "test_budget_test.rs",
     data = [
         "test_budget_allowlist.txt",
+        "//:.bazelrc",
         "//.github:workflows/audit.yml",
-        "//.github:workflows/ci.yml",
         "//tools/testing:nested_smoke.txt",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
         "AUDIT_WORKFLOW": "$(rlocationpath //.github:workflows/audit.yml)",
-        "CI_WORKFLOW": "$(rlocationpath //.github:workflows/ci.yml)",
+        "BAZELRC": "$(rlocationpath //:.bazelrc)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
         "NESTED_LIST": "$(rlocationpath //tools/testing:nested_smoke.txt)",
         "TEST_BUDGET_ALLOWLIST": "$(rlocationpath test_budget_allowlist.txt)",

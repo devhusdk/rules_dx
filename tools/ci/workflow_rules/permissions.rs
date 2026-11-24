@@ -248,19 +248,19 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
 }
 
 #[test]
-fn check_job_checks_evidence_statuses_with_read_only_statuses_scope() {
+fn test_job_checks_evidence_statuses_with_read_only_statuses_scope() {
     let (_, ci) = ci_workflow::all()
         .unwrap()
         .into_iter()
         .find(|(name, _)| name.ends_with("/ci.yml"))
         .expect("ci.yml");
-    let (_, check) = ci_workflow::jobs_of(&ci)
+    let (_, test) = ci_workflow::jobs_of(&ci)
         .into_iter()
-        .find(|(id, _)| *id == "check")
-        .expect("check job");
-    assert_eq!(check["permissions"]["statuses"], "read");
-    assert_eq!(check["permissions"]["contents"], "read");
-    let steps = ci_workflow::steps_of(check);
+        .find(|(id, _)| *id == "test")
+        .expect("test job");
+    assert_eq!(test["permissions"]["statuses"], "read");
+    assert_eq!(test["permissions"]["contents"], "read");
+    let steps = ci_workflow::steps_of(test);
     let first = &steps[0];
     assert_eq!(first["if"], "${{ github.event_name == 'merge_group' }}");
     let run = first["run"].as_str().expect("run");

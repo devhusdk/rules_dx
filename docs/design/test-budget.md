@@ -38,4 +38,5 @@ Every test call follows these rules. `//tools/ci:test_budget_test` checks them.
 - A call of a macro that declares such a test is a nested test. A macro that declares one under an `if` counts when the call sets a name of the condition to `True`.
 - A target whose name ends in `_upstream` is skipped.
 - The guard fails on a nested test without a line and on a line without a nested test.
+- The `test` jobs of `ci.yml` skip `manual` tests, and on pull requests also the tags in `test:ci-pr --test_tag_filters` of `.bazelrc`. The guard fails on a listed test they skip unless it is tagged `hermetic-consumer` or `network-consumer`, or `.github/workflows/audit.yml` names it.
 - The list holds at most 8 lines. The cap only goes down.

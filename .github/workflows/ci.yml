@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
-    name: check (${{ matrix.platform }})
+  test:
+    name: test (${{ matrix.platform }}, ${{ matrix.shard }})
     timeout-minutes: 60
     defaults:
       run:
@@ -29,6 +29,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        platform:
+          - linux_x86_64
+          - linux_arm64
+          - macos_arm64
+          - windows_x86_64
+          - windows_arm64
+        shard: [0, 1, 2, 3, 4]
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
@@ -41,6 +48,8 @@ jobs:
           - platform: windows_arm64
             runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
+    env:
+      GATE: ${{ matrix.platform != 'linux_x86_64' && 'test' || matrix.shard == 0 && 'generate format lint typecheck test coverage' || 'generate format lint typecheck test' }}
     permissions:
       actions: read
       contents: read
@@ -73,65 +82,57 @@ jobs:
         with:
           cache-save: ${{ runner.os == 'Windows' && env.BUILDBUDDY_API_KEY != '' }}
           disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
+      - name: Allow unprivileged user namespaces
+        if: runner.os == 'Linux'
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Pick the top-level packages of this shard
+        id: shard
+        env:
+          SHARDS: 5
+          SHARD: ${{ matrix.shard }}
+        run: |
+          scopes="$(git ls-files -- BUILD BUILD.bazel '*/BUILD' '*/BUILD.bazel' \
+            | awk -F/ '{ dir = NF == 1 ? "" : $1; count[dir]++ } END { for (dir in count) print count[dir], dir }' \
+            | LC_ALL=C sort -k1,1nr -k2 \
+            | awk -v shards="$SHARDS" -v shard="$SHARD" '{ best = 0; for (i = 1; i < shards; i++) if (load[i] < load[best]) best = i; load[best] += $1; if (best == shard) print ($2 == "" ? "//:all" : "//" $2 "/...") }' \
+            | tr '\n' ' ')"
+          echo "shard $SHARD of $SHARDS: $scopes" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "scopes=$scopes" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/gate
         with:
-          command: check
-          baseline: check-${{ matrix.platform }}
+          command: ${{ env.GATE }}
+          scopes: ${{ steps.shard.outputs.scopes }}
+          lcov: ${{ runner.temp }}/coverage/lcov.info
+          baseline: test-${{ matrix.platform }}-${{ matrix.shard }}
       - name: Stop the Bazel server
         if: ${{ always() && runner.os == 'Windows' }}
         run: bazel shutdown
       - name: Check generated files across the repo
-        if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' && github.event_name != 'pull_request' }}
+        if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 && github.event_name != 'pull_request' }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- generate -- "$@" < /dev/null
-  coverage:
-    name: coverage (${{ matrix.platform }})
-    timeout-minutes: 120
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux_x86_64
-            runner: ubuntu-latest
-          - platform: linux_arm64
-            runner: ubuntu-24.04-arm
-          - platform: macos_arm64
-            runner: macos-15
-          - platform: windows_x86_64
-            runner: windows-latest
-          - platform: windows_arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      actions: read
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=2 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - uses: ./.github/actions/gate
-        with:
-          command: coverage
-          lcov: ${{ runner.temp }}/coverage/lcov.info
-          baseline: coverage-${{ matrix.platform }}
-      - name: Stop the Bazel server
-        if: ${{ always() && runner.os == 'Windows' }}
-        run: bazel shutdown
       - name: Check the upload holds no secret
-        id: scan-coverage
+        id: scan-results
         if: ${{ always() }}
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/gate.json
+      - name: Upload the test results
+        if: ${{ always() && steps.scan-results.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-${{ matrix.platform }}-${{ matrix.shard }}
+          path: ${{ runner.temp }}/gate.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Check the coverage report holds no secret
+        id: scan-coverage
+        if: ${{ always() && contains(env.GATE, 'coverage') }}
         uses: ./.github/actions/assert-no-secret
         with:
           path: ${{ runner.temp }}/coverage
@@ -143,71 +144,6 @@ jobs:
           path: ${{ runner.temp }}/coverage
           retention-days: 7
           if-no-files-found: ignore
-  baseline-diff:
-    name: baseline-diff
-    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-    needs: [check, coverage]
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: failing-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/failing
-      - name: Compare the failing labels with the last main baseline
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          SERVER: ${{ github.server_url }}
-        run: |
-          set -euo pipefail
-          pr="$RUNNER_TEMP/failing"
-          main="$RUNNER_TEMP/main-baseline"
-          mkdir -p "$pr" "$main"
-          listed="$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" \
-            --jq '.jobs[].name | capture("^(?<job>check|coverage) \\((?<platform>[a-z0-9_]+)\\)$")? | "\(.job)-\(.platform)"' | sort -u)"
-          [ -n "$listed" ] || { echo "baseline-diff: no check or coverage job in run $RUN_ID" >&2; exit 1; }
-          mapfile -t jobs <<<"$listed"
-          bad=0
-          summary="$RUNNER_TEMP/baseline-diff.md"
-          {
-            echo "### Failing labels not red on main"
-            for job in "${jobs[@]}"; do
-              if [ ! -f "$pr/failing-$job.json" ]; then
-                echo "- \`$job\`: no failing-label result in this run"
-                bad=1
-                continue
-              fi
-              found="$(gh api "repos/$REPO/actions/artifacts?name=main-baseline-$job&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | last // empty | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
-              source="no main baseline yet"
-              echo '{"labels":[]}' > "$main/$job.json"
-              if [ -n "$found" ]; then
-                read -r id run sha <<<"$found"
-                gh api "repos/$REPO/actions/artifacts/$id/zip" > "$main/$job.zip"
-                unzip -p "$main/$job.zip" "main-baseline-$job.json" > "$main/$job.json"
-                source="main baseline ${sha:0:10} from $SERVER/$REPO/actions/runs/$run"
-              fi
-              new="$(jq -r --slurpfile main "$main/$job.json" '(.labels - $main[0].labels)[]' "$pr/failing-$job.json")"
-              known="$(jq -r --slurpfile main "$main/$job.json" '[.labels[] | select(IN($main[0].labels[]))] | length' "$pr/failing-$job.json")"
-              if [ -z "$new" ]; then
-                echo "- \`$job\`: no new failing labels, $known already red on main ($source)"
-                continue
-              fi
-              bad=1
-              echo "- \`$job\`: $(grep -c '' <<<"$new") new, $known already red on main ($source)"
-              echo
-              echo '```text'
-              printf '%s\n' "$new"
-              echo '```'
-            done
-          } > "$summary"
-          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
-          cat "$summary"
-          exit "$bad"
   dogfood:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.
@@ -256,37 +192,6 @@ jobs:
             files+=("$file")
           done < <(find "$RUNNER_TEMP/coverage-reports" -name coverage.ndjson | sort)
           bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
-  devcontainer-check:
-    name: devcontainer-check (init parity, definition valid)
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Prove dx init scaffold matches checked-in definition
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
-      - name: Validate devcontainer definition shape
-        run: |
-          post_create="$(jq -er '.postCreateCommand' .devcontainer/devcontainer.json)"
-          grep -Fq -- 'tools/dx sync' <<<"$post_create"
-          if grep -Fq 'bazel build //...' <<<"$post_create"; then echo "devcontainer: postCreateCommand runs bazel build //..." >&2; exit 1; fi
-          echo "devcontainer definition valid: $post_create"
-      - name: Write job summary
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          echo "### devcontainer-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   analysis-scaling:
     name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
     if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -346,105 +251,6 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard" ${LANGS:+--langs "$LANGS"}
-  starter-consumer:
-    name: starter-consumer (compiler probes) (${{ matrix.platform }}, shard ${{ matrix.shard }})
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 90
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux_x86_64
-          - linux_arm64
-          - macos_arm64
-          - windows_x86_64
-          - windows_arm64
-        shard: [0, 1]
-        include:
-          - platform: linux_x86_64
-            runner: ubuntu-latest
-          - platform: linux_arm64
-            runner: ubuntu-24.04-arm
-          - platform: macos_arm64
-            runner: macos-15
-          - platform: windows_x86_64
-            runner: windows-latest
-          - platform: windows_arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        id: setup
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-          locate-repository-cache: "true"
-      - name: Allow unprivileged user namespaces
-        if: runner.os == 'Linux'
-        run: |
-          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Run the compiler probe tests
-        id: compiler-probes
-        if: ${{ !cancelled() && matrix.shard == 0 }}
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
-          facts="$PWD/bazel-bin/tools/docs/support_matrix/facts.json"
-          jq -r --arg platform "$PLATFORM" --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | (.identity.platform_probes[$platform] // .identity.probe), ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
-          targets="$(cat "$RUNNER_TEMP/compiler-targets")"
-          status=0
-          # One invocation builds the probes' Starlark manifests and runs the probe tests.
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --output_groups=+starlark_manifest "$@" $targets && status=0 || status=$?
-          if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
-            exit "$status"
-          fi
-      - name: Run the Windows TypeScript action tests
-        if: ${{ !cancelled() && runner.os == 'Windows' && matrix.shard == 1 }}
-        run: |
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions
-          # shellcheck disable=SC2086
-          bazel build --noshow_progress --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --aspects=//tools/docs/components:aspect.bzl%real_components_docs_aspect,//tools/docs/typescript:aspect.bzl%real_typescript_docs_aspect --output_groups=dx_docs_shards //tools/docs/components/fixture/svelte:ui_library //tools/docs/typescript/fixture:geometry_library
-      - uses: ./.github/actions/compiler-evidence
-        if: always() && matrix.shard == 0
-        with:
-          platform: ${{ matrix.platform }}
-          name: starter-${{ matrix.platform }}
-      - name: Copy the producers binary for the evidence table
-        if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/ci-producers-bin"
-          cp "$PWD/bazel-bin/tools/ci/producers/producers_bin" "$RUNNER_TEMP/ci-producers-bin/producers_bin"
-      - name: Check the upload holds no secret
-        id: scan-ci-producers-bin
-        if: ${{ always() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 }}
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-ci-producers-bin.outcome == 'success' }}
-        with:
-          name: ci-producers-bin
-          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
-          if-no-files-found: ignore
-          retention-days: 3
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -563,33 +369,6 @@ jobs:
           path: ${{ runner.temp }}/rmeta-diag
           retention-days: 3
           if-no-files-found: ignore
-      - name: Run the launch smoke
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          mkdir -p "$RUNNER_TEMP/exec-log"
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" -- //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/fixtures/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... -//julia/tests/fixtures/hello:relocate_test -//julia/private/tools/lint/... -//julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
-      - name: Check the upload holds no secret
-        id: scan-exec-log
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/exec-log
-      - name: Upload the execution log
-        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: exec-log-preflight-${{ matrix.platform }}
-          path: ${{ runner.temp }}/exec-log
-          retention-days: 7
-          if-no-files-found: ignore
-      - name: Run the PyPI probe verification
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/private:pypi_probe_verify
       - name: Analyze the gRPC C++ targets (#7989)
         run: |
           # shellcheck disable=SC2086
@@ -604,187 +383,13 @@ jobs:
           RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets. The Julia standalone and tool tests run in launch-heavy." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/launch-smoke.log" ]; then
-            tr -d '\r' < "$RUNNER_TEMP/launch-smoke.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/launch-smoke-flaky"
-            if [ -s "$RUNNER_TEMP/launch-smoke-flaky" ]; then
-              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
-              sed 's/^/- /' "$RUNNER_TEMP/launch-smoke-flaky" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
+          echo "Built dx plus the native hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
       - name: Record the runner image
         if: always()
         shell: bash
         run: |
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
-  quality-matrix:
-    name: quality-matrix (runner matrix tests) (${{ matrix.platform }}, ${{ matrix.runner }})
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux_x86_64
-            runner: ubuntu-latest
-            quality: "//core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
-          - platform: linux_arm64
-            runner: ubuntu-24.04-arm
-            quality: "//core/quality/testdata:runner_matrix_linux_arm64"
-          - platform: macos_arm64
-            runner: macos-15
-            quality: "//core/quality/testdata:runner_matrix_macos_arm64"
-          - platform: windows_x86_64
-            runner: windows-latest
-            quality: "//core/quality/testdata:runner_matrix_windows_x86_64"
-          - platform: windows_arm64
-            runner: windows-11-arm
-            quality: "//core/quality/testdata:runner_matrix_windows_arm64"
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Run the quality runner matrix
-        env:
-          QUALITY_TARGETS: ${{ matrix.quality }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          mkdir -p "$RUNNER_TEMP/exec-log"
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "--execution_log_compact_file=$RUNNER_TEMP/exec-log/quality-matrix.log" "$@" $QUALITY_TARGETS 2>&1 | tee "$RUNNER_TEMP/quality-matrix.log"
-      - name: Check the upload holds no secret
-        id: scan-exec-log
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/exec-log
-      - name: Upload the execution log
-        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: exec-log-quality-matrix-${{ matrix.platform }}
-          path: ${{ runner.temp }}/exec-log
-          retention-days: 7
-          if-no-files-found: ignore
-      - name: Write job summary
-        if: always()
-        env:
-          PLATFORM: ${{ matrix.platform }}
-          JOB_STATUS: ${{ job.status }}
-          RUNNER_LABEL: ${{ matrix.runner }}
-        run: |
-          echo "### quality-matrix ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran the per-platform quality runner matrix tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/quality-matrix.log" ]; then
-            tr -d '\r' < "$RUNNER_TEMP/quality-matrix.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/quality-matrix-flaky"
-            if [ -s "$RUNNER_TEMP/quality-matrix-flaky" ]; then
-              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
-              sed 's/^/- /' "$RUNNER_TEMP/quality-matrix-flaky" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
-  launch-heavy:
-    name: launch-heavy (Julia tools and standalone, long cold builds) (${{ matrix.platform }}, ${{ matrix.runner }})
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # The hello_standalone sysimage build against the source libjulia-internal alone fills the 16 GB of RAM here.
-          - platform: linux_x86_64
-            runner: ubuntu-latest
-            local_args: --show_progress --show_progress_rate_limit=60
-            swap_gb: 16
-          - platform: linux_arm64
-            runner: ubuntu-24.04-arm
-          - platform: macos_arm64
-            runner: macos-15
-          - platform: windows_x86_64
-            runner: windows-latest
-          - platform: windows_arm64
-            runner: windows-11-arm
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Run the Julia standalone and tool tests
-        env:
-          LOCAL_ARGS: ${{ matrix.local_args }}
-          SWAP_GB: ${{ matrix.swap_gb }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS $LOCAL_ARGS
-          mkdir -p "$RUNNER_TEMP/exec-log"
-          if [ -n "$SWAP_GB" ]; then
-            sudo fallocate -l "${SWAP_GB}G" /mnt/dx-swap
-            sudo chmod 600 /mnt/dx-swap
-            sudo mkswap /mnt/dx-swap
-            sudo swapon /mnt/dx-swap
-          fi
-          if [ "$RUNNER_OS" = Linux ]; then
-            # A runner out of memory or disk dies with no Bazel error; this log shows which one ran out.
-            (while sleep 30; do echo "resources: $(free -m | sed -n 2,3p | tr -s ' \n' ' ') | $(df -h / /mnt | tail -2 | tr -s ' \n' ' ')"; done) &
-          fi
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-heavy.log" "$@" //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
-      - name: Check the upload holds no secret
-        id: scan-exec-log
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/exec-log
-      - name: Upload the execution log
-        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: exec-log-launch-heavy-${{ matrix.platform }}
-          path: ${{ runner.temp }}/exec-log
-          retention-days: 7
-          if-no-files-found: ignore
-      - name: Write job summary
-        if: always()
-        env:
-          PLATFORM: ${{ matrix.platform }}
-          JOB_STATUS: ${{ job.status }}
-          RUNNER_LABEL: ${{ matrix.runner }}
-        run: |
-          echo "### launch-heavy ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran the Julia standalone, relocate, lint and JET tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/launch-heavy.log" ]; then
-            tr -d '\r' < "$RUNNER_TEMP/launch-heavy.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/launch-heavy-flaky"
-            if [ -s "$RUNNER_TEMP/launch-heavy-flaky" ]; then
-              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
-              sed 's/^/- /' "$RUNNER_TEMP/launch-heavy-flaky" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          fi
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -827,17 +432,12 @@ jobs:
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
     needs:
       [
-        check,
-        coverage,
+        test,
         coverage-cells,
         dogfood,
         analysis-scaling,
         in-graph-prebuilt-guard,
-        devcontainer-check,
-        launch-heavy,
         preflight,
-        quality-matrix,
-        starter-consumer,
         workflow-check,
       ]
     timeout-minutes: 5
@@ -858,42 +458,3 @@ jobs:
         run: |
           echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        if: always()
-        with:
-          sparse-checkout: |
-            .github/actions/assert-no-secret
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: always()
-        with:
-          pattern: compiler-evidence-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/compiler-evidence
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: always()
-        with:
-          name: ci-producers-bin
-          path: ${{ runner.temp }}/ci-producers-bin
-      - name: Merge compiler evidence
-        if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/compiler-evidence"
-          chmod +x "$RUNNER_TEMP/ci-producers-bin/producers_bin"
-          {
-            echo "### Compiler evidence (row x platform)"
-            "$RUNNER_TEMP/ci-producers-bin/producers_bin" --table "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Check the upload holds no secret
-        id: scan-compiler-evidence
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/compiler-evidence-all.jsonl
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-compiler-evidence.outcome == 'success' }}
-        with:
-          name: compiler-evidence-all
-          path: ${{ runner.temp }}/compiler-evidence-all.jsonl
-          if-no-files-found: ignore
-          retention-days: 3

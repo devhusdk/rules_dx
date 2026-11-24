@@ -989,7 +989,6 @@ fn ci_windows_jobs_check_out_with_git() {
     for (path, name) in [
         (".github/workflows/audit.yml", "hermetic-windows"),
         (".github/workflows/audit.yml", "msix-install"),
-        (".github/workflows/ci.yml", "starter-consumer"),
         (".github/workflows/ci.yml", "preflight"),
     ] {
         let steps = ci_workflow::steps(path, name).unwrap();

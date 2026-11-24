@@ -31,9 +31,13 @@ const NESTED_TAG: &str = "resources:nested_bazel";
 
 const NESTED_CAP: usize = 8;
 
-const CONSUMER_TAGS: [&str; 3] = ["hermetic-consumer", "network-consumer", "starter-consumer"];
+const PR_SKIPPED_TAGS: [&str; 2] = ["network-consumer", "audit"];
 
-const WORKFLOWS: &str = ".github/workflows/ci.yml or .github/workflows/audit.yml";
+const AUDIT_TAGS: [&str; 2] = ["hermetic-consumer", "network-consumer"];
+
+const AUDIT_WORKFLOW: &str = ".github/workflows/audit.yml";
+
+const BAZELRC: &str = ".bazelrc";
 
 const UPSTREAM: &str = "_upstream";
 
@@ -311,10 +315,24 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-fn consumer_tag(strings: &[String]) -> bool {
+fn pr_skipped(strings: &[String]) -> bool {
     strings
         .iter()
-        .any(|text| CONSUMER_TAGS.contains(&text.as_str()))
+        .any(|text| text == "manual" || PR_SKIPPED_TAGS.contains(&text.as_str()))
+}
+
+fn audit_tag(strings: &[String]) -> bool {
+    strings
+        .iter()
+        .any(|text| AUDIT_TAGS.contains(&text.as_str()))
+}
+
+fn pr_tag_filter() -> String {
+    let skipped: Vec<String> = PR_SKIPPED_TAGS
+        .iter()
+        .map(|tag| format!("-{tag}"))
+        .collect();
+    format!("test:ci-pr --test_tag_filters={}", skipped.join(","))
 }
 
 fn nested_constants(
@@ -448,16 +466,21 @@ fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
 fn unselected(
     files: &BTreeMap<String, FileScan>,
     listed: &BTreeSet<String>,
-    workflow: &str,
+    audit: &str,
 ) -> Vec<String> {
-    let tagged = tests_tagged(files, consumer_tag);
+    let skipped = tests_tagged(files, pr_skipped);
+    let audited = tests_tagged(files, audit_tag);
     listed
         .iter()
-        .filter(|label| !tagged.contains(*label) && !workflow.contains(label.as_str()))
+        .filter(|label| {
+            skipped.contains(*label) && !audited.contains(*label) && !audit.contains(label.as_str())
+        })
         .map(|label| {
             format!(
-                "{label}: no CI job runs it; tag it {}, or name it in {WORKFLOWS}",
-                CONSUMER_TAGS.join(", ")
+                "{label}: the pull request test job skips it and no audit job runs it; drop its \
+                 manual, {} tag, tag it {}, or name it in {AUDIT_WORKFLOW}",
+                PR_SKIPPED_TAGS.join(" or "),
+                AUDIT_TAGS.join(" or ")
             )
         })
         .collect()
@@ -603,9 +626,16 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
     let listed: BTreeSet<String> = seconds.keys().cloned().collect();
     problems.extend(nested_seconds(&seconds, &over));
     problems.extend(nested_differences(&nested_tests(&files), &listed));
-    let mut workflows = read_input("CI_WORKFLOW");
-    workflows.push_str(&read_input("AUDIT_WORKFLOW"));
-    problems.extend(unselected(&files, &listed, &workflows));
+    problems.extend(unselected(&files, &listed, &read_input("AUDIT_WORKFLOW")));
+    let filter = pr_tag_filter();
+    if !read_input("BAZELRC")
+        .lines()
+        .any(|line| line.trim() == filter)
+    {
+        problems.push(format!(
+            "{BAZELRC} lacks `{filter}`, so the pull request test job runs the tests audit owns"
+        ));
+    }
     assert!(
         problems.is_empty(),
         "{NESTED_LIST} and the tree disagree:\n{}",
@@ -795,33 +825,43 @@ fn the_nested_list_format_is_strict() {
 }
 
 #[test]
-fn listed_tests_need_a_consumer_tag_or_a_workflow_line() {
+fn tests_the_pull_request_job_skips_need_an_audit_tag_or_line() {
     let defs = r#"
 def smoke(name, **kwargs):
-    rust_test(name = name, tags = ["hermetic-consumer"], **kwargs)
+    rust_test(name = name, tags = ["hermetic-consumer", "audit"], **kwargs)
 "#;
     let build = r#"
 NETWORK = ["network-consumer"]
-rust_test(name = "tagged", tags = ["starter-consumer"])
+rust_test(name = "plain", tags = ["x"])
 rust_test(name = "constant", tags = NETWORK)
-rust_test(name = "named", tags = ["x"])
-rust_test(name = "orphan", tags = ["x"])
+rust_test(name = "named", tags = ["audit"])
+rust_test(name = "orphan", tags = ["audit"])
+rust_test(name = "hidden", tags = ["manual"])
 smoke(name = "macro")
 "#;
     let files = scan_sources(&[("tools/defs.bzl", defs), ("pkg/BUILD.bazel", build)]);
     let listed = labels(&[
         "//pkg:constant",
+        "//pkg:hidden",
         "//pkg:macro",
         "//pkg:named",
         "//pkg:orphan",
-        "//pkg:tagged",
+        "//pkg:plain",
     ]);
+    let problems = unselected(&files, &listed, "bazel test //pkg:named");
+    let flagged: Vec<&str> = problems
+        .iter()
+        .filter_map(|problem| problem.split(':').take(2).last())
+        .collect();
+    assert_eq!(flagged, ["hidden", "orphan"], "{problems:?}");
+    assert!(problems[1].contains(AUDIT_WORKFLOW), "{problems:?}");
+}
+
+#[test]
+fn the_pull_request_tag_filter_names_every_skipped_tag() {
     assert_eq!(
-        unselected(&files, &listed, "bazel test //pkg:named"),
-        [format!(
-            "//pkg:orphan: no CI job runs it; tag it {}, or name it in {WORKFLOWS}",
-            CONSUMER_TAGS.join(", ")
-        )],
+        pr_tag_filter(),
+        "test:ci-pr --test_tag_filters=-network-consumer,-audit"
     );
 }
 

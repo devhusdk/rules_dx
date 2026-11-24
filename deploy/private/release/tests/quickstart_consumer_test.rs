@@ -83,15 +83,15 @@ fn windows_bash() -> Option<String> {
         .find(|bash| std::path::Path::new(bash).is_file())
 }
 
-/// The environment of the nested commands: `PATH` is `nested_path`, and on Windows `BAZEL_SH`
-/// names `windows_bash`.
+/// The environment of the nested commands: `PATH` is `nested_path`, and `BAZEL_SH` names the bash
+/// repository `patch_cmds` run with, `windows_bash` on Windows and `/bin/bash` elsewhere.
 pub(crate) fn nested_env() -> Vec<(&'static str, String)> {
-    let mut env = vec![("PATH", nested_path())];
-    if cfg!(windows) {
-        let bash = windows_bash().unwrap_or_else(|| panic!("no MSYS bash: set BAZEL_SH"));
-        env.push(("BAZEL_SH", bash));
-    }
-    env
+    let bash = if cfg!(windows) {
+        windows_bash().unwrap_or_else(|| panic!("no MSYS bash: set BAZEL_SH"))
+    } else {
+        "/bin/bash".to_owned()
+    };
+    vec![("PATH", nested_path()), ("BAZEL_SH", bash)]
 }
 
 /// Runs nested Bazel in `case` with `nested_env`.

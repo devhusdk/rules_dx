@@ -355,16 +355,17 @@ fn npm_env() -> Vec<(String, String)> {
 
 #[must_use]
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
-    let mut env = vec![
-        ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
+    let isolated = ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned());
+    // cargo-bazel splice reads CARGO_BAZEL_REPIN=false as a crate named `false`, so a check sets no repin variable.
+    if repin == "false" {
+        return vec![isolated, ("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned())];
+    }
+    vec![
+        isolated,
         ("CARGO_BAZEL_REPIN".to_owned(), repin.to_owned()),
         ("CARGO_BAZEL_REPIN_ONLY".to_owned(), repository.to_owned()),
         ("REPIN".to_owned(), repin.to_owned()),
-    ];
-    if repin == "false" {
-        env.push(("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()));
-    }
-    env
+    ]
 }
 
 #[must_use]

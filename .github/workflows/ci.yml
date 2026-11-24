@@ -109,7 +109,7 @@ jobs:
           path: ${{ runner.temp }}/gate.json
           retention-days: 7
           if-no-files-found: ignore
-      - name: Check the coverage report holds no secret
+      - name: Check the upload holds no secret
         id: scan-coverage
         if: ${{ always() && contains(env.GATE, 'coverage') }}
         uses: ./.github/actions/assert-no-secret

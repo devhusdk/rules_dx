@@ -1,11 +1,11 @@
 """MSIX pin, license and identity-rule coverage."""
 
-load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//msix/private:defs.bzl", "WINDOWS_CASES", "extra_constraints", "publisher_cn")
-load("//msix/private:validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
 load("//msix/private:pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load("//msix/private:repos.bzl", "UNACCEPTED", "hub_build", "toolchains_hub_build")
+load("//msix/private:validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
 
 def _checks():
     accepted = hub_build(True)

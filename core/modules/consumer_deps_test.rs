@@ -10,11 +10,7 @@ const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
 
 /// Non-dev `bazel_dep`s that carry no floor or `single_version_override` yet; each is
 /// only a transitive need of a root extension.
-const UNPINNED: &[&str] = &[
-    "bazel_features",
-    "tar.bzl",
-    "rules_batch",
-];
+const UNPINNED: &[&str] = &["bazel_features", "tar.bzl", "rules_batch"];
 
 type Table = BTreeMap<String, (String, String)>;
 
@@ -194,7 +190,10 @@ fn consumer_fragments_pin_consumer_deps_at_their_floors() {
 fn a_fragment_above_its_floor_fails() {
     let table = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
     let at_floor = "bazel_dep(name = \"demo\", version = \"1.2.0\")\nbazel_dep(name = \"other\", version = \"9\")\n";
-    assert_eq!(fragment_violations(at_floor, "f", &table), Vec::<String>::new());
+    assert_eq!(
+        fragment_violations(at_floor, "f", &table),
+        Vec::<String>::new()
+    );
     let problems = fragment_violations(&at_floor.replace("1.2.0", "1.4.0"), "f", &table);
     assert_eq!(problems.len(), 1, "{problems:?}");
     assert!(
@@ -351,7 +350,9 @@ fn a_dx_version_is_rejected() {
     let demo = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
     let problems = violations(&good("1.2.0.dx.1", Some("1.2.0.dx.1")), &demo);
     assert!(
-        problems.iter().any(|problem| problem.contains("BCR versions only")),
+        problems
+            .iter()
+            .any(|problem| problem.contains("BCR versions only")),
         "{problems:?}"
     );
 }
@@ -365,7 +366,11 @@ fn disagreeing_fixtures_fail() {
         )
     };
     for (source, table, needle) in [
-        (good("1.1.0", Some("1.2.0")), demo.clone(), "but its floor is"),
+        (
+            good("1.1.0", Some("1.2.0")),
+            demo.clone(),
+            "but its floor is",
+        ),
         (
             good("1.2.0", Some("1.3.0")),
             demo.clone(),

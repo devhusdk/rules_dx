@@ -1,8 +1,8 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "0 */4 * * *"
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -18,9 +18,8 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  # A newer push cancels the older run; a dispatched run on main only replaces a queued one.
-  group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'schedule' && 'main-' || '' }}${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:

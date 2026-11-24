@@ -384,24 +384,25 @@ fn every_matrix_cell_records_its_runner_image() {
 }
 
 #[test]
-fn one_run_per_ref_and_only_pull_requests_and_pushes_cancel() {
+fn one_run_per_ref_and_only_pull_requests_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
         json!(
-            "ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}"
+            "ci-${{ github.workflow }}-${{ github.event_name == 'schedule' && 'main-' || '' }}${{ github.ref }}"
         ),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' || github.event_name == 'push' }}")
+        json!("${{ github.event_name == 'pull_request' }}")
     );
 }
 
 #[test]
-fn ci_runs_on_push_only_for_main() {
+fn main_runs_on_a_schedule_not_on_push() {
     let on = triggers(CI_WORKFLOW).unwrap();
-    assert_eq!(on["push"], json!({"branches": ["main"]}));
+    assert!(on.get("push").is_none(), "{on}");
+    assert_eq!(on["schedule"], json!([{"cron": "0 */4 * * *"}]));
 }
 
 #[test]
@@ -610,7 +611,7 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
     assert_eq!(
         step("Upload the failing labels")["with"]["name"],
         json!(
-            "${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
+            "${{ github.event_name == 'schedule' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
         )
     );
 }

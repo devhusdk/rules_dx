@@ -309,7 +309,11 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),
             floor: None,
-            categories: &[],
+            categories: &[
+                ("C", crate::ToolSeverity::Error),
+                ("OB", crate::ToolSeverity::Error),
+                ("PORT", crate::ToolSeverity::Error),
+            ],
         },
     ),
     (

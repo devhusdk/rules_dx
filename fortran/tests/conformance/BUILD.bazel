@@ -17,6 +17,7 @@ fortran_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.f90"],
     tags = ["manual"],
+    warnings_as_errors = False,
 )
 
 fortran_library(

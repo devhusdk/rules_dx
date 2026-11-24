@@ -117,6 +117,16 @@ mod tests {
     }
 
     #[test]
+    fn fortitude_correctness_obsolescent_and_portability_are_errors() {
+        let level = |rule| resolve(TOOL_SEVERITIES, "fortitude", rule, ToolSeverity::Info);
+        assert_eq!(level("C001"), ToolSeverity::Error);
+        assert_eq!(level("OB011"), ToolSeverity::Error);
+        assert_eq!(level("PORT021"), ToolSeverity::Error);
+        assert_eq!(level("S061"), ToolSeverity::Warning);
+        assert_eq!(level("MOD051"), ToolSeverity::Warning);
+    }
+
+    #[test]
     fn default_applies_when_no_prefix_matches() {
         let table = [(
             "t",

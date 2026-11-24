@@ -25,7 +25,14 @@ TOOLS = [
         id = "fortitude",
         adapters = {"lint": ["fortran"]},
         config = config(suffixes = [".toml"], tier_active = True),
-        severity = severity(default = "warning"),
+        severity = severity(
+            categories = {
+                "C": "error",
+                "OB": "error",
+                "PORT": "error",
+            },
+            default = "warning",
+        ),
         support = [
             row(
                 capability = "lint",

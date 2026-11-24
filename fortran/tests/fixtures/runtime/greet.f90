@@ -1,5 +1,5 @@
 module greet
-  implicit none
+  implicit none (type, external)
   private
   public :: greeting
 

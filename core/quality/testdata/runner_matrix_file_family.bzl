@@ -232,6 +232,18 @@ FILE_FAMILY_CASES = [
         config = "//core/quality/tiers/fortitude:strict.toml",
     ),
     matrix_case(
+        name = "matrix_fortran_lint_strict_guards",
+        capability = "lint",
+        tool = "fortitude",
+        binary = "@dx_tools//:fortitude",
+        source_class = "fortran",
+        generated = {
+            "matrix/fortran_strict_guards.f90": "module guards_m\n  implicit none\n  private\n  public :: twice\n  real(8) :: total\n  common /shared/ total\ncontains\n  subroutine twice(a)\n    real :: a\n    a = 2.0 * a\n  end subroutine twice\nend module guards_m\n",
+        },
+        platforms = ["linux_x86_64"],
+        config = "//core/quality/tiers/fortitude:strict.toml",
+    ),
+    matrix_case(
         name = "matrix_fortran_lint_syntax_error",
         capability = "lint",
         tool = "fortitude",

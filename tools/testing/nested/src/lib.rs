@@ -1104,7 +1104,12 @@ impl Server {
                 &format!("{}\n{}\n", rc.display(), logs.display()),
             )?;
         }
-        server.reaper = spawn_reaper(&wrapper, std::process::id(), &server.home);
+        server.reaper = spawn_reaper(
+            &wrapper,
+            std::process::id(),
+            &server.home,
+            reaper_log(&server.home),
+        );
         Ok(server)
     }
 
@@ -1257,7 +1262,12 @@ const REAPER_WAITING: &str = "nested bazel reaper: waiting for owner";
 
 /// Starts a detached shim that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
-fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
+fn spawn_reaper(
+    launcher: &Path,
+    owner: u32,
+    home: &Path,
+    stderr: std::process::Stdio,
+) -> Option<Child> {
     use std::os::unix::process::CommandExt;
     let workspaces = home.join(WORKSPACES);
     Command::new(launcher)
@@ -1265,14 +1275,19 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .arg(&workspaces)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(reaper_log(home))
+        .stderr(stderr)
         .process_group(0)
         .spawn()
         .ok()
 }
 
 #[cfg(windows)]
-fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
+fn spawn_reaper(
+    launcher: &Path,
+    owner: u32,
+    home: &Path,
+    stderr: std::process::Stdio,
+) -> Option<Child> {
     use std::os::windows::process::CommandExt;
     const DETACHED_PROCESS: u32 = 0x0000_0008;
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
@@ -1282,21 +1297,25 @@ fn spawn_reaper(launcher: &Path, owner: u32, home: &Path) -> Option<Child> {
         .arg(&workspaces)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(reaper_log(home))
+        .stderr(stderr)
         .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
         .spawn()
         .ok()
 }
 
 /// Opens the reaper's stderr log in the slot home, truncated on each acquire.
-#[cfg(any(unix, windows))]
 fn reaper_log(home: &Path) -> std::process::Stdio {
     std::fs::File::create(home.join(REAPER_LOG))
         .map_or_else(|_| std::process::Stdio::null(), Into::into)
 }
 
 #[cfg(not(any(unix, windows)))]
-fn spawn_reaper(_launcher: &Path, _owner: u32, _home: &Path) -> Option<Child> {
+fn spawn_reaper(
+    _launcher: &Path,
+    _owner: u32,
+    _home: &Path,
+    _stderr: std::process::Stdio,
+) -> Option<Child> {
     None
 }
 
@@ -2293,18 +2312,44 @@ fn probe_command(args: &[&str]) -> Command {
 }
 
 #[cfg(test)]
+fn spawn_piped_reaper(owner: u32, home: &Path) -> Child {
+    spawn_reaper(
+        &bazel_wrapper_runfile(),
+        owner,
+        home,
+        std::process::Stdio::piped(),
+    )
+    .expect("reaper")
+}
+
+#[cfg(test)]
 #[track_caller]
-fn reaper_waiting(home: &Path) {
-    let log = home.join(REAPER_LOG);
-    let waiting = || std::fs::read_to_string(&log).is_ok_and(|text| text.contains(REAPER_WAITING));
-    if let Err(error) = dx_test_scratch::wait::watch_until(
-        &log,
-        "the reaper waiting",
-        Duration::from_secs(30),
-        waiting,
-    ) {
-        panic!("{error}");
+fn reaper_waiting(reaper: &mut Child) -> std::thread::JoinHandle<String> {
+    use std::io::BufRead as _;
+    let stderr = reaper.stderr.take().expect("the reaper's stderr is piped");
+    let (waiting, waited) = std::sync::mpsc::sync_channel(1);
+    let log = std::thread::spawn(move || {
+        let mut log = String::new();
+        for line in std::io::BufReader::new(stderr)
+            .lines()
+            .map_while(Result::ok)
+        {
+            if line.contains(REAPER_WAITING) {
+                drop(waiting.try_send(()));
+            }
+            log.push_str(&line);
+            log.push('\n');
+        }
+        log
+    });
+    if let Err(error) = waited.recv_timeout(Duration::from_secs(30)) {
+        drop(reaper.kill());
+        panic!(
+            "the reaper did not report waiting within 30s: {error}\nreaper log:\n{}",
+            log.join().unwrap_or_default()
+        );
     }
+    log
 }
 
 #[cfg(all(test, unix))]
@@ -3170,8 +3215,8 @@ mod tests {
         let mut stray = stand_in(&workspaces.join("consumer"));
         let pid = stray.id();
         assert_eq!(servers_in_workspaces(&workspaces), vec![pid]);
-        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
-        reaper_waiting(&home);
+        let mut reaper = spawn_piped_reaper(owner.id(), &home);
+        reaper_waiting(&mut reaper);
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         drop(owner.wait());
@@ -3482,23 +3527,23 @@ mod portable_tests {
         let mut stray = held(&[&flag]);
         let pid = stray.id();
         assert!(servers_in_workspaces(&workspaces).contains(&pid));
-        let mut reaper = spawn_reaper(&bazel_wrapper_runfile(), owner.id(), &home).expect("reaper");
-        let log = || std::fs::read_to_string(home.join(REAPER_LOG)).unwrap_or_default();
-        reaper_waiting(&home);
-        let early = reaper.try_wait();
-        assert!(
-            matches!(early, Ok(None)),
-            "the reaper exited before the owner did: {early:?}\nreaper.log:\n{}",
-            log()
-        );
+        let mut reaper = spawn_piped_reaper(owner.id(), &home);
+        let log = reaper_waiting(&mut reaper);
+        if let Some(status) = reaper.try_wait().expect("poll the reaper") {
+            panic!(
+                "the reaper exited before the owner did: {status}\nreaper log:\n{}",
+                log.join().unwrap_or_default()
+            );
+        }
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         let _: std::io::Result<std::process::ExitStatus> = owner.wait();
         if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30)) {
+            let status = reaper.try_wait();
+            drop(reaper.kill());
             panic!(
-                "the reaper did not stop the stand-in: {error}\nreaper: {:?}\nreaper.log:\n{}\nservers_in_workspaces: {:?}",
-                reaper.try_wait(),
-                log(),
+                "the reaper did not stop the stand-in: {error}\nreaper: {status:?}\nreaper log:\n{}\nservers_in_workspaces: {:?}",
+                log.join().unwrap_or_default(),
                 servers_in_workspaces(&workspaces)
             );
         }

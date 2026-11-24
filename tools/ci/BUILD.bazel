@@ -146,6 +146,7 @@ rust_test(
     ],
 )
 
+# Upstream: rhysd/actionlint#651
 rust_test(
     name = "actionlint_test",
     size = "small",
@@ -163,11 +164,11 @@ rust_test(
         "//.github:workflows",
         "//examples:docs-ci/caller.yml",
         "//tools/ci/input_validation:src/lib.rs",
-        "@dx_tools//:actionlint",
+        "@com_github_rhysd_actionlint//cmd/actionlint",
         "@dx_tools//:shellcheck",
     ],
     env = {
-        "DX_ACTIONLINT": "$(rootpath @dx_tools//:actionlint)",
+        "DX_ACTIONLINT": "$(rootpath @com_github_rhysd_actionlint//cmd/actionlint)",
         "DX_SHELLCHECK": "$(rootpath @dx_tools//:shellcheck)",
         "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
     },

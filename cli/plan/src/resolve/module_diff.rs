@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_module_bazel::{Call, ModuleFile, Value};
 
 use super::extension_scope::{Names, ROOT, Scope, module_base};
-use super::lock_inputs::go_repo_name;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ModuleDiff {
@@ -12,15 +11,9 @@ pub(crate) struct ModuleDiff {
     pub(crate) scopes: BTreeSet<Scope>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Entry {
-    path: Option<String>,
-    text: String,
-}
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Usage {
-    entries: Vec<Entry>,
+    entries: Vec<String>,
     repos: BTreeSet<String>,
 }
 
@@ -42,19 +35,6 @@ struct Side {
 enum Binding {
     Extension(Scope),
     Rule(String),
-}
-
-const GO_PATH_TAGS: &[&str] = &[
-    "module",
-    "module_override",
-    "archive_override",
-    "gazelle_override",
-];
-
-const DEV_USAGE: &str = "use_extension(dev_dependency=True,)";
-
-fn go_deps() -> Scope {
-    Scope::extension("gazelle+", "go_deps")
 }
 
 fn changes(what: &str) -> dx_error::DxError {
@@ -283,14 +263,11 @@ fn scan(files: &[ModuleFile]) -> Side {
                         .entry(scope.clone())
                         .or_default()
                         .entries
-                        .push(Entry {
-                            path: None,
-                            text: text(
-                                "use_extension",
-                                2,
-                                &["extension_bzl_file", "extension_name"],
-                            ),
-                        });
+                        .push(text(
+                            "use_extension",
+                            2,
+                            &["extension_bzl_file", "extension_name"],
+                        ));
                     if let Some(binding) = &call.binding {
                         bindings.insert(binding, Binding::Extension(scope));
                     }
@@ -325,10 +302,7 @@ fn scan(files: &[ModuleFile]) -> Side {
                         continue;
                     };
                     if call.name != "use_repo" {
-                        usage.entries.push(Entry {
-                            path: None,
-                            text: text(&call.name, 1, &[]),
-                        });
+                        usage.entries.push(text(&call.name, 1, &[]));
                         continue;
                     }
                     for value in call.positional.iter().skip(1) {
@@ -346,17 +320,8 @@ fn scan(files: &[ModuleFile]) -> Side {
                     let (binding, tag) = name.split_once('.').unwrap_or((name, ""));
                     match bindings.get(binding) {
                         Some(Binding::Extension(scope)) if !tag.is_empty() => {
-                            let indirect = call.arg("indirect").is_some_and(
-                                |value| !matches!(value, Value::Ident(no) if no == "False"),
-                            );
-                            let path = (GO_PATH_TAGS.contains(&tag) && !indirect)
-                                .then(|| call.str("path").map(str::to_owned))
-                                .flatten();
                             if let Some(usage) = side.usages.get_mut(scope) {
-                                usage.entries.push(Entry {
-                                    path,
-                                    text: text(tag, 0, &[]),
-                                });
+                                usage.entries.push(text(tag, 0, &[]));
                             }
                         }
                         Some(Binding::Rule(rule)) if tag.is_empty() => {
@@ -383,64 +348,6 @@ fn scan(files: &[ModuleFile]) -> Side {
     side
 }
 
-fn nested(path: &str, other: &str) -> bool {
-    path != other
-        && (other.starts_with(&format!("{path}/")) || path.starts_with(&format!("{other}/")))
-}
-
-fn go_repos(
-    base: &Usage,
-    head: &Usage,
-    known: Option<&BTreeSet<String>>,
-) -> Option<BTreeSet<String>> {
-    let split = |usage: &Usage| {
-        let mut global = Vec::new();
-        let mut paths: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        for entry in &usage.entries {
-            match &entry.path {
-                Some(path) => paths
-                    .entry(path.clone())
-                    .or_default()
-                    .push(entry.text.clone()),
-                None => global.push(entry.text.clone()),
-            }
-        }
-        (global, paths)
-    };
-    let (base_global, base_paths) = split(base);
-    let (head_global, head_paths) = split(head);
-    let usage = |global: Vec<String>| -> BTreeSet<String> {
-        global
-            .into_iter()
-            .map(|text| {
-                if text == DEV_USAGE {
-                    String::from("use_extension()")
-                } else {
-                    text
-                }
-            })
-            .collect()
-    };
-    let (base_global, head_global) = (usage(base_global), usage(head_global));
-    if base_global != head_global {
-        return None;
-    }
-    let mut every: BTreeSet<&String> = known?.iter().collect();
-    every.extend(base_paths.keys().chain(head_paths.keys()));
-    let changed: BTreeSet<&String> = base_paths
-        .keys()
-        .chain(head_paths.keys())
-        .filter(|path| base_paths.get(*path) != head_paths.get(*path))
-        .collect();
-    if changed
-        .iter()
-        .any(|path| every.iter().any(|other| nested(path, other)))
-    {
-        return None;
-    }
-    Some(changed.into_iter().map(|path| go_repo_name(path)).collect())
-}
-
 fn repo_name(entry: &str) -> String {
     let value = entry.split_once('=').map_or(entry, |(_, value)| value);
     value.trim_matches('"').to_owned()
@@ -463,7 +370,6 @@ fn repo_scope(scope: &Scope, name: String) -> Scope {
 pub(crate) fn module_diff(
     base: &[ModuleFile],
     head: &[ModuleFile],
-    go_paths: Option<&BTreeSet<String>>,
 ) -> Result<ModuleDiff, dx_error::DxError> {
     let base = scan(base);
     let head = scan(head);
@@ -520,16 +426,8 @@ pub(crate) fn module_diff(
                 .difference(&before.repos)
                 .map(|entry| repo_scope(scope, repo_name(entry))),
         );
-        if before.entries == after.entries {
-            continue;
-        }
-        match go_repos(before, after, go_paths).filter(|_| *scope == go_deps()) {
-            Some(repos) => diff
-                .scopes
-                .extend(repos.into_iter().map(|name| repo_scope(scope, name))),
-            None => {
-                diff.scopes.insert(scope.clone());
-            }
+        if before.entries != after.entries {
+            diff.scopes.insert(scope.clone());
         }
     }
     let no_rules = BTreeMap::new();
@@ -747,11 +645,7 @@ register_toolchains(\"//tc:all\")\n";
 
     fn diff(base: &str, head: &str) -> Result<ModuleDiff, dx_error::DxError> {
         let parse = |text: &str| vec![ModuleFile::parse(text).expect("parses")];
-        module_diff(
-            &parse(base),
-            &parse(head),
-            Some(&BTreeSet::from(["github.com/x/y".to_owned()])),
-        )
+        module_diff(&parse(base), &parse(head))
     }
 
     fn repo(base: &str, extension: &str, name: &str) -> Scope {
@@ -771,50 +665,27 @@ register_toolchains(\"//tc:all\")\n";
     }
 
     #[test]
-    fn dev_go_deps_usage_selects_only_its_go_repos() {
-        let head = format!(
-            "{HEAD}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
-dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
-dev.module(path = \"github.com/fatih/color\", indirect = False, sum = \"h1:b\", version = \"v1.19.0\")\n\
-use_repo(dev, \"com_github_rhysd_actionlint\")\n"
-        );
-        let found = diff(HEAD, &head).expect("narrows");
-        assert_eq!(
-            found.scopes,
-            BTreeSet::from([
-                repo("gazelle+", "go_deps", "com_github_fatih_color"),
-                repo("gazelle+", "go_deps", "com_github_rhysd_actionlint"),
-            ])
-        );
-        assert!(found.deps.is_empty());
-    }
-
-    #[test]
-    fn indirect_go_deps_modules_select_the_extension() {
-        let all = BTreeSet::from([Scope::extension("gazelle+", "go_deps")]);
-        for indirect in ["True", "INDIRECT"] {
-            let head = format!(
-                "{HEAD}go_deps.module(path = \"github.com/fatih/color\", indirect = {indirect}, sum = \"h1:b\", version = \"v1.19.0\")\n"
-            );
-            assert_eq!(
-                diff(HEAD, &head).expect("narrows").scopes,
-                all,
-                "{indirect}"
-            );
-        }
-    }
-
-    #[test]
-    fn global_go_deps_tags_and_nested_paths_select_the_extension() {
+    fn go_deps_tags_select_every_go_deps_repo() {
         let all = BTreeSet::from([Scope::extension("gazelle+", "go_deps")]);
         for extra in [
+            "go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n",
+            "go_deps.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n",
+            "go_deps.gazelle_override(path = \"github.com/x/y\", directives = [\"x\"])\n",
             "go_deps.gazelle_default_attributes(directives = [\"x\"])\n",
-            "go_deps.module(path = \"github.com/x/y/v2\", sum = \"h1:a\", version = \"v2.0.0\")\n",
-            "go_deps.module(path = \"github.com/x\", sum = \"h1:a\", version = \"v1.0.0\")\n",
+            "dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
+dev.module(path = \"github.com/fatih/color\", indirect = False, sum = \"h1:b\", version = \"v1.19.0\")\n",
         ] {
             let head = format!("{HEAD}{extra}");
             assert_eq!(diff(HEAD, &head).expect("narrows").scopes, all, "{extra}");
         }
+        let head = format!(
+            "{HEAD}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
+dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
+use_repo(dev, \"com_github_rhysd_actionlint\")\n"
+        );
+        let mut expected = all;
+        expected.insert(repo("gazelle+", "go_deps", "com_github_rhysd_actionlint"));
+        assert_eq!(diff(HEAD, &head).expect("narrows").scopes, expected);
     }
 
     #[test]

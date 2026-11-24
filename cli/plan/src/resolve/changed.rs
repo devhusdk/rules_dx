@@ -748,14 +748,7 @@ fn module_change(
         module_text(ROOT_MODULE, changed(ROOT_MODULE), workspace, runner, base)?;
     let (head_labels, head_files) = module_files(&head_module, &read_head)?;
     let (base_labels, base_files) = module_files(&base_module, &read_base)?;
-    let read_go_mod = |rel: &str| read_head(rel).ok();
-    let go_paths = head_files
-        .iter()
-        .try_fold(BTreeSet::new(), |mut paths, file| {
-            paths.extend(lock_inputs::go_mod_paths(file, &read_go_mod)?);
-            Some(paths)
-        });
-    let diff = module_diff::module_diff(&base_files, &head_files, go_paths.as_ref())?;
+    let diff = module_diff::module_diff(&base_files, &head_files)?;
     let mut modules: BTreeSet<String> = diff.deps.keys().cloned().collect();
     modules.extend(diff.modules);
     let mut scopes = diff.scopes;
@@ -1423,16 +1416,14 @@ pub fn resolve_affected(
         for (path, changed) in &narrowed {
             let mut repos: BTreeSet<String> = BTreeSet::new();
             let mut seeds: Vec<String> = Vec::new();
-            let go_changed = changed
-                .iter()
-                .any(|(_, change)| !change.go_repos.is_empty());
+            let go_changed = changed.iter().any(|(_, change)| change.go);
             for (hub, change) in changed {
                 let LockChange {
                     crates,
                     aliases,
                     pip,
                     maven,
-                    go_repos,
+                    go,
                     npm,
                 } = change;
                 if gem_hubs.contains(hub) {
@@ -1467,8 +1458,11 @@ pub fn resolve_affected(
                     repos.extend(crates.keys().map(|name| format!("@{hub}//{name}")));
                     continue;
                 }
-                seeds.extend(lock_inputs::go_seeds(loaded.external_inputs(), go_repos));
-                repos.extend(go_repos.iter().map(|name| format!("@{name}//...")));
+                if *go {
+                    seeds.extend(lock_inputs::go_seeds(loaded.external_inputs(), hub));
+                    repos.insert(format!("@@*+{hub}+*"));
+                    continue;
+                }
                 seeds.extend(lock_inputs::seeds(
                     loaded.external_inputs(),
                     hub,
@@ -2882,50 +2876,30 @@ register_toolchains(\"//tc:all\")\n";
         (selection, query.calls().len())
     }
 
+    const EVERY_GO_DEPS_USER: [&str; 2] = [
+        "@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint",
+        "@@gazelle++go_deps+com_github_x_y//:y",
+    ];
+
     #[test]
-    fn dev_go_deps_usage_selects_only_its_users() {
+    fn dev_go_deps_usage_selects_every_go_deps_user() {
         let head = format!(
             "{GO_MODULE}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
 dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
 use_repo(dev, \"com_github_rhysd_actionlint\")\n"
         );
         let (selection, _) = module_edit("dx-changed-dev-go-deps-", &head);
-        assert_eq!(
-            selection.targets,
-            strings(&["@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint"])
-        );
+        assert_eq!(selection.targets, strings(&EVERY_GO_DEPS_USER));
         assert_eq!(
             selection.widened,
             [WidenedScope {
-                scope: "rdeps(//..., @@gazelle++go_deps+com_github_rhysd_actionlint)".to_owned(),
+                scope: "rdeps(//..., @@gazelle++go_deps+*, @@gazelle++go_deps+com_github_rhysd_actionlint)".to_owned(),
                 reason: "changed modules in MODULE.bazel".to_owned(),
-                repos: strings(&["@@gazelle++go_deps+com_github_rhysd_actionlint"]),
+                repos: strings(&[
+                    "@@gazelle++go_deps+*",
+                    "@@gazelle++go_deps+com_github_rhysd_actionlint"
+                ]),
             }]
-        );
-    }
-
-    #[test]
-    fn indirect_go_deps_module_selects_every_go_deps_user() {
-        let head = format!(
-            "{GO_MODULE}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
-dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
-dev.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n\
-use_repo(dev, \"com_github_rhysd_actionlint\")\n"
-        );
-        let (selection, _) = module_edit("dx-changed-indirect-go-deps-", &head);
-        assert_eq!(
-            selection.targets,
-            strings(&[
-                "@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint",
-                "@@gazelle++go_deps+com_github_x_y//:y",
-            ])
-        );
-        assert_eq!(
-            selection.widened.last().map(|entry| entry.scope.clone()),
-            Some(
-                "rdeps(//..., @@gazelle++go_deps+*, @@gazelle++go_deps+com_github_rhysd_actionlint)"
-                    .to_owned()
-            )
         );
     }
 
@@ -2964,10 +2938,7 @@ go_sdk.download(version = \"1.25.0\")\n"
             &head,
             &[GAZELLE, RULES_GO],
         );
-        assert_eq!(
-            selection.targets,
-            strings(&["@@gazelle++go_deps+com_github_x_y//:y"])
-        );
+        assert_eq!(selection.targets, strings(&EVERY_GO_DEPS_USER));
     }
 
     #[test]
@@ -3027,34 +2998,61 @@ use_repo(pip, \"pypi\")\n"
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(
             selection.widened[0].reason,
-            "changed @@gazelle++go_deps+com_github_x_y belongs to module gazelle, which has no registry MODULE.bazel"
+            "changed @@gazelle++go_deps+* belongs to module gazelle, which has no registry MODULE.bazel"
         );
     }
 
     #[test]
-    fn go_deps_module_tag_selects_that_repos_users() {
-        let head = format!(
-            "{GO_MODULE}go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n"
-        );
-        let (selection, _) = module_edit("dx-changed-go-tag-", &head);
-        assert_eq!(
-            selection.targets,
-            strings(&["@@gazelle++go_deps+com_github_x_y//:y"])
-        );
+    fn go_deps_tags_select_every_go_deps_user() {
+        for tag in [
+            "go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n",
+            "go_deps.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n",
+            "go_deps.gazelle_default_attributes(directives = [\"gazelle:proto disable\"])\n",
+        ] {
+            let (selection, _) = module_edit("dx-changed-go-tag-", &format!("{GO_MODULE}{tag}"));
+            assert_eq!(selection.targets, strings(&EVERY_GO_DEPS_USER), "{tag}");
+        }
     }
 
     #[test]
-    fn global_go_deps_tag_selects_every_go_deps_user() {
-        let head = format!(
-            "{GO_MODULE}go_deps.gazelle_default_attributes(directives = [\"gazelle:proto disable\"])\n"
-        );
-        let (selection, _) = module_edit("dx-changed-go-global-", &head);
+    fn go_sum_update_selects_every_go_deps_user() {
+        let scratch = dx_test_scratch::scratch("dx-changed-go-sum-").unwrap();
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", GO_MODULE).unwrap();
+        write(
+            workspace,
+            "go.mod",
+            "module m\n\nrequire github.com/x/y v1.0.0\n",
+        )
+        .unwrap();
+        let sum = "github.com/x/y v1.0.0 h1:a\n";
+        write(
+            workspace,
+            Ecosystem::Go.lockfile(),
+            &sum.replace("h1:a", "h1:b"),
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(sum), go_graph()]);
+        let selection = resolve_affected(
+            &[change(
+                Ecosystem::Go.lockfile(),
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("go.sum narrows");
+        assert_eq!(selection.targets, strings(&EVERY_GO_DEPS_USER));
         assert_eq!(
-            selection.targets,
-            strings(&[
-                "@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint",
-                "@@gazelle++go_deps+com_github_x_y//:y",
-            ])
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @@*+go_deps+*)".to_owned(),
+                reason: format!("changed Go modules in {}", Ecosystem::Go.lockfile()),
+                repos: strings(&["@@*+go_deps+*"]),
+            }]
         );
     }
 

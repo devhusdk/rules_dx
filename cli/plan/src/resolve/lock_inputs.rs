@@ -4,6 +4,7 @@ use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
 use dx_path::label::{Label, Repo};
 
+use super::extension_scope::Scope;
 use super::rule_graph::apparent_repo_matches;
 
 pub(crate) type ChangedCrates = BTreeMap<String, BTreeSet<String>>;
@@ -14,7 +15,7 @@ pub(crate) struct LockChange {
     pub(crate) aliases: BTreeSet<String>,
     pub(crate) pip: bool,
     pub(crate) maven: bool,
-    pub(crate) go_repos: BTreeSet<String>,
+    pub(crate) go: bool,
     pub(crate) npm: bool,
 }
 
@@ -67,7 +68,7 @@ impl LockKind {
                 aliases: BTreeSet::new(),
                 pip: false,
                 maven: false,
-                go_repos: BTreeSet::new(),
+                go: false,
                 npm: false,
             }),
             LockKind::Pip(_) => Ok(LockChange {
@@ -75,7 +76,7 @@ impl LockKind {
                 aliases: BTreeSet::new(),
                 pip: true,
                 maven: false,
-                go_repos: BTreeSet::new(),
+                go: false,
                 npm: false,
             }),
             LockKind::Maven(_) => Ok(LockChange {
@@ -83,7 +84,7 @@ impl LockKind {
                 aliases: BTreeSet::new(),
                 pip: false,
                 maven: true,
-                go_repos: BTreeSet::new(),
+                go: false,
                 npm: false,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
@@ -273,7 +274,7 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxErro
 }
 
 fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
-    let mut bindings: BTreeSet<&str> = BTreeSet::new();
+    let mut bindings: BTreeMap<&str, String> = BTreeMap::new();
     for call in module.calls_named("use_extension") {
         let bzl = literal(call, "extension_bzl_file", Some(0)).ok().flatten();
         let name = literal(call, "extension_name", Some(1)).ok().flatten();
@@ -282,8 +283,8 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
             Some("go") => bzl.is_some_and(|bzl| bzl.ends_with("//go:extensions.bzl")),
             _ => false,
         };
-        if hub_extension && let Some(binding) = &call.binding {
-            bindings.insert(binding);
+        if hub_extension && let (Some(binding), Some(name)) = (&call.binding, name) {
+            bindings.insert(binding, name);
         }
     }
     let mut hubs = Vec::new();
@@ -291,9 +292,9 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
         let Some((binding, "from_file")) = call.name.split_once('.') else {
             continue;
         };
-        if !bindings.contains(binding) || call.unpacked {
+        let Some(extension) = bindings.get(binding).filter(|_| !call.unpacked) else {
             continue;
-        }
+        };
         let Some(go_mod) = literal(call, "go_mod", None)
             .ok()
             .flatten()
@@ -307,7 +308,7 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
             continue;
         }
         hubs.push(Hub {
-            name: "go_deps".to_owned(),
+            name: extension.clone(),
             lockfile: Some(format!("{dir}{}", Ecosystem::Go.lockfile())),
             cargo_lockfile: go_mod,
             pip: false,
@@ -320,48 +321,19 @@ fn go_hubs(module: &ModuleFile) -> Vec<Hub> {
     hubs
 }
 
-pub(crate) fn go_repo_name(module: &str) -> String {
-    let lower = module.to_lowercase();
-    let mut parts = lower.split('/');
-    let host = parts.next().unwrap_or_default();
-    let mut names: Vec<&str> = host.split('.').rev().collect();
-    names.extend(parts);
-    names.join("_").replace(['-', '.'], "_")
-}
-
-type GoModules = (BTreeSet<(String, String)>, BTreeSet<String>);
-
-fn go_modules(text: &str, sum: bool) -> GoModules {
-    let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
-    let mut other: BTreeSet<String> = BTreeSet::new();
-    for line in text.lines() {
-        let line = line.split("//").next().unwrap_or_default().trim();
-        let line = line.strip_prefix("require ").unwrap_or(line).trim();
-        let words: Vec<&str> = line.split_whitespace().collect();
-        let is_module = if sum {
-            words.len() == 3
-        } else {
-            matches!(words.as_slice(), [module, version] if version.starts_with('v') && *module != "go")
-        };
-        if is_module && let Some((module, rest)) = words.split_first() {
-            modules.insert(((*module).to_owned(), rest.join(" ")));
-        } else if !sum && !line.is_empty() && line != "require (" && line != ")" {
-            other.insert(line.to_owned());
-        }
-    }
-    (modules, other)
-}
-
-pub(crate) fn go_mod_paths(
-    module: &ModuleFile,
-    read: &dyn Fn(&str) -> Option<String>,
-) -> Option<BTreeSet<String>> {
-    let mut paths = BTreeSet::new();
-    for hub in go_hubs(module) {
-        let (modules, _) = go_modules(&read(&hub.cargo_lockfile)?, false);
-        paths.extend(modules.into_iter().map(|(path, _)| path));
-    }
-    Some(paths)
+fn go_mod_directives(text: &str) -> BTreeSet<String> {
+    text.lines()
+        .map(|line| {
+            let line = line.split("//").next().unwrap_or_default().trim();
+            line.strip_prefix("require ").unwrap_or(line).trim()
+        })
+        .filter(|line| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            let requirement = matches!(words.as_slice(), [module, version] if version.starts_with('v') && *module != "go");
+            !requirement && !line.is_empty() && *line != "require (" && *line != ")"
+        })
+        .map(str::to_owned)
+        .collect()
 }
 
 pub(crate) fn changed_go(
@@ -369,40 +341,33 @@ pub(crate) fn changed_go(
     base: &str,
     head: &str,
 ) -> Result<LockChange, dx_error::DxError> {
-    let sum = path.ends_with(Ecosystem::Go.lockfile());
-    let parse = |text: &str| go_modules(text, sum);
-    let (base_modules, base_other) = parse(base);
-    let (head_modules, head_other) = parse(head);
-    if base_other != head_other {
+    if path.ends_with(Ecosystem::Go.manifest_name())
+        && go_mod_directives(base) != go_mod_directives(head)
+    {
         return Err(dx_error::DxError::failure(format!(
             "{} changed beyond its requirements",
             Ecosystem::Go.manifest_name()
         )));
     }
-    let go_repos = base_modules
-        .symmetric_difference(&head_modules)
-        .map(|(module, _)| go_repo_name(module))
-        .collect();
     Ok(LockChange {
-        crates: ChangedCrates::new(),
-        aliases: BTreeSet::new(),
-        pip: false,
-        maven: false,
-        go_repos,
-        npm: false,
+        go: true,
+        ..LockChange::default()
     })
 }
 
-pub(crate) fn go_seeds<'a>(
-    labels: impl Iterator<Item = &'a str>,
-    repos: &BTreeSet<String>,
-) -> Vec<String> {
+pub(crate) fn go_seeds<'a>(labels: impl Iterator<Item = &'a str>, extension: &str) -> Vec<String> {
+    let in_extension = |repo: &str| {
+        let base = repo
+            .split_once("++")
+            .map_or_else(String::new, |(module, _)| format!("{module}+"));
+        Scope::extension(&base, extension).matches(repo)
+    };
     let mut out: Vec<String> = labels
         .filter(|label| {
             label
                 .strip_prefix("@@")
                 .and_then(|rest| rest.split_once("//"))
-                .is_some_and(|(repo, _)| repos.iter().any(|name| apparent_repo_matches(repo, name)))
+                .is_some_and(|(repo, _)| in_extension(repo))
         })
         .map(str::to_owned)
         .collect();
@@ -669,7 +634,7 @@ pub(crate) fn changed_crates_from_bazel_lock(
         aliases,
         pip: false,
         maven: false,
-        go_repos: BTreeSet::new(),
+        go: false,
         npm: false,
     })
 }
@@ -1198,7 +1163,7 @@ fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError>
         aliases: BTreeSet::new(),
         pip: false,
         maven: false,
-        go_repos: BTreeSet::new(),
+        go: false,
         npm: false,
     })
 }
@@ -1268,7 +1233,7 @@ pub(crate) fn changed_npm_packages(
         aliases: BTreeSet::new(),
         pip: false,
         maven: false,
-        go_repos: BTreeSet::new(),
+        go: false,
         npm: true,
     })
 }
@@ -1495,7 +1460,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             manifest_of(Ecosystem::Go)
         );
         let hubs = crate_hubs(module).expect("hubs");
-        let kind = LockKind::Go(vec!["go_deps".to_owned()]);
+        let kind = LockKind::Go(vec!["go".to_owned()]);
         assert_eq!(
             classify(
                 &format!("third_party/go/{}", manifest_of(Ecosystem::Go)),
@@ -1513,7 +1478,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     }
 
     #[test]
-    fn go_deps_files_classify_and_diff_to_repos() {
+    fn go_deps_files_classify_and_select_every_go_deps_repo() {
         let module = &format!(
             "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:{}\")\n",
             manifest_of(Ecosystem::Go)
@@ -1535,38 +1500,46 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             kind
         );
         assert_eq!(classify(Ecosystem::Go.lockfile(), &hubs), LockKind::Unknown);
-        assert_eq!(
-            go_repo_name("github.com/Foo-Bar/baz.v2"),
-            "com_github_foo_bar_baz_v2"
-        );
+        let every = LockChange {
+            go: true,
+            ..LockChange::default()
+        };
         let base = "module x\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgolang.org/x/net v0.1.0 // indirect\n)\n";
         let head = base.replace("v1.0.0", "v1.1.0");
-        let change = changed_go(manifest_of(Ecosystem::Go), base, &head)
-            .unwrap_or_else(|_| panic!("{}", manifest_of(Ecosystem::Go)));
         assert_eq!(
-            change.go_repos,
-            BTreeSet::from(["com_github_a_b".to_owned()])
+            changed_go(manifest_of(Ecosystem::Go), base, &head).ok(),
+            Some(every.clone())
         );
         let toolchain = base.replace("go 1.22", "go 1.23");
         assert!(changed_go(manifest_of(Ecosystem::Go), base, &toolchain).is_err());
         let sum = &format!(
-            "github.com/a/b v1.0.0 h1:x\ngithub.com/a/b v1.0.0/{} h1:y\ngolang.org/x/net v0.1.0 h1:z\n",
+            "github.com/a/b v1.0.0 h1:x\ngithub.com/a/b v1.0.0/{} h1:y\n",
             manifest_of(Ecosystem::Go)
         );
         let sum_head = sum.replace("h1:x", "h1:w");
-        let change = changed_go(Ecosystem::Go.lockfile(), sum, &sum_head)
-            .unwrap_or_else(|_| panic!("{}", Ecosystem::Go.lockfile()));
         assert_eq!(
-            change.go_repos,
-            BTreeSet::from(["com_github_a_b".to_owned()])
+            changed_go(Ecosystem::Go.lockfile(), sum, &sum_head).ok(),
+            Some(every)
         );
         let labels = [
             "@@gazelle++go_deps+com_github_a_b//:b",
             "@@gazelle++go_deps+org_golang_x_net//:net",
+            "@@rules_dx++go+com_github_c_d//:d",
+            "@@+go_deps+com_github_e_f//:f",
+            "@@rules_go++go_sdk+go_sdk//:sdk",
+            "@@go_deps+//:x",
         ];
         assert_eq!(
-            go_seeds(labels.iter().copied(), &change.go_repos),
-            ["@@gazelle++go_deps+com_github_a_b//:b"]
+            go_seeds(labels.iter().copied(), "go_deps"),
+            [
+                "@@+go_deps+com_github_e_f//:f",
+                "@@gazelle++go_deps+com_github_a_b//:b",
+                "@@gazelle++go_deps+org_golang_x_net//:net",
+            ]
+        );
+        assert_eq!(
+            go_seeds(labels.iter().copied(), "go"),
+            ["@@rules_dx++go+com_github_c_d//:d"]
         );
     }
 

@@ -54,8 +54,9 @@ pub use init_dir::{
     plan_fresh_files, validate_init_dir,
 };
 pub use launcher::{
-    LAUNCHER_CMD_REL, LAUNCHER_SH_REL, LauncherPins, LauncherState, RELEASE_ASSETS,
-    init_apply_command, launcher_state, plan_launcher_files, refresh_launcher_files, release_pins,
+    BAZEL_WRAPPER_BAT_REL, BAZEL_WRAPPER_SH_REL, LAUNCHER_CMD_REL, LAUNCHER_SH_REL, LauncherPins,
+    LauncherState, RELEASE_ASSETS, init_apply_command, launcher_state, plan_launcher_files,
+    refresh_launcher_files, release_pins, render_bazel_wrapper_bat, render_bazel_wrapper_sh,
     render_launcher_cmd, render_launcher_sh, stale_launchers, write_launcher_files,
 };
 pub use licenses::{

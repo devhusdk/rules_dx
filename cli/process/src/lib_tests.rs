@@ -832,26 +832,21 @@ fn arena_defaults(vars: &[(&str, &str)], linux: bool) -> Vec<(&'static str, &'st
 }
 
 #[test]
-fn bazel_env_defaults_sets_arena_max_only_when_free() {
-    let default = vec![("MALLOC_ARENA_MAX", "2")];
+fn bazel_env_defaults_mark_the_child_and_set_arena_max_only_when_free() {
+    let child = ("DX_BAZEL_CHILD", "1");
+    let default = vec![child, ("MALLOC_ARENA_MAX", "2")];
     assert_eq!(arena_defaults(&[], true), default);
-    assert_eq!(
-        arena_defaults(&[("MALLOC_ARENA_MAX", "8")], true),
-        [] as [(&str, &str); 0]
-    );
-    assert_eq!(
-        arena_defaults(&[("MALLOC_ARENA_MAX", "")], true),
-        [] as [(&str, &str); 0]
-    );
+    assert_eq!(arena_defaults(&[("MALLOC_ARENA_MAX", "8")], true), [child]);
+    assert_eq!(arena_defaults(&[("MALLOC_ARENA_MAX", "")], true), [child]);
     assert_eq!(
         arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.arena_max=4")], true),
-        [] as [(&str, &str); 0]
+        [child]
     );
     assert_eq!(
         arena_defaults(&[("GLIBC_TUNABLES", "glibc.malloc.tcache_count=0")], true),
         default
     );
-    assert_eq!(arena_defaults(&[], false), [] as [(&str, &str); 0]);
+    assert_eq!(arena_defaults(&[], false), [child]);
 }
 
 #[test]

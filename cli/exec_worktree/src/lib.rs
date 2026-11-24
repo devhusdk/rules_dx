@@ -847,14 +847,30 @@ pub fn run_worktree_hook(
     run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }
 
-/// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with exit 2.
+/// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with [`BAZEL_REFUSED_EXIT`].
+///
+/// A call that may start a server then waits until the host has memory for it, or the wait limit passes.
+///
+/// [`BAZEL_REFUSED_EXIT`]: dx_worktree::primary::BAZEL_REFUSED_EXIT
 fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
-    match dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
-        Some(reason) => {
-            dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
-            dx_process::pre_exec_code()
-        }
-        None => 0,
+    if let Some(reason) = dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
+        dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
+        return dx_worktree::primary::BAZEL_REFUSED_EXIT;
+    }
+    if matches!(
+        dx_worktree::primary::bazel_command(bazel_args),
+        None | Some("shutdown")
+    ) {
+        return 0;
+    }
+    let Ok(workspace) = dx_process::discover_real(dir, None) else {
+        return 0;
+    };
+    let set = dx_plan::slots::admit::env_setting(&env_var, dx_process::is_ci());
+    let setting = dx_plan::slots::effective_setting(set, &workspace);
+    match dx_plan::slots::admit::admit_here(&workspace, setting, &env_var, err) {
+        Ok(()) => 0,
+        Err(signo) => dx_process::interrupted_code(signo),
     }
 }
 

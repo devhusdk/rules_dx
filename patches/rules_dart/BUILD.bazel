@@ -6,6 +6,7 @@ exports_files([
     "external_pkgsrcs.patch",
     "summaries_scope.patch",
     "windows_copy_links.patch",
+    "windows_arm64_host.patch",
     "windows_long_dill.patch",
 ])
 

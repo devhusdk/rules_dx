@@ -603,7 +603,8 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
     let listed: BTreeSet<String> = seconds.keys().cloned().collect();
     problems.extend(nested_seconds(&seconds, &over));
     problems.extend(nested_differences(&nested_tests(&files), &listed));
-    let workflows = read_input("CI_WORKFLOW") + &read_input("AUDIT_WORKFLOW");
+    let mut workflows = read_input("CI_WORKFLOW");
+    workflows.push_str(&read_input("AUDIT_WORKFLOW"));
     problems.extend(unselected(&files, &listed, &workflows));
     assert!(
         problems.is_empty(),

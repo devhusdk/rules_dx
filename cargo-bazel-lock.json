@@ -1,5 +1,5 @@
 {
-  "checksum": "8e540612f7644d68c21d8e8b795d32e642ade3e25af4dde71d1ea8eac536cec8",
+  "checksum": "89a930f9a55d4f8850e9658f124f271826bffdebb236d9bc8898e05650c56bf1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -10008,6 +10008,10 @@
     "dx_test_scratch 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "notify 8.2.1",
+            "target": "notify"
+          },
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
@@ -26195,6 +26199,10 @@
     "site_browser 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "notify 8.2.1",
+            "target": "notify"
+          },
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"

@@ -69,12 +69,18 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "the strict copts come before the user's copts",
-            fortran_strict_copts({"copts": ["-std=f2008"], "warnings_as_errors": True})["copts"],
+            fortran_strict_copts({
+                "copts": ["-std=f2008"],
+                "warnings_as_errors": True,
+            })["copts"],
             STRICT_COPTS + ["-std=f2008"],
         ),
         expect_equal(
             "warnings_as_errors off keeps only the user's copts",
-            fortran_strict_copts({"copts": ["-std=f2008"], "warnings_as_errors": False})["copts"],
+            fortran_strict_copts({
+                "copts": ["-std=f2008"],
+                "warnings_as_errors": False,
+            })["copts"],
             ["-std=f2008"],
         ),
         expect_equal(

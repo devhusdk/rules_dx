@@ -5,6 +5,8 @@ use dx_module_bazel::{Call, ModuleFile, Value};
 use dx_path::label::repo_of;
 use serde_json::{Map, Value as Json};
 
+use super::extension_scope::{self, Names, Scope};
+
 pub(crate) const BUILTIN_TOOLS_DEPS: &[&str] = &[
     "abseil-cpp",
     "apple_support",
@@ -35,6 +37,7 @@ const OWNED_SECTIONS: &[&str] = &[
 pub(crate) struct LockChanges {
     pub(crate) modules: BTreeSet<String>,
     pub(crate) owned: Vec<(String, String)>,
+    pub(crate) scopes: BTreeSet<Scope>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,37 +52,8 @@ pub(crate) struct RegistryFile {
 pub(crate) struct ModuleGraph {
     pub(crate) deps: BTreeMap<String, BTreeSet<String>>,
     pub(crate) registers: BTreeSet<String>,
-}
-
-fn module_input_error() -> dx_error::DxError {
-    dx_error::DxError::failure("workspace input MODULE.bazel")
-}
-
-pub(crate) fn updated_deps(
-    base: &str,
-    head: &str,
-) -> Result<BTreeMap<String, String>, dx_error::DxError> {
-    let base_file = ModuleFile::parse(base)
-        .ok()
-        .ok_or_else(module_input_error)?;
-    let head_file = ModuleFile::parse(head)
-        .ok()
-        .ok_or_else(module_input_error)?;
-    let base_versions = dep_versions(&base_file)?;
-    let head_versions = dep_versions(&head_file)?;
-    if base_versions.keys().ne(head_versions.keys()) {
-        return Err(module_input_error());
-    }
-    if masked(base, &base_versions) != masked(head, &head_versions) {
-        return Err(module_input_error());
-    }
-    Ok(head_versions
-        .into_iter()
-        .filter(|(name, version)| {
-            base_versions.get(name).map(|other| other.0.as_str()) != Some(version.0.as_str())
-        })
-        .map(|(name, version)| (name, version.0))
-        .collect())
+    pub(crate) usages: BTreeMap<String, BTreeSet<Scope>>,
+    pub(crate) opaque: BTreeSet<String>,
 }
 
 pub(crate) fn lock_pins(
@@ -111,45 +85,6 @@ pub(crate) fn lock_pins(
     }
 }
 
-type DepVersions = BTreeMap<String, (String, Option<std::ops::Range<usize>>)>;
-
-fn dep_versions(file: &ModuleFile) -> Result<DepVersions, dx_error::DxError> {
-    let mut versions = DepVersions::new();
-    for call in file.calls_named("bazel_dep") {
-        if call.unpacked {
-            return Err(module_input_error());
-        }
-        let Some(name) = call.str("name") else {
-            return Err(module_input_error());
-        };
-        let version = match call.arg("version") {
-            None => (String::new(), None),
-            Some(Value::Str(literal)) => (literal.value.clone(), Some(literal.span.clone())),
-            Some(_) => return Err(module_input_error()),
-        };
-        if versions.insert(name.to_owned(), version).is_some() {
-            return Err(module_input_error());
-        }
-    }
-    Ok(versions)
-}
-
-fn masked(text: &str, versions: &DepVersions) -> String {
-    let mut spans: Vec<&std::ops::Range<usize>> = versions
-        .values()
-        .filter_map(|(_, span)| span.as_ref())
-        .collect();
-    spans.sort_by_key(|span| span.start);
-    let mut out = String::new();
-    let mut at = 0;
-    for span in spans {
-        out.push_str(text.get(at..span.start).unwrap_or_default());
-        at = span.end;
-    }
-    out.push_str(text.get(at..).unwrap_or_default());
-    out
-}
-
 pub(crate) fn registry_url_parts(url: &str) -> Option<(&str, &str, &str, &str)> {
     let (registry, rest) = url.split_once("/modules/")?;
     let parts: Vec<&str> = rest.split('/').collect();
@@ -158,12 +93,6 @@ pub(crate) fn registry_url_parts(url: &str) -> Option<(&str, &str, &str, &str)> 
     };
     let known = matches!(*file, "MODULE.bazel" | "source.json");
     (known && !name.is_empty() && !version.is_empty()).then_some((registry, name, version, file))
-}
-
-fn extension_owner(key: &str) -> Option<&str> {
-    let repo = key.strip_prefix("@@")?.split_once("//")?.0;
-    let name = repo.strip_suffix('+')?;
-    (!name.is_empty()).then_some(name)
 }
 
 fn parse_lock(text: &str) -> Result<Map<String, Json>, dx_error::DxError> {
@@ -258,8 +187,9 @@ pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_err
                     changes.owned.push((entry.clone(), name.to_owned()));
                 }
                 _ => {
-                    let name = extension_owner(entry).ok_or_else(|| lock_changed(entry))?;
-                    changes.owned.push((entry.clone(), name.to_owned()));
+                    let scope =
+                        extension_scope::from_lock_key(entry).ok_or_else(|| lock_changed(entry))?;
+                    changes.scopes.insert(scope);
                 }
             }
         }
@@ -330,6 +260,7 @@ pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
 pub(crate) fn module_graph(
     files: &[RegistryFile],
     read: &dyn Fn(&str) -> Option<String>,
+    multiple: &BTreeSet<String>,
 ) -> Result<ModuleGraph, dx_error::DxError> {
     let mut graph = ModuleGraph::default();
     graph.deps.insert(
@@ -359,6 +290,34 @@ pub(crate) fn module_graph(
         }
         if registers_toolchains(&module) {
             graph.registers.insert(file.name.clone());
+        }
+        let mut names = Names::of(std::slice::from_ref(&module), &file.name);
+        names.multiple.clone_from(multiple);
+        for call in module.calls_named("use_extension") {
+            let bzl = binding_label(call, "extension_bzl_file");
+            let name = match call
+                .positional
+                .get(1)
+                .or_else(|| call.arg("extension_name"))
+            {
+                Some(Value::Str(literal)) => Some(literal.value.as_str()),
+                _ => None,
+            };
+            match bzl
+                .zip(name)
+                .and_then(|(bzl, name)| names.extension(&bzl, name))
+            {
+                Some(scope) => {
+                    graph
+                        .usages
+                        .entry(file.name.clone())
+                        .or_default()
+                        .insert(scope);
+                }
+                None => {
+                    graph.opaque.insert(file.name.clone());
+                }
+            }
         }
     }
     Ok(graph)
@@ -467,16 +426,81 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
     owners
 }
 
-pub(crate) fn overrides_that_widen(files: &[ModuleFile]) -> Option<String> {
+const GRAPH_EDITS: &[&str] = &["bazel_dep", "_override"];
+const MODULE_EDITS: &[&str] = &["register_", "use_extension", "use_repo_rule", "include"];
+
+fn module_file_edits(patch: &str) -> Vec<&str> {
+    let mut module_file = false;
+    let mut added = Vec::new();
+    for line in patch.lines() {
+        if let Some(target) = line.strip_prefix("+++ ") {
+            module_file = target.split_whitespace().next().is_some_and(|path| {
+                path.rsplit('/')
+                    .next()
+                    .is_some_and(|name| name.ends_with("MODULE.bazel"))
+            });
+        } else if module_file && let Some(line) = line.strip_prefix('+') {
+            added.push(line);
+        }
+    }
+    added
+}
+
+pub(crate) fn overrides_that_widen(
+    files: &[ModuleFile],
+    affected: &BTreeSet<String>,
+    read: &dyn Fn(&str) -> Option<String>,
+) -> Option<String> {
     files.iter().flat_map(ModuleFile::calls).find_map(|call| {
+        if !call.name.ends_with("_override") {
+            return None;
+        }
         let module = call.str("module_name").unwrap_or_default();
-        let opaque = matches!(
+        let widen = |what: &str| Some(format!("MODULE.bazel {} for {module} {what}", call.name));
+        if module.is_empty() || call.unpacked {
+            return widen("has no literal module_name");
+        }
+        if matches!(
             call.name.as_str(),
             "git_override" | "archive_override" | "local_path_override"
-        );
-        let patched = call.name.ends_with("_override")
-            && (call.arg("patches").is_some() || call.arg("patch_cmds").is_some());
-        (opaque || patched).then(|| format!("MODULE.bazel has {} for {module}", call.name))
+        ) {
+            return widen("hides its MODULE.bazel");
+        }
+        if call.arg("patch_cmds").is_some() {
+            return widen("runs patch_cmds");
+        }
+        let patches = match call.arg("patches") {
+            None => Vec::new(),
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|item| {
+                    if let Value::Str(literal) = item {
+                        Some(literal.value.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            Some(_) => vec![None],
+        };
+        for patch in patches {
+            let text = patch
+                .and_then(|label| dx_module_bazel::label_path(label).ok())
+                .and_then(|path| read(&path));
+            let Some(text) = text else {
+                return widen("has an unreadable patch");
+            };
+            let edits = module_file_edits(&text);
+            let edits_any = |keys: &[&str]| {
+                edits
+                    .iter()
+                    .any(|line| keys.iter().any(|key| line.contains(key)))
+            };
+            if edits_any(GRAPH_EDITS) || (affected.contains(module) && edits_any(MODULE_EDITS)) {
+                return widen("patches its MODULE.bazel");
+            }
+        }
+        None
     })
 }
 
@@ -522,17 +546,6 @@ mod tests {
     }
 
     #[test]
-    fn updated_deps_returns_names_whose_version_changed() {
-        let base = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
-        let head = "module(name = \"r\")\nbazel_dep(name = \"leaf\", version = \"1.10\")\nbazel_dep(name = \"other\", version = \"2.0\")\n";
-        assert_eq!(
-            updated_deps(base, head),
-            Ok(BTreeMap::from([("leaf".to_owned(), "1.10".to_owned())]))
-        );
-        assert_eq!(updated_deps(base, base), Ok(BTreeMap::new()));
-    }
-
-    #[test]
     fn lock_pins_requires_the_new_version_module_file() {
         let updated = BTreeMap::from([("leaf".to_owned(), "1.1".to_owned())]);
         let stale = lock(
@@ -561,23 +574,6 @@ mod tests {
         assert_eq!(lock_pins(&stale, &BTreeMap::new()), Ok(()));
     }
 
-    #[test]
-    fn updated_deps_rejects_any_other_edit() {
-        let base = "bazel_dep(name = \"leaf\", version = \"1.0\")\n";
-        let error = Err(module_input_error());
-        for head in [
-            "bazel_dep(name = \"leaf\", version = \"1.1\", dev_dependency = True)\n",
-            "bazel_dep(name = \"leaf\", version = \"1.1\")\nbazel_dep(name = \"x\", version = \"1\")\n",
-            "bazel_dep(name = \"leaf\", version = V)\n",
-            "bazel_dep(name = \"leaf\", version = \"1.0\")\nbazel_dep(name = \"leaf\", version = \"1.0\")\n",
-            "bazel_dep(name = NAME, version = \"1.0\")\n",
-            "bazel_dep(name = \"leaf\", version = \"1.1\")\n# note\n",
-            "bazel_dep(",
-        ] {
-            assert_eq!(updated_deps(base, head), error, "{head}");
-        }
-    }
-
     fn lock(hashes: &str, rest: &str) -> String {
         format!("{{\"lockFileVersion\": 24, \"registryFileHashes\": {{{hashes}}}{rest}}}")
     }
@@ -602,11 +598,14 @@ mod tests {
         assert_eq!(changes.modules, set(&["dep", "leaf"]));
         assert_eq!(
             changes.owned,
-            vec![
-                ("@@tool+//:f.bzl%f".to_owned(), "tool".to_owned()),
-                ("@@leaf+//:e.bzl%e".to_owned(), "leaf".to_owned()),
-                ("old@1.0".to_owned(), "old".to_owned()),
-            ]
+            vec![("old@1.0".to_owned(), "old".to_owned())]
+        );
+        assert_eq!(
+            changes.scopes,
+            BTreeSet::from([
+                Scope::extension("leaf+", "e"),
+                Scope::extension("tool+", "f"),
+            ])
         );
     }
 
@@ -625,23 +624,24 @@ mod tests {
             lock_changes(&base, &extension("b", "v", "r1")),
             Ok(LockChanges::default())
         );
+        let qt = LockChanges {
+            scopes: BTreeSet::from([Scope::extension("", "qt")]),
+            ..LockChanges::default()
+        };
         assert_eq!(
             lock_changes(&base, &extension("b", "u", "r2")),
-            Err(lock_changed("//qt:extensions.bzl%qt"))
+            Ok(qt.clone())
         );
-        assert_eq!(
-            lock_changes(&lock("", ""), &base),
-            Err(lock_changed("//qt:extensions.bzl%qt"))
-        );
+        assert_eq!(lock_changes(&lock("", ""), &base), Ok(qt));
     }
 
     #[test]
-    fn lock_changes_reject_root_and_unknown_keys() {
+    fn lock_changes_reject_unknown_keys() {
         let base = lock("", "");
         for (head, key) in [
             (
-                lock("", ", \"moduleExtensions\": {\"//:e.bzl%e\": 1}"),
-                "//:e.bzl%e",
+                lock("", ", \"moduleExtensions\": {\"//:e.bzl%e%x\": 1}"),
+                "//:e.bzl%e%x",
             ),
             (lock("", ", \"factsVersions\": {}"), "factsVersions"),
             (
@@ -727,8 +727,11 @@ mod tests {
     #[test]
     fn module_graph_and_closure_follow_reverse_deps() {
         let texts: BTreeMap<&str, &str> = [
-            ("leaf", "module(name = \"leaf\")\n"),
-            ("user", "bazel_dep(name = \"leaf\", version = \"1\")\n"),
+            ("leaf", "module(name = \"leaf\")\ne = use_extension(\"//:e.bzl\", \"e\")\n"),
+            (
+                "user",
+                "bazel_dep(name = \"leaf\", version = \"1\")\ne = use_extension(\"@leaf//:e.bzl\", \"e\")\nx = use_extension(\"@nobody//:x.bzl\", \"x\")\n",
+            ),
             ("top", "bazel_dep(name = \"user\", version = \"1\")\n"),
             ("other", "register_toolchains(\"//:t\")\n"),
         ]
@@ -741,21 +744,36 @@ mod tests {
             file("top", "top"),
             file("other", "other"),
         ];
-        let graph = module_graph(&listed, &read).expect("graph");
+        let graph = module_graph(&listed, &read, &BTreeSet::new()).expect("graph");
         assert_eq!(graph.registers, set(&[BUILTIN_TOOLS, "other"]));
+        assert_eq!(
+            graph.usages,
+            BTreeMap::from([
+                (
+                    "leaf".to_owned(),
+                    BTreeSet::from([Scope::extension("leaf+", "e")])
+                ),
+                (
+                    "user".to_owned(),
+                    BTreeSet::from([Scope::extension("leaf+", "e")])
+                ),
+            ])
+        );
+        assert_eq!(graph.opaque, set(&["user"]));
         assert_eq!(
             closure(&set(&["leaf"]), &graph.deps),
             set(&["leaf", "top", "user"])
         );
         assert!(closure(&set(&["rules_cc"]), &graph.deps).contains(BUILTIN_TOOLS));
         assert_eq!(
-            module_graph(&[file("lost", "lost")], &read),
+            module_graph(&[file("lost", "lost")], &read, &BTreeSet::new()),
             Err(dx_error::DxError::failure(
                 "no cached MODULE.bazel for lost@1"
             ))
         );
         let broken = |_: &str| Some("bazel_dep(".to_owned());
-        let error = module_graph(&[file("bad", "bad")], &broken).expect_err("parse error");
+        let error = module_graph(&[file("bad", "bad")], &broken, &BTreeSet::new())
+            .expect_err("parse error");
         assert!(
             error
                 .message()
@@ -787,38 +805,63 @@ mod tests {
     }
 
     #[test]
-    fn opaque_and_patched_overrides_widen() {
+    fn overrides_widen_only_when_they_hide_the_module_graph() {
+        let patches: BTreeMap<&str, &str> = [
+            ("p/plain.patch", "--- a/x.bzl\n+++ b/x.bzl\n+bazel_dep(\n"),
+            (
+                "p/dep.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n+bazel_dep(name = \"x\")\n",
+            ),
+            (
+                "p/register.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-register_toolchains(\"//:t\")\n+register_toolchains(\"//:t\", dev_dependency = True)\n",
+            ),
+        ]
+        .into_iter()
+        .collect();
+        let read = |path: &str| patches.get(path).map(|text| (*text).to_owned());
+        let widen = |text: &str, affected: &[&str]| {
+            overrides_that_widen(&files(text), &set(affected), &read)
+        };
         for (text, reason) in [
             (
                 "git_override(module_name = \"a\", remote = \"r\")\n",
-                "git_override for a",
+                "git_override for a hides its MODULE.bazel",
             ),
             (
                 "archive_override(module_name = \"a\", urls = [])\n",
-                "archive_override for a",
+                "archive_override for a hides its MODULE.bazel",
             ),
             (
                 "local_path_override(module_name = \"a\", path = \"x\")\n",
-                "local_path_override for a",
-            ),
-            (
-                "single_version_override(module_name = \"a\", patches = [\"//:p\"])\n",
-                "single_version_override for a",
+                "local_path_override for a hides its MODULE.bazel",
             ),
             (
                 "single_version_override(module_name = \"a\", patch_cmds = [\"x\"])\n",
-                "single_version_override for a",
+                "single_version_override for a runs patch_cmds",
+            ),
+            (
+                "single_version_override(module_name = \"a\", patches = [\"//p:gone.patch\"])\n",
+                "single_version_override for a has an unreadable patch",
+            ),
+            (
+                "single_version_override(module_name = \"a\", patches = [\"//p:dep.patch\"])\n",
+                "single_version_override for a patches its MODULE.bazel",
             ),
         ] {
-            assert_eq!(
-                overrides_that_widen(&files(text)),
-                Some(format!("MODULE.bazel has {reason}"))
-            );
+            assert_eq!(widen(text, &[]), Some(format!("MODULE.bazel {reason}")));
         }
+        let register = "single_version_override(module_name = \"a\", patches = [\"//p:register.patch\", \"//p:plain.patch\"])\n";
+        assert_eq!(widen(register, &["b"]), None);
         assert_eq!(
-            overrides_that_widen(&files(
-                "single_version_override(module_name = \"a\", version = \"1\")\n"
-            )),
+            widen(register, &["a"]),
+            Some("MODULE.bazel single_version_override for a patches its MODULE.bazel".to_owned())
+        );
+        assert_eq!(
+            widen(
+                "single_version_override(module_name = \"a\", version = \"1\")\n",
+                &["a"]
+            ),
             None
         );
     }

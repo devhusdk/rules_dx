@@ -55,18 +55,20 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | A deleted file | The targets that still name it, else its package plus reverse dependencies. |
 | An unowned file | The package tree around it, such as `//pkg/...`. |
 | A file outside any package | `//...`. |
-| `.bzl` or `.scl` | The packages that load it, plus reverse dependencies. `//...` when `MODULE.bazel`, an aspect, or a toolchain or platform package uses it, or a BUILD or `.bzl` file does not parse. |
+| `.bzl` or `.scl` | The packages that load it, plus reverse dependencies. When a root module extension or `use_repo_rule` loads it, also the users of that extension's repos. `//...` when an aspect or a toolchain or platform package uses it, when the extension's repos are registered as toolchains, named in a `.bazelrc`, or passed by label to another `MODULE.bazel` call, or when a BUILD or `.bzl` file does not parse. |
 | `Cargo.lock` or crate_universe lockfile named by `crate.from_cargo` | The users of the changed crates. Another lock, an unreadable lock, or a patch named in `crate.annotation`: `//...`. |
 | `pnpm_lock` named by `npm.npm_translate_lock` | The users of the changed packages. A change to top-level settings: `//...`. |
 | `maven_install.json` | The users of the changed artifacts. |
 | `go.mod` and `go.sum` named by `go_deps.from_file` | The users of the changed modules. `replace`, `exclude`, `go`, or `toolchain` edits: `//...`. |
-| Root `MODULE.bazel` edit that only changes `bazel_dep` versions, with its `MODULE.bazel.lock` | The repos of the changed modules and their dependents, plus reverse dependencies. |
-| Any other edit to the root `MODULE.bazel` or `MODULE.bazel.lock` | `//...`. |
-| `WORKSPACE`, `WORKSPACE.bazel`, `.bazelversion`, `*.MODULE.bazel`, a nested `MODULE.bazel` or `MODULE.bazel.lock`, any `.bazelrc*`, a file the root `.bazelrc` imports, or a file `MODULE.bazel` names by label (such as `requirements_lock.txt` or a patch) | `//...`. |
+| Root `MODULE.bazel`, a `*.MODULE.bazel` it includes, or `MODULE.bazel.lock` | Changed or added `bazel_dep`s and changed overrides: the repos of those modules and their dependents. Changed extension tags, added `use_repo` names, and changed `use_repo_rule` calls: the repos of that extension or rule. `go_deps.module` and per-module override tags, including in `dev_dependency = True` usages: the repos of the changed Go modules. Changed extension entries in `MODULE.bazel.lock`: the repos of that extension. Each plus reverse dependencies. Comment and layout edits select nothing. |
+| A file that an extension tag, `use_repo_rule` call, or override in `MODULE.bazel` names by label (such as `requirements_lock.txt` or a patch) | The repos of that extension, rule, or module, plus reverse dependencies. |
+| Any other edit to the root `MODULE.bazel`, such as `register_toolchains`, a removed `bazel_dep` or `use_repo` name, or a call dx cannot read | `//...`. |
+| A `.bazelrc*` file or a file the root `.bazelrc` imports, when the edit only changes comments, layout, or flags that do not change outputs (such as `--jobs`, `--disk_cache`, `--remote_cache`, `--color`, or `--show_progress`) | The targets that use the file as an input. |
+| `WORKSPACE`, `WORKSPACE.bazel`, `.bazelversion`, a `*.MODULE.bazel` the root does not include, a nested `MODULE.bazel` or `MODULE.bazel.lock`, any other `.bazelrc*` edit, or a file `MODULE.bazel` names by label for an extension dx cannot resolve | `//...`. |
 | A `local_path_override` path outside the workspace | `//...`. |
 | Any `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `maven_install.json`, or `requirements_lock.txt` when dx cannot read every `MODULE.bazel` value | `//...`. |
 
-A `bazel_dep` update also widens to `//...` when the lock does not list the version, a module has an override, a changed module registers toolchains, or dx cannot read a cached module file. CI that restores the repository cache keeps the narrow selection.
+A module change also widens to `//...` when the lock does not list the version, an override hides or patches the `MODULE.bazel` of a changed module, a changed module registers toolchains or uses an extension outside its deps, a root `register_toolchains` or `register_execution_platforms` call names a changed repo, or dx cannot read a cached module file. CI that restores the repository cache keeps the narrow selection.
 
 ### Output
 

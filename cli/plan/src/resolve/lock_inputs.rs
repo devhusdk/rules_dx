@@ -329,32 +329,48 @@ pub(crate) fn go_repo_name(module: &str) -> String {
     names.join("_").replace(['-', '.'], "_")
 }
 
+type GoModules = (BTreeSet<(String, String)>, BTreeSet<String>);
+
+fn go_modules(text: &str, sum: bool) -> GoModules {
+    let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut other: BTreeSet<String> = BTreeSet::new();
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or_default().trim();
+        let line = line.strip_prefix("require ").unwrap_or(line).trim();
+        let words: Vec<&str> = line.split_whitespace().collect();
+        let is_module = if sum {
+            words.len() == 3
+        } else {
+            matches!(words.as_slice(), [module, version] if version.starts_with('v') && *module != "go")
+        };
+        if is_module && let Some((module, rest)) = words.split_first() {
+            modules.insert(((*module).to_owned(), rest.join(" ")));
+        } else if !sum && !line.is_empty() && line != "require (" && line != ")" {
+            other.insert(line.to_owned());
+        }
+    }
+    (modules, other)
+}
+
+pub(crate) fn go_mod_paths(
+    module: &ModuleFile,
+    read: &dyn Fn(&str) -> Option<String>,
+) -> Option<BTreeSet<String>> {
+    let mut paths = BTreeSet::new();
+    for hub in go_hubs(module) {
+        let (modules, _) = go_modules(&read(&hub.cargo_lockfile)?, false);
+        paths.extend(modules.into_iter().map(|(path, _)| path));
+    }
+    Some(paths)
+}
+
 pub(crate) fn changed_go(
     path: &str,
     base: &str,
     head: &str,
 ) -> Result<LockChange, dx_error::DxError> {
     let sum = path.ends_with(Ecosystem::Go.lockfile());
-    let parse = |text: &str| {
-        let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
-        let mut other: BTreeSet<String> = BTreeSet::new();
-        for line in text.lines() {
-            let line = line.split("//").next().unwrap_or_default().trim();
-            let line = line.strip_prefix("require ").unwrap_or(line).trim();
-            let words: Vec<&str> = line.split_whitespace().collect();
-            let is_module = if sum {
-                words.len() == 3
-            } else {
-                matches!(words.as_slice(), [module, version] if version.starts_with('v') && *module != "go")
-            };
-            if is_module && let Some((module, rest)) = words.split_first() {
-                modules.insert(((*module).to_owned(), rest.join(" ")));
-            } else if !sum && !line.is_empty() && line != "require (" && line != ")" {
-                other.insert(line.to_owned());
-            }
-        }
-        (modules, other)
-    };
+    let parse = |text: &str| go_modules(text, sum);
     let (base_modules, base_other) = parse(base);
     let (head_modules, head_other) = parse(head);
     if base_other != head_other {

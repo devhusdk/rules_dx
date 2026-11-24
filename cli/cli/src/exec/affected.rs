@@ -1109,7 +1109,7 @@ mod tests {
         let (plan, runner) = run(dir.path(), Command::Test, &[]);
         assert_eq!(plan.targets, ["//..."]);
         assert_eq!(plan.widened[0].scope, "//...");
-        assert_eq!(plan.widened[0].reason, "workspace input MODULE.bazel");
+        assert_eq!(plan.widened[0].reason, "MODULE.bazel changes module");
         assert!(plan.summary().contains("widened to //..."));
         assert!(runner.expressions.borrow().is_empty());
     }

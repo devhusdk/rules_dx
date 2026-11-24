@@ -2,8 +2,11 @@ use std::path::Path;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::extension_scope::{self, Names, Scope};
 use super::lock_inputs::{self, Hub, LockChange, LockKind};
+use super::module_diff::{self, Named};
 use super::module_inputs;
+use super::rc_diff;
 use super::{PackageCache, QueryRunner, ResolveError, RuleGraph};
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_path::label::Label;
@@ -476,6 +479,24 @@ fn is_workspace_input(path: &str, rc_files: &BTreeSet<String>) -> bool {
         || rc_files.contains(path)
 }
 
+fn rc_keeps_builds(
+    path: &str,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    base: Option<(&Path, &str)>,
+) -> bool {
+    let Some((git, base)) = base else {
+        return false;
+    };
+    let Ok(head) = std::fs::read_to_string(workspace.join(path)) else {
+        return false;
+    };
+    matches!(
+        show_at_base(git, workspace, runner, base, path),
+        Ok(Some(old)) if !rc_diff::changes_builds(&old, &head)
+    )
+}
+
 fn is_lock_input(path: &str, hubs: &[Hub]) -> bool {
     let name = file_name_of(path);
     (Path::new(name)
@@ -500,6 +521,7 @@ fn fallback_inputs() -> [&'static str; 8] {
 
 struct ModuleInputPaths {
     paths: BTreeSet<String>,
+    routed: BTreeSet<String>,
     fallback: bool,
 }
 
@@ -531,6 +553,7 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     let mut segments_ok = root_hubs.is_some();
     let mut inputs = ModuleInputPaths {
         paths: BTreeSet::new(),
+        routed: BTreeSet::new(),
         fallback: true,
     };
     if let Ok(scanned) = dx_adopt::module_inputs(workspace) {
@@ -544,6 +567,10 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
             }
             if is_crate_lock_input(file.extension.as_ref(), &file.tag) {
                 continue;
+            }
+            if file.tag == "include" || file.tag.ends_with("_override") || file.extension.is_some()
+            {
+                inputs.routed.insert(file.path.clone());
             }
             let name = file_name_of(&file.path);
             let sibling = if name == Ecosystem::Go.manifest_name() {
@@ -642,6 +669,7 @@ const ROOT_LOCK: &str = "MODULE.bazel.lock";
 struct ModuleEdit {
     path: String,
     modules: BTreeSet<String>,
+    scopes: BTreeSet<Scope>,
     loads: Vec<String>,
 }
 
@@ -653,6 +681,9 @@ fn module_text(
     base: (&Path, &str),
 ) -> Result<(String, String), dx_error::DxError> {
     let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
+    if !changed && path == ROOT_LOCK && !workspace.join(path).exists() {
+        return Ok(("{}".to_owned(), "{}".to_owned()));
+    }
     let head = std::fs::read_to_string(workspace.join(path))
         .map_err(|error| dx_error::DxError::failure(format!("workspace input {path}: {error}")))?;
     if !changed {
@@ -663,6 +694,32 @@ fn module_text(
         .map_err(|detail| dx_error::DxError::infra(format!("cannot read {path}: {detail}")))?
         .ok_or_else(workspace_input)?;
     Ok((before, head))
+}
+
+type ModuleFiles = (Vec<Option<String>>, Vec<dx_module_bazel::ModuleFile>);
+
+fn module_files(
+    text: &str,
+    read: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<ModuleFiles, dx_error::DxError> {
+    let read_include = |label: &str| {
+        let rel = dx_module_bazel::label_path(label)
+            .map_err(|error| format!("workspace input {label}: {error}"))?;
+        read(&rel)
+    };
+    dx_module_bazel::load_with_includes_labeled(text, &read_include)
+        .map(|files| files.into_iter().unzip())
+        .map_err(|error| {
+            dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}: {error}"))
+        })
+}
+
+fn registered_repo(label: &str) -> Option<&str> {
+    label
+        .strip_prefix('@')
+        .map(|rest| rest.trim_start_matches('@'))
+        .and_then(|rest| rest.split_once("//"))
+        .map(|(repo, _)| repo)
 }
 
 #[expect(
@@ -683,85 +740,167 @@ fn module_change(
         )));
     };
     let changed = |path: &str| paths.iter().any(|changed| changed == path);
+    let read_head = |rel: &str| {
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| format!("workspace input {rel}: {error}"))
+    };
+    let read_base = |rel: &str| {
+        if !changed(rel) {
+            return read_head(rel);
+        }
+        show_at_base(base.0, workspace, runner, base.1, rel)
+            .map_err(|detail| format!("cannot read {rel}: {detail}"))?
+            .ok_or_else(|| format!("workspace input {rel}"))
+    };
     let (base_module, head_module) =
         module_text(ROOT_MODULE, changed(ROOT_MODULE), workspace, runner, base)?;
-    let updated = module_inputs::updated_deps(&base_module, &head_module)?;
+    let (head_labels, head_files) = module_files(&head_module, &read_head)?;
+    let (base_labels, base_files) = module_files(&base_module, &read_base)?;
+    let read_go_mod = |rel: &str| read_head(rel).ok();
+    let go_paths = head_files
+        .iter()
+        .try_fold(BTreeSet::new(), |mut paths, file| {
+            paths.extend(lock_inputs::go_mod_paths(file, &read_go_mod)?);
+            Some(paths)
+        });
+    let diff = module_diff::module_diff(&base_files, &head_files, go_paths.as_ref())?;
+    let mut modules: BTreeSet<String> = diff.deps.keys().cloned().collect();
+    modules.extend(diff.modules);
+    let mut scopes = diff.scopes;
+    let includes: BTreeSet<String> = head_labels
+        .iter()
+        .chain(&base_labels)
+        .flatten()
+        .filter_map(|label| dx_module_bazel::label_path(label).ok())
+        .collect();
+    let mut named = module_diff::named_files(&head_files, &head_labels);
+    for (path, targets) in module_diff::named_files(&base_files, &base_labels) {
+        named.entry(path).or_default().extend(targets);
+    }
+    for path in paths {
+        if path == ROOT_MODULE || path == ROOT_LOCK || includes.contains(path) {
+            continue;
+        }
+        let targets = named
+            .get(path)
+            .ok_or_else(|| dx_error::DxError::failure(format!("workspace input {path}")))?;
+        for target in targets {
+            match target {
+                Named::Scope(scope) => {
+                    scopes.insert(scope.clone());
+                }
+                Named::Module(module) => {
+                    modules.insert(module.clone());
+                }
+            }
+        }
+    }
     let (base_lock, head_lock) =
         module_text(ROOT_LOCK, changed(ROOT_LOCK), workspace, runner, base)?;
     let lock = module_inputs::lock_changes(&base_lock, &head_lock)?;
-    module_inputs::lock_pins(&head_lock, &updated)?;
-    if updated.is_empty() && lock.modules.is_empty() && lock.owned.is_empty() {
+    module_inputs::lock_pins(&head_lock, &diff.deps)?;
+    modules.extend(lock.modules);
+    scopes.extend(lock.scopes);
+    let names = Names::of(&head_files, extension_scope::ROOT);
+    let mut affected = BTreeSet::new();
+    if !modules.is_empty() || !lock.owned.is_empty() {
+        let caches = dx_process::repository_caches(
+            &|name| std::env::var(name).ok(),
+            workspace,
+            &|path| std::fs::read_to_string(path).ok(),
+            startup_options,
+        );
+        let read = |hash: &str| module_inputs::cached(&caches, hash);
+        let graph = module_inputs::module_graph(
+            &module_inputs::registry_files(&head_lock)?,
+            &read,
+            &names.multiple,
+        )?;
+        let old: Vec<_> = module_inputs::registry_files(&base_lock)?
+            .into_iter()
+            .filter(|file| modules.contains(&file.name))
+            .collect();
+        let old_graph = module_inputs::module_graph(&old, &read, &names.multiple)?;
+        affected = module_inputs::closure(&modules, &graph.deps);
+        if let Some(module) = affected.iter().find(|module| {
+            graph.registers.contains(*module) || old_graph.registers.contains(*module)
+        }) {
+            return Err(dx_error::DxError::failure(format!(
+                "changed module {module} registers toolchains"
+            )));
+        }
+        for module in &modules {
+            if graph.opaque.contains(module) || old_graph.opaque.contains(module) {
+                return Err(dx_error::DxError::failure(format!(
+                    "changed module {module} uses an extension outside its deps"
+                )));
+            }
+            for usages in [&graph.usages, &old_graph.usages] {
+                scopes.extend(usages.get(module).into_iter().flatten().cloned());
+            }
+        }
+        let read_patch = |rel: &str| read_head(rel).ok();
+        if let Some(reason) =
+            module_inputs::overrides_that_widen(&head_files, &affected, &read_patch)
+        {
+            return Err(dx_error::DxError::failure(reason));
+        }
+        if let Some((key, _)) = lock
+            .owned
+            .iter()
+            .find(|(_, module)| !affected.contains(module))
+        {
+            return Err(dx_error::DxError::failure(format!(
+                "{ROOT_LOCK} changed {key}"
+            )));
+        }
+    }
+    if affected.is_empty() && scopes.is_empty() {
         return Ok(ModuleEdit {
             path: first.to_owned(),
-            modules: BTreeSet::new(),
+            modules: affected,
+            scopes,
             loads: Vec::new(),
         });
     }
-    let read_include = |label: &str| {
-        let rel = dx_module_bazel::label_path(label)
-            .map_err(|error| format!("workspace input {label}: {error}"))?;
-        std::fs::read_to_string(workspace.join(&rel))
-            .map_err(|error| format!("workspace input {label}: {error}"))
-    };
-    let files =
-        dx_module_bazel::load_with_includes(&head_module, &read_include).map_err(|error| {
-            dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}: {error}"))
-        })?;
-    if let Some(reason) = module_inputs::overrides_that_widen(&files) {
-        return Err(dx_error::DxError::failure(reason));
-    }
-    let caches = dx_process::repository_caches(
-        &|name| std::env::var(name).ok(),
-        workspace,
-        &|path| std::fs::read_to_string(path).ok(),
-        startup_options,
-    );
-    let read = |hash: &str| module_inputs::cached(&caches, hash);
-    let mut changed_modules: BTreeSet<String> = updated.into_keys().collect();
-    changed_modules.extend(lock.modules);
-    let graph = module_inputs::module_graph(&module_inputs::registry_files(&head_lock)?, &read)?;
-    let old: Vec<_> = module_inputs::registry_files(&base_lock)?
-        .into_iter()
-        .filter(|file| changed_modules.contains(&file.name))
-        .collect();
-    let old_graph = module_inputs::module_graph(&old, &read)?;
-    let modules = module_inputs::closure(&changed_modules, &graph.deps);
-    if let Some(module) = modules
-        .iter()
-        .find(|module| graph.registers.contains(*module) || old_graph.registers.contains(*module))
-    {
-        return Err(dx_error::DxError::failure(format!(
-            "changed module {module} registers toolchains"
-        )));
-    }
-    let owners = module_inputs::repo_owners(&files);
-    let owned_by_affected = |repo: &str| {
+    let owners = module_inputs::repo_owners(&head_files);
+    let imported = module_diff::imported(&head_files);
+    let reached = |repo: &str| {
         owners
             .get(repo)
-            .is_some_and(|owner| modules.contains(owner))
+            .is_some_and(|owner| affected.contains(owner))
+            || imported.get(repo).is_some_and(|scope| {
+                scopes
+                    .iter()
+                    .any(|changed| module_diff::covers(changed, scope))
+            })
     };
-    for file in &files {
+    for file in &head_files {
         for call in file.calls().iter().filter(|call| {
             matches!(
                 call.name.as_str(),
                 "register_toolchains" | "register_execution_platforms"
             )
         }) {
+            if call.unpacked {
+                return Err(dx_error::DxError::failure(format!(
+                    "{ROOT_MODULE} {} has no literal target pattern",
+                    call.name
+                )));
+            }
             for value in &call.positional {
                 let dx_module_bazel::Value::Str(label) = value else {
-                    continue;
+                    return Err(dx_error::DxError::failure(format!(
+                        "{ROOT_MODULE} {} has no literal target pattern",
+                        call.name
+                    )));
                 };
-                let repo = label
-                    .value
-                    .strip_prefix('@')
-                    .map(|rest| rest.trim_start_matches('@'))
-                    .and_then(|rest| rest.split_once("//"))
-                    .map(|(repo, _)| repo);
-                if repo.is_some_and(|repo| {
-                    owned_by_affected(repo)
-                        || modules
+                if registered_repo(&label.value).is_some_and(|repo| {
+                    reached(repo)
+                        || affected
                             .iter()
                             .any(|module| repo.starts_with(&format!("{module}+")))
+                        || scopes.iter().any(|scope| scope.matches(repo))
                 }) {
                     return Err(dx_error::DxError::failure(format!(
                         "{ROOT_MODULE} registers {}",
@@ -771,31 +910,26 @@ fn module_change(
             }
         }
     }
-    if let Some((key, _)) = lock
-        .owned
-        .iter()
-        .find(|(_, module)| !modules.contains(module))
-    {
-        return Err(dx_error::DxError::failure(format!(
-            "{ROOT_LOCK} changed {key}"
-        )));
-    }
     let mut loads: BTreeSet<String> = owners
-        .iter()
-        .filter(|(_, owner)| modules.contains(*owner))
-        .map(|(repo, _)| repo.clone())
+        .keys()
+        .chain(imported.keys())
+        .filter(|repo| reached(repo))
+        .cloned()
         .collect();
-    for module in &modules {
+    for module in &affected {
         loads.insert(format!("{module}+"));
     }
     let path = if changed(ROOT_MODULE) {
         ROOT_MODULE
-    } else {
+    } else if changed(ROOT_LOCK) {
         ROOT_LOCK
+    } else {
+        first
     };
     Ok(ModuleEdit {
         path: path.to_owned(),
-        modules,
+        modules: affected,
+        scopes,
         loads: loads.into_iter().collect(),
     })
 }
@@ -886,20 +1020,13 @@ fn push_widened(widened: &mut Vec<WidenedScope>, scope: String, reason: String) 
     }
 }
 
-fn widen_bzl_changes(
-    paths: &[String],
-    workspace: &Path,
-    aspect_labels: &[String],
-    widened: &mut Vec<WidenedScope>,
-) {
-    let impact = dx_adopt::bzl_impact(workspace, paths, aspect_labels);
-    widen_impact(impact, "", widened);
-}
+type Extensions = BTreeMap<String, BTreeSet<String>>;
 
 fn widen_impact(
     impact: Result<BTreeMap<String, dx_adopt::BzlImpact>, dx_error::DxError>,
     prefix: &str,
     widened: &mut Vec<WidenedScope>,
+    extensions: &mut Extensions,
 ) {
     let impact = match impact {
         Ok(impact) => impact,
@@ -926,10 +1053,69 @@ fn widen_impact(
                         .push(format!("{prefix}{path}"));
                 }
             }
+            dx_adopt::BzlImpact::Extensions { names, packages } => {
+                for package in packages {
+                    loaders
+                        .entry(package.clone())
+                        .or_default()
+                        .push(format!("{prefix}{path}"));
+                }
+                for name in names {
+                    extensions
+                        .entry(name.clone())
+                        .or_default()
+                        .insert(format!("{prefix}{path}"));
+                }
+            }
         }
     }
     for (package, files) in loaders {
         push_widened(widened, package, format!("loads {}", files.join(", ")));
+    }
+}
+
+fn widen_repo_users(
+    workspace: &Path,
+    aspect_labels: &[String],
+    graph: &RuleGraph,
+    seeds: &[String],
+    what: &str,
+    widened: &mut Vec<WidenedScope>,
+) {
+    if seeds.is_empty() {
+        return;
+    }
+    if let Some(toolchain) = graph
+        .reached_of_kind(seeds, |kind| kind == "toolchain")
+        .first()
+    {
+        push_widened(
+            widened,
+            "//...".to_owned(),
+            format!("{what} reach toolchain {toolchain}"),
+        );
+    }
+    let implicit = match dx_adopt::implicit_dependencies(workspace, aspect_labels) {
+        Ok(implicit) => implicit,
+        Err(detail) => {
+            push_widened(
+                widened,
+                "//...".to_owned(),
+                format!("cannot read load graph: {detail}"),
+            );
+            return;
+        }
+    };
+    if let Some(used) = graph
+        .reached_rules(seeds)
+        .iter()
+        .find(|label| implicit.contains(label.as_str()))
+    {
+        push_widened(
+            widened,
+            "//...".to_owned(),
+            format!("{what} reach {used}, which aspects or bazelrc flags use"),
+        );
     }
 }
 
@@ -1008,8 +1194,18 @@ pub fn resolve_affected(
                 lock_paths.push(path);
                 continue;
             }
-            if path == ROOT_MODULE || path == ROOT_LOCK {
+            if path == ROOT_MODULE || path == ROOT_LOCK || inputs.routed.contains(&path) {
                 module_paths.push(path);
+                continue;
+            }
+            if (file_name_of(&path).starts_with(".bazelrc") || rc_files.contains(&path))
+                && rc_keeps_builds(&path, workspace, runner, base)
+            {
+                match cache.file_label(workspace, &path, &path) {
+                    Ok(label) => candidates.push((path, label, Fallback::Keep)),
+                    Err(ResolveError::NotAPackage { .. }) => {}
+                    Err(error) => return Err(error),
+                }
                 continue;
             }
             if is_workspace_input(&path, &rc_files) || inputs.contains(&path) {
@@ -1088,8 +1284,10 @@ pub fn resolve_affected(
     }
     bzl_paths.sort_unstable();
     bzl_paths.dedup();
+    let mut extensions = Extensions::new();
     if !bzl_paths.is_empty() {
-        widen_bzl_changes(&bzl_paths, workspace, aspect_labels, &mut widened);
+        let impact = dx_adopt::bzl_impact(workspace, &bzl_paths, aspect_labels);
+        widen_impact(impact, "", &mut widened, &mut extensions);
     }
     lock_paths.sort_unstable();
     lock_paths.dedup();
@@ -1123,36 +1321,73 @@ pub fn resolve_affected(
             ),
             Ok(found) => {
                 let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
-                widen_impact(impact, "@", &mut widened);
-                update = Some(found).filter(|found| !found.modules.is_empty());
+                widen_impact(impact, "@", &mut widened, &mut extensions);
+                for path in module_paths
+                    .iter()
+                    .filter(|path| *path != ROOT_MODULE && *path != ROOT_LOCK)
+                {
+                    match cache.file_label(workspace, path, path) {
+                        Ok(label) => candidates.push((path.clone(), label, Fallback::Keep)),
+                        Err(ResolveError::NotAPackage { .. }) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                update = Some(found)
+                    .filter(|found| !found.modules.is_empty() || !found.scopes.is_empty());
             }
         }
     }
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() {
+    if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() || !extensions.is_empty()
+    {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        for (name, files) in &extensions {
+            let scope = Scope::extension(extension_scope::ROOT, name);
+            let seeds =
+                extension_scope::seeds(loaded.external_inputs(), &BTreeSet::from([scope.clone()]));
+            let files: Vec<&str> = files.iter().map(String::as_str).collect();
+            widen_repo_users(
+                workspace,
+                aspect_labels,
+                &loaded,
+                &seeds,
+                &format!("repos of module extension {name}"),
+                &mut widened,
+            );
+            targets.extend(seeds);
+            let repos = vec![scope.display()];
+            widened.push(WidenedScope {
+                scope: rdeps_scope(&repos),
+                reason: format!("changed module extension {name} in {}", files.join(", ")),
+                repos,
+            });
+        }
         if let Some(update) = &update {
-            let seeds = module_inputs::module_seeds(loaded.external_inputs(), &update.modules);
-            if let Some(toolchain) = loaded
-                .reached_of_kind(&seeds, |kind| kind == "toolchain")
-                .first()
-            {
-                push_widened(
-                    &mut widened,
-                    "//...".to_owned(),
-                    format!(
-                        "changed modules in {} reach toolchain {toolchain}",
-                        update.path
-                    ),
-                );
-            }
+            let mut seeds = if update.modules.is_empty() {
+                Vec::new()
+            } else {
+                module_inputs::module_seeds(loaded.external_inputs(), &update.modules)
+            };
+            seeds.extend(extension_scope::seeds(
+                loaded.external_inputs(),
+                &update.scopes,
+            ));
+            widen_repo_users(
+                workspace,
+                aspect_labels,
+                &loaded,
+                &seeds,
+                &format!("changed modules in {}", update.path),
+                &mut widened,
+            );
             targets.extend(seeds);
             let repos: Vec<String> = update
                 .modules
                 .iter()
                 .map(|module| format!("@{module}"))
+                .chain(update.scopes.iter().map(Scope::display))
                 .collect();
             widened.push(WidenedScope {
                 scope: rdeps_scope(&repos),
@@ -1223,16 +1458,14 @@ pub fn resolve_affected(
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
                 repos.extend(aliases.iter().map(|name| format!("@{hub}//:{name}")));
             }
-            if let Some(toolchain) = loaded
-                .reached_of_kind(&seeds, |kind| kind == "toolchain")
-                .first()
-            {
-                push_widened(
-                    &mut widened,
-                    "//...".to_owned(),
-                    format!("changed crates in {path} reach toolchain {toolchain}"),
-                );
-            }
+            widen_repo_users(
+                workspace,
+                aspect_labels,
+                &loaded,
+                &seeds,
+                &format!("changed crates in {path}"),
+                &mut widened,
+            );
             targets.extend(seeds);
             if !repos.is_empty() {
                 let repos: Vec<String> = repos.into_iter().collect();
@@ -1766,6 +1999,51 @@ mod tests {
         }
     }
 
+    fn rc_edit(prefix: &str, base_rc: &str, head_rc: &str) -> (AffectedSelection, usize) {
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
+        let workspace = scratch.path();
+        write(workspace, "BUILD.bazel", "").unwrap();
+        write(workspace, ".bazelrc", head_rc).unwrap();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(base_rc),
+            graph(&[("//:rc_test", &["//:.bazelrc"])]),
+        ]);
+        let selection = resolve_affected(
+            &[change(".bazelrc", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("rc edit resolves");
+        (selection, query.calls().len())
+    }
+
+    #[test]
+    fn rc_edits_to_inert_flags_select_only_rc_users() {
+        let (selection, calls) = rc_edit(
+            "dx-changed-rc-inert-",
+            "build --config=strict\nbuild --jobs=8\n",
+            "# tuned\nbuild --config=strict\nbuild --jobs 16 --disk_cache=~/.cache/d\n",
+        );
+        assert_eq!(selection.targets, strings(&["//:rc_test"]));
+        assert_eq!(selection.widened, [] as [WidenedScope; 0]);
+        assert_eq!(calls, 2);
+    }
+
+    #[test]
+    fn rc_edits_to_build_flags_widen() {
+        let (selection, calls) = rc_edit(
+            "dx-changed-rc-build-",
+            "build --config=strict\nbuild --jobs=8\n",
+            "build --config=strict\nbuild --jobs=8 --copt=-O2\n",
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(selection.widened[0].reason, "workspace input .bazelrc");
+        assert_eq!(calls, 1);
+    }
+
     #[test]
     fn unimported_rc_files_do_not_widen() {
         let scratch = dx_test_scratch::scratch("dx-changed-rc-unimported-").unwrap();
@@ -1825,7 +2103,7 @@ mod tests {
     }
 
     #[test]
-    fn lock_files_named_in_module_bazel_widen_without_query() {
+    fn files_of_unresolved_extensions_widen_without_query() {
         let scratch = dx_test_scratch::scratch("dx-changed-module-inputs-").unwrap();
         let workspace = scratch.path();
         write(
@@ -1860,10 +2138,8 @@ mod tests {
             "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
         )
         .unwrap();
-        for changed in ["py/requirements_linux.txt", "deps/go.MODULE.bazel"] {
-            write(workspace, changed, "x\n").unwrap();
-            widens_as_workspace_input(workspace, changed);
-        }
+        write(workspace, "py/requirements_linux.txt", "x\n").unwrap();
+        widens_as_workspace_input(workspace, "py/requirements_linux.txt");
     }
 
     #[test]
@@ -2317,15 +2593,42 @@ mod tests {
     }
 
     #[test]
-    fn non_version_module_edit_widens() {
+    fn module_call_edit_widens() {
         let fixture = edit_workspace("dx-changed-update-edit-", UPDATE);
         let edited = fixture.base_module.replace("\"root\"", "\"renamed\"");
         let query = FakeQuery::new(vec![FakeQuery::ok(&edited)]);
         assert_eq!(
             widened_reason(&fixture, &query),
-            "workspace input MODULE.bazel"
+            "MODULE.bazel changes module"
         );
         assert_eq!(query.calls().len(), 1);
+    }
+
+    #[test]
+    fn bump_next_to_an_unchanged_patched_override_narrows() {
+        let fixture = edit_workspace(
+            "dx-changed-update-patched-",
+            Update {
+                root_extra: "single_version_override(module_name = \"other\", patches = [\"//p:o.patch\"])\n",
+                ..UPDATE
+            },
+        );
+        write(
+            fixture.scratch.path(),
+            "p/o.patch",
+            "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-bazel_dep(name = \"x\", version = \"1\")\n",
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            update_graph(),
+        ]);
+        let selection = resolve_edit(&fixture, &query);
+        assert_eq!(
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
+        );
     }
 
     #[test]
@@ -2384,7 +2687,7 @@ mod tests {
     }
 
     #[test]
-    fn unowned_lock_extension_change_widens() {
+    fn lock_extension_change_selects_its_repos() {
         let extra = serde_json::json!({"moduleExtensions": {"@@other+//:e.bzl%e": {"x": 1}}});
         let fixture = edit_workspace(
             "dx-changed-update-ext-",
@@ -2393,10 +2696,23 @@ mod tests {
                 ..UPDATE
             },
         );
-        let query = base_reads(&fixture);
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            graph_with_kinds(&[
+                ("//d:lib", "cc_library", &["@@leaf+//:lib"]),
+                ("//e:lib", "cc_library", &["@@other+//:lib"]),
+                ("//h:lib", "cc_library", &["@@other++e+hub//:lib"]),
+            ]),
+        ]);
+        let selection = resolve_edit(&fixture, &query);
         assert_eq!(
-            widened_reason(&fixture, &query),
-            "MODULE.bazel.lock changed @@other+//:e.bzl%e"
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@other++e+hub//:lib"])
+        );
+        assert_eq!(
+            selection.widened.last().map(|entry| entry.repos.clone()),
+            Some(strings(&["@leaf", "@user", "@@other++e+*"]))
         );
     }
 
@@ -2412,7 +2728,189 @@ mod tests {
         let query = base_reads(&fixture);
         assert_eq!(
             widened_reason(&fixture, &query),
-            "MODULE.bazel has local_path_override for other"
+            "MODULE.bazel local_path_override for other hides its MODULE.bazel"
+        );
+    }
+
+    const GO_MODULE: &str = "module(name = \"root\")\n\
+bazel_dep(name = \"gazelle\", version = \"0.54.0\")\n\
+go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n\
+go_deps.from_file(go_mod = \"//:go.mod\")\n\
+use_repo(go_deps, \"com_github_x_y\")\n\
+tools = use_extension(\"//tools:extensions.bzl\", \"tools\")\n\
+tools.pin(name = \"lint\", version = \"1\")\n\
+use_repo(tools, \"lint\")\n\
+register_toolchains(\"//tc:all\")\n";
+
+    fn go_graph() -> QueryResult {
+        graph_with_kinds(&[
+            (
+                "//tools/ci:actionlint_test",
+                "sh_test",
+                &["@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint"],
+            ),
+            (
+                "//app:lib",
+                "go_library",
+                &["@@gazelle++go_deps+com_github_x_y//:y"],
+            ),
+            ("//lint:check", "sh_test", &["@@+tools+lint//:bin"]),
+            ("//other:lib", "cc_library", &["@@rules_cc+//:x"]),
+        ])
+    }
+
+    fn module_edit(prefix: &str, head: &str) -> (AffectedSelection, usize) {
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
+        let workspace = scratch.path();
+        write(workspace, "MODULE.bazel", head).unwrap();
+        write(
+            workspace,
+            "go.mod",
+            "module m\n\nrequire github.com/x/y v1.0.0\n",
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(GO_MODULE), go_graph()]);
+        let selection = resolve_affected(
+            &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("module edit resolves");
+        (selection, query.calls().len())
+    }
+
+    #[test]
+    fn dev_go_deps_usage_selects_only_its_users() {
+        let head = format!(
+            "{GO_MODULE}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
+dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
+dev.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n\
+use_repo(dev, \"com_github_rhysd_actionlint\")\n"
+        );
+        let (selection, _) = module_edit("dx-changed-dev-go-deps-", &head);
+        assert_eq!(
+            selection.targets,
+            strings(&["@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint"])
+        );
+        assert_eq!(
+            selection.widened,
+            [WidenedScope {
+                scope: "rdeps(//..., @@gazelle++go_deps+com_github_fatih_color, @@gazelle++go_deps+com_github_rhysd_actionlint)".to_owned(),
+                reason: "changed modules in MODULE.bazel".to_owned(),
+                repos: strings(&[
+                    "@@gazelle++go_deps+com_github_fatih_color",
+                    "@@gazelle++go_deps+com_github_rhysd_actionlint",
+                ]),
+            }]
+        );
+    }
+
+    #[test]
+    fn go_deps_module_tag_selects_that_repos_users() {
+        let head = format!(
+            "{GO_MODULE}go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n"
+        );
+        let (selection, _) = module_edit("dx-changed-go-tag-", &head);
+        assert_eq!(
+            selection.targets,
+            strings(&["@@gazelle++go_deps+com_github_x_y//:y"])
+        );
+    }
+
+    #[test]
+    fn global_go_deps_tag_selects_every_go_deps_user() {
+        let head = format!(
+            "{GO_MODULE}go_deps.gazelle_default_attributes(directives = [\"gazelle:proto disable\"])\n"
+        );
+        let (selection, _) = module_edit("dx-changed-go-global-", &head);
+        assert_eq!(
+            selection.targets,
+            strings(&[
+                "@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint",
+                "@@gazelle++go_deps+com_github_x_y//:y",
+            ])
+        );
+    }
+
+    #[test]
+    fn root_extension_tag_edit_selects_that_extensions_users() {
+        let head = GO_MODULE.replace("version = \"1\")", "version = \"2\")");
+        let (selection, _) = module_edit("dx-changed-root-ext-", &head);
+        assert_eq!(selection.targets, strings(&["@@+tools+lint//:bin"]));
+    }
+
+    #[test]
+    fn register_toolchains_edit_still_widens() {
+        let head = GO_MODULE.replace("//tc:all", "//tc:other");
+        let (selection, calls) = module_edit("dx-changed-register-", &head);
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "MODULE.bazel changes register_toolchains"
+        );
+        assert_eq!(calls, 1);
+    }
+
+    #[test]
+    fn files_named_by_known_extension_tags_select_its_users() {
+        let scratch = dx_test_scratch::scratch("dx-changed-tag-file-").unwrap();
+        let workspace = scratch.path();
+        let module = GO_MODULE.replace(
+            "tools.pin(name = \"lint\", version = \"1\")",
+            "tools.pin(name = \"lint\", config = \"//tools:lint.json\")",
+        );
+        write(workspace, "MODULE.bazel", &module).unwrap();
+        write(workspace, "tools/lint.json", "{}\n").unwrap();
+        let query = FakeQuery::new(vec![go_graph()]);
+        let selection = resolve_affected(
+            &[change("tools/lint.json", dx_adopt::ChangeKind::Modified)],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("tag file narrows");
+        assert_eq!(selection.targets, strings(&["@@+tools+lint//:bin"]));
+    }
+
+    #[test]
+    fn included_segment_edit_diffs_like_the_root_module() {
+        let scratch = dx_test_scratch::scratch("dx-changed-include-").unwrap();
+        let workspace = scratch.path();
+        let segment = "tools = use_extension(\"//tools:extensions.bzl\", \"tools\")\ntools.pin(name = \"lint\", version = \"1\")\nuse_repo(tools, \"lint\")\n";
+        write(
+            workspace,
+            "MODULE.bazel",
+            "module(name = \"root\")\ninclude(\"//deps:tools.MODULE.bazel\")\n",
+        )
+        .unwrap();
+        write(
+            workspace,
+            "deps/tools.MODULE.bazel",
+            &segment.replace("\"1\"", "\"2\""),
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(segment), go_graph()]);
+        let selection = resolve_affected(
+            &[change(
+                "deps/tools.MODULE.bazel",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("segment narrows");
+        assert_eq!(selection.targets, strings(&["@@+tools+lint//:bin"]));
+        assert_eq!(
+            query.calls()[0].0,
+            strings(&["git", "show", "base:./deps/tools.MODULE.bazel"])
         );
     }
 
@@ -3046,37 +3544,55 @@ mod tests {
     }
 
     #[test]
-    fn bzl_used_by_module_extension_widens() {
+    fn bzl_used_by_module_extension_selects_its_users() {
         let scratch = bzl_workspace("dx-changed-bzl-extension-");
         let workspace = scratch.path();
         write(
             workspace,
             "MODULE.bazel",
-            "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\n",
+            "module(name = \"demo\")\nx = use_extension(\"//tools:defs.bzl\", \"x\")\nuse_repo(x, \"xr\")\n",
         )
         .unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[
+            ("//app:a", &["@@+x+xr//:lib"]),
+            ("//app:b", &["@@+x2+other//:lib", "@@rules_cc+//:cc"]),
+            ("//app:c", &["@@+xy+other//:lib"]),
+        ])]);
         let selection = bzl_resolve(
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
             &query,
             &[],
         );
-        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.targets,
+            strings(&["//app:all", "@@+x+xr//:lib", "@@+x2+other//:lib"])
+        );
         assert_eq!(
             selection.widened,
-            widened(&[("//...", "module extension input tools/defs.bzl")])
+            [
+                WidenedScope {
+                    scope: "//app:all".to_owned(),
+                    reason: "loads tools/defs.bzl".to_owned(),
+                    repos: Vec::new(),
+                },
+                WidenedScope {
+                    scope: "rdeps(//..., @@+x+*)".to_owned(),
+                    reason: "changed module extension x in tools/defs.bzl".to_owned(),
+                    repos: strings(&["@@+x+*"]),
+                }
+            ]
         );
     }
 
     #[test]
-    fn extension_helper_bzl_widens() {
+    fn extension_helper_bzl_widens_when_its_repos_register_toolchains() {
         let scratch = bzl_workspace("dx-changed-bzl-helper-");
         let workspace = scratch.path();
         write(
             workspace,
             "MODULE.bazel",
-            "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\n",
+            "module(name = \"demo\")\nx = use_extension(\"//tools:ext.bzl\", \"x\")\nuse_repo(x, \"xr\")\nregister_toolchains(\"@xr//:all\")\n",
         )
         .unwrap();
         write(workspace, "tools/ext.bzl", "load(\":defs.bzl\", \"x\")\n").unwrap();

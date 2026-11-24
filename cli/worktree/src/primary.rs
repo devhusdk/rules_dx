@@ -434,10 +434,6 @@ pub fn bazel_command(args: &[String]) -> Option<&str> {
     None
 }
 
-/// The exit code of `dx worktree hook bazel` for a refused Bazel call.
-///
-/// The Bazel wrappers stop Bazel on this code alone, so no other dx failure, such as a usage error
-/// from a dx without the hook, can block Bazel. The wrapper templates spell it out; keep them in sync.
 pub const BAZEL_REFUSED_EXIT: i32 = 77;
 
 /// Why one Bazel call in `dir` is refused: any call in a refused main checkout, or `clean` in a slot.

@@ -732,7 +732,6 @@ fn rubocop(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
     )
 }
 
-/// hadolint, plus the Dockerfile guard when the family passes `strict`.
 fn hadolint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
     let mut findings = lint_family(backend, call)?;
     if !call.tool.args.iter().any(|arg| arg == "strict") {

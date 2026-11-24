@@ -155,12 +155,8 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     }
 }
 
-/// Bazelisk on Windows runs this before `tools/bazel.bat`, so dx's wrapper never runs while it exists.
 const BAZEL_WRAPPER_PS1_REL: &str = "tools/bazel.ps1";
 
-/// Warns when a Bazel wrapper dx did not write sits where Bazelisk runs it, since it skips the dx hook.
-///
-/// A `tools/bazel.ps1` that runs the hook itself, as the one in rules_dx does, is not warned about.
 fn bazel_wrapper_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
     let mut custom: Vec<&str> = [
         dx_adopt::BAZEL_WRAPPER_SH_REL,

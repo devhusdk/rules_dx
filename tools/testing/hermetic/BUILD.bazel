@@ -259,6 +259,7 @@ hermetic_qualification(
     name = "cpp_rust",
     # macOS takes about 329s and Linux 417s (ci.yml run 44857005940).
     timeout = "eternal",
+    cache_locks = "//tools/testing/nested_cache:cpp_rust_locks",
     consumer_rows = ["rust"],
     files = {
         "consumers/cpp_rust/config_test.cc": "config_test.cc",

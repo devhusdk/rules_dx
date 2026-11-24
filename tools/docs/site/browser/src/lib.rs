@@ -215,7 +215,7 @@ impl Browser {
             if let Some(mut stderr) = stderr {
                 drop(io::copy(&mut stderr, &mut log_file));
             }
-            drop(std::fs::File::create(closed));
+            dx_atomic_fs::write_hint(&closed, b"");
         });
         let control = match wait_for_control(&mut child, &home, &log, deadline) {
             Ok(control) => control,

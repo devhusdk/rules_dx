@@ -326,7 +326,6 @@ pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
         .any(|name| get(name).is_some_and(|value| !value.is_empty()))
 }
 
-/// Set on every Bazel dx starts, so a `tools/bazel` wrapper runs the real Bazel without its hook.
 pub const BAZEL_CHILD_ENV: &str = "DX_BAZEL_CHILD";
 
 pub fn bazel_env_defaults(

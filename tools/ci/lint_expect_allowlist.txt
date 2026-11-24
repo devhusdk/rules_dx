@@ -1,4 +1,3 @@
 cli/audit/src/vuln_snapshot.rs clippy::wildcard_enum_match_arm 1
 cli/plan/src/resolve/types.rs clippy::panic_in_result_fn 1
 cli/shim/fake/fake_dx.rs clippy::unwrap_used 1
-cli/shim/src/fetch.rs clippy::exit 1

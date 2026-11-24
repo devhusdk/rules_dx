@@ -72,7 +72,7 @@ fn counts_a_sleep_in_every_language() {
         "let child = Command::new(\"Z\").arg(\"5\").spawn();",
         "subprocess.Popen([\"Z\", \"5\"])",
         "Command::new(\"/bin/Z\").arg(\"30\")",
-        "symlink(\"/usr/bin/Z\", &git)",
+        "symlink(\"/opt/tools/bin/Z\", &git)",
         "script = \"#!/bin/sh\\nZ 5\\n\"",
     ] {
         assert_eq!(line_sleeps(&code(line)), 1, "{line}");

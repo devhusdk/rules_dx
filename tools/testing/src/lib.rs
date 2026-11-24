@@ -689,6 +689,26 @@ pub fn executable_script(path: &Path, body: &str) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
+/// Copies an executable in a child process, so no forked thread inherits a write fd to the copy.
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
+pub fn copy_executable(from: &Path, to: &Path) {
+    #[cfg(unix)]
+    {
+        let status = std::process::Command::new("/bin/cp")
+            .arg(from)
+            .arg(to)
+            .status()
+            .expect("spawn cp");
+        assert!(status.success(), "cp {}: {status}", from.display());
+    }
+    #[cfg(not(unix))]
+    std::fs::copy(from, to).expect("copy executable");
+}
+
 #[cfg(unix)]
 #[track_caller]
 pub fn shell_script(path: &Path, body: &str) {

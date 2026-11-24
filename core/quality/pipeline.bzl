@@ -2,6 +2,7 @@
 
 load(":applicability.bzl", "effective_classes")
 load(":policy.bzl", "CAPABILITIES")
+load(":sources.bzl", "is_workspace_file")
 
 visibility(["//core/...", "//ocaml/...", "//powershell/...", "//rust/...", "//terraform/...", "//typescript/..."])
 
@@ -119,12 +120,14 @@ def aspect_family_selections(policy, capability):
     return {family_id: getattr(policy.families[family_id], capability) for family_id in policy.families.keys()}
 
 def aspect_direct_maps(direct_sources, what):
-    """Splits provider sources into class/file/path maps."""
+    """Splits provider sources into class/file/path maps, keeping main-repository files only."""
     direct_files = {}
     direct_paths = {}
     path_to_file = {}
     for class_id in direct_sources.keys():
-        files = direct_sources[class_id].to_list()
+        files = [f for f in direct_sources[class_id].to_list() if is_workspace_file(f)]
+        if len(files) == 0:
+            continue
         direct_files[class_id] = files
         paths = sorted([f.short_path for f in files])
         direct_paths[class_id] = paths

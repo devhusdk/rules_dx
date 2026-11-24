@@ -114,7 +114,6 @@ fn fnv1a(text: &str) -> u64 {
         })
 }
 
-/// `<drive>:\\n<hash of tmpdir>`, short enough for the 260 and 258 character limits of `CreateProcess` and `SetCurrentDirectory`.
 fn windows_root(tmpdir: &Path) -> PathBuf {
     let hash = fnv1a(&tmpdir.to_string_lossy());
     let mut root = PathBuf::new();
@@ -124,7 +123,6 @@ fn windows_root(tmpdir: &Path) -> PathBuf {
     root.join(format!("n{:06x}", hash >> 40))
 }
 
-/// `<user root>\\<hash of root>` instead of Bazel's longer hash, for the path limits of `windows_root`.
 fn windows_output_base(home: &Path, root: &Path) -> String {
     let hash = fnv1a(&root.to_string_lossy());
     format!(
@@ -1998,8 +1996,6 @@ impl Case {
 
     /// Runs `bazel` with the workspace rules log on and adds the repository rules it ran to `fetches`.
     ///
-    /// The log sits with the record mode logs, so record mode still sees the downloads of `args`.
-    ///
     /// # Panics
     ///
     /// Panics when the log directory cannot be made or the log cannot be read.
@@ -2021,7 +2017,6 @@ impl Case {
         let run = self.bazel(&full);
         match std::fs::read(&log) {
             Ok(bytes) => fetches.add(&bytes),
-            // Bazel writes no log when no repository rule ran.
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => panic!("cannot read {}: {error}", log.display()),
         }
@@ -2739,7 +2734,7 @@ mod tests {
             ("DX_NESTED_BAZEL_NETWORK", "1"),
             (CACHE_SET_ENV, "harness"),
             (OUTPUTS_ENV, &outputs.to_string_lossy()),
-            (SHIM_ENV, "shim"),
+            (SHIM_ENV, "launcher"),
         ]);
         assert!(recording.record.is_some());
         assert_eq!(recording.shared, None);
@@ -2777,12 +2772,12 @@ mod tests {
         let shared = Path::new("/s");
         let config = Config {
             shared: Some(shared.to_path_buf()),
-            ..config(Path::new("/b"), Path::new("/usr/bin/bazel"))
+            ..config(Path::new("/b"), Path::new("/b/bin/bazel"))
         };
         let argv = wrapper_argv(&config, Path::new("/b/u"), Path::new("/b/bazelrc"));
         let install = format!(
             "--install_base={}",
-            install_base(shared, Path::new("/usr/bin/bazel")).display()
+            install_base(shared, Path::new("/b/bin/bazel")).display()
         );
         assert_eq!(
             argv.get(1).map(String::as_str),
@@ -3127,7 +3122,7 @@ mod tests {
         let dir = scratch("nested-front-");
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
-        let front = dir.path().join("shim");
+        let front = dir.path().join("front");
         let command = server
             .command_with_front(&probe(), &[("PATH", "/custom")], &[&front])
             .expect("command");

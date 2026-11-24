@@ -1,6 +1,5 @@
 """Validators for the image deploy rule."""
 
-# Single-platform repos, so the base matches the image platform rather than the build host.
 IMAGE_BASES = {
     "cc": {
         "linux/amd64": "@distroless_cc_linux_amd64",

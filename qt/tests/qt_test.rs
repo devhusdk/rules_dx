@@ -702,20 +702,6 @@ fn sbom_declares_the_pinned_licenses() {
     }
 }
 
-fn copy_launcher(from: &Path, to: &Path) {
-    #[cfg(unix)]
-    {
-        let status = std::process::Command::new("cp")
-            .arg(from)
-            .arg(to)
-            .status()
-            .expect("run cp");
-        assert!(status.success(), "cp {from:?}: {status}");
-    }
-    #[cfg(not(unix))]
-    std::fs::copy(from, to).expect("copy launcher");
-}
-
 fn run_fresh_copy(copy: &Path) -> std::process::Output {
     std::process::Command::new(copy)
         .arg("--version")
@@ -739,7 +725,7 @@ fn launcher_fails_explicitly_without_the_pinned_runfiles() {
     let launcher = std::fs::canonicalize(env_file("DX_QMLLINT")).expect("launcher");
     let scratch = dx_test_scratch::scratch("qt-launcher").unwrap();
     let copy = scratch.path().join("qmllint");
-    copy_launcher(&launcher, &copy);
+    dx_testing::copy_executable(&launcher, &copy);
     let output = run_fresh_copy(&copy);
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);

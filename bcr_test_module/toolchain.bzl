@@ -46,6 +46,5 @@ resolved_cc_toolchain = rule(
     },
     cfg = _to_platform,
     fragments = ["cpp"],
-    # Optional so a host without the toolchain reaches exec_host and is skipped as incompatible.
     toolchains = use_cpp_toolchain(mandatory = False),
 )

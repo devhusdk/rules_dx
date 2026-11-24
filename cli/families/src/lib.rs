@@ -136,12 +136,9 @@ pub struct LanguageMarks {
     pub marks: Vec<String>,
 }
 
-/// The files that mark one core file family present, from `core/quality/core_aspects.json`.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct FamilyMarks {
-    /// The `dx.toml` family id.
     pub family: String,
-    /// File extensions with their dot, and exact file names.
     pub marks: Vec<String>,
 }
 
@@ -162,7 +159,6 @@ struct Languages {
     languages: Vec<Manifest>,
 }
 
-/// The rows of `core/quality/core_aspects.json`.
 #[derive(Default, Deserialize)]
 #[serde(default)]
 struct CoreTable {
@@ -170,7 +166,6 @@ struct CoreTable {
     docs: Vec<DocsFiles>,
 }
 
-/// The aspect files and file families of the core.
 #[derive(Default)]
 struct Core {
     quality: Vec<QualityFiles>,

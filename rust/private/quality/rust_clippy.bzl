@@ -49,7 +49,6 @@ def _package_clippy_config(crate_info, label, default):
     return default
 
 def _dx_clippy_aspect_impl(target, ctx):
-    # A forwarder's crate lives in the upstream's configuration, and rustc writes beside it.
     upstream = forwarded_upstream(ctx.rule.attr, DxClippyInfo)
     if upstream != None:
         return [upstream[DxClippyInfo]]

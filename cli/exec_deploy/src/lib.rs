@@ -7,8 +7,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The `dx deploy` verb: build a deploy target, then dry run or publish it.
-
 use dx_exec_core::common::{
     AppExit, CODE_DEPLOY_NEEDS_HUMAN, Env, Failure, app_signalled_line, pre_exec, report_failure,
     resolve_failed, run_bazel, run_bazel_app,
@@ -19,7 +17,6 @@ use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolveError, check_deployable, deploy_label_hint, resolve_deploy};
 use std::io::Write;
 
-/// Tells the deploy launcher to publish (1) or dry run (0).
 const DEPLOY_LIVE_ENV: &str = "DX_DEPLOY_LIVE";
 
 fn deploy_label(
@@ -237,7 +234,6 @@ pub fn execute_deploy(invocation: &Invocation, env: Env<'_>) -> i32 {
     code
 }
 
-/// Refuses `dx deploy --apply` in an agent session outside CI; a human or CI publishes.
 fn refuse_agent_apply(
     invocation: &Invocation,
     ci: bool,

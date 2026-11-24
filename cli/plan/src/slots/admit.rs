@@ -1,5 +1,3 @@
-//! Waits before a new Bazel server starts until the host has memory for one more.
-
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -7,30 +5,22 @@ use std::time::{Duration, SystemTime};
 use dx_adopt::defaults::BuildSlots;
 use dx_worktree::host::{self, Host as _, Server, SystemHost};
 
-/// Memory kept free beyond the new server and the nested reserve.
 pub const HEADROOM: u64 = 2 << 30;
 
-/// Servers younger than this count at full slot size, as they are still growing.
 pub const YOUNG: Duration = Duration::from_secs(180);
 
-/// Longest admission waits when `--build-slots-wait` is not set; then the server starts anyway.
 pub const WAIT: Duration = Duration::from_secs(60);
 
 const POLL: Duration = Duration::from_secs(2);
 
-/// What one new server needs from the host.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
-    /// Memory one server is planned to use.
     pub slot: u64,
-    /// `MemAvailable` needed before it starts.
     pub free: u64,
-    /// Servers that may run at once.
     pub servers: usize,
 }
 
 impl Limits {
-    /// Limits for `setting` with `memory` bytes in all, `reserved` for nested Bazel and `slot` per server; none when off.
     #[must_use]
     pub fn new(setting: BuildSlots, memory: u64, reserved: u64, slot: u64) -> Option<Limits> {
         let sizing = super::sizing(
@@ -46,22 +36,16 @@ impl Limits {
     }
 }
 
-/// What admission reads from the machine.
 pub trait Machine {
-    /// `MemAvailable` in bytes; none where the OS does not give it.
     fn mem_available(&self) -> Option<u64>;
     fn servers(&self) -> Vec<Server>;
-    /// Whether `server` runs no command now; none when unknown.
     fn idle(&self, server: &Server) -> Option<bool>;
-    /// How long ago `server` started; none when unknown.
     fn age(&self, server: &Server) -> Option<Duration>;
     fn footprint(&self, server: &Server) -> u64;
     fn now(&self) -> SystemTime;
-    /// Waits one poll; returns the signal that stopped dx, if any.
     fn pause(&self) -> Option<i32>;
 }
 
-/// The machine dx runs on.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SystemMachine;
 
@@ -106,7 +90,6 @@ impl Machine for SystemMachine {
     }
 }
 
-/// The line printed once while waiting.
 #[must_use]
 pub fn wait_message(free: Option<u64>, servers: usize, max: usize) -> String {
     format!(
@@ -115,7 +98,6 @@ pub fn wait_message(free: Option<u64>, servers: usize, max: usize) -> String {
     )
 }
 
-/// The line printed when the wait limit ends the wait and the server starts anyway.
 #[must_use]
 pub fn gave_up_message(free: Option<u64>, servers: usize, max: usize) -> String {
     format!(
@@ -135,7 +117,6 @@ fn load(free: Option<u64>, servers: usize, max: usize) -> String {
     }
 }
 
-/// Whether `workspace` already has a Bazel server.
 fn has_server(servers: &[Server], workspace: &Path) -> bool {
     servers.iter().any(|server| {
         server
@@ -145,12 +126,10 @@ fn has_server(servers: &[Server], workspace: &Path) -> bool {
     })
 }
 
-/// The file that lists recent admissions whose servers may not be running yet.
 fn record_path(dir: &Path) -> PathBuf {
     dir.join("admitted")
 }
 
-/// Recent admissions from other workspaces whose servers are not listed yet, as `(seconds, workspace)`.
 fn pending(
     dir: &Path,
     now: SystemTime,
@@ -177,7 +156,6 @@ fn seconds(time: SystemTime) -> u64 {
         .map_or(0, |since| since.as_secs())
 }
 
-/// `MemAvailable` less what young servers and pending admissions will still take.
 fn free_after_growth(
     machine: &dyn Machine,
     servers: &[Server],
@@ -197,24 +175,11 @@ fn free_after_growth(
         .map(|bytes| bytes.saturating_sub(growth).saturating_sub(pending))
 }
 
-/// How long an admission may wait, and how it frees memory before it does.
 pub struct Wait<'a> {
-    /// The server starts anyway once admission has waited this long.
     pub limit: Duration,
-    /// Stops idle servers of other workspaces; returns how many stopped.
     pub reap: &'a mut dyn FnMut() -> usize,
 }
 
-/// Waits until a new server for `workspace` fits within `limits`, or `wait.limit` passes; `Err` carries the stop signal.
-///
-/// A workspace that already has a server starts at once, and so does one with no other
-/// server running. Only busy servers count against `limits.servers`: an idle one holds
-/// memory, which `MemAvailable` already shows, but runs nothing. Before waiting, admission
-/// reaps idle servers once. The lock in `dir` lets one admission through at a time.
-///
-/// # Errors
-///
-/// Returns the signal number when dx was stopped while waiting.
 pub fn admit(
     machine: &dyn Machine,
     dir: &Path,
@@ -233,7 +198,6 @@ pub fn admit(
             .duration_since(start)
             .is_ok_and(|waited| waited >= wait.limit)
     };
-    // Past the limit without the lock, admission goes ahead unrecorded rather than wait on a slower admission.
     let lock = loop {
         match dx_atomic_fs::lease::try_lock_file(&dir.join("admit.lock"), true) {
             Ok(Some(lock)) => break Some(lock),
@@ -298,7 +262,6 @@ pub fn admit(
     }
 }
 
-/// The `DX_BUILD_SLOTS` setting a Bazel call outside dx uses; CI ignores it, as it does for dx.
 #[must_use]
 pub fn env_setting(env_get: &dyn Fn(&str) -> Option<String>, is_ci: bool) -> Option<BuildSlots> {
     if is_ci {
@@ -308,13 +271,6 @@ pub fn env_setting(env_get: &dyn Fn(&str) -> Option<String>, is_ci: bool) -> Opt
         .and_then(|value| BuildSlots::parse(&value))
 }
 
-/// Admits a new server for a Bazel call from `workspace`; nothing to do when off, inside a slot or inside a test.
-///
-/// It reaps and waits as a dx command's build slot does, for at most `DX_BUILD_SLOTS_WAIT`, or [`WAIT`] when unset.
-///
-/// # Errors
-///
-/// Returns the signal number when dx was stopped while waiting.
 pub fn admit_here(
     workspace: &Path,
     setting: BuildSlots,
@@ -336,7 +292,6 @@ mod tests {
 
     const GIB: u64 = 1 << 30;
 
-    /// The servers one poll sees, each with its age in seconds.
     type Listed = Vec<(Server, u64)>;
 
     struct Fake {
@@ -345,7 +300,6 @@ mod tests {
         now: Cell<SystemTime>,
         pauses: Cell<usize>,
         stop_after: Option<usize>,
-        /// Servers that run no command; every other one is busy.
         idle: RefCell<Vec<u32>>,
     }
 
@@ -360,7 +314,6 @@ mod tests {
     }
 
     impl Fake {
-        /// A machine that reads `steps` in turn, one per poll, and keeps the last.
         fn new(steps: Vec<(Option<u64>, Listed)>) -> Fake {
             let (free, servers) = steps.into_iter().rev().unzip();
             Fake {
@@ -433,7 +386,6 @@ mod tests {
         servers: 3,
     };
 
-    /// Admits `workspace` with no wait limit to speak of and a reaper that stops nothing.
     fn run(fake: &Fake, dir: &Path, workspace: &str) -> (Result<(), i32>, String) {
         run_for(fake, dir, workspace, Duration::from_secs(3600), &mut || 0)
     }
@@ -535,7 +487,6 @@ mod tests {
 
     #[test]
     fn a_recent_admission_counts_until_its_server_shows() {
-        // The second admission expects the first admit.lock free: no fork elsewhere may still hold a copy.
         let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-admit-pending-").unwrap();
         let dir = scratch.path().join("slots");

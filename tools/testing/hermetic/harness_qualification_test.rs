@@ -1,6 +1,3 @@
-//! Materializes a hermetic consumer on the nested Bazel harness and builds, tests and covers it
-//! offline from its cache set.
-
 use dx_testing::Run;
 
 fn ok(run: &Run, what: &str) {
@@ -15,7 +12,6 @@ fn with_platform(manifest: &hermetic::Manifest, args: &[String]) -> Vec<String> 
     argv
 }
 
-/// The environment of the nested Bazel off Windows: the coreutils applets as `PATH` and `BAZEL_SH`.
 fn nested_env() -> Vec<(&'static str, String)> {
     if cfg!(windows) {
         return Vec::new();
@@ -46,7 +42,6 @@ fn bazel(case: &dx_nested::Case, manifest: &hermetic::Manifest, args: &[String])
     case.bazel_with(&argv, &env)
 }
 
-/// Adds the `.bazelrc` startup line of `docs/cli/commands/windows.md` on Windows.
 fn enable_windows_symlinks(case: &dx_nested::Case) {
     if !cfg!(windows) {
         return;

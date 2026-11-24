@@ -21,7 +21,6 @@ const LAUNCHERS: [&str; 4] = [
     BAZEL_WRAPPER_BAT_REL,
 ];
 
-/// The first three lines of a wrapper mark it as dx-owned, so they stay the same across versions.
 const BAZEL_WRAPPER_SH: &str = include_str!("../templates/bazel");
 
 const BAZEL_WRAPPER_BAT: &str = include_str!("../templates/bazel.bat");
@@ -1554,7 +1553,6 @@ mod tests {
         use super::*;
         use std::path::PathBuf;
 
-        /// A workspace with the wrapper, a fake `tools/dx` hook and a fake real Bazel, both logging.
         struct Wrapped {
             dir: dx_test_scratch::TempDir,
         }
@@ -1633,7 +1631,6 @@ mod tests {
 
         #[test]
         fn any_other_hook_failure_warns_and_runs_bazel() {
-            // 2 is the usage error of a dx without the hook; 1 a launcher that cannot run dx.
             for hook_exit in [1, 2, 3, 126] {
                 let wrapped = Wrapped::new(hook_exit);
                 let (code, out, err) = wrapped.run(&[], &["build"]);
@@ -1809,7 +1806,6 @@ mod tests {
                 dx_testing::executable_script(&path, body);
             }
 
-            /// Makes the launcher see a musl host: no glibc from getconf, musl from ldd.
             fn stub_musl(&self) {
                 self.stub("getconf", "#!/bin/sh\nexit 1\n");
                 self.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");

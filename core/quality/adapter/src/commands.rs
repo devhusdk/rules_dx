@@ -261,14 +261,6 @@ const PERLTIDY_FIX_ARGS: &[&str] = &[
 /// file and line, so a `#line` directive cannot redirect a finding; `%c` is the visual column.
 /// `Perl::Critic` expands the `\t` and `\n` escapes itself.
 pub const PERLCRITIC_FORMAT: &str = r"dx\t%g\t%L\t%c\t%s\t%p\t%m\n";
-/// Without a bound profile, `--noprofile` is first: it stops perlcritic reading `~/.perlcriticrc`,
-/// `./.perlcriticrc` and `$PERLCRITIC`. Severity 5 is the only level dx asks for, plus the
-/// unused-variable policy, which `--include` loads whatever its severity.
-const PERLCRITIC_DEFAULT_ARGS: &[&str] = &[
-    "--noprofile",
-    "--severity=5",
-    "--include=Variables::ProhibitUnusedVariables",
-];
 const PERLCRITIC_OUTPUT_ARGS: &[&str] = &["--nocolor", "--quiet", "--verbose", PERLCRITIC_FORMAT];
 /// Colon-separated fields: file, line, column, length, kind, number, message (last). `%c` is a
 /// 1-based byte offset.
@@ -2063,17 +2055,14 @@ fn perltidy(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>
     assemble(binary, head, files, "")
 }
 
-/// One batched check; `Perl::Critic` has no autofix. A bound profile replaces the default
-/// severity and policy selection; the output flags stay.
-pub fn perlcritic_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
-    let mut head = vec![binary.as_os_str().to_owned()];
-    match config {
-        Some(path) => {
-            head.push(OsString::from("--profile"));
-            head.push(path.as_os_str().to_owned());
-        }
-        None => head.extend(PERLCRITIC_DEFAULT_ARGS.iter().map(OsString::from)),
-    }
+/// One batched check under the bound tier profile, which also stops user profiles loading.
+#[must_use]
+pub fn perlcritic_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    let mut head = vec![
+        binary.as_os_str().to_owned(),
+        OsString::from("--profile"),
+        config.as_os_str().to_owned(),
+    ];
     head.extend(PERLCRITIC_OUTPUT_ARGS.iter().map(OsString::from));
     assemble(binary, head, files, "")
 }

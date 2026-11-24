@@ -117,10 +117,7 @@ fn table_tail() -> Vec<(&'static str, How)> {
             "mix_format",
             Arg(|b, f, c| mix_format_check(b, &[f], Some(c))),
         ),
-        (
-            "perlcritic",
-            Arg(|b, f, c| perlcritic_check(b, &[f], Some(c))),
-        ),
+        ("perlcritic", Arg(|b, f, c| perlcritic_check(b, &[f], c))),
         ("perltidy", Arg(|b, f, c| perltidy_check(b, f, Some(c)))),
         ("phpcs", Staged("standard passed as a staged ruleset")),
         ("phpstan", Staged("neon rendered into the scratch tree")),

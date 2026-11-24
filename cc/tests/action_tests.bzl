@@ -201,7 +201,7 @@ def cc_msvc_arm64_action_tests(name, compile_target, link_target):
             size = "small",
             testonly = True,
             exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
-            target_compatible_with = ["@platforms//os:windows"],
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
             target_under_test = target,
         )
         tests.append(test)

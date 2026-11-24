@@ -1,28 +1,56 @@
 load("//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+_FIXTURES = {
+    "hello": "//cc/tests/fixtures/hello",
+    "hello_c": ":hello_c",
+    "native_call": "//rust/tests/fixtures/native_call:native_call_bin",
+}
 
 cc_binary(
     name = "hello_c",
     srcs = ["hello_c.c"],
 )
 
-cc_toolchain_files(
-    name = "gcc_arm64",
-    srcs = [
-        ":hello_c",
-        "//cc/tests/fixtures/hello",
-        "//rust/tests/fixtures/native_call:native_call_bin",
-    ],
-    compiler = "gcc",
-    platforms = ["//tools/platforms:linux_arm64"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-)
+[
+    cc_toolchain_files(
+        name = name + "_arm64",
+        srcs = [src],
+        compiler = "gcc",
+        platforms = ["//tools/platforms:linux_arm64"],
+        target_compatible_with = _LINUX_X86_64,
+    )
+    for name, src in _FIXTURES.items()
+]
+
+[
+    rust_test(
+        name = name + "_arm64_test",
+        size = "small",
+        srcs = ["//tools/testing/conformance:runner_test.rs"],
+        data = [":%s_arm64" % name],
+        env = {
+            "DX_CONFORMANCE_MODE": "cross",
+            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_arm64)" % name,
+            "DX_CONFORMANCE_TEXT": "linux_arm64",
+        },
+        target_compatible_with = _LINUX_X86_64,
+        deps = [
+            "//tools/testing:dx_testing",
+            "//tools/testing/conformance:conformance_quality",
+        ],
+    )
+    for name in _FIXTURES
+]
 
 real_source_target(
     name = "corpus_starlark",

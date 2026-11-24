@@ -55,19 +55,23 @@ runs:
         fi
     - name: Configure the remote cache credential helper
       uses: ./.github/actions/remote-cache-helper
-    - name: Point Bazel at a registry file cache
+    - name: Point Bazel at a registry file cache and the shared nested cache root
       shell: bash
       run: |
         cache="$RUNNER_TEMP/dx-repository-cache"
         contents="$RUNNER_TEMP/dx-repo-contents"
-        mkdir -p "$cache" "$contents"
+        nested="$RUNNER_TEMP/dx-nested"
+        mkdir -p "$cache" "$contents" "$nested"
         if [ "$RUNNER_OS" = Windows ]; then
           cache="$(cygpath -m "$cache")"
           contents="$(cygpath -m "$contents")"
+          nested="$(cygpath -m "$nested")"
         fi
         {
           echo "common --repository_cache=$cache"
           echo "common --repo_contents_cache=$contents"
+          echo "test --test_env=DX_NESTED_SHARED=$nested"
+          echo "test --sandbox_writable_path=$nested"
         } >> user.bazelrc
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:

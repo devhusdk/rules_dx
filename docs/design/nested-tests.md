@@ -1,6 +1,6 @@
 # Nested tests design
 
-This page fixes which tests may run Bazel inside a test, and how they run. Conversions follow it.
+This page fixes which tests may run Bazel inside a test, and how they run.
 
 ## Kinds
 
@@ -68,7 +68,9 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - `HOME`, the output user root and every workspace are under `TEST_TMPDIR`.
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
 - The nested Bazel reads one rc file that the harness writes. It reads no home, system or workspace rc of the host.
-- The nested Bazel uses no disk cache and no remote cache.
+- The nested Bazel uses no remote cache.
+- setup-bazel sets `DX_NESTED_SHARED`, a writable root outside the sandbox. Nested servers share its install base, repository cache, repo contents cache and 4 GB disk cache.
+- `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 
 ### Repository inputs
@@ -78,7 +80,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - Every file the consumer downloads is a test input: registry files, module archives, toolchain archives.
 - `nested_repository_cache` declares them. It reads a checked-in list of URL and hex digest, one `http_file` per entry, and gives a manifest of digest to runfile.
 - The digest is the checksum Bazel keys the repository cache with: sha256, or sha384 or sha512 for a download with that integrity.
-- The harness builds a repository cache under `TEST_TMPDIR` from the manifest and passes `--repository_cache`.
+- The harness builds a repository cache from the manifest and passes `--repository_cache`.
 - A nested test declares one cache set with `nested_bazel_test(cache = "<set>")`.
 - The downloader config blocks every host, `bcr.bazel.build` included.
 - A missing entry fails the test with the URL.

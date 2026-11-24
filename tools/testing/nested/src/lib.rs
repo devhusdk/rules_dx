@@ -46,6 +46,14 @@ const USER_ROOT: &str = "u";
 const WORKSPACES: &str = "w";
 const HOME_DIR: &str = "home";
 const REPOSITORY_CACHE: &str = "repository-cache";
+/// The variable naming a cache root that the nested servers of every test share, outside the sandbox.
+pub const SHARED_ENV: &str = "DX_NESTED_SHARED";
+/// The variable that `nested_bazel_test(caches = "private")` sets to keep a test off the shared root.
+pub const CACHES_ENV: &str = "DX_NESTED_CACHES";
+const INSTALL: &str = "install";
+const REPO_CONTENTS: &str = "repo-contents";
+const DISK_CACHE: &str = "disk-cache";
+const DISK_CACHE_GC_MAX_SIZE: &str = "4G";
 
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
 pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
@@ -128,6 +136,8 @@ pub struct Config {
     pub cache: Vec<cache::Download<PathBuf>>,
     /// Record mode: where the cache set and the locks of this run go.
     pub record: Option<Record>,
+    /// The cache root shared with other tests; `None` keeps every cache under `root`.
+    pub shared: Option<PathBuf>,
 }
 
 /// The output of a record mode run.
@@ -216,6 +226,23 @@ impl Config {
         } else {
             None
         };
+        let private = match text(CACHES_ENV).unwrap_or_default().as_str() {
+            "" | "shared" => false,
+            "private" => true,
+            other => {
+                return Err(format!(
+                    "{CACHES_ENV}={other}: want \"shared\" or \"private\""
+                ));
+            }
+        };
+        // Record mode lists what the consumer downloads, so it must start from empty caches.
+        let shared = match env_path(lookup, SHARED_ENV) {
+            Some(path) if !private && record.is_none() => Some(
+                std::path::absolute(&path)
+                    .map_err(|error| format!("{SHARED_ENV} {}: {error}", path.display()))?,
+            ),
+            _ => None,
+        };
         Ok(Config {
             root,
             bazel,
@@ -224,6 +251,7 @@ impl Config {
             shim,
             cache,
             record,
+            shared,
         })
     }
 }
@@ -313,13 +341,40 @@ pub fn reset(root: &Path) -> Result<(), String> {
 /// The real Bazel followed by every pinned nested startup option; the sidecar's contents.
 #[must_use]
 pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String> {
-    vec![
+    let mut argv = vec![
         config.bazel.to_string_lossy().into_owned(),
         format!("--output_user_root={}", user_root.display()),
+    ];
+    if let Some(shared) = &config.shared {
+        argv.push(format!(
+            "--install_base={}",
+            install_base(shared, &config.bazel).display()
+        ));
+    }
+    argv.extend([
         format!("--max_idle_secs={MAX_IDLE_SECS}"),
         format!("--host_jvm_args=-Xmx{}", config.heap),
         format!("--bazelrc={}", rc.display()),
-    ]
+    ]);
+    argv
+}
+
+/// The shared install base of `bazel`, keyed by its resolved path, size and mtime so two releases never share one.
+///
+/// Bazel extracts into a temporary directory and renames it, so concurrent first starts are safe.
+#[must_use]
+pub fn install_base(shared: &Path, bazel: &Path) -> PathBuf {
+    let real = std::fs::canonicalize(bazel).unwrap_or_else(|_| bazel.to_owned());
+    let (len, modified) = std::fs::metadata(&real).map_or((0, 0), |meta| {
+        let modified = meta
+            .modified()
+            .ok()
+            .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0, |elapsed| elapsed.as_nanos());
+        (meta.len(), modified)
+    });
+    let key = dx_digest::sha256_hex(format!("{}\n{len}\n{modified}", real.display()).as_bytes());
+    shared.join(INSTALL).join(key.get(..16).unwrap_or(&key))
 }
 
 /// Renders the shim's sidecar `.args` file: one argument per line, the real Bazel first.
@@ -534,7 +589,24 @@ pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> S
             slashed(&record_rc(&config.root))
         ));
     }
-    text.push_str("common --disk_cache=\n");
+    match &config.shared {
+        Some(shared) => {
+            text.push_str(&format!(
+                "common --disk_cache={}\n",
+                slashed(&shared.join(DISK_CACHE))
+            ));
+            text.push_str(&format!(
+                "common --experimental_disk_cache_gc_max_size={DISK_CACHE_GC_MAX_SIZE}\n"
+            ));
+            // The server exits after MAX_IDLE_SECS, so the collection must start sooner.
+            text.push_str("common --experimental_disk_cache_gc_idle_delay=1s\n");
+            text.push_str(&format!(
+                "common --repo_contents_cache={}\n",
+                slashed(&shared.join(REPO_CONTENTS))
+            ));
+        }
+        None => text.push_str("common --disk_cache=\n"),
+    }
     text.push_str("common --remote_cache=\n");
     text.push_str(&format!(
         "common --repository_cache={}\n",
@@ -995,10 +1067,14 @@ impl Server {
         Ok(server)
     }
 
-    /// The repository cache built from the declared downloads.
+    /// The repository cache built from the declared downloads, in the shared root when there is one.
     #[must_use]
     pub fn repository_cache(&self) -> PathBuf {
-        self.home.join(REPOSITORY_CACHE)
+        self.config
+            .shared
+            .as_deref()
+            .unwrap_or(&self.home)
+            .join(REPOSITORY_CACHE)
     }
 
     #[must_use]
@@ -2211,6 +2287,7 @@ mod tests {
             shim: Some(bazel_wrapper_runfile()),
             cache: Vec::new(),
             record: None,
+            shared: None,
         }
     }
 
@@ -2482,6 +2559,95 @@ mod tests {
             "1536m"
         );
         assert_eq!(fixture.config(&[("DX_NESTED_BAZEL_HEAP", "4g")]).heap, "4g");
+    }
+
+    #[test]
+    fn the_config_shares_the_cache_root_unless_private_or_recording() {
+        let fixture = Fixture::new();
+        let shared = fixture.dir.path().join("shared");
+        let root = shared.to_string_lossy().into_owned();
+        assert_eq!(fixture.config(&[]).shared, None);
+        assert_eq!(fixture.config(&[(SHARED_ENV, "")]).shared, None);
+        assert_eq!(
+            fixture.config(&[(SHARED_ENV, &root)]).shared,
+            Some(shared.clone())
+        );
+        assert_eq!(
+            fixture
+                .config(&[(SHARED_ENV, &root), (CACHES_ENV, "shared")])
+                .shared,
+            Some(shared)
+        );
+        assert_eq!(
+            fixture
+                .config(&[(SHARED_ENV, &root), (CACHES_ENV, "private")])
+                .shared,
+            None
+        );
+        let outputs = fixture.dir.path().join("outputs");
+        let recording = fixture.config(&[
+            (SHARED_ENV, &root),
+            ("DX_NESTED_BAZEL_NETWORK", "1"),
+            (CACHE_SET_ENV, "harness"),
+            (OUTPUTS_ENV, &outputs.to_string_lossy()),
+            (SHIM_ENV, "shim"),
+        ]);
+        assert!(recording.record.is_some());
+        assert_eq!(recording.shared, None);
+        let bazel = fixture.dir.path().join("bazel").into_os_string();
+        let error = Config::from_parts(
+            &lookup(vec![
+                (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
+                (PINNED_ENV, bazel),
+                (CACHES_ENV, OsString::from("public")),
+            ]),
+            &resolve,
+        )
+        .expect_err("bad caches");
+        assert_eq!(
+            error,
+            "DX_NESTED_CACHES=public: want \"shared\" or \"private\""
+        );
+    }
+
+    #[test]
+    fn the_install_base_is_keyed_by_the_bazel_binary() {
+        let dir = scratch("nested-install-");
+        let (one, two) = (dir.path().join("one"), dir.path().join("two"));
+        std::fs::write(&one, "bazel 1").expect("write one");
+        std::fs::write(&two, "bazel 2.0").expect("write two");
+        let shared = Path::new("/s");
+        let base = install_base(shared, &one);
+        assert_eq!(base, install_base(shared, &one));
+        assert_ne!(base, install_base(shared, &two));
+        assert_eq!(base.parent(), Some(Path::new("/s/install")));
+    }
+
+    #[test]
+    fn a_shared_root_holds_the_install_base_and_every_cache_but_the_output_base() {
+        let shared = Path::new("/s");
+        let config = Config {
+            shared: Some(shared.to_path_buf()),
+            ..config(Path::new("/b"), Path::new("/usr/bin/bazel"))
+        };
+        let argv = wrapper_argv(&config, Path::new("/b/u"), Path::new("/b/bazelrc"));
+        let install = format!(
+            "--install_base={}",
+            install_base(shared, Path::new("/usr/bin/bazel")).display()
+        );
+        assert_eq!(
+            argv.get(1).map(String::as_str),
+            Some("--output_user_root=/b/u")
+        );
+        assert_eq!(argv.get(2), Some(&install));
+        assert_eq!(
+            bazelrc(
+                &config,
+                Path::new("/b/downloader.cfg"),
+                Path::new("/s/repository-cache")
+            ),
+            "common --local_resources=cpu=2\ncommon --disk_cache=/s/disk-cache\ncommon --experimental_disk_cache_gc_max_size=4G\ncommon --experimental_disk_cache_gc_idle_delay=1s\ncommon --repo_contents_cache=/s/repo-contents\ncommon --remote_cache=\ncommon --repository_cache=/s/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
+        );
     }
 
     #[test]
@@ -3020,6 +3186,7 @@ mod portable_tests {
             shim: None,
             cache: Vec::new(),
             record: None,
+            shared: None,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");

@@ -10,6 +10,7 @@ pub struct AffectedHandoff {
     pub base: Option<String>,
     pub generate: Vec<String>,
     pub format: Vec<String>,
+    pub lint: Vec<String>,
     pub writable: Option<Vec<String>>,
 }
 
@@ -94,6 +95,7 @@ pub struct UmbrellaRequest {
     pub scope: HintScope,
     pub generate_targets: Vec<String>,
     pub format_targets: Vec<String>,
+    pub lint_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
     pub coverage: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
@@ -232,6 +234,8 @@ impl UmbrellaRequest {
             mode,
             targets: if phase == Command::Format {
                 self.format_targets.clone()
+            } else if phase == Command::Lint {
+                self.lint_targets.clone()
             } else {
                 self.targets.clone()
             },
@@ -581,6 +585,10 @@ impl Invocation {
             },
             format_targets: match &self.affected_handoff {
                 Some(handoff) => handoff.format.clone(),
+                None => self.targets.clone(),
+            },
+            lint_targets: match &self.affected_handoff {
+                Some(handoff) => handoff.lint.clone(),
                 None => self.targets.clone(),
             },
             test,
@@ -937,6 +945,7 @@ mod tests {
         affected.affected_handoff = Some(AffectedHandoff {
             generate: vec!["//a/...".to_owned()],
             format: vec!["//a:x".to_owned()],
+            lint: vec!["//a:x".to_owned(), "//a:y".to_owned()],
             ..AffectedHandoff::default()
         });
         let request = affected.umbrella_request().expect("umbrella");
@@ -962,6 +971,20 @@ mod tests {
         assert_eq!(
             request
                 .phase_quality_request(Command::Lint, Vec::new())
+                .expect("phase")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .verify_quality_request(Command::Lint)
+                .expect("verify")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .phase_quality_request(Command::Typecheck, Vec::new())
                 .expect("phase")
                 .targets,
             vec![

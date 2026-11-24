@@ -22,6 +22,7 @@ pub(crate) struct AffectedPlan {
     pub(crate) coverage_tests: Option<Vec<String>>,
     pub(crate) generate: Vec<String>,
     pub(crate) format: Vec<String>,
+    pub(crate) lint: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
     pub(crate) graph: Option<RuleGraph>,
@@ -116,6 +117,24 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LintScope {
+    OwnSources,
+    Dependents,
+}
+
+fn lint_scope(selection: &AffectedSelection) -> LintScope {
+    if selection
+        .widened
+        .iter()
+        .any(|entry| !entry.repos.is_empty())
+    {
+        LintScope::Dependents
+    } else {
+        LintScope::OwnSources
+    }
+}
+
 fn scope_to_graph(
     plan: &mut AffectedPlan,
     selection: &mut AffectedSelection,
@@ -149,16 +168,22 @@ fn scope_to_graph(
     } else {
         Vec::new()
     };
-    let mut owners = if matches!(command, Command::Format | Command::Check) {
-        graph.selected(&selection.targets)
+    let mut owners = if matches!(command, Command::Format | Command::Lint | Command::Check) {
+        graph.own_sources(&selection.targets)
     } else {
         Vec::new()
     };
     owners.retain(|rule| !exclude::covered(&excludes, rule));
+    let lint = match lint_scope(selection) {
+        LintScope::OwnSources => owners.clone(),
+        LintScope::Dependents => rules.clone(),
+    };
     plan.targets = if tests_only(command) {
         tests.clone()
     } else if command == Command::Format {
         owners.clone()
+    } else if command == Command::Lint {
+        lint.clone()
     } else {
         rules
     };
@@ -172,6 +197,11 @@ fn scope_to_graph(
             plan.targets.clone()
         } else {
             owners
+        };
+        plan.lint = if lint.is_empty() {
+            plan.targets.clone()
+        } else {
+            lint
         };
     }
     if matches!(command, Command::Security | Command::License) {
@@ -216,6 +246,7 @@ pub(crate) fn plan(
         coverage_tests: None,
         generate: Vec::new(),
         format: Vec::new(),
+        lint: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
         graph: None,
@@ -259,6 +290,7 @@ pub(crate) fn plan(
             plan.tests = vec!["//...".to_owned()];
             plan.generate = vec!["//...".to_owned()];
             plan.format = vec!["//...".to_owned()];
+            plan.lint = vec!["//...".to_owned()];
         }
         plan.targets = vec!["//...".to_owned()];
         plan.graph = selection.graph.take();
@@ -521,6 +553,7 @@ fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
     plan.targets.retain(inside);
     plan.tests.retain(inside);
     plan.format.retain(inside);
+    plan.lint.retain(inside);
     plan.generate = dx_plan::plan::generate_package_scope_within(&plan.generate, scope);
 }
 
@@ -532,6 +565,7 @@ fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
         base: Some(plan.base.clone()),
         generate: plan.generate.clone(),
         format: plan.format.clone(),
+        lint: plan.lint.clone(),
         writable: Some(writable_paths(workspace, &plan.changed_files)),
     });
 }
@@ -687,6 +721,7 @@ mod tests {
             coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
+            lint: Vec::new(),
             widened: entries
                 .iter()
                 .map(|(scope, reason)| WidenedScope {
@@ -1165,7 +1200,7 @@ mod tests {
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
         assert!(plan.widened.is_empty(), "{:?}", plan.widened);
-        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+        assert_eq!(plan.targets, ["//a:lib"]);
     }
 
     #[test]
@@ -1370,13 +1405,71 @@ mod tests {
     }
 
     #[test]
-    fn format_selects_owners_without_their_users() {
+    fn format_and_lint_select_owners_without_their_users() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n").unwrap();
         let (plan, _) = run(dir.path(), Command::Format, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib"]);
         let (plan, _) = run(dir.path(), Command::Lint, &[&graph()]);
+        assert_eq!(plan.targets, ["//a:lib"]);
+        let (plan, _) = run(dir.path(), Command::Typecheck, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+    }
+
+    fn rules_graph(rules: &[Value]) -> String {
+        rules
+            .iter()
+            .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn check_lints_the_rules_that_read_changed_sources_and_typechecks_their_users() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//a:unit", "ruleClass": "rust_test", "ruleInput": ["//a:lib"],
+                "attribute": [{"name": "crate", "stringValue": "//a:lib"}]}),
+            json!({"name": "//a:bin", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:t", "ruleClass": "sh_test", "ruleInput": ["//a:bin"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:t", "//a:unit"]);
+        assert_eq!(plan.tests, ["//a:t", "//a:unit"]);
+        assert_eq!(plan.format, ["//a:lib", "//a:unit"]);
+        assert_eq!(plan.lint, ["//a:lib", "//a:unit"]);
+    }
+
+    #[test]
+    fn check_lints_everything_when_a_change_reaches_lint_config_or_a_toolchain() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, ".bazelrc", "common --//a:policy=//a:policy\n").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "policy"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        for (user, reason) in [
+            (
+                json!({"name": "//a:policy", "ruleInput": ["//a:lib"]}),
+                "changed files reach //a:policy, which aspects or bazelrc flags use",
+            ),
+            (
+                json!({"name": "//a:tc", "ruleClass": "toolchain", "ruleInput": ["//a:lib"]}),
+                "changed files reach toolchain //a:tc",
+            ),
+        ] {
+            let graph =
+                rules_graph(&[json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}), user]);
+            let (plan, _) = run(root, Command::Check, &[&graph]);
+            assert_eq!(plan.widened[0].reason, reason);
+            assert_eq!(plan.targets, ["//..."]);
+            assert_eq!(plan.lint, ["//..."]);
+            let (plan, _) = run(root, Command::Lint, &[&graph]);
+            assert_eq!(plan.targets, ["//..."]);
+        }
     }
 
     #[test]
@@ -1387,6 +1480,7 @@ mod tests {
         assert_eq!(plan.targets, ["//..."]);
         assert_eq!(plan.generate, ["//..."]);
         assert_eq!(plan.format, ["//..."]);
+        assert_eq!(plan.lint, ["//..."]);
     }
 
     #[test]
@@ -1411,6 +1505,7 @@ mod tests {
             coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
+            lint: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
             graph: None,
@@ -1543,6 +1638,34 @@ mod tests {
     }
 
     #[test]
+    fn check_lints_dependents_when_a_lock_update_changes_external_crates() {
+        let dir = repo();
+        let root = dir.path();
+        let lock = dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].as_str();
+        write(
+            root,
+            "MODULE.bazel",
+            &format!(
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"
+            ),
+        ).unwrap();
+        write(root, lock, &cargo_lock("1.0.1")).unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
+        write(root, lock, &cargo_lock("1.0.2")).unwrap();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+        ]);
+        let (plan, _) = run(root, Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:serde_user"]);
+        assert_eq!(plan.format, ["//a:lib"]);
+        assert_eq!(plan.lint, ["//a:lib", "//a:serde_user"]);
+    }
+
+    #[test]
     fn scopes_narrow_the_affected_plan() {
         let labels = |items: &[&str]| -> Vec<String> {
             items.iter().map(|item| (*item).to_owned()).collect()
@@ -1555,6 +1678,7 @@ mod tests {
             coverage_tests: None,
             generate: labels(&["//svc/api:all", "//web:all", "//..."]),
             format: labels(&["//svc/api:lib", "//web:app"]),
+            lint: labels(&["//svc/api:lib", "//svc/api:test", "//web:app"]),
             widened: Vec::new(),
             unscoped: false,
             graph: None,
@@ -1563,6 +1687,7 @@ mod tests {
         assert_eq!(plan.targets, labels(&["//svc/api:lib", "//svc:bin"]));
         assert_eq!(plan.tests, labels(&["//svc/api:test"]));
         assert_eq!(plan.format, labels(&["//svc/api:lib"]));
+        assert_eq!(plan.lint, labels(&["//svc/api:lib", "//svc/api:test"]));
         assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());

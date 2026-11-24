@@ -1450,7 +1450,7 @@ mod tests {
                 "query".to_owned(),
                 "--keep_going".to_owned(),
                 "--output=streamed_jsonproto".to_owned(),
-                "--proto:output_rule_attrs=tags,size".to_owned(),
+                "--proto:output_rule_attrs=aspect_hints,beam,beam_files_dir,crate,dx_tfm_variants,size,tags,upstream".to_owned(),
                 "--noproto:default_values".to_owned(),
                 "--noproto:locations".to_owned(),
                 "--noproto:instantiation_stack".to_owned(),

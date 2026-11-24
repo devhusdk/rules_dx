@@ -2654,6 +2654,7 @@ fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
     inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         generate: vec!["//test/...".to_owned()],
         format: vec!["//test:corpus".to_owned()],
+        lint: vec!["//test:corpus".to_owned()],
         ..Default::default()
     });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());
@@ -2684,6 +2685,7 @@ fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocat
         base: Some(base),
         generate: vec!["//test/...".to_owned()],
         format: inv.targets.clone(),
+        lint: inv.targets.clone(),
         ..Default::default()
     });
     (harness, inv)
@@ -2735,6 +2737,7 @@ fn check_affected_generate_runs_on_affected_packages() {
     inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         generate: vec!["//test/...".to_owned()],
         format: vec!["//test:corpus".to_owned()],
+        lint: vec!["//test:corpus".to_owned()],
         ..Default::default()
     });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());

@@ -31,7 +31,7 @@ dx check --affected --output=json
 - Labels and patterns: `//...`, `//pkg:target`. Only `dx run` accepts `@repo//...`.
 - Files and directories: workspace-relative paths. A file resolves to the rules that use it. A directory becomes `//dir/...`. Paths with control characters are refused.
 - `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `fetch`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
-- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the rules that own a changed file. `generate` and the generate phase of `check` use the directories of the changed files, without the packages below them. With `--apply`, `format`, `lint`, `typecheck`, and the other phases of `check` write only the changed files and the `BUILD` file of each one's package. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with `--here`. With scopes, `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, and `check` keep only the affected targets inside them, so `dx test --affected //svc/...` runs the affected tests under `//svc`; `generate`, `security`, and `license` reject scopes with it. Accepted by `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
+- `--affected`: the targets your changes reach. `format`, `lint`, and their phases in `check` use only the targets that read a changed file. `generate` and the generate phase of `check` use the directories of the changed files, without the packages below them. With `--apply`, `format`, `lint`, `typecheck`, and the other phases of `check` write only the changed files and the `BUILD` file of each one's package. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with `--here`. With scopes, `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, and `check` keep only the affected targets inside them, so `dx test --affected //svc/...` runs the affected tests under `//svc`; `generate`, `security`, and `license` reject scopes with it. Accepted by `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
 
 Targets that do not fit the target platform are skipped by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, and `check`. Skipped tests report `skipped`. Pass `-- --noskip_incompatible_explicit_targets` to fail on them. `dx run` fails on them.
 
@@ -41,6 +41,7 @@ Changes are the diff from the merge-base with the base branch, plus staged, unst
 
 Each changed file maps to its owning targets, then to their reverse dependencies in `//...`: the targets that depend on them. Targets tagged `manual` are left out.
 
+- `format`, `lint`, and their phases in `check` keep only the targets that read a changed file: the rules that own it, and the rules that take one of those as `crate`, `upstream`, `beam`, `beam_files_dir`, `dx_tfm_variants`, or `aspect_hints`, such as a Rust test of a library. `lint` and its phase in `check` also keep the reverse dependencies when a dependency version changes. `typecheck` and the test phase of `check` keep all reverse dependencies.
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.
 - `check --affected` runs the checks, then the affected tests. `check --apply --affected` skips the tests.
@@ -54,6 +55,7 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | An added or deleted `BUILD`, or a deleted file outside any package | `//...`. |
 | A deleted file | The targets that still name it, else its package plus reverse dependencies. |
 | An unowned file | The package tree around it, such as `//pkg/...`. |
+| A file that reaches a toolchain, a target an aspect names by default, or a target a `.bazelrc` flag names | `//...`. |
 | A file outside any package | `//...`. |
 | A file that reaches a target a `.bazelrc` passes to a build setting, such as `.dx/config/typos/base.toml` through `--@rules_dx//config:workspace=//.dx:policy` | Its owning targets and the targets that read the setting, plus reverse dependencies. Lint and format aspects that read the setting do not widen. `//...` when a toolchain reads the setting. |
 | A file that reaches a target another `.bazelrc` flag names, such as a toolchain or platform, or that an aspect attribute names | `//...`. |

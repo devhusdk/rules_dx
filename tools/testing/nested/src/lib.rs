@@ -47,11 +47,8 @@ const USER_ROOT: &str = "u";
 const WORKSPACES: &str = "w";
 const HOME_DIR: &str = "home";
 const REPOSITORY_CACHE: &str = "repository-cache";
-/// The variable naming a cache root that the nested servers of every test share, outside the sandbox.
 pub const SHARED_ENV: &str = "DX_NESTED_SHARED";
-/// The variable that `nested_bazel_test(caches = "private")` sets to keep a test off the shared root.
 pub const CACHES_ENV: &str = "DX_NESTED_CACHES";
-/// The variable overriding the byte limit of the shared root.
 pub const SHARED_LIMIT_ENV: &str = "DX_NESTED_SHARED_LIMIT";
 const INSTALL: &str = "install";
 const REPO_CONTENTS: &str = "repo-contents";
@@ -117,9 +114,7 @@ fn fnv1a(text: &str) -> u64 {
         })
 }
 
-/// The nested root on Windows: `<drive>:\\n<hash of tmpdir>`, short enough that `CreateProcess` and
-/// `SetCurrentDirectory` accept the build-script and npm extraction directories below the nested
-/// execroot (their limits are 260 and 258 characters).
+/// `<drive>:\\n<hash of tmpdir>`, short enough for the 260 and 258 character limits of `CreateProcess` and `SetCurrentDirectory`.
 fn windows_root(tmpdir: &Path) -> PathBuf {
     let hash = fnv1a(&tmpdir.to_string_lossy());
     let mut root = PathBuf::new();
@@ -129,8 +124,7 @@ fn windows_root(tmpdir: &Path) -> PathBuf {
     root.join(format!("n{:06x}", hash >> 40))
 }
 
-/// The `--output_base` of the workspace `root` on Windows: `<user root>\\<hash of root>` instead of
-/// Bazel's own hash, for the same path limits as `windows_root`.
+/// `<user root>\\<hash of root>` instead of Bazel's longer hash, for the path limits of `windows_root`.
 fn windows_output_base(home: &Path, root: &Path) -> String {
     let hash = fnv1a(&root.to_string_lossy());
     format!(
@@ -155,11 +149,8 @@ pub struct Config {
     pub cache: Vec<cache::Download<PathBuf>>,
     /// Record mode: where the cache set and the locks of this run go.
     pub record: Option<Record>,
-    /// The cache root shared with other tests; `None` keeps every cache under `root`.
     pub shared: Option<PathBuf>,
-    /// The cache set the declared downloads come from.
     pub set: Option<String>,
-    /// The byte limit of the shared root.
     pub limit: u64,
 }
 
@@ -173,7 +164,6 @@ pub struct Record {
 }
 
 impl Config {
-    /// The part of `shared` holding fetched repositories, one per cache set so an offline test never finds a download its set lacks.
     fn fetches(&self, shared: &Path) -> PathBuf {
         match &self.set {
             Some(set) => shared.join(SETS).join(set),
@@ -266,7 +256,6 @@ impl Config {
                 ));
             }
         };
-        // Record mode lists what the consumer downloads, so it must start from empty caches.
         let shared = match env_path(lookup, SHARED_ENV) {
             Some(path) if !private && record.is_none() => Some(
                 std::path::absolute(&path)
@@ -398,9 +387,6 @@ pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String>
     argv
 }
 
-/// The shared install base of `bazel`, keyed by its resolved path, size and mtime so two releases never share one.
-///
-/// Bazel extracts into a temporary directory and renames it, so concurrent first starts are safe.
 #[must_use]
 pub fn install_base(shared: &Path, bazel: &Path) -> PathBuf {
     let real = std::fs::canonicalize(bazel).unwrap_or_else(|_| bazel.to_owned());
@@ -637,7 +623,6 @@ pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> S
             text.push_str(&format!(
                 "common --experimental_disk_cache_gc_max_size={DISK_CACHE_GC_MAX_SIZE}\n"
             ));
-            // The server exits after MAX_IDLE_SECS, so the collection must start sooner.
             text.push_str("common --experimental_disk_cache_gc_idle_delay=1s\n");
             text.push_str(&format!(
                 "common --repo_contents_cache={}\n",
@@ -1077,14 +1062,20 @@ impl Server {
         kill_slot_servers(&server.user_root(), &server.home.join(WORKSPACES));
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
-        if let Some(root) = &server.config.shared {
-            let fetches = server.config.fetches(root);
+        if let Some(root) = server.config.shared.clone() {
+            let fetches = server.config.fetches(&root);
             let holds = shared::Holds {
-                install: install_base(root, &server.config.bazel),
+                install: install_base(&root, &server.config.bazel),
                 downloads: fetches.join(REPOSITORY_CACHE),
                 fetched: fetches.join(REPO_CONTENTS),
             };
-            server.lease = Some(shared::lease(root, server.config.limit, &holds)?);
+            match shared::lease(&root, server.config.limit, &holds) {
+                Ok(lease) => server.lease = Some(lease),
+                Err(error) => {
+                    eprintln!("nested bazel: {error}; using private caches");
+                    server.config.shared = None;
+                }
+            }
         }
         let repository_cache = server.repository_cache();
         if server.config.record.is_none() {
@@ -1117,7 +1108,6 @@ impl Server {
         Ok(server)
     }
 
-    /// The repository cache built from the declared downloads, in the shared root when there is one.
     #[must_use]
     pub fn repository_cache(&self) -> PathBuf {
         match &self.config.shared {
@@ -3015,6 +3005,25 @@ mod tests {
                 server.home().join("bazelrc").display()
             )
         );
+    }
+
+    #[test]
+    fn an_unusable_shared_root_falls_back_to_private_caches() {
+        let dir = scratch("nested-unusable-");
+        let (bazel, _) = recorder(dir.path());
+        let file = dir.path().join("file");
+        std::fs::write(&file, "").expect("write");
+        let server = Server::acquire(Config {
+            shared: Some(file.join("root")),
+            ..config(&dir.path().join("base"), &bazel)
+        })
+        .expect("server");
+        assert_eq!(
+            server.repository_cache(),
+            server.home().join(REPOSITORY_CACHE)
+        );
+        let rc = std::fs::read_to_string(server.home().join("bazelrc")).expect("bazelrc");
+        assert!(rc.contains("common --disk_cache=\n"), "{rc}");
     }
 
     #[test]

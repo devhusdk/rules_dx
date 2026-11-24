@@ -2,12 +2,10 @@ use std::process::ExitCode;
 
 use dx_nested as nested;
 
-/// A repository rule whose output Bazel may take from the repo contents cache.
 const PROBE_BZL: &str = "def _impl(rctx):\n    rctx.file(\"BUILD.bazel\", \"filegroup(name = \\\"all\\\")\\n\")\n    return rctx.repo_metadata(reproducible = True)\n\nprobe = repository_rule(implementation = _impl)\n";
 
 const MODULE: &str = "module(name = \"probe\")\n\nprobe = use_repo_rule(\"//:probe.bzl\", \"probe\")\n\nprobe(name = \"dx_probe\")\n";
 
-/// The line the Bazel client prints when it extracts its install base.
 const EXTRACTING: &str = "Extracting Bazel installation";
 
 fn server_pid(case: &nested::Case, version: &str) -> Result<(String, bool), String> {
@@ -30,7 +28,6 @@ fn server_pid(case: &nested::Case, version: &str) -> Result<(String, bool), Stri
     Ok((info.stdout.trim().to_owned(), extracted))
 }
 
-/// Depends on every module the lock selected, so the module graph only needs files the lock holds hashes for.
 fn locked_deps(lock: &str) -> String {
     lock.lines()
         .filter_map(|line| {
@@ -45,7 +42,6 @@ fn locked_deps(lock: &str) -> String {
         .collect()
 }
 
-/// The repository rules a query of the probe repository ran.
 fn fetched(case: &nested::Case) -> Result<Vec<String>, String> {
     case.use_lock("harness");
     let lock = std::fs::read_to_string(case.join("MODULE.bazel.lock"))

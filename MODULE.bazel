@@ -26,8 +26,14 @@ single_version_override(
     version = "0.75.0",
 )
 
-# floor: equals tested
+# floor: equals tested; root-only patches
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")
+single_version_override(
+    module_name = "rules_rust_wasm_bindgen",
+    patch_strip = 1,
+    patches = ["//patches/rules_rust_wasm_bindgen:ring_clang_cl_aarch64_windows.patch"],
+    version = "0.75.0",
+)
 
 # floor: equals tested
 bazel_dep(name = "rules_cc", version = "0.2.28")

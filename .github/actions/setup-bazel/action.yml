@@ -82,7 +82,7 @@ runs:
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}
-        bazelisk-cache: false
+        bazelisk-cache: ${{ runner.os == 'Windows' }}
         cache-save: ${{ inputs.cache-save }}
         disk-cache: ${{ inputs.disk-cache }}
     - name: Start the Bazel server

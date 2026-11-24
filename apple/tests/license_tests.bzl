@@ -1,8 +1,8 @@
 """Xcode license gate coverage."""
 
 load("//apple/private/xcode:repos.bzl", "HUB_NAME", "LICENSE_URL", "UNACCEPTED", "hub_build")
-load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:license.bzl", "APPLE_XCODE")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 
 def _checks():
     accepted = hub_build(True)

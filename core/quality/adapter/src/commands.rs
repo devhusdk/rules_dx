@@ -2055,9 +2055,7 @@ fn perltidy(binary: &Path, args: &[&str], files: &[&Path], config: Option<&Path>
     assemble(binary, head, files, "")
 }
 
-/// One batched check; `Perl::Critic` has no autofix. The bound tier profile picks the severity
-/// and policies; `--profile` also stops perlcritic reading `~/.perlcriticrc`, `./.perlcriticrc`
-/// and `$PERLCRITIC`.
+/// One batched check under the bound tier profile, which also stops user profiles loading.
 #[must_use]
 pub fn perlcritic_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
     let mut head = vec![

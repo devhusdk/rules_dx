@@ -1,6 +1,4 @@
-//! The perlcritic wrapper runs the strict tier profile dx binds: it passes a clean file, reports
-//! RequireUseStrict on a dirty one and ignores a .perlcriticrc in the working directory. The strict
-//! profile reports each guard policy and passes a clean module.
+//! The perlcritic wrapper under the strict tier profile dx binds.
 
 use std::path::Path;
 

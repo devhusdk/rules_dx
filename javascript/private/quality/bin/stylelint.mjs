@@ -6,16 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MANAGED = ["stylelint-config-recess-order", "stylelint-config-standard", "stylelint-order"];
 
-// stylelint resolves extends and plugins from the config directory, then the working directory,
-// and bypasses module hooks while doing so. dx's copies go in a private directory that its module
-// path lookup falls back to only when the consumer has none.
 const global = mkdtempSync(join(tmpdir(), "dx-stylelint-"));
 const modules = join(global, "lib", "node_modules");
 mkdirSync(modules, { recursive: true });
 const require = nodeModule.createRequire(import.meta.url);
 const links = [];
-// rules_js patches fs so links leaving its sandbox read as plain files. Keep each link's real
-// target here, found by following the store's own links by hand.
 const targets = new Map();
 const follow = (path) => {
   for (;;) {
@@ -39,7 +34,6 @@ for (const name of MANAGED) {
   const marker = `${sep}node_modules${sep}${name}${sep}`;
   const root = entry.slice(0, entry.lastIndexOf(marker) + marker.length - 1);
   link(root, name);
-  // The package's own dependencies sit beside it, and are looked up from the link.
   const beside = dirname(root);
   for (const other of readdirSync(beside)) {
     link(join(beside, other), other);
@@ -74,8 +68,6 @@ export default function (basedir, lookup, cwd) {
 `,
 );
 
-// The launcher preserves symlinks, so a file reached through a link would look for its own
-// dependencies beside the link. Resolve from the package's real directory instead.
 nodeModule.registerHooks({
   resolve(specifier, context, nextResolve) {
     const parent = context.parentURL?.startsWith("file:") ? fileURLToPath(context.parentURL) : "";

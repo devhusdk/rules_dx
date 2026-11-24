@@ -33,7 +33,6 @@ build_test(
     targets = ["@haskell_hlint_hackage//:clock"],
 )
 
-# The hsc2hs helper of a musl build runs on the glibc exec host.
 platform_transition_filegroup(
     name = "clock_musl",
     testonly = True,

@@ -10,7 +10,6 @@ exports_files([
     "pubspec.yaml",
 ])
 
-# Kernel, not exe: dart_apitool runs `dart pub get` through its own executable.
 dart_binary(
     name = "dart_apitool",
     compile_mode = "kernel",

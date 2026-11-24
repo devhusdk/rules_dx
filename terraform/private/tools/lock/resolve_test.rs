@@ -1,5 +1,3 @@
-//! The terraform lock step writes the golden lock and state from the registry fixture with an empty `PATH` and no network.
-
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Outcome, run};

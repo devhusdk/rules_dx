@@ -12,7 +12,6 @@ load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_chain_stage
 
 package(default_visibility = ["//visibility:private"])
 
-# C++ headers for both libraries; the schema in api/ includes the one in base/.
 flatbuffers_cc_library(
     name = "shapes_cc",
     deps = [
@@ -28,7 +27,6 @@ cc_test(
     deps = [":shapes_cc"],
 )
 
-# Both variants over one shared library must not declare conflicting actions.
 flatbuffers_cc_library(
     name = "shapes_cc_obj",
     gen_object_api = True,
@@ -65,7 +63,6 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_cc",
 )
 
-# Rust: one crate per root schema; flatc --rust --gen-all inlines the base schema.
 flatbuffers_rust_library(
     name = "shapes_rs",
     library = "//flatbuffers/tests/fixtures/api",
@@ -86,7 +83,6 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_rs_generated",
 )
 
-# Java: one compile per flatbuffers_library, against the runtime from the pinned archive.
 flatbuffers_java_library(
     name = "shapes_java",
     deps = [
@@ -99,7 +95,7 @@ java_test(
     name = "JavaRoundtripTest",
     srcs = ["JavaRoundtripTest.java"],
     main_class = "JavaRoundtripTest",
-    tags = ["no-lint"],  # no lint config in this fixture package
+    tags = ["no-lint"],
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],
@@ -122,14 +118,11 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_java",
 )
 
-# Breaking-change check: adding a trailing field conforms.
 flatbuffers_conform_test(
     name = "conform_added_field_test",
     baseline = "//flatbuffers/tests/fixtures/conform/v1:shape",
     library = "//flatbuffers/tests/fixtures/conform/v2:shape",
 )
-
-# Failing fixtures: only built by the analysis tests below.
 
 flatbuffers_rust_library(
     name = "no_root_rs",
@@ -307,7 +300,6 @@ filegroup(
     visibility = ["//:__subpackages__"],
 )
 
-# Three libraries in one package, each including the previous one by a relative path.
 flatbuffers_library(
     name = "chain_a",
     srcs = ["fixtures/chain/a.fbs"],

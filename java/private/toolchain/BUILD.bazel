@@ -2,7 +2,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:defs.bzl", "java_package_configuration")
 load("@rules_java//toolchains:default_java_toolchain.bzl", "default_java_toolchain")
 
-# -Werror for rules_dx's own packages; external repos compile without it.
 package_group(
     name = "own",
     packages = ["//..."],

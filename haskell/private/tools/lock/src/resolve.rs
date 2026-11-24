@@ -7,7 +7,6 @@
         clippy::todo
     )
 )]
-//! Resolves a cabal project into its freeze file and the packages of its lock.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
@@ -18,14 +17,10 @@ use dx_lock::{
 };
 use serde_json::{Value, json};
 
-/// The Hackage host every package archive comes from.
 pub const HACKAGE: &str = "https://hackage.haskell.org";
 
-/// The `(name, version, .cabal sha256)` of a Hackage package mapped to its revision number.
 pub type Revisions = BTreeMap<(String, String, String), u64>;
 
-/// Returns the `index-state` that the project file pins.
-///
 /// # Errors
 /// Fails when the project pins none.
 pub fn index_state(project: &str) -> Result<String, Error> {
@@ -38,8 +33,6 @@ pub fn index_state(project: &str) -> Result<String, Error> {
         .ok_or_else(|| Error::new("the project pins no index-state"))
 }
 
-/// Reads the revision number of each wanted `.cabal` file from a Hackage `01-index.tar`.
-///
 /// # Errors
 /// Fails when the archive cannot be read.
 pub fn revisions(
@@ -75,15 +68,11 @@ pub fn revisions(
     Ok(found)
 }
 
-/// The `packages:` URLs of a project file mapped to the tarballs they are fetched to.
 pub type Fetched = BTreeMap<String, Tarball>;
 
-/// A `packages:` URL fetched and unpacked to a local package directory.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Tarball {
-    /// The package directory handed to cabal.
     pub path: PathBuf,
-    /// The sha256 of the tarball.
     pub sha256: String,
 }
 
@@ -125,7 +114,6 @@ fn map_packages(project: &str, mut each: impl FnMut(&str) -> Option<String>) -> 
     out
 }
 
-/// Returns the URLs that the `packages:` field of a project file names, in order.
 #[must_use]
 pub fn remote_packages(project: &str) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
@@ -160,8 +148,6 @@ fn unpack(bytes: &[u8], dir: &Path) -> Result<PathBuf, Error> {
     }
 }
 
-/// Downloads and unpacks the `packages:` URLs of `project` into `dir` and returns the project that names the package directories instead.
-///
 /// # Errors
 /// Fails when the `packages:` field names an `http://` URL, a download fails, a tarball does not match the sha256 that `old` locks for its URL, or a file cannot be written.
 pub fn fetch_packages(
@@ -219,7 +205,6 @@ fn same_directory(plan: &str, fetched: &Path) -> bool {
     Path::new(plan.trim_end_matches(['/', '\\'])).ends_with(tail)
 }
 
-/// Turns the plan entries of the fetched packages back into entries of their URLs.
 pub fn remote_tarballs(plan: &mut Value, fetched: &Fetched) {
     let Some(entries) = plan.get_mut("install-plan").and_then(Value::as_array_mut) else {
         return;
@@ -248,26 +233,18 @@ pub fn remote_tarballs(plan: &mut Value, fetched: &Fetched) {
     }
 }
 
-/// The file of a set that pins its packages to a stack snapshot.
 pub const STACK_LOCK: &str = "stack.yaml.lock";
 
-/// A Hackage package that a `stack.yaml.lock` or a snapshot names.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StackPackage {
-    /// The package name.
     pub name: String,
-    /// The package version.
     pub version: String,
-    /// The sha256 of the `.cabal` file, when the entry pins one.
     pub cabal_sha256: Option<String>,
 }
 
-/// The pins of a `stack.yaml.lock`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StackLock {
-    /// The `(url, sha256)` of each completed snapshot.
     pub snapshots: Vec<(String, String)>,
-    /// The completed Hackage extra-deps.
     pub packages: Vec<StackPackage>,
 }
 
@@ -308,8 +285,6 @@ fn yaml_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
         .map(str::trim)
 }
 
-/// Parses the completed snapshots and Hackage extra-deps of a `stack.yaml.lock`.
-///
 /// # Errors
 /// Fails when a snapshot entry has no https URL, a pin is not a sha256, or the file names no snapshot.
 pub fn stack_lock(text: &str) -> Result<StackLock, Error> {
@@ -386,8 +361,6 @@ pub fn stack_lock(text: &str) -> Result<StackLock, Error> {
     Ok(lock)
 }
 
-/// Downloads the snapshots of `lock`, checks each against its sha256, and returns the version that the snapshots and extra-deps pin per package.
-///
 /// # Errors
 /// Fails when a download fails or a snapshot does not match its sha256.
 pub fn stack_pins(
@@ -416,7 +389,6 @@ pub fn stack_pins(
     Ok(pins)
 }
 
-/// Returns a freeze file that pins every package of `pins`, then the index-state when one is given.
 #[must_use]
 pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> String {
     let body = pins
@@ -431,7 +403,6 @@ pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> Stri
     out
 }
 
-/// Returns the name and version of each package of a plan that is not local.
 #[must_use]
 pub fn plan_pins(plan: &Value) -> BTreeMap<String, String> {
     plan.get("install-plan")
@@ -448,8 +419,6 @@ pub fn plan_pins(plan: &Value) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// Checks the `.cabal` sha256 of each extra-dep of `lock` against the plan entry of the same package.
-///
 /// # Errors
 /// Fails when the plan resolves an extra-dep to a `.cabal` file of another sha256.
 pub fn check_stack_pins(plan: &Value, lock: &StackLock) -> Result<(), Error> {
@@ -517,8 +486,6 @@ struct Entry {
     tools: BTreeSet<String>,
 }
 
-/// Returns the fetched packages of a cabal `plan.json`, sorted by name.
-///
 /// # Errors
 /// Fails when the plan is malformed or a Hackage package has no revision in `revisions`.
 pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Error> {
@@ -647,16 +614,12 @@ pub fn packages(plan: &Value, revisions: &Revisions) -> Result<Vec<Package>, Err
     Ok(out)
 }
 
-/// The cabal lock step: runs the pinned cabal and GHC in the scratch directory.
 pub struct Cabal {
-    /// The pinned `cabal` executable.
     pub cabal: PathBuf,
-    /// The pinned `ghc` executable.
     pub ghc: PathBuf,
 }
 
 impl Cabal {
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -770,9 +733,6 @@ fn hackage_pairs(plan: &Value) -> BTreeSet<(String, String)> {
         .collect()
 }
 
-/// Runs the cabal lock step on `args`, the arguments after `dx haskell_lock`:
-/// `--cabal=<path> --ghc=<path>` and the `dx_lock::Args` flags. 0 when the lock is fresh or
-/// written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let (paths, rest) = match dx_lock::tool_paths(args, &["--cabal", "--ghc"]) {
         Ok(split) => split,

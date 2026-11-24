@@ -1,5 +1,3 @@
-//! The ruby lock step writes the lock and `Gemfile.lock` from index fixtures with an empty `PATH` and no network.
-
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Lock, Outcome, run};

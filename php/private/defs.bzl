@@ -54,8 +54,6 @@ def _php_test_coverage(ctx, upstream):
         test.tokens,
         [path(f) for f in pcov.extensions],
     )
-    # The _upstream suffix makes dx_symlink_executable_name link it as <name> or <name>.exe even when <name> holds a dot.
-    # The directory must not start with "<name>.": the conformance runner copies such siblings as files.
     launcher, _, runfiles = write_native_launcher(ctx, descriptor, launcher_name = "_" + ctx.label.name + ".coverage/" + ctx.label.name + "_upstream")
     runfiles = runfiles.merge_all([
         ctx.runfiles(files = [pcov.pcov, runner] + pcov.extensions, transitive_files = pcov.files),

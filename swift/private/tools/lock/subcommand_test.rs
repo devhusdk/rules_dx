@@ -1,5 +1,3 @@
-//! `:lock` runs the swiftpm resolver through `dx swift_lock`.
-
 use std::process::Command;
 
 #[test]

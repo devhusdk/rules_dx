@@ -24,7 +24,6 @@ ELIXIR_DIALYZER_COMPATIBLE_WITH = otp_compatible_with([cell for cell in ELIXIR_C
 
 ELIXIR_SOURCE_GLOBS = ["lib/**/*.ex"]
 
-# Re-exported unchanged: BUILD files need it to build escripts.
 elixir_escript_archive = _elixir_escript_archive
 
 def elixir_escript_headers(module):

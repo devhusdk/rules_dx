@@ -3,7 +3,6 @@ load("@rules_java//java:java_library.bzl", "java_library")
 
 exports_files(["compiler/src/main/schema/capnp/java.capnp"])
 
-# The compiler plugin. VERSION falls back to "(unknown)" without config.h.
 cc_binary(
     name = "capnpc-java",
     srcs = ["compiler/src/main/cpp/capnpc-java.c++"],

@@ -10,7 +10,6 @@ exports_files([
     "pins.json",
 ])
 
-# Cargo build scripts list this in `build_script_toolchains` to get the cc tools and flags.
 build_script_cc_env(
     name = "build_script_cc_env",
     visibility = ["//visibility:public"],
@@ -22,7 +21,6 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-# The prost and prost-types crates the default rust_prost_toolchain links into generated messages.
 alias(
     name = "prost",
     actual = "@rules_rust_prost//private/3rdparty/crates:prost",
@@ -35,7 +33,6 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-# The tonic, tokio and tokio-stream crates the default rust_prost_toolchain links into gRPC stubs.
 alias(
     name = "tonic",
     actual = "@rules_rust_prost//private/3rdparty/crates:tonic",

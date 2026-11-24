@@ -1,4 +1,3 @@
-//! Resolves a Composer package set through the Packagist v2 API and writes its lock and state.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
@@ -7,23 +6,17 @@ use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Cursor;
 
-/// The metadata endpoint of Packagist.
 pub const METADATA: &str = "https://repo.packagist.org/p2";
 
-/// Downloads metadata and archives.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Packagist(HttpFetch);
 
 impl Packagist {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -44,10 +37,8 @@ impl Download for Packagist {
 
 use dx_semver::Version;
 
-/// The numeric parts of a constraint bound; wildcards and missing parts are zero.
 type Bound = [u64; 4];
 
-/// Whether a requirement names the platform rather than a package.
 #[must_use]
 pub fn is_platform(name: &str) -> bool {
     matches!(
@@ -58,7 +49,6 @@ pub fn is_platform(name: &str) -> bool {
         .any(|prefix| name.starts_with(prefix))
 }
 
-/// A stable release version, `None` for branches and pre-releases.
 #[must_use]
 pub fn parse_version(text: &str) -> Option<Version> {
     Version::parse(text)
@@ -203,13 +193,10 @@ fn conjunction(text: &str) -> Result<Vec<Comparator>, String> {
     Ok(out)
 }
 
-/// A Composer version constraint: alternatives of comparator lists.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Constraint(Vec<Vec<Comparator>>);
 
 impl Constraint {
-    /// Parses the constraint grammar of release versions.
-    ///
     /// # Errors
     /// Fails on branch constraints and on text that is not a version.
     pub fn parse(text: &str) -> Result<Self, String> {
@@ -221,7 +208,6 @@ impl Constraint {
         Ok(Self(alternatives))
     }
 
-    /// Whether `version` satisfies the constraint.
     #[must_use]
     pub fn allows(&self, version: &Version) -> bool {
         self.0.iter().any(|all| {
@@ -237,8 +223,6 @@ impl Constraint {
     }
 }
 
-/// The versions of a Packagist `p2` document with the minified fields expanded, newest first.
-///
 /// # Errors
 /// Fails when the document is not a Packagist `p2` document for `name`.
 pub fn expand(name: &str, bytes: &[u8]) -> Result<Vec<Map<String, Value>>, Error> {
@@ -284,7 +268,6 @@ fn string_map(entry: &Map<String, Value>, key: &str) -> BTreeMap<String, String>
         .unwrap_or_default()
 }
 
-/// The PSR-4 namespaces an entry autoloads, without the trailing separator.
 #[must_use]
 pub fn namespaces(entry: &Map<String, Value>) -> Vec<String> {
     let mut out: Vec<String> = entry
@@ -314,7 +297,6 @@ const MANIFEST_FIELDS: [&str; 8] = [
     "provide",
 ];
 
-/// The fields of an entry staged into `vendor/composer/installed.json`.
 #[must_use]
 pub fn manifest(entry: &Map<String, Value>) -> Value {
     let mut out = Map::new();
@@ -337,7 +319,6 @@ fn is_empty(value: &Value) -> bool {
     }
 }
 
-/// The resolver of the composer ecosystem.
 pub struct Php<'a> {
     manifest: String,
     state: String,
@@ -350,7 +331,6 @@ struct Chosen {
 }
 
 impl<'a> Php<'a> {
-    /// A resolver that downloads with `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -360,7 +340,6 @@ impl<'a> Php<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -394,7 +373,6 @@ impl<'a> Php<'a> {
         Ok(())
     }
 
-    /// The packages the roots need, each at the newest release every requirement allows.
     fn select(
         &self,
         roots: &BTreeMap<String, String>,
@@ -526,7 +504,6 @@ impl<'a> Php<'a> {
     }
 }
 
-/// The package of `old` that is `name` at `version` with the archive URL `url`.
 fn unchanged<'l>(
     old: Option<&'l Lock>,
     name: &str,
@@ -565,7 +542,6 @@ const RELEVANT: [&str; 10] = [
     "repositories",
 ];
 
-/// The `content-hash` Composer records for a manifest.
 #[must_use]
 pub fn content_hash(json: &Value) -> String {
     let mut content = Map::new();
@@ -747,7 +723,6 @@ impl Resolver for Php<'_> {
     }
 }
 
-/// Runs the composer lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("composer") else {

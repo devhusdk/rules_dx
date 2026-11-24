@@ -4,7 +4,6 @@ exports_files([
     "pins.json",
 ])
 
-# Schemas the compiler resolves from /capnp/*.capnp, plus java.capnp from capnpc-java.
 filegroup(
     name = "std",
     srcs = [
@@ -14,7 +13,6 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-# Runtimes built from the pinned archives, so they cannot drift from the generators.
 alias(
     name = "runtime_rust",
     actual = "@dx_capnproto_rust//:capnp",

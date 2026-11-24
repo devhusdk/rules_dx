@@ -1,5 +1,3 @@
-//! Tests the library cell check.
-
 mod fake;
 
 use dx_apple_ops::library_check::run;

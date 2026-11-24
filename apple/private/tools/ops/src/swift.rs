@@ -1,14 +1,9 @@
-//! Runs `swift`, `llvm-cov` or `llvm-profdata` of one Xcode.
-
 use crate::util::{Outcome, exit_code, missing};
 use crate::xcode::{Tools, XCRUN};
 
 pub const PREFIX: &str = "dx-apple-swift";
 
-/// Runs `xcrun <tool> <args>` with this process's streams.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, tool: &str, args: &[String]) -> Outcome {
     let mut argv = vec![tool];

@@ -1,4 +1,3 @@
-// Package gofumpt formats Go files the way the upstream gofumpt command does.
 package gofumpt
 
 import (
@@ -39,8 +38,6 @@ var manifestName = func() string {
 	panic("lock_registry.json: no go entry")
 }()
 
-// Main formats the Go files named in args and returns the exit code.
-// Like upstream, -d exits 1 when a file differs and any error exits 2.
 func Main(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("gofumpt", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -90,7 +87,6 @@ func formatFile(path string, opts gformat.Options, m mode, stdout io.Writer) err
 	if err != nil {
 		return err
 	}
-	// Parse with the file name first so syntax errors name the file, as upstream does.
 	if _, err = parser.ParseFile(token.NewFileSet(), path, src, parser.ParseComments|parser.SkipObjectResolution); err != nil {
 		return err
 	}
@@ -132,8 +128,6 @@ func formatFile(path string, opts gformat.Options, m mode, stdout io.Writer) err
 	return err
 }
 
-// fromGoMod fills an unset -lang or -modpath from the nearest module file above path.
-// A missing or invalid module file leaves them unset, as upstream does.
 func fromGoMod(path string, opts *gformat.Options) error {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -147,7 +141,6 @@ func fromGoMod(path string, opts *gformat.Options) error {
 				return nil
 			}
 			if opts.LangVersion == "" {
-				// A module file without a go directive means go 1.16.
 				opts.LangVersion = "go1.16"
 				if file.Go != nil {
 					opts.LangVersion = "go" + file.Go.Version

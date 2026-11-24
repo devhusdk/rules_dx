@@ -1,5 +1,3 @@
-//! The dub lock step writes the golden lock from registry fixtures with an empty `PATH` and no network.
-
 use std::cell::RefCell;
 
 use dub_lock::{Download, Dub};

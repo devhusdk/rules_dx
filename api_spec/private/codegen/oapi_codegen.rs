@@ -1,9 +1,6 @@
-//! Runs oapi-codegen with the Go SDK as its only PATH entry and a scratch home beside the output.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The parsed command line.
 #[derive(Debug, PartialEq)]
 struct Args {
     go: PathBuf,
@@ -24,14 +21,12 @@ fn parse(args: &[String]) -> Result<Args, String> {
     })
 }
 
-/// The scratch directory of one output file.
 fn scratch_dir(cwd: &Path, out: &Path) -> PathBuf {
     let mut name = out.as_os_str().to_owned();
     name.push(".scratch");
     cwd.join(name)
 }
 
-/// The absolute directory that holds `go`.
 fn go_dir(cwd: &Path, go: &Path) -> Result<PathBuf, String> {
     cwd.join(go)
         .parent()
@@ -76,7 +71,6 @@ fn run(args: &[String]) -> Result<i32, String> {
     Ok(code)
 }
 
-/// Runs the driver with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     run(args).unwrap_or_else(|message| {

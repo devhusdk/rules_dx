@@ -13,7 +13,6 @@ package(default_visibility = ["//visibility:private"])
 
 capnp_library_tests(name = "capnp_library_tests")
 
-# C++ for both libraries; the schema in api/ imports the one in base/.
 capnproto_cc_library(
     name = "shapes_cc",
     deps = [
@@ -32,7 +31,6 @@ cc_test(
     deps = [":shapes_cc"],
 )
 
-# A second library over the same schemas must share the one compile per library.
 capnproto_cc_library(
     name = "shapes_cc_again",
     deps = [
@@ -79,7 +77,6 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_cc",
 )
 
-# api_rs mirrors the api -> base dependency and refers to base_rs types by path.
 capnproto_rust_library(
     name = "base_rs",
     library = "//capnproto/tests/fixtures/base",
@@ -123,7 +120,6 @@ codegen_shard_argv_test(
     target_under_test = ":api_rs_generated",
 )
 
-# Java: one compile per capnproto_library, against the runtime from the pinned archive.
 capnproto_java_library(
     name = "shapes_java",
     deps = [
@@ -136,7 +132,7 @@ java_test(
     name = "JavaRoundtripTest",
     srcs = ["JavaRoundtripTest.java"],
     main_class = "JavaRoundtripTest",
-    tags = ["no-lint"],  # no lint config in this fixture package
+    tags = ["no-lint"],
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],
@@ -159,9 +155,6 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_java",
 )
 
-# Failing fixtures: only built by the analysis tests below.
-
-# A rust crate whose library depends on base, but whose deps omit base_rs.
 capnproto_rust_library(
     name = "api_rs_nodep",
     library = "//capnproto/tests/fixtures/api",

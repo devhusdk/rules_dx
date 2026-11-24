@@ -11,7 +11,6 @@ import (
 	"github.com/bazelbuild/rules_go/go/runfiles"
 )
 
-// Each case is formatted by upstream gofumpt and by Main; the bytes must match.
 var cases = map[string]string{
 	"clean.go":   "package a\n\nfunc Add(a, b int) int { return a + b }\n",
 	"dirty.go":   "// Package formatdirty is not gofumpt formatted.\npackage formatdirty\n\n// Add returns the sum of a and b.\nfunc Add(a,b int) int{return a+b}\n",
@@ -34,7 +33,6 @@ func upstream(t *testing.T) string {
 	return path
 }
 
-// tree writes every case into a fresh directory, with go.mod when mod is set.
 func tree(t *testing.T, mod string) string {
 	t.Helper()
 	dir := t.TempDir()

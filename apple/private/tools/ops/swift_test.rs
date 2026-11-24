@@ -1,5 +1,3 @@
-//! Tests the swift operation.
-
 mod fake;
 
 use std::path::PathBuf;

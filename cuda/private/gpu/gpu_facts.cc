@@ -144,8 +144,6 @@ Verdict CheckDevice(const Probe &probe, const Declared &declared) {
     return {Status::kFail, declared_error};
   }
   if (!probe.error.empty()) {
-    // The driver is read before the device count, so a failed count (such as
-    // cudaErrorInsufficientDriver) still leaves a driver version to check.
     if (probe.driver > 0) {
       Verdict driver = DriverVerdict(probe, declared);
       if (driver.status != Status::kPass) {

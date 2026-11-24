@@ -83,11 +83,7 @@ fn command(
     Ok((command, guards))
 }
 
-/// Runs one module under the runtime with only the declared args, env and preopens.
-/// The runtime, module and preopened files are runfiles or absolute paths.
-///
 /// # Errors
-///
 /// Returns `Err` when a preopened file cannot be staged or the runtime cannot start.
 pub fn run(
     runtime: &Path,
@@ -102,10 +98,7 @@ pub fn run(
         .map_err(|error| format!("the WASI runtime cannot execute: {error}"))
 }
 
-/// Runs one module like `run`, with inherited stdio, and returns its exit code.
-///
 /// # Errors
-///
 /// Returns `Err` when a preopened file cannot be staged or the runtime cannot start.
 pub fn run_inherited(
     runtime: &Path,

@@ -1,5 +1,3 @@
-//! Tests the macOS app bundle check.
-
 mod fake;
 
 use std::path::{Path, PathBuf};

@@ -6,7 +6,6 @@ load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo")
 _ANDROID_SDK_TOOLCHAIN_TYPE = "@rules_android//toolchains/android_sdk:toolchain_type"
 _ANDROID_KINDS = ["android_library", "kt_android_library"]
 
-# The android.jar helper wires no quality tool of its own.
 TOOLS = {}
 
 SHARD_SPECS = {}

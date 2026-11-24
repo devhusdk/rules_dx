@@ -1,5 +1,3 @@
-//! Relocates and runs the optimized native and WASI release artifacts.
-
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};

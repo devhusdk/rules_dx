@@ -21,7 +21,6 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-# Public so users can register their own Fortran compiler toolchain.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],

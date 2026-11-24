@@ -4,7 +4,6 @@ load("@rules_cc//cc/private/toolchain:windows_cc_toolchain_config.bzl", "cc_tool
 load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load(":layout.bzl", "SUPPORTED_CELLS", "msvc_layout")
 
-# Qt 6 qcompilerdetection.h requires a conforming __cplusplus and /permissive-.
 MSVC_CXX_CONFORMANCE_FLAGS = ["/Zc:__cplusplus", "/permissive-"]
 
 _SYSTEM_NAMES = {"x64": "x86_64-pc-windows-msvc", "arm64": "aarch64-pc-windows-msvc"}

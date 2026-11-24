@@ -1,5 +1,3 @@
-//! Writes the C++ side of CXX-Qt and CXX bridges with the pinned generators.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fs;
@@ -31,7 +29,6 @@ struct Generated {
     source: Vec<u8>,
 }
 
-/// Runs the generator with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     match run(args) {

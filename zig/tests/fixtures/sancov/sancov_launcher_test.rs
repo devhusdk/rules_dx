@@ -1,4 +1,3 @@
-//! Runs the dx-runtime sancov helper over a -ffuzz Zig test and checks the LCOV it writes.
 use std::path::Path;
 
 fn launch(coverage: Option<&Path>) -> dx_testing::Run {
@@ -22,7 +21,6 @@ fn launch(coverage: Option<&Path>) -> dx_testing::Run {
     if let Some(dir) = coverage {
         envs.push(("COVERAGE_DIR", dx_testing::path_text(dir)));
     }
-    // Runs with the test's runfiles, as Bazel runs the launcher as the test executable.
     let mut command = std::process::Command::new(&launcher);
     command.envs(envs);
     dx_testing::run_command(&mut command, std::time::Duration::from_secs(120))

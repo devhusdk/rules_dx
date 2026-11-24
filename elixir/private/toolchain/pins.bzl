@@ -16,10 +16,8 @@ ELIXIR_CELLS = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", 
 
 ELIXIR_APPLICATIONS = ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]
 
-# Elixir applications in the dialyzer PLT; `elixir` holds the elixir_erl dialyzer loads.
 DIALYZER_PLT_ELIXIR = ["elixir", "logger"]
 
-# Credo and its dependencies, built from the Hex tarballs.
 CREDO_PACKAGES = {
     name: struct(sha256 = pin["sha256"], version = pin["version"])
     for name, pin in _PINS["hex"].items()

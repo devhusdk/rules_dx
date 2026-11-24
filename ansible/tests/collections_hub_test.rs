@@ -1,5 +1,3 @@
-//! The test collections hub stages ansible.posix with its manifest and module.
-
 use std::path::{Path, PathBuf};
 
 fn find(dir: &Path, suffix: &Path) -> Option<PathBuf> {

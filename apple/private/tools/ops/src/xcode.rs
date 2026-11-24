@@ -1,5 +1,3 @@
-//! The Xcode tools: the one place that names host paths, and the Xcode that `DEVELOPER_DIR` selects.
-
 use std::path::{Path, PathBuf};
 
 use crate::util::{Cmd, Env, Failure, Output, Runner, missing, usage};
@@ -12,10 +10,8 @@ pub const DITTO: &str = "/usr/bin/ditto";
 pub const OPENSSL: &str = "/usr/bin/openssl";
 pub const SPCTL: &str = "/usr/sbin/spctl";
 
-/// Where installed Xcode applications live.
 pub const APPLICATIONS: &str = "/Applications";
 
-/// The text of `CFBundleShortVersionString` in a `version.plist`.
 #[must_use]
 pub fn short_version(plist: &str) -> Option<&str> {
     let after = plist.split_once("<key>CFBundleShortVersionString</key>")?.1;
@@ -35,7 +31,6 @@ pub(crate) fn components(version: &str) -> [u64; 3] {
     found
 }
 
-/// Whether the installed `have` (`15.2`) is the configured `want` (`15.2.0.15C500b`).
 #[must_use]
 pub fn version_matches(want: &str, have: &str) -> bool {
     !want.is_empty() && components(want) == components(have)
@@ -52,12 +47,7 @@ fn installed(developer_dir: &Path, want: &str) -> bool {
         .is_some_and(|have| version_matches(want, have))
 }
 
-/// The developer directory of the Xcode installed as `version`.
-///
-/// `preset` is a `DEVELOPER_DIR` already in the environment; it wins when it is that Xcode.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn developer_dir(
     version: &str,
@@ -94,10 +84,7 @@ pub fn developer_dir(
         })
 }
 
-/// The developer directory the launcher's `DX_XCODE_VERSION` selects.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn for_launcher(env: Env<'_>) -> Result<PathBuf, Failure> {
     let version = env("DX_XCODE_VERSION").unwrap_or_default();
@@ -108,10 +95,7 @@ pub fn for_launcher(env: Env<'_>) -> Result<PathBuf, Failure> {
     )
 }
 
-/// The developer directory a `rules_apple` test runner selects.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn for_test_runner(env: Env<'_>) -> Result<PathBuf, Failure> {
     if let Some(version) = env("XCODE_VERSION_OVERRIDE") {
@@ -126,7 +110,6 @@ pub fn for_test_runner(env: Env<'_>) -> Result<PathBuf, Failure> {
     })
 }
 
-/// The Xcode tools of one Xcode, started through a runner.
 pub struct Tools<'a> {
     pub developer_dir: Option<PathBuf>,
     pub runner: &'a dyn Runner,
@@ -150,25 +133,21 @@ impl Tools<'_> {
         }
     }
 
-    /// Runs `xcrun <args>` and captures it.
     #[must_use]
     pub fn xcrun(&self, args: &[&str]) -> Output {
         self.runner.capture(&self.cmd(XCRUN, args))
     }
 
-    /// Runs `xcrun <args>` with this process's streams.
     #[must_use]
     pub fn xcrun_inherit(&self, args: &[&str]) -> Option<i32> {
         self.runner.inherit(&self.cmd(XCRUN, args))
     }
 
-    /// Runs the system tool `program` and captures it.
     #[must_use]
     pub fn tool(&self, program: &str, args: &[&str]) -> Output {
         self.runner.capture(&self.cmd(program, args))
     }
 
-    /// Runs an arbitrary program with this process's streams.
     #[must_use]
     pub fn run_program(&self, program: &str, args: &[&str]) -> Option<i32> {
         self.runner.inherit(&self.cmd(program, args))

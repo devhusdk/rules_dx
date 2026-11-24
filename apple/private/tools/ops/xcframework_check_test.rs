@@ -1,5 +1,3 @@
-//! Tests the iOS XCFramework slice check.
-
 mod fake;
 
 use std::collections::BTreeMap;
@@ -36,8 +34,6 @@ fn loads(platform: &str, minos: &str) -> String {
     )
 }
 
-/// The archive contents: path to file text.
-/// Files by path, then symlinks as (path, target).
 struct Tree(BTreeMap<String, String>, Vec<(String, String)>);
 
 impl Tree {
@@ -112,7 +108,6 @@ fn read(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-/// Answers plutil from `key=value` lines and xcrun from the `.archs` and `.loads` files next to a binary.
 fn tool(cmd: &Cmd) -> Output {
     if cmd.program == PLUTIL {
         let key = &cmd.args[1];

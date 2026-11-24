@@ -12,4 +12,4 @@ unsigned long dx_gpu_guarded(void (*func)(void *), void *ctx);
 }
 #endif
 
-#endif // CUDA_PRIVATE_GPU_GPU_GUARD_H_
+#endif

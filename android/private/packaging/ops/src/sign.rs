@@ -1,5 +1,3 @@
-//! Signs one APK with apksigner or one App Bundle with jarsigner.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -16,7 +14,6 @@ fn var(name: &str) -> String {
     std::env::var(name).unwrap_or_default()
 }
 
-/// The value of `--<flag>=` among `args`; the last one wins.
 #[must_use]
 pub fn flag(args: &[String], flag: &str) -> String {
     args.iter()
@@ -30,7 +27,6 @@ pub fn flag(args: &[String], flag: &str) -> String {
         .to_owned()
 }
 
-/// A launcher setting: the environment variable when set, else the launcher flag.
 fn setting(args: &[String], name: &str, env: &str) -> String {
     Some(var(env))
         .filter(|value| !value.is_empty())
@@ -45,7 +41,6 @@ fn need(name: &str, hint: &str) -> Result<String, Failure> {
     Ok(value)
 }
 
-/// The key the user names: keystore, password files and alias.
 struct Key {
     keystore: PathBuf,
     store_pass: PathBuf,
@@ -90,7 +85,6 @@ fn file_arg(prefix: &str, file: &Path) -> String {
     format!("{prefix}{}", file.display())
 }
 
-/// Whether both paths name one file.
 fn same_file(left: &Path, right: &Path) -> bool {
     if left == right {
         return true;
@@ -117,10 +111,7 @@ fn publish(from: &Path, to: &Path) -> Result<(), Failure> {
     Ok(())
 }
 
-/// Whether the schemes ask for a v4 signature; v4 alone is an error.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn wants_v4(schemes: &[&str]) -> Result<bool, &'static str> {
     if !schemes.contains(&"v4") {
@@ -132,7 +123,6 @@ pub fn wants_v4(schemes: &[&str]) -> Result<bool, &'static str> {
     Err("scheme v4 needs v2 or v3")
 }
 
-/// The apksigner flags that turn each scheme on or off.
 #[must_use]
 pub fn scheme_flags(schemes: &[&str]) -> Vec<String> {
     SCHEMES
@@ -147,7 +137,6 @@ pub fn scheme_flags(schemes: &[&str]) -> Vec<String> {
 }
 
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run_apk(args: &[String]) -> Outcome {
     let apk = setting(args, "apk", "DX_SIGN_APK");
@@ -259,7 +248,6 @@ pub fn run_apk(args: &[String]) -> Outcome {
     Ok(0)
 }
 
-/// The jarsigner signature algorithm for the key `keytool -list -v` describes.
 #[must_use]
 pub fn signature_algorithm(listing: &str) -> Option<&'static str> {
     let line = listing
@@ -274,7 +262,6 @@ pub fn signature_algorithm(listing: &str) -> Option<&'static str> {
     None
 }
 
-/// Why `jarsigner -verify -strict` output does not prove a signed bundle, if it does not.
 #[must_use]
 pub fn verify_error(ran: &Captured) -> Option<&'static str> {
     let plain = "signed App Bundle failed verification";
@@ -298,7 +285,6 @@ pub fn verify_error(ran: &Captured) -> Option<&'static str> {
     (!ran.line_starts("jar verified")).then_some(plain)
 }
 
-/// The JDK directory: `DX_SIGN_JAVABASE` when set, else two levels above the launcher's java.
 fn java_home(args: &[String]) -> PathBuf {
     let home = var("DX_SIGN_JAVABASE");
     if !home.is_empty() {
@@ -312,7 +298,6 @@ fn java_home(args: &[String]) -> PathBuf {
 }
 
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run_aab(args: &[String]) -> Outcome {
     let aab = setting(args, "aab", "DX_SIGN_AAB");

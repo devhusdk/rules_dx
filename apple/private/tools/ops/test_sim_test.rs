@@ -1,5 +1,3 @@
-//! Tests the test simulator programs.
-
 mod fake;
 
 use std::cell::Cell;

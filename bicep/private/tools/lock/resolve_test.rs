@@ -1,5 +1,3 @@
-//! The bicep lock step writes the golden lock from the registry fixture with an empty `PATH` and no network.
-
 use std::cell::RefCell;
 
 use bicep_lock::{Bicep, Registry, references};

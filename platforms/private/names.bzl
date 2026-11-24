@@ -14,8 +14,6 @@ _X86_64 = "@platforms//cpu:x86_64"
 _ARM64 = "@platforms//cpu:arm64"
 _WASM32 = "@platforms//cpu:wasm32"
 
-# Core names carry their constraints. Family names get theirs from the family's dx.platform tag;
-# the ones here only describe a stub platform when no family registered the name.
 PLATFORMS = {
     "android_arm64": _name("android", "arm64", "android", [_ANDROID, _ARM64]),
     "android_x86_64": _name("android", "x86_64", "android", [_ANDROID, _X86_64]),
@@ -32,10 +30,8 @@ PLATFORMS = {
     "windows_x86_64": _name("windows", "x86_64", "core", [_WINDOWS, _X86_64]),
 }
 
-# OS-only names, valid only on rules whose output does not depend on the CPU.
 OS_NAMES = ["android", "ios", "linux", "macos", "web", "windows"]
 
-# The constraints that identify each OS, for OS and group keys in platform_select.
 OS_CONSTRAINTS = {
     "android": [_ANDROID],
     "ios": [_IOS],
@@ -46,7 +42,6 @@ OS_CONSTRAINTS = {
     "windows": [_WINDOWS],
 }
 
-# The full name an OS-only entry moves to when the list names no full name with that OS. Other OS names take their first full name, sorted.
 OS_DEFAULTS = {
     "android": "android_arm64",
     "ios": "ios_arm64",
@@ -55,20 +50,17 @@ OS_DEFAULTS = {
     "windows": "windows_x86_64",
 }
 
-# Groups exist only as platform_select keys.
 GROUPS = {
     "apple": ["ios", "macos"],
     "posix": ["android", "ios", "linux", "macos"],
     "wasm": ["wasip1", "web"],
 }
 
-# The constraint value of the family setting that marks a stub platform, per owner.
 STUB_MARKS = {
     "android": "needs_rules_dx_android",
     "apple": "needs_rules_dx_apple",
 }
 
-# The name of each host that Bazel can run on, keyed by repository_ctx.os name and arch.
 HOSTS = {
     ("linux", "aarch64"): "linux_arm64",
     ("linux", "amd64"): "linux_x86_64",

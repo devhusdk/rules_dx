@@ -1,5 +1,3 @@
-//! Tests the simctl operations.
-
 mod fake;
 
 use std::path::PathBuf;

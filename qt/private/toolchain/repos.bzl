@@ -884,7 +884,6 @@ def _qt_cell_repo_impl(ctx):
         fail("qt: module '" + module + "' is not one of " + ", ".join(sorted(MODULES.keys())))
     entry = cells[ctx.attr.cell]
     if entry.runtime != None and not seven_zip_reads_rpm(seven_zip_host(ctx)):
-        # Loading a target that selects per cell fetches every cell, so this host still needs a BUILD file here.
         ctx.file("BUILD.bazel", stub_build(
             module,
             str(Label("//qt/private/toolchain:unsupported.bzl")),

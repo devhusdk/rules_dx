@@ -35,7 +35,6 @@ fn binary_is_device_linked() {
         sorted(fatbin::device_code(&binary).unwrap()),
         sorted(expected())
     );
-    // PE files carry no symbol names for the linked-binary registration.
     assert!(
         cfg!(windows) || dx_testing::contains_bytes(&binary, b"__cudaRegisterLinkedBinary"),
         "binary has no device-link registration"

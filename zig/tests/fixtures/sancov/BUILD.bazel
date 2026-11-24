@@ -4,7 +4,6 @@ load("//zig:defs.bzl", "zig_test")
 
 package(default_testonly = True)
 
-# Built the way a macOS coverage build is, plus -flld for ELF and unstripped, so Linux proves the sancov path.
 zig_test(
     name = "sancov_subject_test",
     size = "small",

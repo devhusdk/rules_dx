@@ -416,7 +416,6 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/sanitize:tsan_test",
 )
 
-# These run under the Xcode toolchain; the llvm_*san tests stay Linux-only.
 cc_toolchain_test(
     name = "xcode_asan_test",
     compiler = "llvm",
@@ -842,7 +841,6 @@ test_suite(
     ],
 )
 
-# apple_support's rule-based toolchain reports its label as toolchain_id.
 resolved_cc_toolchain(
     name = "macos_arm64_cc",
     testonly = True,

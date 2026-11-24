@@ -1,5 +1,3 @@
-//! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -35,13 +33,11 @@ fn report(prefix: &str, outcome: Outcome) -> u8 {
     }
 }
 
-/// Runs the operation its arguments name; the `apple_ops` helper of dx-runtime.
 pub fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     std::process::ExitCode::from(run(&args))
 }
 
-/// Runs the operation `args` names and returns its exit code.
 pub fn run(args: &[String]) -> u8 {
     let (name, rest) = match args.split_first() {
         Some((name, rest)) => (name.as_str(), rest),
@@ -134,14 +130,12 @@ pub fn run(args: &[String]) -> u8 {
     }
 }
 
-/// The process group of this process.
 #[expect(unsafe_code, reason = "getpgrp has no safe std API")]
 fn own_group() -> i32 {
     // SAFETY: getpgrp has no arguments and cannot fail.
     unsafe { libc::getpgrp() }
 }
 
-/// Whether the process group `group` still has a process.
 #[expect(unsafe_code, reason = "kill has no safe std API")]
 fn group_alive(group: i32) -> bool {
     // SAFETY: kill with signal 0 only checks that the group exists.
@@ -149,7 +143,6 @@ fn group_alive(group: i32) -> bool {
     rc == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
-/// Creates one test simulator and prints its UDID.
 fn create_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,
@@ -165,7 +158,6 @@ fn create_test_simulator() -> u8 {
     )
 }
 
-/// Deletes the test simulator `SIMULATOR_UDID` names.
 fn delete_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,

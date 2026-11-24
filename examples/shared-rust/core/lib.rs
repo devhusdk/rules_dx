@@ -1,5 +1,3 @@
-//! Shared task and asset board driven by every product adapter.
-
 use std::fmt;
 use std::num::ParseIntError;
 

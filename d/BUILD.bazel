@@ -14,7 +14,6 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-# Public so users can register their own D compiler toolchain.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],

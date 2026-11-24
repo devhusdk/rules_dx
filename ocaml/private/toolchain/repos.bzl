@@ -67,7 +67,6 @@ ocaml_import(
 )
 """
 
-# Aliases that resolve to an empty filegroup on exec platforms without an OCaml cell.
 EMPTY_DEFAULT_ALIASES = ["stdlib_cmis"]
 
 _NONE = """filegroup(
@@ -76,7 +75,6 @@ _NONE = """filegroup(
 )
 """
 
-# Aliases of the hub that select the target cell's own label: name -> label in the dist repository.
 CELL_ALIASES = {
     "stdlib": "//:stdlib",
     "stdlib_cmi": "//:lib/ocaml/stdlib.cmi",

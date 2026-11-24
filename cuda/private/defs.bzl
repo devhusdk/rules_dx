@@ -60,13 +60,11 @@ _cuda_library_forward = dx_library_forward_rule(
     ),
 )
 
-# nvcc on Windows only drives cl.exe.
 _HOST_COMPILER = select({
     Label("@platforms//os:windows"): "msvc",
     "//conditions:default": "",
 })
 
-# cl.exe objects carry the MSVC STL, so on Windows only an msvc link may take them.
 _MSVC_LINK_ON_WINDOWS = select({
     Label("//cuda/private/toolchain:windows_msvc"): [],
     Label("@platforms//os:windows"): [Label("@platforms//:incompatible")],
@@ -103,19 +101,16 @@ _cuda_forward_test = dx_executable_forward_rule(
     ),
 )
 
-# lib.exe writes no archive for a library without objects.
 _EMPTY_SRCS = select({
     Label("@platforms//os:windows"): [Label("//cuda/private/toolchain:empty.cu")],
     "//conditions:default": [],
 })
 
-# Outside cuda_host_transition an upstream target needs the dynamic CUDA runtime and, on Windows, a cl.exe link.
 _UPSTREAM_ONLY_UNDER_TRANSITION = select({
     Label("//cuda/private/toolchain:static_runtime_enabled"): [],
     "//conditions:default": [Label("@platforms//:incompatible")],
 })
 
-# nvcc rejects clang newer than CUDA_MAX_HOST_CLANG_MAJOR; the main @llvm is ahead of it.
 _ALLOW_UNSUPPORTED_COMPILER = select({
     Label("//cc/private/toolchain:gcc_selected"): [],
     "//conditions:default": ["nvcc_allow_unsupported_compiler"],
@@ -132,7 +127,6 @@ def _cuda_features(features):
         return features + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
     return list(features) + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
 
-# nvcc warnings that are off by default but catch real device-code bugs.
 _NVCC_WARNINGS = ["-Wreorder", "-Wdefault-stream-launch", "-Wmissing-launch-bounds", "-Wext-lambda-captures-this", "--display-error-number"]
 
 def _cuda_copts(kwargs):
@@ -280,7 +274,6 @@ def _cuda_executable(cc_rule, forward_rule, test, name, srcs, gpu_archs, deps, h
     upstream_kwargs = dict(kwargs)
     upstream_kwargs["target_compatible_with"] = kwargs["target_compatible_with"] + _UPSTREAM_ONLY_UNDER_TRANSITION
     if test:
-        # env stays on the cc_test, next to the data its $(location) values expand over.
         upstream_kwargs = dx_test_upstream_kwargs(upstream_kwargs, srcs = host, upstream_env = True)
         forward_kwargs = dx_test_forward_kwargs(kwargs, run_env = False)
         forward_kwargs["testonly"] = True

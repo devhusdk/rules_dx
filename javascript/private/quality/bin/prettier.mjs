@@ -10,7 +10,6 @@ const PLUGINS = {
   "prettier-plugin-gherkin": [".feature"],
   "@prettier/plugin-php": [".php"],
 };
-// prettier-plugin-sh is loaded for Dockerfiles only; shell stays with shfmt.
 const DOCKERFILE_PLUGIN = "prettier-plugin-sh";
 const RESERVED = ["--config", "--no-config", "--config-precedence", "--plugin", "--ignore-path"];
 
@@ -21,7 +20,6 @@ function fail(message) {
   process.exit(2);
 }
 
-// dx passes a bound prettier_config as --dx-config=<abs>; it replaces dx's default options.
 const dxConfigs = [];
 const args = process.argv.slice(2).filter((arg) => {
   if (arg === DX_CONFIG) {
@@ -45,11 +43,7 @@ if (reserved !== undefined) {
   process.stderr.write(`prettier: ${reserved.split("=")[0]} is set by dx and cannot be passed\n`);
   process.exit(2);
 }
-// Avro IDL (.avdl) is not JSON; prettier has no parser for it, so it is never passed on.
 const isAvdl = (arg) => !arg.startsWith("-") && arg.toLowerCase().endsWith(".avdl");
-// Helm chart templates are Go templates, not YAML or HTML; the Go template plugin rewrites common
-// chart idioms into different YAML, so only Chart.yaml, values files and plain YAML are formatted.
-// A file is a chart template when a "templates" directory sits next to a Chart.yaml.
 function isHelmOnly(arg) {
   if (arg.startsWith("-")) {
     return false;
@@ -73,7 +67,6 @@ const files = forwarded.filter((arg) => !arg.startsWith("-")).map((arg) => arg.t
 const plugins = Object.entries(PLUGINS)
   .filter(([, extensions]) => files.some((file) => extensions.some((extension) => file.endsWith(extension))))
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
-// Mirrors is_dockerfile_name in core/quality/sources.bzl; keep the two in sync.
 function isDockerfileName(file) {
   const base = path.basename(file);
   if (base.endsWith(".dockerignore")) {
@@ -87,10 +80,7 @@ const dockerfiles = files.length > 0 && files.every(isDockerfileName);
 if (files.some(isDockerfileName)) {
   plugins.push(`--plugin=${fileURLToPath(import.meta.resolve(DOCKERFILE_PLUGIN))}`);
 }
-// Prettier cannot infer a parser for names like Dockerfile.prod.
 const parser = dockerfiles ? ["--parser=dockerfile"] : [];
-// CloudFormation allows a .template extension for either JSON or YAML; prettier cannot infer a
-// parser for it, so one is picked from the content when the whole batch agrees.
 function templateParser(file) {
   const lower = file.toLowerCase();
   if (lower.endsWith(".json")) {

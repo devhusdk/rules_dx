@@ -1,6 +1,3 @@
-//! The source-built selene parses Lua 5.2 to 5.4 syntax and still reports lints with the staged
-//! default config.
-
 use dx_testing::{env_file, path_text, run};
 
 fn selene(source: &str) -> dx_testing::Run {

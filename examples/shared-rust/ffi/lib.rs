@@ -1,5 +1,3 @@
-//! C interface that the Android activity and native callers link against.
-
 #![expect(
     unsafe_code,
     reason = "the C interface exports unmangled symbols that read and write caller buffers"
@@ -42,10 +40,7 @@ unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
     value.len()
 }
 
-/// Loads a board and returns its task count, or -1 when the text is invalid.
-///
 /// # Safety
-///
 /// `data` must point to `len` readable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
@@ -58,10 +53,7 @@ pub unsafe extern "C" fn tasks_load(data: *const u8, len: usize) -> i32 {
     count
 }
 
-/// Applies one command and writes its reply; returns 0, 1 when rejected, or -1 without a board.
-///
 /// # Safety
-///
 /// `data` must point to `len` readable bytes and `out` to `cap` writable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, cap: usize) -> i32 {
@@ -78,10 +70,7 @@ pub unsafe extern "C" fn tasks_apply(data: *const u8, len: usize, out: *mut u8, 
     i32::from(answer.starts_with("err:"))
 }
 
-/// Writes the board summary and returns its length, or 0 without a board.
-///
 /// # Safety
-///
 /// `out` must point to `cap` writable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_summary(out: *mut u8, cap: usize) -> usize {
@@ -92,10 +81,7 @@ pub unsafe extern "C" fn tasks_summary(out: *mut u8, cap: usize) -> usize {
     }
 }
 
-/// Writes the asset report for one named payload and returns its length, or 0 for an invalid name.
-///
 /// # Safety
-///
 /// `name` and `data` must point to `name_len` and `len` readable bytes, `out` to `cap` writable bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn tasks_asset_report(

@@ -1,16 +1,13 @@
-//! Resolves a Bundler gem set from its manifest through the rubygems.org compact index and writes its lock and Bundler state file.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-/// The gem host.
 pub const BASE: &str = "https://rubygems.org";
 
 const PINS: &str = include_str!("../../../../pins.json");
 
-/// The version of the pinned Ruby toolchain.
 #[must_use]
 pub fn pinned_ruby() -> String {
     serde_json::from_str::<serde_json::Value>(PINS)
@@ -23,20 +20,15 @@ pub fn pinned_ruby() -> String {
         .unwrap_or_default()
 }
 
-/// Downloads index answers and gems.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Registry(HttpFetch);
 
 impl Registry {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -55,13 +47,11 @@ impl Download for Registry {
     }
 }
 
-/// The compact index URL of a gem.
 #[must_use]
 pub fn info_url(name: &str) -> String {
     format!("{BASE}/info/{name}")
 }
 
-/// The URL of a gem file.
 #[must_use]
 pub fn gem_url(name: &str, version: &str) -> String {
     format!("{BASE}/gems/{name}-{version}.gem")
@@ -73,7 +63,6 @@ enum Segment {
     Text(String),
 }
 
-/// A `Gem::Version`.
 #[derive(Clone, Debug)]
 struct Version(Vec<Segment>);
 
@@ -173,7 +162,6 @@ impl PartialEq for Version {
 
 impl Eq for Version {}
 
-/// One `Gem::Requirement` clause such as `~> 2.4.1`.
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Requirement {
     op: String,
@@ -181,8 +169,6 @@ pub struct Requirement {
 }
 
 impl Requirement {
-    /// Parses `<op> <version>`, where a bare version means `=`.
-    ///
     /// # Errors
     /// Fails on an unknown operator or a version that is not a gem version.
     pub fn parse(text: &str) -> Result<Self, Error> {
@@ -230,7 +216,6 @@ impl Requirement {
     }
 }
 
-/// The lockfile text of a requirement list: empty for none, else ` (<clauses>)`.
 fn requirement_suffix(requirements: &[Requirement]) -> String {
     let mut clauses: Vec<String> = requirements
         .iter()
@@ -246,12 +231,9 @@ fn requirement_suffix(requirements: &[Requirement]) -> String {
     format!(" ({})", clauses.join(", "))
 }
 
-/// One `gem` line of a Bundler manifest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Wanted {
-    /// The requirement clauses.
     pub requirements: Vec<Requirement>,
-    /// Whether every group of the line is `development` or `test`.
     pub dev: bool,
 }
 
@@ -289,8 +271,6 @@ fn is_dev(groups: &[String]) -> bool {
             .all(|group| group == "development" || group == "test")
 }
 
-/// The `gem` lines of a Bundler manifest, by gem name.
-///
 /// # Errors
 /// Fails on a source other than rubygems.org, on a git, path or gemspec dependency, and on a line it does not read.
 pub fn parse_gemfile(text: &str) -> Result<BTreeMap<String, Wanted>, Error> {
@@ -412,7 +392,6 @@ pub fn parse_gemfile(text: &str) -> Result<BTreeMap<String, Wanted>, Error> {
     Ok(gems)
 }
 
-/// One version of a gem in the compact index.
 #[derive(Clone, Debug)]
 struct Indexed {
     version: Version,
@@ -468,7 +447,6 @@ fn parse_info(name: &str, text: &str) -> Result<Vec<Indexed>, Error> {
     Ok(versions)
 }
 
-/// The most bytes read from one gem member.
 const MEMBER_LIMIT: u64 = 64 << 20;
 
 const GEM_LIMITS: dx_archive::Limits = dx_archive::Limits {
@@ -477,7 +455,6 @@ const GEM_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_total_bytes: 256 << 20,
 };
 
-/// The import roots under the require paths of a gem file.
 fn gem_provides(name: &str, bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     let mut metadata = None;
     let mut data = None;
@@ -567,7 +544,6 @@ fn gem_provides(name: &str, bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     Ok(provides)
 }
 
-/// The versions and `BUNDLED WITH` value of a previous Bundler state file.
 fn previous_state(text: &str) -> (BTreeMap<String, String>, Option<String>) {
     let mut versions = BTreeMap::new();
     let mut bundled = None;
@@ -596,7 +572,6 @@ fn previous_state(text: &str) -> (BTreeMap<String, String>, Option<String>) {
     (versions, bundled)
 }
 
-/// The resolver of the ruby ecosystem.
 pub struct Ruby<'a> {
     manifest: String,
     state: String,
@@ -607,7 +582,6 @@ pub struct Ruby<'a> {
 const ROUNDS: usize = 64;
 
 impl<'a> Ruby<'a> {
-    /// A resolver that downloads with `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -618,7 +592,6 @@ impl<'a> Ruby<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -760,7 +733,6 @@ impl<'a> Ruby<'a> {
     }
 }
 
-/// The `gem_deps` extra of a gem: each dependency mapped to its requirement clauses.
 fn gem_deps(found: &Indexed) -> BTreeMap<String, serde_json::Value> {
     if found.deps.is_empty() {
         return BTreeMap::new();
@@ -956,7 +928,6 @@ mod tests {
     }
 }
 
-/// Runs the ruby lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("ruby") else {

@@ -1,4 +1,3 @@
-//! The Android packaging operations: adb, APK sets, package checks and release signing.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -11,13 +10,11 @@ pub mod check;
 pub mod sign;
 pub mod util;
 
-/// Runs the operation its arguments name; the `android_ops` helper of dx-runtime.
 pub fn main() -> std::process::ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     std::process::ExitCode::from(run(&args))
 }
 
-/// Runs the operation `args` names and returns its exit code.
 #[must_use]
 pub fn run(args: &[String]) -> u8 {
     let (name, rest) = match args.split_first() {

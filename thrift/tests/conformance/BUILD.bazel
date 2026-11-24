@@ -2,8 +2,6 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//thrift:defs.bzl", "thrift_cc_library", "thrift_java_library", "thrift_library", "thrift_rust_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
-# The dirty fixtures stay in their own manual targets; gazelle would merge them
-# into the clean library.
 # gazelle:exclude lint_dirty.thrift
 
 package(

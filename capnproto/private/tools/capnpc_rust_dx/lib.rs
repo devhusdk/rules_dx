@@ -1,12 +1,4 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
-//! Generates the Rust crate sources of one `capnproto_rust_library`.
-//!
-//! The driver runs the pinned `capnp` compiler over the staged import closure,
-//! reads the `CodeGeneratorRequest` it writes to stdout, maps every import to the
-//! crate that owns its generated code, and runs the `capnpc` code generator.
-//! It writes one `<stem>_capnp.rs` per owned schema and a `lib.rs` that declares
-//! them as top-level modules. Any failure exits non-zero and never leaves a
-//! partial crate: the caller declares every output, so a missing one fails the action.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -76,7 +68,6 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
     Ok(args)
 }
 
-/// The module name capnpc gives a schema: the file stem with `-` as `_`, plus `_capnp`.
 fn module_name(path: &str) -> Result<String, String> {
     let file = path.rsplit('/').next().unwrap_or(path);
     let stem = file
@@ -88,7 +79,6 @@ fn module_name(path: &str) -> Result<String, String> {
     Ok(format!("{}_capnp", stem.replace('-', "_")))
 }
 
-/// The generated file for an owned schema, relative to the output directory.
 fn generated_path(path: &str) -> Result<String, String> {
     let module = module_name(path)?;
     let dir = path.rsplit_once('/').map_or("", |(d, _)| d);
@@ -99,7 +89,6 @@ fn generated_path(path: &str) -> Result<String, String> {
     })
 }
 
-/// Checks the owned schemas and returns their module names in order.
 fn owned_modules(own: &[String]) -> Result<Vec<(String, String)>, String> {
     let mut seen: BTreeMap<String, String> = BTreeMap::new();
     for path in own {
@@ -114,10 +103,6 @@ fn owned_modules(own: &[String]) -> Result<Vec<(String, String)>, String> {
     Ok(seen.into_iter().map(|(m, p)| (p, m)).collect())
 }
 
-/// Reads the request and maps the id of every provided import to its crate.
-///
-/// `own` is the set of schemas this crate owns. Every import of a requested file
-/// must be owned, provided by a dependency crate, or a bundled `/capnp/` schema.
 fn resolve_provides(
     request: code_generator_request::Reader<'_>,
     own: &BTreeSet<String>,
@@ -168,7 +153,6 @@ fn resolve_provides(
             } else if path == STD_SCHEMA {
                 map.insert(id, "capnp".to_string());
             } else if path.starts_with(STD_PREFIX) {
-                // Bundled annotation schemas such as c++.capnp and java.capnp generate no code.
             } else {
                 return Err(format!(
                     "{filename}: import {written} resolves to /{path}, which is neither owned by this \
@@ -200,7 +184,6 @@ fn run(args: &Args) -> Result<(), String> {
     let own: BTreeSet<String> = args.own.iter().cloned().collect();
 
     let mut command = Command::new(&args.capnp);
-    // capnp warns when PWD does not match the working directory.
     command
         .env_remove("PWD")
         .args(["compile", "-o", "-", "--no-standard-import"])
@@ -250,7 +233,6 @@ fn run(args: &Args) -> Result<(), String> {
         .map_err(|e| format!("cannot write lib.rs: {e}"))
 }
 
-/// Runs the driver with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(raw: &[String]) -> i32 {
     match parse_args(raw).and_then(|args| run(&args)) {

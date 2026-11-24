@@ -26,8 +26,6 @@ func allAnalyzers() []*lint.Analyzer {
 	return append(out, reporting(unused.Analyzer))
 }
 
-// reporting makes the unused analyzer report its findings as diagnostics.
-// Staticcheck's own driver reads them from the analyzer result instead.
 func reporting(base *lint.Analyzer) *lint.Analyzer {
 	wrapped := *base.Analyzer
 	wrapped.Run = func(pass *analysis.Pass) (any, error) {
@@ -66,8 +64,6 @@ func position(fset *token.FileSet, at token.Position) token.Pos {
 	return pos
 }
 
-// defaultConfig is staticcheck's own default: every check except the ones
-// marked non-default.
 func defaultConfig() config.Config {
 	cfg := config.DefaultConfig
 	cfg.Checks = []string{"all"}
@@ -79,8 +75,6 @@ func defaultConfig() config.Config {
 	return cfg
 }
 
-// loadConfig reads one staticcheck.conf and merges it onto the default.
-// No parent directory is searched.
 func loadConfig(path string) (config.Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -93,8 +87,6 @@ func loadConfig(path string) (config.Config, error) {
 	return defaultConfig().Merge(own), nil
 }
 
-// selectChecks applies staticcheck's checks rules: all or *, -NAME,
-// category globs such as ST*, prefix globs such as SA1*, and plain names.
 func selectChecks(names, rules []string) map[string]bool {
 	allowed := map[string]bool{}
 	for _, rule := range rules {
@@ -146,8 +138,6 @@ func selectAnalyzers(cfg config.Config) []*analysis.Analyzer {
 
 var active = defaultConfig()
 
-// configure reads -config FILE and makes the staticcheck config analyzer
-// return it instead of searching the source tree.
 func configure(extra []string) error {
 	flags := flag.NewFlagSet("staticcheck", flag.ContinueOnError)
 	path := flags.String("config", "", "staticcheck.conf to apply")

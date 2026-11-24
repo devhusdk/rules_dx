@@ -1,31 +1,21 @@
-//! Locks the distributions a Carton snapshot pins for the modules the manifest requires.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
-/// The CPAN mirror a snapshot `pathname` is relative to.
 pub const SOURCE: &str = "https://cpan.metacpan.org/authors/id/";
 
-/// The resolver of the cpan ecosystem.
 pub struct Cpan;
 
-/// One `DISTRIBUTIONS` entry of a Carton snapshot.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Distribution {
-    /// The entry key, `<name>-<version>`, which is also the archive's top directory.
     pub key: String,
-    /// The archive path below [`SOURCE`].
     pub pathname: String,
-    /// The Perl packages the distribution provides.
     pub provides: Vec<String>,
-    /// The Perl modules the distribution requires.
     pub requirements: Vec<String>,
 }
 
-/// The distributions of a Carton snapshot, in file order.
-///
 /// # Errors
 /// Fails when the text is not a version 1.0 snapshot, an entry has no `pathname`, or a key has no version.
 pub fn parse_snapshot(text: &str) -> Result<Vec<Distribution>, Error> {
@@ -92,7 +82,6 @@ pub fn parse_snapshot(text: &str) -> Result<Vec<Distribution>, Error> {
     Ok(out)
 }
 
-/// The modules of the `requires` lines of the manifest.
 #[must_use]
 pub fn parse_requires(text: &str) -> Vec<String> {
     text.lines()
@@ -105,8 +94,6 @@ pub fn parse_requires(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// The lock packages of a snapshot: each requirement becomes the distribution that provides it.
-///
 /// # Errors
 /// Fails when the snapshot does, two distributions share a name, or a required module is in no distribution.
 pub fn packages(manifest: &str, snapshot: &str) -> Result<Vec<Package>, Error> {
@@ -163,7 +150,6 @@ pub fn packages(manifest: &str, snapshot: &str) -> Result<Vec<Package>, Error> {
 }
 
 impl Cpan {
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -196,7 +182,6 @@ impl Resolver for Cpan {
     }
 }
 
-/// Runs the cpan lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("cpan") else {

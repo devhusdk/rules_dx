@@ -1,23 +1,17 @@
-//! What the operations share: failures, scratch directories and the process runner.
-
 use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-/// Why an operation stopped, with its exit code.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Failure {
     pub code: u8,
     pub message: String,
 }
 
-/// The exit code of an operation, or why it stopped.
 pub type Outcome = Result<u8, Failure>;
 
-/// Reads one environment variable; empty values count as unset.
 pub type Env<'a> = &'a dyn Fn(&str) -> Option<String>;
 
-/// A bad invocation: exit code 2.
 pub fn usage(message: impl Into<String>) -> Failure {
     Failure {
         code: 2,
@@ -25,7 +19,6 @@ pub fn usage(message: impl Into<String>) -> Failure {
     }
 }
 
-/// A rejected input: exit code 1.
 pub fn reject(message: impl Into<String>) -> Failure {
     Failure {
         code: 1,
@@ -33,7 +26,6 @@ pub fn reject(message: impl Into<String>) -> Failure {
     }
 }
 
-/// A missing tool: exit code 127.
 pub fn missing(message: impl Into<String>) -> Failure {
     Failure {
         code: 127,
@@ -41,19 +33,16 @@ pub fn missing(message: impl Into<String>) -> Failure {
     }
 }
 
-/// The process environment, with empty values dropped.
 #[must_use]
 pub fn process_env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
 
-/// Maps a child's exit code to this program's.
 #[must_use]
 pub fn exit_code(code: Option<i32>) -> u8 {
     code.and_then(|code| u8::try_from(code).ok()).unwrap_or(1)
 }
 
-/// One program start.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cmd {
     pub program: String,
@@ -61,7 +50,6 @@ pub struct Cmd {
     pub env: Vec<(String, String)>,
 }
 
-/// What a captured run printed. `code` is `None` when the program did not start or was killed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Output {
     pub code: Option<i32>,
@@ -76,15 +64,11 @@ impl Output {
     }
 }
 
-/// Starts programs; tests replace it.
 pub trait Runner {
-    /// Runs `cmd` with no input and captures its output.
     fn capture(&self, cmd: &Cmd) -> Output;
-    /// Runs `cmd` with this process's streams and returns its exit code.
     fn inherit(&self, cmd: &Cmd) -> Option<i32>;
 }
 
-/// Starts real processes.
 pub struct System;
 
 fn command(cmd: &Cmd) -> Command {
@@ -115,10 +99,7 @@ impl Runner for System {
     }
 }
 
-/// A new directory below `TMPDIR`, removed when the operation ends.
-///
 /// # Errors
-///
 /// Returns a usage failure when `TMPDIR` is unset or the directory cannot be made.
 pub fn scratch(env: Env<'_>, name: &str) -> Result<tempfile::TempDir, Failure> {
     let root = env("TMPDIR").ok_or_else(|| usage("TMPDIR names the scratch directory"))?;
@@ -132,23 +113,18 @@ pub fn scratch(env: Env<'_>, name: &str) -> Result<tempfile::TempDir, Failure> {
         })
 }
 
-/// Caps for unpacking an app, framework or IPA; sized above the largest shipped macOS apps.
 pub const BUNDLE_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: 262_144,
     max_entry_bytes: 4 << 30,
     max_total_bytes: 16 << 30,
 };
 
-/// Unpacks the zip `archive` into the new or empty directory `dest`.
-///
 /// # Errors
-///
 /// Returns the error of a member that is unsafe, over [`BUNDLE_LIMITS`] or unreadable.
 pub fn unzip(archive: &Path, dest: &Path) -> io::Result<()> {
     dx_archive::extract(archive, dx_archive::Format::Zip, dest, BUNDLE_LIMITS).map(drop)
 }
 
-/// Whether `name` ends in `.ext`, ignoring ASCII case.
 #[must_use]
 pub fn has_extension(name: &str, ext: &str) -> bool {
     Path::new(name)

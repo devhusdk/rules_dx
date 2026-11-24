@@ -115,19 +115,18 @@ fn git_pushes_through_gh_without_leaking_the_token() {
 }
 
 #[test]
-fn schedule_and_dispatch_only() {
+fn dispatch_only() {
     let on = triggers(WORKFLOW).unwrap();
-    let mut names: Vec<&str> = on
+    let names: Vec<&str> = on
         .as_object()
         .unwrap_or_else(|| panic!("{WORKFLOW} declares no trigger table"))
         .keys()
         .map(String::as_str)
         .collect();
-    names.sort_unstable();
     assert_eq!(
         names,
-        ["schedule", "workflow_dispatch"],
-        "{WORKFLOW} must run on schedule and workflow_dispatch only"
+        ["workflow_dispatch"],
+        "{WORKFLOW} must run on workflow_dispatch only; the audit workflow dispatches it"
     );
 }
 

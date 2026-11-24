@@ -986,18 +986,22 @@ fn evidence_checks_out_in_parallel_without_actions_checkout() {
 
 #[test]
 fn ci_windows_jobs_check_out_with_git() {
-    const CI: &str = ".github/workflows/ci.yml";
-    for name in ["hermetic-windows", "starter-consumer", "preflight"] {
-        let steps = ci_workflow::steps(CI, name).unwrap();
+    for (path, name) in [
+        (".github/workflows/audit.yml", "hermetic-windows"),
+        (".github/workflows/audit.yml", "msix-install"),
+        (".github/workflows/ci.yml", "starter-consumer"),
+        (".github/workflows/ci.yml", "preflight"),
+    ] {
+        let steps = ci_workflow::steps(path, name).unwrap();
         assert!(
             steps
                 .iter()
                 .any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
-            "ci.yml {name} must check out with git and checkout.workers=0"
+            "{path} {name} must check out with git and checkout.workers=0"
         );
         assert!(
             !steps.iter().any(uses_actions_checkout),
-            "ci.yml {name} checks out with git, not actions/checkout"
+            "{path} {name} checks out with git, not actions/checkout"
         );
     }
 }
@@ -1005,6 +1009,7 @@ fn ci_windows_jobs_check_out_with_git() {
 #[test]
 fn windows_capable_jobs_check_out_in_parallel() {
     for path in [
+        ".github/workflows/audit.yml",
         ".github/workflows/evidence.yml",
         ".github/workflows/ci.yml",
         ".github/workflows/reusable-consumer.yml",
@@ -1170,7 +1175,7 @@ fn the_network_job_selects_a_tag_the_network_tests_carry() {
         .expect("NESTED_BAZEL_NETWORK_TAGS is missing");
     let queried: Vec<String> = workflow_values()
         .into_iter()
-        .filter(|(name, _)| name.ends_with("workflows/ci.yml"))
+        .filter(|(name, _)| name.ends_with("workflows/audit.yml"))
         .flat_map(|(_, text)| {
             text.split("attr(tags, ")
                 .skip(1)
@@ -1180,11 +1185,11 @@ fn the_network_job_selects_a_tag_the_network_tests_carry() {
         .collect();
     assert!(
         queried.iter().any(|tag| tag == "network-consumer"),
-        "ci.yml no longer queries the network-consumer tag"
+        "audit.yml no longer queries the network-consumer tag"
     );
     assert!(
         line.contains("\"network-consumer\""),
-        "ci.yml selects network-consumer but NESTED_BAZEL_NETWORK_TAGS does not carry it"
+        "audit.yml selects network-consumer but NESTED_BAZEL_NETWORK_TAGS does not carry it"
     );
 }
 

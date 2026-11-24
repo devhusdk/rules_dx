@@ -10,7 +10,6 @@ on:
       - "tools/docs/**"
       - ".github/workflows/docs.yml"
       - ".github/workflows/reusable-docs.yml"
-  workflow_dispatch: {}
 
 permissions:
   contents: read

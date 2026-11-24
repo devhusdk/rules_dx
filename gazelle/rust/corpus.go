@@ -203,6 +203,16 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			}
 		}
 	}
+	for typ, attr := range map[string]string{"markdown": "markdown_srcs", "starlark": "starlark_srcs", "toml": "toml_srcs", "json": "json_srcs"} {
+		if r, ok := existing["corpus_"+typ]; ok && r.Kind() == corpusKind {
+			for _, src := range r.AttrStrings(attr) {
+				if strings.HasPrefix(src, "//") && !seen[typ+"\x00"+src] {
+					seen[typ+"\x00"+src] = true
+					collected[typ] = append(collected[typ], src)
+				}
+			}
+		}
+	}
 	for _, typ := range collected {
 		sort.Strings(typ)
 	}
@@ -317,7 +327,7 @@ func indexForeignCorpus(root string) (map[string]map[string]bool, error) {
 		if err != nil {
 			return fmt.Errorf("rust: cannot read %s: %w", name, err)
 		}
-		if !bytes.Contains(data, []byte("_corpus(")) {
+		if !bytes.Contains(data, []byte("_corpus(")) && !bytes.Contains(data, []byte("\"corpus_")) {
 			return nil
 		}
 		file, err := rule.LoadData(name, "", data)
@@ -325,7 +335,11 @@ func indexForeignCorpus(root string) (map[string]map[string]bool, error) {
 			return nil
 		}
 		for _, r := range file.Rules {
-			if r.Kind() == corpusKind || !strings.HasSuffix(r.Kind(), "_corpus") {
+			if r.Kind() == corpusKind {
+				if !isGeneratedCorpusName(r.Name()) {
+					continue
+				}
+			} else if !strings.HasSuffix(r.Kind(), "_corpus") {
 				continue
 			}
 			for _, attr := range r.AttrKeys() {

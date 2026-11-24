@@ -38,17 +38,17 @@ _stats_file_off_3_test = analysistest.make(
     },
 )
 
-def scala_stats_file_off_tests(name):
+def scala_stats_file_off_tests(name, size = "small"):
     """Asserts the Scala 2.13 and Scala 3 toolchains write no stats file."""
     _stats_file(name = name + "_subject")
     _stats_file_off_2_13_test(
         name = name + "_2_13",
-        size = "small",
+        size = size,
         target_under_test = ":" + name + "_subject",
     )
     _stats_file_off_3_test(
         name = name + "_3",
-        size = "small",
+        size = size,
         target_under_test = ":" + name + "_subject",
     )
 
@@ -78,17 +78,17 @@ _testing_resolved_3_test = analysistest.make(
     config_settings = {str(Label("@rules_scala_config//:scala_version")): "3.3.9"},
 )
 
-def scala_testing_toolchain_tests(name):
+def scala_testing_toolchain_tests(name, size = "small"):
     """Asserts a testing toolchain resolves for Scala 2.13 and Scala 3."""
     _testing(name = name + "_subject")
     _testing_resolved_2_13_test(
         name = name + "_2_13",
-        size = "small",
+        size = size,
         target_under_test = ":" + name + "_subject",
     )
     _testing_resolved_3_test(
         name = name + "_3",
-        size = "small",
+        size = size,
         target_under_test = ":" + name + "_subject",
     )
 

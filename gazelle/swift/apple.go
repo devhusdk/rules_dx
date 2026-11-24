@@ -18,7 +18,7 @@ const (
 	appVersion   = "1.0"
 )
 
-var appKindInfo = rule.KindInfo{NonEmptyAttrs: map[string]bool{"entry": true}}
+var appKindInfo = rule.KindInfo{NonEmptyAttrs: map[string]bool{"entry": true, "library": true, "srcs": true}}
 
 func AppKind(content []byte) string {
 	if !DefinesMain(content) {

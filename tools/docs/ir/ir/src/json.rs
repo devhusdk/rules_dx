@@ -181,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn string_shim_keeps_the_text() {
+    fn string_error_keeps_the_text() {
         let text: String = field(&object(), "zz", "T")
             .map(|_| ())
             .map_err(String::from)

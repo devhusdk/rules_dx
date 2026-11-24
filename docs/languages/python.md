@@ -125,7 +125,7 @@ before it runs anything. On Windows the extension links the dynamic CRT, so
 an app that ships it must also ship `msvcp140` and `vcruntime140*` from
 `@msvc_runtime`.
 
-## Runfiles
+### Runfiles
 
 `python_binary` needs a runfiles directory; a runfiles manifest alone is not
 enough. The consumer preset sets `build:windows --enable_runfiles`.

@@ -59,6 +59,7 @@ cc_toolchain_test(
 
 soabi_resolution_test(
     name = "soabi_resolution_test",
+    size = "small",
     soabi = "cpython-312-darwin",
     target_under_test = ":resolved_py_cc_toolchain",
 )

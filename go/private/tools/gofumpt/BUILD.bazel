@@ -1,8 +1,16 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//go:defs.bzl", "go_library", "go_test")
+
+copy_file(
+    name = "lock_registry",
+    src = "//gazelle/common:lock_registry.json",
+    out = "lock_registry.json",
+)
 
 go_library(
     name = "gofumpt",
     srcs = ["gofumpt.go"],
+    embedsrcs = [":lock_registry.json"],
     importpath = "rules_dx/go/private/tools/gofumpt",
     visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
     deps = [

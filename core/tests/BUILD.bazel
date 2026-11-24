@@ -157,7 +157,10 @@ packaging_unit_tests(name = "packaging_unit")
 
 harness_link_tests(name = "harness_link")
 
-hermetic_launcher_tests(name = "hermetic_launcher")
+hermetic_launcher_tests(
+    name = "hermetic_launcher",
+    size = "small",
+)
 
 warnings_tests(name = "warnings")
 

@@ -181,10 +181,7 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
 def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}, resource_dir = ""):
-    """Projects a compile command line into a clang-tidy command line.
-
-    `resource_dir` is the builtin header directory of `tidy`; it is added when the compile command names none.
-    """
+    """Projects a compile command line into a clang-tidy command line."""
     if identity.driver == "msvc":
         return _msvc_tidy_argv(tidy, argv, src, identity, config, env)
     rewritten = clang_syntax_argv(argv, src, identity)

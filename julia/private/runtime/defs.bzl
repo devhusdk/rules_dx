@@ -1,5 +1,6 @@
 """Rules over the resolved Julia toolchain for the source-built runtime."""
 
+load("@dx_prebuilt//:downloads.bzl", "DOWNLOADED")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -17,6 +18,24 @@ def source_exec_compatible_with(downloaded, source_constraints):
     if "linux_x86_64" in downloaded.get("julia_internal", []):
         return []
     return source_constraints
+
+def julia_source_toolchain_target(name):
+    """Declares the toolchain that runs every Julia action and binary on Linux x86_64 on the source-built libjulia-internal."""
+    native.toolchain(
+        name = name,
+        exec_compatible_with = source_exec_compatible_with(DOWNLOADED, ["@platforms//os:linux"]),
+        target_compatible_with = [
+            "@platforms//os:linux",
+            "@platforms//cpu:x86_64",
+        ],
+        target_settings = [
+            Label("//config:toolchains_on"),
+            Label("//julia/private/runtime:source_runtime"),
+            Label("@rules_julia//julia/settings:version_" + JULIA_RUNTIME_VERSION),
+        ],
+        toolchain = Label("//julia/private/runtime:source_julia"),
+        toolchain_type = Label(_JULIA_TOOLCHAIN),
+    )
 
 def _runtime_version_impl(_settings, _attr):
     return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}
@@ -95,6 +114,7 @@ def _rlocationpath(ctx, file):
 
 def _julia_source_toolchain_impl(ctx):
     stock = ctx.toolchains[_JULIA_TOOLCHAIN]
+
     # The source build carries the versioned file among others; the hub file and the
     # guard stub are the one file of their target.
     built = [f for f in ctx.files.library if f.basename == _LIBRARY] or ctx.files.library

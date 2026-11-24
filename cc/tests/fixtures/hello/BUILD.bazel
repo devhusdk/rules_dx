@@ -88,6 +88,7 @@ cc_test(
 
 cc_test(
     name = "hello_c_static_test",
+    size = "small",
     srcs = ["hello_c_test.c"],
     linkstatic = True,
     deps = [":hello_c_lib"],

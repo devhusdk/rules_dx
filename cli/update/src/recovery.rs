@@ -343,8 +343,8 @@ mod tests {
     #[test]
     fn commands_quote_words_the_shell_would_split() {
         assert_eq!(
-            restore_command(&["my dir/Cargo.lock".to_owned(), "a;b/it's.lock".to_owned()]),
-            Some("git checkout -- 'my dir/Cargo.lock' 'a;b/it'\\''s.lock'".to_owned())
+            restore_command(&["my dir/app.lock".to_owned(), "a;b/it's.lock".to_owned()]),
+            Some("git checkout -- 'my dir/app.lock' 'a;b/it'\\''s.lock'".to_owned())
         );
         assert_eq!(
             retry_command(

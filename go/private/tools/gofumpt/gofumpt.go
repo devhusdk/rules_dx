@@ -3,6 +3,8 @@ package gofumpt
 
 import (
 	"bytes"
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +20,25 @@ import (
 	gformat "mvdan.cc/gofumpt/format"
 )
 
+//go:embed lock_registry.json
+var lockRegistryJSON []byte
+
+var manifestName = func() string {
+	var entries []struct {
+		Ecosystem string `json:"ecosystem"`
+		Manifest  string `json:"manifest"`
+	}
+	if err := json.Unmarshal(lockRegistryJSON, &entries); err != nil {
+		panic("lock_registry.json: " + err.Error())
+	}
+	for _, entry := range entries {
+		if entry.Ecosystem == "go" {
+			return entry.Manifest
+		}
+	}
+	panic("lock_registry.json: no go entry")
+}()
+
 // Main formats the Go files named in args and returns the exit code.
 // Like upstream, -d exits 1 when a file differs and any error exits 2.
 func Main(args []string, stdout, stderr io.Writer) int {
@@ -26,8 +47,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	list := fs.Bool("l", false, "list files whose formatting differs from gofumpt's")
 	write := fs.Bool("w", false, "write result to the source file instead of stdout")
 	doDiff := fs.Bool("d", false, "display diffs instead of rewriting files")
-	lang := fs.String("lang", "", "target Go version such as go1.26 (default from go.mod)")
-	modpath := fs.String("modpath", "", "Go module path of the files (default from go.mod)")
+	lang := fs.String("lang", "", "target Go version such as go1.26 (default from the module file)")
+	modpath := fs.String("modpath", "", "Go module path of the files (default from the module file)")
 	var extra gformat.Extra
 	fs.Var(&extra, "extra", "enable extra rules, such as -extra=group_params")
 	if err := fs.Parse(args); err != nil {
@@ -111,22 +132,22 @@ func formatFile(path string, opts gformat.Options, m mode, stdout io.Writer) err
 	return err
 }
 
-// fromGoMod fills an unset -lang or -modpath from the nearest go.mod above path.
-// A missing or invalid go.mod leaves them unset, as upstream does.
+// fromGoMod fills an unset -lang or -modpath from the nearest module file above path.
+// A missing or invalid module file leaves them unset, as upstream does.
 func fromGoMod(path string, opts *gformat.Options) error {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
 	for dir := filepath.Dir(abs); ; {
-		gomod := filepath.Join(dir, "go.mod")
+		gomod := filepath.Join(dir, manifestName)
 		if data, readErr := os.ReadFile(gomod); readErr == nil {
 			file, parseErr := modfile.Parse(gomod, data, nil)
 			if parseErr != nil {
 				return nil
 			}
 			if opts.LangVersion == "" {
-				// A go.mod without a go directive means go 1.16.
+				// A module file without a go directive means go 1.16.
 				opts.LangVersion = "go1.16"
 				if file.Go != nil {
 					opts.LangVersion = "go" + file.Go.Version

@@ -28,5 +28,6 @@ ios_application(
 
 apple_coverage_link_test(
     name = "llvm_coverage_map_test",
+    size = "small",
     target_under_test = ":covmap_app",
 )

@@ -637,10 +637,10 @@ mod tests {
             ..DiagnosticEvent::new(Severity::Error, "audit", "vulnerable")
         };
         let mut forward = vec![make("1.0.0"), make("2.0.0")];
-        let mut backward = vec![make("2.0.0"), make("1.0.0")];
+        let mut reversed = vec![make("2.0.0"), make("1.0.0")];
         sort_diagnostics(&mut forward);
-        sort_diagnostics(&mut backward);
-        assert_eq!(forward, backward);
+        sort_diagnostics(&mut reversed);
+        assert_eq!(forward, reversed);
     }
 
     #[test]
@@ -662,10 +662,10 @@ mod tests {
             ..DiagnosticEvent::new(Severity::Warning, "lint", "m")
         };
         let mut forward = vec![fixable.clone(), plain.clone(), related.clone()];
-        let mut backward = vec![related, plain, fixable];
+        let mut reversed = vec![related, plain, fixable];
         sort_diagnostics(&mut forward);
-        sort_diagnostics(&mut backward);
-        assert_eq!(forward, backward);
+        sort_diagnostics(&mut reversed);
+        assert_eq!(forward, reversed);
     }
 
     #[test]
@@ -921,10 +921,10 @@ mod tests {
             Some(Resolution::NotApplied),
         ];
         let mut forward: Vec<DiagnosticEvent> = all.iter().copied().map(make).collect();
-        let mut backward: Vec<DiagnosticEvent> = all.iter().rev().copied().map(make).collect();
+        let mut reversed: Vec<DiagnosticEvent> = all.iter().rev().copied().map(make).collect();
         sort_diagnostics(&mut forward);
-        sort_diagnostics(&mut backward);
-        assert_eq!(forward, backward);
+        sort_diagnostics(&mut reversed);
+        assert_eq!(forward, reversed);
     }
 
     #[test]

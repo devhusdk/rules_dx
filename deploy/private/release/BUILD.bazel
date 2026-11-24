@@ -476,6 +476,7 @@ inventory_unit_tests(name = "inventory_unit")
 
 inventory_file_tests(
     name = "cxx_qt_inventory_test",
+    size = "small",
     absent = [],
     app = "@crates//:cxx-qt-gen",
     present = ["cxx-qt-gen"],

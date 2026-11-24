@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn non_utf8_paths_are_carried_through_unchanged() {
         use std::os::unix::ffi::OsStringExt;
-        let raw = OsString::from_vec(b"/tmp/caf\xe9".to_vec());
+        let raw = OsString::from_vec(b"/work/caf\xe9".to_vec());
         let args = [OsString::from("--workspace"), raw.clone()];
         match plan(&args).expect("plan accepts non-UTF-8") {
             Plan::Install { workspace, .. } => assert_eq!(workspace, Some(raw)),

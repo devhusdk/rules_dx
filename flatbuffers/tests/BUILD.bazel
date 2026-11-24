@@ -327,6 +327,7 @@ flatbuffers_library(
 
 flatbuffers_chain_stage_test(
     name = "chain_stage_test",
+    size = "small",
     target_under_test = ":chain_c",
 )
 
@@ -337,5 +338,6 @@ flatbuffers_cc_library(
 
 build_test(
     name = "chain_cc_test",
+    size = "small",
     targets = [":chain_cc"],
 )

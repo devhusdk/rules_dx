@@ -1852,8 +1852,8 @@ mod tests {
         let strict: serde_json::Value =
             serde_json::from_str(&render_editor_settings(&go, &strict_tools)).expect("json");
         assert_eq!(standard["ui.diagnostic.staticcheck"], true);
-        assert_eq!(standard["ui.diagnostic.analyses"]["ST1000"], false);
-        assert_eq!(strict["ui.diagnostic.analyses"]["ST1000"], true);
+        assert_eq!(standard["ui.diagnostic.analyses"]["shadow"], false);
+        assert_eq!(strict["ui.diagnostic.analyses"]["shadow"], true);
         assert!(standard.get("go.vetFlags").is_none());
         let none = render_editor_settings(&std::collections::BTreeSet::new(), &strict_tools);
         assert!(!none.contains("ui.diagnostic"), "{none}");

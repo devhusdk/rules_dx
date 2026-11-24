@@ -298,17 +298,19 @@ mod tests {
     fn cabal_files_lists_the_packages_next_to_each_project_sorted() {
         let dir = dx_test_scratch::scratch("cabal_files").unwrap();
         let root = dir.path();
+        let project = dx_ecosystems::Ecosystem::Cabal.manifest_name();
+        let nested = format!("sub/{project}");
         for (path, text) in [
-            ("cabal.project", "packages: .\n"),
+            (project, "packages: .\n"),
             ("zeta.cabal", ""),
             ("alpha.CABAL", ""),
             ("README.md", ""),
-            ("sub/cabal.project", "packages: .\n"),
+            (nested.as_str(), "packages: .\n"),
             ("sub/beta.cabal", ""),
         ] {
             dx_test_scratch::write(root, path, text).unwrap();
         }
-        let projects = ["cabal.project".to_owned(), "sub/cabal.project".to_owned()];
+        let projects = [project.to_owned(), nested.clone()];
         assert_eq!(
             cabal_files(root, &projects),
             vec!["alpha.CABAL", "sub/beta.cabal", "zeta.cabal"]

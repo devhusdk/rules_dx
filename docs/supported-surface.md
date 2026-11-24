@@ -2573,6 +2573,12 @@ Tag `dx_gazelle.language`:
 | --- | --- | --- | --- |
 | `library` | `label` | yes |  |
 
+#### `dx_launchers`
+
+Module extension.
+
+No tags.
+
 #### `dx_licenses`
 
 Module extension.
@@ -5163,6 +5169,12 @@ Tag `julia.pkg_annotation`:
 | `patch_tool` | `string` | no | `""` |
 | `patches` | `label_list` | no | `[]` |
 
+#### `julia_runtime`
+
+Module extension.
+
+No tags.
+
 #### `julia_toolchain`
 
 Module extension.
@@ -7528,7 +7540,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//php:runfiles` | `php_library` |
 | `@rules_dx//powershell:dx_coverage` | `alias` |
 | `@rules_dx//powershell:pester` | `alias` |
-| `@rules_dx//powershell:runfiles` | `alias` |
+| `@rules_dx//powershell:runfiles` | `powershell_library` |
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
 | `@rules_dx//rust:prost` | `alias` |
 | `@rules_dx//rust:prost_types` | `alias` |

@@ -63,9 +63,15 @@ test_suite(
     ],
 )
 
-scala_stats_file_off_tests(name = "stats_file_off_test")
+scala_stats_file_off_tests(
+    name = "stats_file_off_test",
+    size = "small",
+)
 
-scala_testing_toolchain_tests(name = "testing_toolchain_test")
+scala_testing_toolchain_tests(
+    name = "testing_toolchain_test",
+    size = "small",
+)
 
 scala_third_version_tests(
     name = "third_version_test",

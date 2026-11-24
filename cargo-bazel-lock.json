@@ -1,5 +1,5 @@
 {
-  "checksum": "5b0a2233bd00a23fbfed6bf498c859969743238cd0c70f5666e0344411a882ee",
+  "checksum": "8e540612f7644d68c21d8e8b795d32e642ade3e25af4dde71d1ea8eac536cec8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -33614,7 +33614,7 @@
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "core_tests_negative 0.0.0": "core/tests/core_tests_negative",
-    "coverlet_launcher 0.0.0": "dotnet/private/coverlet_launcher",
+    "coverlet_launcher 0.0.0": "dotnet/private/tools/coverlet_launcher",
     "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "cuda_tests 0.0.0": "cuda/cuda_tests",
     "d_coverage_launcher 0.0.0": "d/private/tools/d_coverage_launcher",

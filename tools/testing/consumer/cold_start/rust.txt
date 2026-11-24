@@ -1,5 +1,5 @@
 # The repositories a fresh Rust-only consumer fetches on its first `bazel build //...` and
-# `bazel test //...`, one canonical name per line. //tools/testing/consumer:cold_start_test
+# `bazel test //...`, one canonical name per line. //tools/testing/consumer:network_test
 # fails when this list grows or shrinks; when it fails it prints the measured list to paste here.
 _main
 apple_support+

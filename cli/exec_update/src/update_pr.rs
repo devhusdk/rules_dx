@@ -655,10 +655,10 @@ fn refresh_tracking(git: &dyn Fn(&[&str]) -> Result<String, DxError>, branch: &s
         "origin",
         &format!("+refs/heads/{branch}:{tracking}"),
     ]);
-    if fetched.is_err() {
-        if let Err(error) = git(&["update-ref", "-d", &tracking]) {
-            tracing::info!(%error, %tracking, "cannot delete the stale tracking ref");
-        }
+    if fetched.is_err()
+        && let Err(error) = git(&["update-ref", "-d", &tracking])
+    {
+        tracing::info!(%error, %tracking, "cannot delete the stale tracking ref");
     }
 }
 

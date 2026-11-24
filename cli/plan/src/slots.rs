@@ -1528,7 +1528,7 @@ impl Gate {
             &mut |holder: &str, reason: WaitReason| {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
-                let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
+                let message = format!("{}{}", wait_message(holder), reaped_suffix(reaped.unwrap_or(0)));
                 dx_output::write_stderr(&mut **err, format_args!("dx: {message}\n"));
                 if json {
                     let mut event = notice_event(
@@ -2039,23 +2039,15 @@ impl<W: Write> Write for AfterFirstLine<W> {
 
 #[cfg(test)]
 const SETTLE_LIMIT: Duration = Duration::from_secs(5);
-#[cfg(test)]
-const SETTLE_POLL: Duration = Duration::from_millis(10);
 
-/// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.
+/// Waits for `count` slots to come free, since a forked child can briefly hold a released slot's lock.
 /// See `a_child_forked_while_a_slot_is_held_keeps_it_until_exec` for why.
 #[cfg(test)]
 fn slot_settles_free(dir: &Path, count: usize) -> bool {
-    let start = Instant::now();
-    loop {
-        if try_take(dir, count, "settle").expect("try").is_some() {
-            return true;
-        }
-        if start.elapsed() >= SETTLE_LIMIT {
-            return false;
-        }
-        std::thread::sleep(SETTLE_POLL);
-    }
+    (0..count).all(|index| {
+        let path = slot_path(dir, index);
+        !path.exists() || dx_test_scratch::wait::lock_free(&path, SETTLE_LIMIT).is_ok()
+    })
 }
 
 #[cfg(test)]

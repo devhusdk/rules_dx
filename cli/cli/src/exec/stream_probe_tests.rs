@@ -1,7 +1,7 @@
 use super::super::test_support::{closed_pipe, hang_up, reader_gone};
 use dx_os_sys::process::{Presence, SIGHUP, SIGINT, SIGKILL, SIGTERM, group_of, probe, signal};
 #[cfg(target_os = "linux")]
-use dx_os_sys::process::{SIGCONT, SIGSTOP, queue_unattributed, stopped_by};
+use dx_os_sys::process::{SIGCONT, SIGSTOP, await_stop, queue_unattributed};
 use dx_os_sys::spawn;
 #[cfg(target_os = "linux")]
 use dx_os_sys::tty::foreground_group;
@@ -184,29 +184,35 @@ impl Run {
     }
 
     fn logged_pid(&mut self, prefix: &str) -> i32 {
-        let deadline = Instant::now() + Duration::from_secs(30);
-        loop {
-            let log = fs::read_to_string(&self.log).unwrap_or_default();
-            if let Some(pid) = log
+        let log = self.log.clone();
+        let read = || {
+            fs::read_to_string(&log)
+                .unwrap_or_default()
                 .lines()
                 .find_map(|line| line.strip_prefix(prefix))
-                .and_then(|pid| pid.trim().parse().ok())
-            {
-                return pid;
-            }
-            if let Ok(Some(status)) = self.child.try_wait() {
-                panic!(
-                    "dx exited ({status:?}) before Bazel logged {prefix:?}\n{}",
-                    self.context()
-                );
-            }
-            assert!(
-                Instant::now() < deadline,
-                "Bazel never logged {prefix:?}\n{}",
+                .and_then(|pid| pid.trim().parse::<i32>().ok())
+        };
+        let child = &mut self.child;
+        let mut exited = None;
+        let waited = dx_test_scratch::wait::watch_until(
+            &log,
+            &format!("Bazel logging {prefix:?}"),
+            Duration::from_secs(30),
+            || {
+                exited = child.try_wait().ok().flatten();
+                read().is_some() || exited.is_some()
+            },
+        );
+        if let Some(pid) = read() {
+            return pid;
+        }
+        if let Some(status) = exited {
+            panic!(
+                "dx exited ({status:?}) before Bazel logged {prefix:?}\n{}",
                 self.context()
             );
-            std::thread::sleep(Duration::from_millis(20));
         }
+        panic!("{waited:?}\n{}", self.context());
     }
 
     fn signal(&mut self, signo: i32) -> Instant {
@@ -216,17 +222,13 @@ impl Run {
     }
 
     fn exit(&mut self) -> ExitStatus {
-        let deadline = Instant::now() + Duration::from_secs(40);
-        loop {
-            if let Some(status) = self.child.try_wait().expect("wait") {
-                return status;
-            }
-            if Instant::now() >= deadline {
+        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(40)) {
+            Ok(status) => status,
+            Err(error) => {
                 drop(self.child.kill());
                 drop(self.child.wait());
-                panic!("dx did not exit\n{}", self.context());
+                panic!("dx did not exit: {error}\n{}", self.context());
             }
-            std::thread::sleep(Duration::from_millis(20));
         }
     }
 }
@@ -438,19 +440,25 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
     }
 }
 
-fn wait_for_file(run: &mut Run, path: &Path) {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !path.exists() {
-        if let Ok(Some(status)) = run.child.try_wait() {
-            panic!("dx exited ({status:?}) early\n{}", run.context());
+fn run_until(run: &mut Run, path: &Path, what: &str, done: impl Fn(&Run) -> bool) {
+    let mut exited = None;
+    let waited = dx_test_scratch::wait::watch_until(path, what, Duration::from_secs(30), || {
+        if done(run) {
+            return true;
         }
-        assert!(
-            Instant::now() < deadline,
-            "{} never appeared",
-            path.display()
-        );
-        std::thread::sleep(Duration::from_millis(20));
+        exited = run.child.try_wait().ok().flatten();
+        exited.is_some()
+    });
+    if let Some(status) = exited.filter(|_| !done(run)) {
+        panic!("dx exited ({status:?}) early\n{}", run.context());
     }
+    assert!(waited.is_ok(), "{waited:?}\n{}", run.context());
+}
+
+fn wait_for_file(run: &mut Run, path: &Path) {
+    run_until(run, path, &format!("{} appearing", path.display()), |_| {
+        path.exists()
+    });
 }
 
 fn recorded_groups(run: &Run) -> Vec<i32> {
@@ -465,39 +473,25 @@ fn recorded_groups(run: &Run) -> Vec<i32> {
         .collect()
 }
 
-#[expect(
-    clippy::assertions_on_constants,
-    reason = "only Linux must already hold the lease"
-)]
 fn wait_for_lease(run: &mut Run, pgid: i32) {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !recorded_groups(run).contains(&pgid) {
-        assert!(
-            !cfg!(target_os = "linux"),
-            "no lease records group {pgid} while it runs\n{}",
-            run.context()
-        );
-        if let Ok(Some(status)) = run.child.try_wait() {
-            panic!("dx exited ({status:?}) early\n{}", run.context());
-        }
-        assert!(
-            Instant::now() < deadline,
-            "no lease ever recorded group {pgid}\n{}",
-            run.context()
-        );
-        std::thread::sleep(Duration::from_millis(20));
-    }
+    assert!(
+        !cfg!(target_os = "linux") || recorded_groups(run).contains(&pgid),
+        "no lease records group {pgid} while it runs\n{}",
+        run.context()
+    );
+    let groups = run.dir().join("ws/.dx/local/leases/process-groups/group");
+    run_until(
+        run,
+        &groups,
+        &format!("a lease recording group {pgid}"),
+        |run| recorded_groups(run).contains(&pgid),
+    );
 }
 
-fn wait_until_reaped(run: &mut Run, pid: i32) {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while probe(pid) == Presence::Reachable {
-        if let Ok(Some(status)) = run.child.try_wait() {
-            panic!("dx exited ({status:?}) early\n{}", run.context());
-        }
-        assert!(Instant::now() < deadline, "{pid} never exited");
-        std::thread::sleep(Duration::from_millis(20));
-    }
+fn wait_until_exited(pid: i32) {
+    let pid = u32::try_from(pid).expect("pid fits u32");
+    let gone = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30));
+    assert!(gone.is_ok(), "{pid} never exited: {gone:?}");
 }
 
 #[cfg(target_os = "linux")]
@@ -532,8 +526,9 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
         &["build", "//..."],
         &|dir| {
             format!(
-                "--detached-descendant --descendant-count-sigint={} --descendant-sleep-ms=30000 --sleep-ms=30000",
-                dir.join("sigint").display()
+                "--detached-descendant --descendant-count-sigint={} --descendant-alive-lock={} --descendant-sleep-ms=30000 --sleep-ms=30000",
+                dir.join("sigint").display(),
+                dir.join("descendant.alive").display()
             )
         },
         Some(&pty),
@@ -563,7 +558,11 @@ fn a_terminal_child_gets_sigint_once(sender: Sender) {
     let counted = fs::read(&log).expect("sigint log");
     drop(signal(-build_pgid, SIGKILL));
     assert!(
-        wait_until_gone(build_pgid, Duration::from_secs(5)),
+        wait_until_gone(
+            build,
+            Duration::from_secs(5),
+            &[run.dir().join("descendant.alive").as_path()]
+        ),
         "{sender:?}: the terminal group survived SIGKILL"
     );
     assert_eq!(
@@ -648,25 +647,21 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     let build = run.build_pid();
     let log = run.dir().join("sigint");
     wait_for_file(&mut run, &log);
-    let build_pgid = assert_foreground_build(&run, &pty, build);
+    assert_foreground_build(&run, &pty, build);
     let dx = i32::try_from(run.child.id()).expect("pid fits i32");
     signal(dx, SIGSTOP).expect("SIGSTOP");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while stopped_by(dx).expect("waitid") != Some(SIGSTOP) {
-        assert!(
-            Instant::now() < deadline,
-            "dx never stopped\n{}",
-            run.context()
-        );
-        std::thread::sleep(Duration::from_millis(20));
-    }
+    let stopped =
+        dx_test_scratch::wait::within("dx stopping", Duration::from_secs(30), move || {
+            await_stop(dx).ok().flatten()
+        });
+    assert_eq!(stopped, Ok(Some(SIGSTOP)), "{}", run.context());
     (&pty.master).write_all(b"\x1a").expect("ctrl-z");
     wait_until_stopped(build);
     fs::write(run.dir().join("gate"), b"").expect("open the gate");
     signal(dx, SIGCONT).expect("SIGCONT");
     let status = run.exit();
     assert_eq!(status.code(), Some(0), "{status:?}\n{}", run.context());
-    assert!(wait_until_gone(build_pgid, Duration::from_secs(5)));
+    assert!(wait_until_gone(build, Duration::from_secs(5), &[]));
 }
 
 #[test]
@@ -695,15 +690,11 @@ fn the_terminal_returns_to_dx_after_a_build() {
     assert_eq!(status.code(), Some(0), "{status:?}\n{}", run.context());
 }
 
-fn wait_until_gone(pgid: i32, within: Duration) -> bool {
-    let deadline = Instant::now() + within;
-    while group_alive(pgid) {
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    true
+fn wait_until_gone(leader: i32, within: Duration, locks: &[&Path]) -> bool {
+    u32::try_from(leader).is_ok_and(|pid| dx_test_scratch::wait::pid_gone(pid, within).is_ok())
+        && locks
+            .iter()
+            .all(|lock| dx_test_scratch::wait::lock_free(lock, within).is_ok())
 }
 
 #[cfg(target_os = "linux")]
@@ -722,7 +713,7 @@ fn killing_dx_stops_the_test_it_started() {
     assert!(group_alive(build), "{}", run.context());
     run.signal(SIGKILL);
     let status = run.exit();
-    let gone = wait_until_gone(build, Duration::from_secs(10));
+    let gone = wait_until_gone(build, Duration::from_secs(10), &[]);
     kill_group(build);
     assert_eq!(status.signal(), Some(SIGKILL), "{status:?}");
     assert!(gone, "the test survived a killed dx");
@@ -745,7 +736,7 @@ fn killing_dx_stops_the_query_it_started() {
     assert!(group_alive(query), "{}", run.context());
     run.signal(SIGKILL);
     let status = run.exit();
-    let gone = wait_until_gone(query, Duration::from_secs(10));
+    let gone = wait_until_gone(query, Duration::from_secs(10), &[]);
     kill_group(query);
     assert_eq!(status.signal(), Some(SIGKILL), "{status:?}");
     assert!(gone, "the query survived a killed dx");
@@ -780,7 +771,7 @@ fn the_next_run_stops_what_a_killed_dx_left_behind_from_a_query() {
         let next = dx_command(run.dir(), &next_words, "")
             .output()
             .expect("next dx runs");
-        let gone = wait_until_gone(query, Duration::from_secs(10));
+        let gone = wait_until_gone(query, Duration::from_secs(10), &[alive.as_path()]);
         kill_group(query);
         assert_eq!(next.status.code(), Some(0), "{next:?}");
         assert!(
@@ -840,7 +831,7 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
         let next = dx_command(run.dir(), &next_words, "")
             .output()
             .expect("next dx runs");
-        let gone = wait_until_gone(build, Duration::from_secs(10));
+        let gone = wait_until_gone(build, Duration::from_secs(10), &[alive.as_path()]);
         kill_group(build);
         assert_eq!(next.status.code(), Some(0), "{next:?}");
         assert!(
@@ -899,7 +890,7 @@ fn a_stop_after_bazel_exits_reaps_the_descendant_holding_stdout() {
     let build = run.build_pid();
     let alive = run.dir().join("descendant.alive");
     wait_for_file(&mut run, &alive);
-    wait_until_reaped(&mut run, build);
+    wait_until_exited(build);
     let sent = run.signal(SIGTERM);
     let status = run.exit();
     let elapsed = sent.elapsed();
@@ -963,8 +954,7 @@ const GATED_BAZEL: &str = r#"#!/bin/sh
 case " $* " in *" --output_groups=dx_shards "*) exit 1 ;; esac
 case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 echo "start $$" >> "$FAKE_BAZEL_LOG"
-while [ ! -e "$FAKE_GATE" ]; do sleep 0.05; done
-exit "${FAKE_EXIT:-0}"
+exec "$FAKE_PROBE" --gate="$FAKE_GATE" --sleep-ms=300000 --exit-code="${FAKE_EXIT:-0}"
 "#;
 
 fn gated_command(base: &Path, exit: i32) -> (Command, PathBuf) {
@@ -993,13 +983,12 @@ fn bazel_starts(base: &Path) -> usize {
 #[test]
 fn hang_up_waits_for_every_reader_copy() {
     let (reader, writer) = io::pipe().expect("pipe");
-    let mut holder = Command::new("sleep")
-        .arg("60")
+    let mut holder = Command::new("cat")
         .stdin(reader.try_clone().expect("reader clone"))
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .expect("sleep starts");
+        .expect("cat starts");
     let (done, finished) = std::sync::mpsc::channel();
     let waiter = std::thread::spawn(move || {
         hang_up(reader, &writer);
@@ -1009,8 +998,8 @@ fn hang_up_waits_for_every_reader_copy() {
         finished.recv_timeout(Duration::from_millis(300)).is_err(),
         "hang_up returned while the child held the read end"
     );
-    holder.kill().expect("kill sleep");
-    holder.wait().expect("sleep exits");
+    holder.kill().expect("kill cat");
+    holder.wait().expect("cat exits");
     let writer = finished
         .recv_timeout(Duration::from_secs(30))
         .expect("hang_up returns once the child is gone");
@@ -1043,10 +1032,13 @@ fn an_ignored_hangup_does_not_stop_dx() {
         .stderr(Stdio::null())
         .spawn()
         .expect("dx starts");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while bazel_starts(scratch.path()) == 0 && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(20));
-    }
+    let started = dx_test_scratch::wait::watch_until(
+        &scratch.path().join("bazel.log"),
+        "bazel starting",
+        Duration::from_secs(30),
+        || bazel_starts(scratch.path()) > 0,
+    );
+    assert!(started.is_ok(), "{started:?}");
     assert_eq!(bazel_starts(scratch.path()), 1);
     signal(i32::try_from(child.id()).expect("pid fits i32"), SIGHUP).expect("SIGHUP");
     assert!(child.try_wait().expect("poll").is_none(), "dx stopped");
@@ -1263,20 +1255,24 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
         .stderr(fs::File::create(&stderr).expect("stderr file"))
         .spawn()
         .expect("dx starts");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !fs::read_to_string(&stderr)
-        .unwrap_or_default()
-        .contains("waiting for a build slot")
-    {
-        if Instant::now() >= deadline || matches!(child.try_wait(), Ok(Some(_))) {
-            drop(child.kill());
-            drop(child.wait());
-            panic!(
-                "dx never waited for a slot {words:?}\n{}",
-                fs::read_to_string(&stderr).unwrap_or_default()
-            );
-        }
-        std::thread::sleep(Duration::from_millis(20));
+    let waiting = || {
+        fs::read_to_string(&stderr)
+            .unwrap_or_default()
+            .contains("waiting for a build slot")
+    };
+    let waited = dx_test_scratch::wait::watch_until(
+        &stderr,
+        "dx waiting for a slot",
+        Duration::from_secs(30),
+        || waiting() || matches!(child.try_wait(), Ok(Some(_))),
+    );
+    if waited.is_err() || !waiting() {
+        drop(child.kill());
+        drop(child.wait());
+        panic!(
+            "dx never waited for a slot {words:?}: {waited:?}\n{}",
+            fs::read_to_string(&stderr).unwrap_or_default()
+        );
     }
     (child, stdout, stderr)
 }
@@ -1344,17 +1340,11 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             let (mut child, stdout, stderr) = spawn_waiting(base, words);
             let pid = i32::try_from(child.id()).expect("pid");
             signal(pid, signo).unwrap_or_else(|err| panic!("{signo} {words:?}: {err}"));
-            let deadline = Instant::now() + Duration::from_secs(10);
-            let status = loop {
-                if let Some(status) = child.try_wait().expect("try_wait") {
-                    break status;
-                }
-                if Instant::now() >= deadline {
-                    drop(child.kill());
-                    drop(child.wait());
-                    panic!("dx ignored signal {signo} {words:?}");
-                }
-                std::thread::sleep(Duration::from_millis(10));
+            let exited = dx_test_scratch::wait::child_exits(&mut child, Duration::from_secs(10));
+            let Ok(status) = exited else {
+                drop(child.kill());
+                drop(child.wait());
+                panic!("dx ignored signal {signo} {words:?}: {exited:?}");
             };
             let err = fs::read_to_string(&stderr).expect("stderr");
             let out = fs::read(&stdout).expect("stdout");

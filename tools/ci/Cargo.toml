@@ -162,6 +162,10 @@ name = "signing_pins_test"
 path = "signing_pins_test.rs"
 
 [[test]]
+name = "sleep_budget_test"
+path = "sleep_budget_test.rs"
+
+[[test]]
 name = "starlark_docs_test"
 path = "starlark_docs_test.rs"
 

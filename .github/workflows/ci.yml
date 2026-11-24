@@ -1,6 +1,8 @@
 name: ci
 
 on:
+  push:
+    branches: [main]
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -16,9 +18,9 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  # One run per ref: a new push cancels the pull request run; a new dispatch on main replaces only the queued one.
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A newer push cancels the older run; a dispatched run on main only replaces a queued one.
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
 jobs:
   check:
@@ -43,6 +45,7 @@ jobs:
             runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     permissions:
+      actions: read
       contents: read
       statuses: read
     steps:
@@ -76,6 +79,7 @@ jobs:
       - uses: ./.github/actions/gate
         with:
           command: check
+          baseline: check-${{ matrix.platform }}
       - name: Check generated files across the repo
         if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' }}
         run: |
@@ -104,6 +108,7 @@ jobs:
             runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     permissions:
+      actions: read
       contents: read
     steps:
       - name: Check out files in parallel
@@ -120,6 +125,7 @@ jobs:
         with:
           command: coverage
           lcov: ${{ runner.temp }}/coverage/lcov.info
+          baseline: coverage-${{ matrix.platform }}
       - name: Check the upload holds no secret
         id: scan-coverage
         if: ${{ always() }}
@@ -134,6 +140,71 @@ jobs:
           path: ${{ runner.temp }}/coverage
           retention-days: 7
           if-no-files-found: ignore
+  baseline-diff:
+    name: baseline-diff
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+    needs: [check, coverage]
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: failing-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/failing
+      - name: Compare the failing labels with the last main baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          pr="$RUNNER_TEMP/failing"
+          main="$RUNNER_TEMP/main-baseline"
+          mkdir -p "$pr" "$main"
+          listed="$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?filter=latest&per_page=100" \
+            --jq '.jobs[].name | capture("^(?<job>check|coverage) \\((?<platform>[a-z0-9_]+)\\)$")? | "\(.job)-\(.platform)"' | sort -u)"
+          [ -n "$listed" ] || { echo "baseline-diff: no check or coverage job in run $RUN_ID" >&2; exit 1; }
+          mapfile -t jobs <<<"$listed"
+          bad=0
+          summary="$RUNNER_TEMP/baseline-diff.md"
+          {
+            echo "### Failing labels not red on main"
+            for job in "${jobs[@]}"; do
+              if [ ! -f "$pr/failing-$job.json" ]; then
+                echo "- \`$job\`: no failing-label result in this run"
+                bad=1
+                continue
+              fi
+              found="$(gh api "repos/$REPO/actions/artifacts?name=main-baseline-$job&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | last // empty | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
+              source="no main baseline yet"
+              echo '{"labels":[]}' > "$main/$job.json"
+              if [ -n "$found" ]; then
+                read -r id run sha <<<"$found"
+                gh api "repos/$REPO/actions/artifacts/$id/zip" > "$main/$job.zip"
+                unzip -p "$main/$job.zip" "main-baseline-$job.json" > "$main/$job.json"
+                source="main baseline ${sha:0:10} from $SERVER/$REPO/actions/runs/$run"
+              fi
+              new="$(jq -r --slurpfile main "$main/$job.json" '(.labels - $main[0].labels)[]' "$pr/failing-$job.json")"
+              known="$(jq -r --slurpfile main "$main/$job.json" '[.labels[] | select(IN($main[0].labels[]))] | length' "$pr/failing-$job.json")"
+              if [ -z "$new" ]; then
+                echo "- \`$job\`: no new failing labels, $known already red on main ($source)"
+                continue
+              fi
+              bad=1
+              echo "- \`$job\`: $(grep -c '' <<<"$new") new, $known already red on main ($source)"
+              echo
+              echo '```text'
+              printf '%s\n' "$new"
+              echo '```'
+            done
+          } > "$summary"
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          cat "$summary"
+          exit "$bad"
   dogfood:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.

@@ -817,10 +817,19 @@ mod tests {
     fn session_merges_a_burst_split_across_debounce_batches() {
         let scratch = dx_test_scratch::scratch("dx-watch-split-").unwrap();
         let root = scratch.path().to_path_buf();
-        let session = WatchSession::start(&root, &[], false).expect("session starts");
-        std::fs::write(root.join("a.txt"), "first").expect("first write");
-        std::thread::sleep(Duration::from_millis(120));
-        std::fs::write(root.join("b.txt"), "second").expect("second write");
+        let mut session = WatchSession::start(&root, &[], false).expect("session starts");
+        let (batches, events) = std::sync::mpsc::channel();
+        session.events = events;
+        let batch = |name: &str| -> notify_debouncer_mini::DebounceEventResult {
+            let path = root.join(name);
+            std::fs::write(&path, name).expect("write");
+            Ok(vec![notify_debouncer_mini::DebouncedEvent::new(
+                path,
+                notify_debouncer_mini::DebouncedEventKind::Any,
+            )])
+        };
+        batches.send(batch("a.txt")).expect("first batch");
+        batches.send(batch("b.txt")).expect("second batch");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         for name in ["a.txt", "b.txt"] {
             assert!(
@@ -828,7 +837,7 @@ mod tests {
                 "{name} must be in the one trigger: {trigger:?}"
             );
         }
-        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        batches.send(batch("sentinel.txt")).expect("sentinel batch");
         let rest = wait_for(&session, "sentinel.txt");
         for name in ["a.txt", "b.txt"] {
             assert!(

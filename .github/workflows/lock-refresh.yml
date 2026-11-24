@@ -109,8 +109,17 @@ jobs:
           for label in "${targets[@]}"; do
             rel="${label#//}"
             rel="${rel/://}"
-            mkdir -p "$out/$rel"
-            cp -RL "bazel-testlogs/$rel/test.outputs/nested_cache/." "$out/$rel/"
+            shards=(bazel-testlogs/"$rel"/shard_*/test.outputs/nested_cache)
+            if [ -d "${shards[0]}" ]; then
+              for dir in "${shards[@]}"; do
+                shard="${dir%/test.outputs/nested_cache}"
+                mkdir -p "$out/$rel/${shard##*/}"
+                cp -RL "$dir/." "$out/$rel/${shard##*/}/"
+              done
+            else
+              mkdir -p "$out/$rel"
+              cp -RL "bazel-testlogs/$rel/test.outputs/nested_cache/." "$out/$rel/"
+            fi
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

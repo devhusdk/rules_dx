@@ -99,6 +99,19 @@ pub fn stopped_by(child: i32) -> io::Result<Option<i32>> {
     Ok(status.and_then(|status| status.stopping_signal()))
 }
 
+pub fn await_stop(child: i32) -> io::Result<Option<i32>> {
+    let status = rustix::process::waitid(WaitId::Pid(pid(child)?), WaitIdOptions::STOPPED)?;
+    Ok(status.and_then(|status| status.stopping_signal()))
+}
+
+pub fn await_exit_unreaped(child: i32) -> io::Result<()> {
+    rustix::process::waitid(
+        WaitId::Pid(pid(child)?),
+        WaitIdOptions::EXITED | WaitIdOptions::NOWAIT,
+    )?;
+    Ok(())
+}
+
 pub fn reap(child: i32) -> io::Result<()> {
     rustix::process::waitpid(Some(pid(child)?), WaitOptions::empty())?;
     Ok(())

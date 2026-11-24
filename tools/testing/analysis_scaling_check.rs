@@ -105,12 +105,14 @@ fn analysis_ms(profile: &str) -> Result<f64, String> {
         }
     }
     markers.sort_by(|a, b| a.1.total_cmp(&b.1));
-    let start = markers
+    let mut from_analysis = markers
         .iter()
-        .position(|(name, _)| *name == ANALYSIS_MARKER)
+        .skip_while(|(name, _)| *name != ANALYSIS_MARKER);
+    let (_, begin) = from_analysis
+        .next()
         .ok_or_else(|| format!("profile has no `{ANALYSIS_MARKER}` marker"))?;
-    let end = markers.get(start + 1).map_or(last, |(_, ts)| *ts);
-    Ok((end - markers[start].1) / 1000.0)
+    let end = from_analysis.next().map_or(last, |(_, ts)| *ts);
+    Ok((end - begin) / 1000.0)
 }
 
 fn measure(
@@ -172,13 +174,14 @@ fn main() -> Result<(), String> {
             .map_err(|error| format!("run with `bazel run`: {error}"))?,
     );
     let aspects = aspects();
-    let mut times = Vec::new();
-    for depth in DEPTHS {
+    let mut times = [0.0; DEPTHS.len()];
+    for (time, depth) in times.iter_mut().zip(DEPTHS) {
         let ms = measure(&bazel, &out, depth, &aspects, &workspace)?;
         println!("depth {depth}: analysis {ms:.0} ms");
-        times.push(ms);
+        *time = ms;
     }
-    let ratio = verdict(times[0], times[1])?;
+    let [shallow, deep] = times;
+    let ratio = verdict(shallow, deep)?;
     println!("ratio {ratio:.2} (limit {MAX_RATIO})");
     Ok(())
 }

@@ -301,6 +301,10 @@ fn assert_swift_consumer(case: &Case) {
 
 /// Builds with the hermetic GCC toolchain while host compilers on PATH fail.
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 fn assert_gcc_consumer(case: &Case) {
     use std::os::unix::fs::PermissionsExt;
 

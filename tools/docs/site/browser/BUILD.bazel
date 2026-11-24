@@ -42,6 +42,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "@crates//:notify",
         "@crates//:serde_json",
     ],
 )
@@ -69,6 +70,7 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
+        "@crates//:notify",
         "@crates//:serde_json",
     ],
 )

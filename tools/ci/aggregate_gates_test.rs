@@ -47,7 +47,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "coverage",
         "coverage-cells",
         "dogfood",
-        "docs",
         "analysis-scaling",
         "in-graph-prebuilt-guard",
         "determinism",

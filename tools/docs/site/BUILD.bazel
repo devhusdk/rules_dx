@@ -1,5 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:lint_results.bzl", "lint_results")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/docs/rust:site.bzl", "rust_docs_api", "rust_docs_site")
@@ -253,6 +254,34 @@ rust_test(
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+lint_results(
+    name = "docs_lint_results",
+    testonly = True,
+    srcs = [
+        ":corpus_markdown",
+        "//docs:corpus_markdown",
+    ],
+)
+
+rust_test(
+    name = "docs_lint_test",
+    size = "small",
+    srcs = ["docs_lint_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "docs_lint_test",
+    crate_root = "docs_lint_test.rs",
+    data = [":docs_lint_results"],
+    env = {"DX_DOCS_LINT_RESULTS": "$(rootpaths :docs_lint_results)"},
+    deps = [
+        "//core/quality/result:quality_result",
         "//tools/testing:dx_testing",
     ],
 )

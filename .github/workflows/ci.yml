@@ -255,31 +255,6 @@ jobs:
             files+=("$file")
           done < <(find "$RUNNER_TEMP/coverage-reports" -name coverage.ndjson | sort)
           bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
-  docs:
-    name: docs (self-call reusable docs workflow)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    # ci.yml and docs.yml both deploy Pages from main; a second concurrent
-    # deploy-pages run fails instead of queueing, so they take turns.
-    concurrency:
-      group: docs-pages-${{ github.ref }}
-      cancel-in-progress: false
-    uses: ./.github/workflows/reusable-docs.yml
-    with:
-      docs_scope: "//docs/... //tools/docs/..."
-      site: "//tools/docs/site:user_site"
-      site_check: "//tools/docs/site:user_site_check"
-      landing: true
-      smoke_test: "//tools/docs/site:deploy_smoke_test"
-      forbid: |
-        Treat warnings as errors
-        docs_fixture
-      publish: ${{ github.ref == 'refs/heads/main' }}
-    secrets:
-      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
   devcontainer-check:
     name: devcontainer-check (init parity, definition valid)
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
@@ -1132,7 +1107,6 @@ jobs:
         coverage,
         coverage-cells,
         dogfood,
-        docs,
         analysis-scaling,
         in-graph-prebuilt-guard,
         determinism,

@@ -5,7 +5,10 @@ use dx_nested::record::Fetches;
 use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 
 const FOREIGN: &[(&str, &[&str])] = &[
-    ("java", &["ocaml", "opam", "cuda", "scala", "kotlin", "android"]),
+    (
+        "java",
+        &["ocaml", "opam", "cuda", "scala", "kotlin", "android"],
+    ),
     (
         "go",
         &[
@@ -73,10 +76,7 @@ fn jar_pins() -> String {
     tags
 }
 
-const UPSTREAM_REGISTERED: &[&str] = &[
-    "rules_android+",
-    "rules_kotlin+",
-];
+const UPSTREAM_REGISTERED: &[&str] = &["rules_android+", "rules_kotlin+"];
 
 fn listed(text: &str) -> BTreeSet<String> {
     text.lines()

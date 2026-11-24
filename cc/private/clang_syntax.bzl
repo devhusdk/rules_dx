@@ -10,7 +10,7 @@ load("//cc/private/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
-load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream")
+load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream", "holds_workspace_source")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 
 ClangSyntaxInfo = provider(
@@ -292,7 +292,7 @@ def _clang_syntax_impl(target, ctx):
             return []
         info = upstream[ClangSyntaxInfo]
         return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
-    if target.label.repo_name != "":
+    if target.label.repo_name != "" or not holds_workspace_source(ctx.rule.files):
         return []
 
     identity = cc_toolchain_identity(ctx)

@@ -1,26 +1,17 @@
 # gazelle:exclude *.d
 
-load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
 load("//core:cells.bzl", "cell_setting")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//d/private:defs.bzl", "D_CELLS", "D_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_test")
-
-_CELLS = [
-    "linux_x86_64",
-    "linux_arm64",
-    "macos_arm64",
-    "windows_x86_64",
-]
 
 package(default_visibility = ["//d/tests/fixtures/d_app:__subpackages__"])
 
 alias(
     name = "ldc",
     testonly = True,
-    actual = select(
-        {cell_setting("//d/private/toolchain", cell): "@dx_d_toolchains__%s//:dmd" % cell for cell in _CELLS},
-        no_match_error = "the D diagnostics test runs on the pinned LDC cells",
-    ),
+    actual = select({cell_setting("//d/private/toolchain", cell): "@dx_d_toolchains__%s//:dmd" % cell for cell in D_CELLS}),
+    target_compatible_with = D_COMPATIBLE_WITH,
 )
 
 rust_test(

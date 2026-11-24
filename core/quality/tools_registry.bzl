@@ -5597,7 +5597,9 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "hlint",
       "severity": {
-        "categories": {},
+        "categories": {
+          "Avoid restricted": "error"
+        },
         "default": null,
         "floor": null
       },

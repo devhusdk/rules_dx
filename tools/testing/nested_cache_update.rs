@@ -50,22 +50,161 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
     Ok(text)
 }
 
+type Json = serde_json::Map<String, serde_json::Value>;
+
 /// Rewrites raw and JSON-escaped CRLF line endings to LF.
 fn lf(text: &str) -> String {
     // Windows locks carry CRLF inside generated file contents, both raw and as `\r\n` escapes.
     text.replace("\r\n", "\n").replace("\\r\\n", "\\n")
 }
 
-/// Returns the one LF lock text shared by all hosts; locks that differ beyond CRLF are an error.
-fn same_lock(locks: &[(String, String)]) -> Result<String, String> {
-    let (first_origin, first) = locks.first().ok_or("no lock to merge")?;
-    let first = lf(first);
-    for (origin, text) in locks.iter().skip(1) {
-        if lf(text) != first {
-            return Err(format!("{origin} differs from {first_origin}"));
+/// Parses a lock as a JSON object.
+fn parse_lock(origin: &str, text: &str) -> Result<Json, String> {
+    match serde_json::from_str(text) {
+        Ok(serde_json::Value::Object(lock)) => Ok(lock),
+        Ok(_) => Err(format!("{origin} is not a JSON object")),
+        Err(error) => Err(format!("{origin}: {error}")),
+    }
+}
+
+/// Returns the `moduleExtensions` object of a lock, empty when it has none.
+fn extensions(lock: &Json) -> Json {
+    match lock.get("moduleExtensions") {
+        Some(serde_json::Value::Object(map)) => map.clone(),
+        _ => Json::new(),
+    }
+}
+
+/// The body line range of one extension in a lock and its `(key, lines)` entries.
+type Entries<'a> = (std::ops::Range<usize>, Vec<(String, Vec<&'a str>)>);
+
+/// Finds the entries of `extension` in a Bazel-written lock.
+fn extension_entries<'a>(lines: &[&'a str], extension: &str) -> Result<Entries<'a>, String> {
+    let name = serde_json::to_string(extension).map_err(|error| error.to_string())?;
+    let header = format!("    {name}: {{");
+    let start = lines
+        .iter()
+        .position(|line| *line == header)
+        .ok_or_else(|| format!("no `{header}` line"))?
+        + 1;
+    let mut entries: Vec<(String, Vec<&str>)> = Vec::new();
+    for (index, line) in lines.iter().enumerate().skip(start) {
+        if matches!(*line, "    }" | "    },") {
+            return Ok((start..index, entries));
+        }
+        if let Some(key) = line
+            .strip_prefix("      \"")
+            .and_then(|rest| rest.strip_suffix("\": {"))
+        {
+            entries.push((key.to_owned(), vec![*line]));
+        } else if let Some((_, block)) = entries.last_mut() {
+            block.push(if *line == "      }," { "      }" } else { line });
+        } else {
+            return Err(format!("{extension}: unexpected line `{line}`"));
         }
     }
-    Ok(first)
+    Err(format!("{extension} is not closed"))
+}
+
+/// Merges the hosts' locks. Every field must match, except that an extension Bazel evaluates per
+/// host (keys like `os:linux,arch:amd64`) keeps each host's entry, sorted by key as Bazel writes them.
+fn merge_locks(locks: &[(String, String)]) -> Result<String, String> {
+    let locks: Vec<(String, String)> = locks
+        .iter()
+        .map(|(origin, text)| (origin.clone(), lf(text)))
+        .collect();
+    let (first_origin, first) = locks.first().ok_or("no lock to merge")?;
+    let base = parse_lock(first_origin, first)?;
+    let mut merged = extensions(&base);
+    let mut per_host: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (origin, text) in locks.iter().skip(1) {
+        let lock = parse_lock(origin, text)?;
+        let mut rest = lock.clone();
+        let mut base_rest = base.clone();
+        rest.remove("moduleExtensions");
+        base_rest.remove("moduleExtensions");
+        if rest != base_rest {
+            return Err(format!(
+                "{origin} differs from {first_origin} outside moduleExtensions"
+            ));
+        }
+        let theirs = extensions(&lock);
+        if theirs.keys().ne(merged.keys()) {
+            return Err(format!("{origin} has other extensions than {first_origin}"));
+        }
+        for (extension, entries) in theirs {
+            let (Some(serde_json::Value::Object(ours)), serde_json::Value::Object(entries)) =
+                (merged.get_mut(&extension), entries)
+            else {
+                return Err(format!("{origin}: {extension} is not an object"));
+            };
+            for (key, entry) in entries {
+                match ours.get(&key) {
+                    Some(seen) if *seen != entry => {
+                        return Err(format!(
+                            "{origin}: {extension} {key} differs from {first_origin}"
+                        ));
+                    }
+                    Some(_) => {}
+                    None if key.starts_with("os:") => {
+                        ours.insert(key, entry);
+                        per_host.insert(extension.clone());
+                    }
+                    None => return Err(format!("{origin}: {extension} has a new key {key}")),
+                }
+            }
+        }
+    }
+    if per_host.is_empty() {
+        return Ok(first.clone());
+    }
+    let mut text: Vec<String> = first.lines().map(str::to_owned).collect();
+    for extension in &per_host {
+        let mut blocks: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        let mut body = 0..0;
+        for (index, (origin, lock)) in locks.iter().enumerate() {
+            let lines: Vec<&str> = if index == 0 {
+                text.iter().map(String::as_str).collect()
+            } else {
+                lock.lines().collect()
+            };
+            let (range, entries) = extension_entries(&lines, extension)
+                .map_err(|error| format!("{origin}: {error}"))?;
+            if index == 0 {
+                body = range;
+            }
+            for (key, block) in entries {
+                blocks
+                    .entry(key)
+                    .or_insert_with(|| block.iter().map(|line| (*line).to_owned()).collect());
+            }
+        }
+        let count = blocks.len();
+        let mut replacement = Vec::new();
+        for (position, (_, mut block)) in blocks.into_iter().enumerate() {
+            if position + 1 < count
+                && let Some(last) = block.last_mut()
+            {
+                last.push(',');
+            }
+            replacement.extend(block);
+        }
+        text.splice(body, replacement);
+    }
+    let mut result = text.join("\n");
+    result.push('\n');
+    let mut expected = base;
+    expected.insert(
+        "moduleExtensions".to_owned(),
+        serde_json::Value::Object(merged),
+    );
+    if parse_lock("the merged lock", &result)? != expected {
+        return Err(
+            "the merged lock does not match its parts; Bazel's lock layout changed".to_owned(),
+        );
+    }
+    Ok(result)
 }
 
 fn read(path: &Path) -> Result<String, String> {
@@ -115,7 +254,7 @@ fn merge(workspace: &Path, dirs: &[PathBuf]) -> Result<(), String> {
         write(format!("{set}.txt"), union_lists(&lists)?)?;
     }
     for (stem, texts) in locks {
-        let lock = same_lock(&texts).map_err(|error| format!("{stem} lock: {error}"))?;
+        let lock = merge_locks(&texts).map_err(|error| format!("{stem} lock: {error}"))?;
         write(format!("{stem}.MODULE.bazel.lock"), lock)?;
     }
     Ok(())
@@ -228,24 +367,66 @@ mod tests {
         assert!(error.contains("https://a"), "{error}");
     }
 
+    /// A lock as Bazel writes it, with the per-host extension `@@py//:x.bzl%python` keyed by `host`.
+    fn host_lock(host: &str, digest: &str) -> String {
+        format!(
+            "{{\n  \"lockFileVersion\": 26,\n  \"moduleExtensions\": {{\n    \"@@a//:a.bzl%a\": {{\n      \"general\": {{\n        \"d\": 1\n      }}\n    }},\n    \"@@py//:x.bzl%python\": {{\n      \"{host}\": {{\n        \"d\": \"{digest}\",\n        \"r\": {{\n          \"k\": 1\n        }}\n      }}\n    }}\n  }}\n}}\n"
+        )
+    }
+
     #[test]
-    fn lock_fails_when_locks_differ() {
-        assert_eq!(same_lock(&[list("{}"), list("{}")]).unwrap(), "{}");
-        assert!(same_lock(&[list("{}"), list("{\"a\":1}")]).is_err());
+    fn lock_merge_keeps_identical_locks() {
+        let lock = host_lock("os:linux,arch:amd64", "l");
+        assert_eq!(merge_locks(&[list(&lock), list(&lock)]).unwrap(), lock);
+    }
+
+    #[test]
+    fn lock_merge_fails_when_shared_fields_differ() {
+        assert!(merge_locks(&[list("{}"), list("{\"a\":1}")]).is_err());
+        let error = merge_locks(&[
+            list(&host_lock("os:linux,arch:amd64", "l")),
+            list(&host_lock("os:linux,arch:amd64", "other")),
+        ])
+        .unwrap_err();
+        assert!(error.contains("os:linux,arch:amd64"), "{error}");
+    }
+
+    #[test]
+    fn lock_merge_keeps_each_hosts_entry_sorted() {
+        let merged = merge_locks(&[
+            list(&host_lock("os:windows,arch:amd64", "w")),
+            list(&host_lock("os:linux,arch:amd64", "l")),
+            list(&host_lock("os:osx,arch:aarch64", "m")),
+        ])
+        .unwrap();
+        let linux = host_lock("os:linux,arch:amd64", "l");
+        let (head, _) = linux.split_once("      \"os:linux").unwrap();
+        let entry = |host: &str, digest: &str| {
+            format!(
+                "      \"{host}\": {{\n        \"d\": \"{digest}\",\n        \"r\": {{\n          \"k\": 1\n        }}\n      }}"
+            )
+        };
+        let expected = format!(
+            "{head}{},\n{},\n{}\n    }}\n  }}\n}}\n",
+            entry("os:linux,arch:amd64", "l"),
+            entry("os:osx,arch:aarch64", "m"),
+            entry("os:windows,arch:amd64", "w"),
+        );
+        assert_eq!(merged, expected);
     }
 
     #[test]
     fn lock_merges_crlf_only_difference_as_lf() {
         let unix = "{\n  \"f\": \"a\\nb\\n\"\n}\n";
         let windows = "{\r\n  \"f\": \"a\\r\\nb\\r\\n\"\r\n}\r\n";
-        assert_eq!(same_lock(&[list(windows), list(unix)]).unwrap(), unix);
-        assert_eq!(same_lock(&[list(unix), list(windows)]).unwrap(), unix);
+        assert_eq!(merge_locks(&[list(windows), list(unix)]).unwrap(), unix);
+        assert_eq!(merge_locks(&[list(unix), list(windows)]).unwrap(), unix);
     }
 
     #[test]
     fn lock_fails_on_real_difference_beside_crlf() {
         let unix = "{\n  \"f\": \"a\\nb\\n\"\n}\n";
         let windows = "{\r\n  \"f\": \"a\\r\\nc\\r\\n\"\r\n}\r\n";
-        assert!(same_lock(&[list(unix), list(windows)]).is_err());
+        assert!(merge_locks(&[list(unix), list(windows)]).is_err());
     }
 }

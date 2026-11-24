@@ -1,7 +1,7 @@
 """Local-first Conan publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load(":deployment.bzl", "deployment")
 load(":validate_conan.bzl", "conan_name_error", "conan_remote_error", "conan_remote_url_error", "conan_version_error")
 
@@ -12,7 +12,7 @@ def _conan_config_impl(ctx):
         fail("conan_deploy " + str(ctx.label) + ": recipe " +
              str(ctx.attr.recipe.label) + " provides no files, want conanfile.py and its sources")
     if len(ctx.files.conan) == 0:
-        fail("conan_deploy " + str(ctx.label) + ": no pinned conan for this host, want linux, macos or windows on x86_64, or linux or macos on arm64; set conan")
+        fail("conan_deploy " + str(ctx.label) + ": conan " + str(ctx.attr.conan.label) + " provides no files, want the conan executable")
     conan = ctx.files.conan[0]
     runfiles = ctx.runfiles(files = recipe_files + ctx.files.conan_files + [conan])
 
@@ -72,7 +72,7 @@ def conan_deploy(name, recipe, remote, remote_url, package = "", version = "", c
     _conan_config(
         name = config_target,
         conan = conan or str(Label("//deploy/private/pins:conan")),
-        conan_files = conan_files or str(Label("//deploy/private/pins:conan_files")),
+        conan_files = conan_files or (None if conan else str(Label("//deploy/private/pins:conan_files"))),
         deploy_name = name,
         package = pkg,
         recipe = recipe,

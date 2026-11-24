@@ -2,7 +2,8 @@ module Main (main) where
 
 import Control.Monad (unless)
 import System.Environment (getArgs)
-import System.Exit (exitFailure)
+import System.Exit (die, exitFailure)
+import Text.Read (readMaybe)
 
 import Cli (run, stockLimit)
 
@@ -13,7 +14,8 @@ check name ok = do
 
 main :: IO ()
 main = do
-  want <- (read . concat . take 1) <$> getArgs
+  args <- getArgs
+  want <- maybe (die "usage: cli_test LIMIT") pure (readMaybe (concat (take 1 args)))
   let (okCode, okOut, _) = run "lamp,4,1250\ncable,12,199\n"
       (badCode, _, badErr) = run "lamp,4\n"
       (bigCode, _, _) = run "crate,100,1\n"

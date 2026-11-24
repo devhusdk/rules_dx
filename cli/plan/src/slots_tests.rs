@@ -201,6 +201,30 @@ fn a_remote_gate_takes_a_base_slot_then_an_extra_when_calm() {
 }
 
 #[test]
+fn a_remote_gate_skips_admission_that_holds_a_local_gate() {
+    let scratch = dx_test_scratch::scratch("dx-slots-remote-admit-").unwrap();
+    let never = admit::Limits {
+        slot: u64::MAX,
+        free: u64::MAX,
+        servers: 0,
+    };
+    let gate = |dir: &Path, remote: bool| Gate {
+        admission: Some((scratch.path().join("ws"), never)),
+        ..remote_gate(dir, remote, Some(false)).waiting_at_most(Some(Duration::ZERO))
+    };
+    let remote_dir = scratch.path().join("remote");
+    let remote = gate(&remote_dir, true);
+    let (base, base_err, _) = take_gate(&remote);
+    let (extra, extra_err, _) = take_gate(&remote);
+    assert_eq!((base.index, extra.index), (0, 1));
+    assert_eq!((base_err.as_str(), extra_err.as_str()), ("", ""));
+    assert!(!remote_dir.join("admitted").exists(), "remote gate ran admission");
+    let local_dir = scratch.path().join("local");
+    let (_slot, _, _) = take_gate(&gate(&local_dir, false));
+    assert!(local_dir.join("admitted").is_file(), "local gate skipped admission");
+}
+
+#[test]
 fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
     for high in [Some(true), None] {
         let scratch = dx_test_scratch::scratch("dx-slots-remote-pressure-").unwrap();
@@ -461,6 +485,8 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
     use std::io::{Read, Write};
     use std::os::unix::net::UnixStream;
     use std::os::unix::process::CommandExt;
+    // The child keeps every lock open in this process until it execs, so it runs alone.
+    let _spawning = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-slots-fork-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");

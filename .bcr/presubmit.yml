@@ -29,6 +29,8 @@ bcr_test_module:
       name: Build android toolchain check
       platform: ${{ platform }}
       bazel: ${{ bazel }}
+      build_flags:
+        - "--skip_incompatible_explicit_targets"
       build_targets:
         - "//:android_device_cc"
     build_apple_toolchain:

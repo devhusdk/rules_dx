@@ -357,6 +357,14 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "hlint",
+        crate::severity::ToolSeverityMap {
+            default: None,
+            floor: None,
+            categories: &[("Avoid restricted", crate::ToolSeverity::Error)],
+        },
+    ),
+    (
         "javac",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Error),

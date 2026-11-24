@@ -4,6 +4,7 @@ exports_files(
     [
         "adopt_polyglot.txt",
         "apple.txt",
+        "cpp_rust.txt",
         "harness.txt",
         "release.txt",
     ],
@@ -29,6 +30,13 @@ filegroup(
     testonly = True,
     srcs = ["apple.MODULE.bazel.lock"],
     visibility = ["//apple/tests:__pkg__"],
+)
+
+filegroup(
+    name = "cpp_rust_locks",
+    testonly = True,
+    srcs = ["cpp_rust.MODULE.bazel.lock"],
+    visibility = ["//tools/testing/hermetic:__pkg__"],
 )
 
 filegroup(

@@ -677,6 +677,64 @@ mod sh {
     }
 
     #[test]
+    fn self_build_through_the_bazel_wrapper_does_not_loop() {
+        let repo = source_repo("dx-launcher-wrapper-");
+        let base = &repo.base;
+        let wrapper = std::fs::read_to_string(env_file("DX_BAZEL_WRAPPER")).expect("wrapper");
+        dx_testing::executable_script(&repo.root().join("tools/bazel"), &wrapper);
+        let real = base.join("stub/bazel.real");
+        std::fs::rename(base.join("stub/bazel"), &real).expect("keep the real stub");
+        repo.fake(
+            "bazel",
+            &format!("BAZEL_REAL='{}' exec ./tools/bazel \"$@\"", real.display()),
+        );
+        std::fs::write(
+            base.join("payload"),
+            format!("{PAYLOAD}[ \"$1\" != worktree ] || echo \"hook $5\" >> \"$STUB_LOG\"\n"),
+        )
+        .expect("payload");
+        repo.run_ok();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        let calls = std::fs::read_to_string(base.join("calls")).expect("calls");
+        assert_eq!(
+            calls
+                .lines()
+                .filter(|l| l.starts_with("hook"))
+                .collect::<Vec<_>>(),
+            ["hook cquery", "hook query"],
+            "{calls}"
+        );
+    }
+
+    #[test]
+    fn a_dx_built_before_the_bazel_hook_does_not_block_the_self_build() {
+        let repo = source_repo("dx-launcher-wrapper-stale-");
+        let base = &repo.base;
+        let wrapper = std::fs::read_to_string(env_file("DX_BAZEL_WRAPPER")).expect("wrapper");
+        dx_testing::executable_script(&repo.root().join("tools/bazel"), &wrapper);
+        let real = base.join("stub/bazel.real");
+        std::fs::rename(base.join("stub/bazel"), &real).expect("keep the real stub");
+        repo.fake(
+            "bazel",
+            &format!("BAZEL_REAL='{}' exec ./tools/bazel \"$@\"", real.display()),
+        );
+        repo.run_ok();
+        // A dx from before the bazel hook fails it with a usage error, as the copy and as bazel-bin.
+        let old = "case \"$1 $2\" in\n'worktree hook') echo 'dx: worktree: want one of: create, remove, stop, guard' >&2; exit 2 ;;\nesac\necho old \"$@\"\n";
+        shell_script(&state(&repo.root()).join("dx"), old);
+        shell_script(&repo.root().join("bazel-bin/cli/cli/dx"), old);
+        repo.touch_build_file();
+        let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+        assert!(
+            err.contains("tools/bazel: tools/dx worktree hook bazel failed (exit 2); running Bazel without it"),
+            "{err}"
+        );
+        assert_eq!(repo.builds(), 2, "{err}");
+    }
+
+    #[test]
     fn source_launcher_rebuilds_after_the_root_build_file_changes() {
         let repo = source_repo("dx-launcher-root-build-");
         repo.run_ok();
@@ -933,16 +991,22 @@ mod sh {
 
     #[test]
     fn a_refused_bazel_hook_runs_the_built_dx_instead_of_a_build() {
-        for (stderr, builds) in [
-            ("dx: refused: no Bazel in the main checkout here", 1),
-            ("dx: worktree: want one of: create, remove, stop, guard", 2),
+        // A dx from before the refusal exit code refuses with 2.
+        for (code, stderr, builds) in [
+            (77, "dx: refused: no Bazel in the main checkout here", 1),
+            (2, "dx: refused: no Bazel in the main checkout here", 1),
+            (
+                2,
+                "dx: worktree: want one of: create, remove, stop, guard",
+                2,
+            ),
         ] {
             let repo = source_repo("dx-launcher-refused-");
             repo.run_ok();
             shell_script(
                 &state(&repo.root()).join("dx"),
                 &format!(
-                    "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho ran \"$@\"\n"
+                    "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit {code} ;;\nesac\necho ran \"$@\"\n"
                 ),
             );
             repo.touch_build_file();
@@ -2804,7 +2868,8 @@ mod cmd {
 
     #[test]
     fn cmd_a_refused_bazel_hook_runs_the_dx_that_refused() {
-        for copy_answers in [true, false] {
+        // 2 is the refusal of a dx from before the refusal exit code.
+        for (copy_answers, exit) in [(true, 77), (true, 2), (false, 77)] {
             let repo = source_repo("dx-launcher-cmd-refused-");
             let root = repo.root();
             let (code, out) = repo.run(&[]);
@@ -2824,12 +2889,12 @@ mod cmd {
                     "PROCESS_PROBE_CALL_STDERR",
                     "dx: refused: no Bazel in the main checkout here",
                 )
-                .env("PROCESS_PROBE_CALL_EXIT", "2")
+                .env("PROCESS_PROBE_CALL_EXIT", exit.to_string())
                 .output()
                 .expect("launcher runs");
             let err = String::from_utf8_lossy(&out.stderr);
-            let case = format!("copy answers {copy_answers}: {err}");
-            assert_eq!(out.status.code(), Some(2), "{case}");
+            let case = format!("copy answers {copy_answers}, exit {exit}: {err}");
+            assert_eq!(out.status.code(), Some(exit), "{case}");
             assert_eq!(repo.builds(), 1, "{case}");
             let asked = std::fs::read_to_string(&asked).expect("the refusing dx ran");
             assert!(asked.ends_with("\nstatus\n"), "{case}: {asked}");

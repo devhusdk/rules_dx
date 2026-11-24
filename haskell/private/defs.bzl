@@ -9,13 +9,15 @@ load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//haskell/private/coverage:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
-load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS")
+load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _DEFAULT_LIBRARY_GHCOPTS = "DEFAULT_LIBRARY_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS", _STRICT_LIBRARY_GHCOPTS = "STRICT_LIBRARY_GHCOPTS")
 
 DEFAULT_GHCOPTS = _DEFAULT_GHCOPTS
+DEFAULT_LIBRARY_GHCOPTS = _DEFAULT_LIBRARY_GHCOPTS
 HASKELL_CELLS = _HASKELL_CELLS
 HASKELL_COMPATIBLE_WITH = _HASKELL_COMPATIBLE_WITH
 STANDARD_GHCOPTS = _STANDARD_GHCOPTS
 STRICT_GHCOPTS = _STRICT_GHCOPTS
+STRICT_LIBRARY_GHCOPTS = _STRICT_LIBRARY_GHCOPTS
 
 HaskellInfo = _HaskellInfo
 
@@ -83,7 +85,7 @@ def haskell_library(name, srcs = None, visibility = None, testonly = False, **kw
     """Thin wrapper over the rules_haskell haskell_library macro."""
     srcs = srcs or []
     kwargs = haskell_kwargs(kwargs)
-    upstream = haskell_upstream_kwargs(kwargs)
+    upstream = haskell_upstream_kwargs(kwargs, library = True)
     upstream["tags"] = dx_upstream_tags(upstream.get("tags"))
     _haskell_library(name = name + "_upstream", srcs = srcs, testonly = testonly, visibility = ["//visibility:private"], **upstream)
     _haskell_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))

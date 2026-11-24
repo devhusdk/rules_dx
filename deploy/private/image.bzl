@@ -268,7 +268,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
         image = name if single else name + "_image" + suffix
         oci_image(
             name = image,
-            base = IMAGE_BASES["cc" if runtime else base],
+            base = str(Label(IMAGE_BASES["cc" if runtime else base][platform])),
             entrypoint = entrypoint,
             env = env,
             tags = tags or [],

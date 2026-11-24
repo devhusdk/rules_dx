@@ -6,7 +6,8 @@ fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
     for arg in args {
         match arg.strip_prefix('@') {
             Some(params) => {
-                let text = fs::read_to_string(params).map_err(|error| format!("{params}: {error}"))?;
+                let text =
+                    fs::read_to_string(params).map_err(|error| format!("{params}: {error}"))?;
                 out.extend(expand(
                     text.split_whitespace()
                         .map(|word| word.trim_matches(['\'', '"']).to_owned())

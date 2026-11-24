@@ -746,6 +746,18 @@ REAL_RESULT_CASES = [
         "macos_arm64": True,
     },
     {
+        "name": "real_result_scalac_unused_silenced",
+        "target": "//core/quality/testdata/jvm_owned:scala_unused_silenced",
+        "config": "shared",
+        "tool": "scalac",
+        "capability": "typecheck",
+        "class": "scala",
+        "contains": ["Unused import"],
+        "absent": ["Fatal error"],
+        "linux_arm64": True,
+        "macos_arm64": True,
+    },
+    {
         "name": "real_result_roslyn_unused_dep",
         "target": "//core/quality/testdata/dotnet_owned:unused_dep",
         "config": "shared",

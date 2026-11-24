@@ -1,10 +1,10 @@
 """Unit tests for the single-sourced registry."""
 
+load("//core/modules:langs.bzl", "LANGS")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
-load("//core/modules:langs.bzl", "LANGS")
-load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "LANG_JSON_FAMILIES", "OTHER_FAMILIES", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
+load(":taxonomy.bzl", "CLASS_TO_FAMILY", "CORE_TAXONOMY", "FAMILY_OWNERS", "LANG_JSON_FAMILIES", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 
 visibility("private")
 
@@ -37,8 +37,8 @@ def registry_unit_tests(name):
                 [TAXONOMY_CLASSES, sorted(TAXONOMY.keys())],
             ),
             expect_equal(
-                "lang.json taxonomy rows and the other families do not overlap",
-                [family for family in LANG_JSON_FAMILIES if family in OTHER_FAMILIES],
+                "lang.json taxonomy rows and the core families do not overlap",
+                [family for family in LANG_JSON_FAMILIES if family in CORE_TAXONOMY],
                 [],
             ),
             expect_equal(
@@ -57,8 +57,13 @@ def registry_unit_tests(name):
                 [["c", "cpp"], "//cc:defs.bzl", ["go"]],
             ),
             expect_equal(
+                "core taxonomy rows name their owner's defs.bzl or other",
+                [TAXONOMY["objc"].owner, TAXONOMY["yaml"].owner, TAXONOMY["json"].owner, TAXONOMY["json"].classes],
+                ["//cc:defs.bzl", "//core:defs.bzl", "other", ["json", "json5", "jsonc"]],
+            ),
+            expect_equal(
                 "csharp, cuda and fsharp taxonomy rows come from lang.json",
-                [TAXONOMY["csharp"].owner, TAXONOMY["cuda"].classes, "fsharp" in OTHER_FAMILIES],
+                [TAXONOMY["csharp"].owner, TAXONOMY["cuda"].classes, "fsharp" in CORE_TAXONOMY],
                 ["//csharp:defs.bzl", ["cuda"], False],
             ),
             expect_equal(

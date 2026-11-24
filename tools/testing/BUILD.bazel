@@ -166,13 +166,7 @@ rust_binary(
     ),
     crate_name = "nested_bazel_probe",
     crate_root = "nested_bazel_probe.rs",
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ) + [
-        ":dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
+    deps = ["//tools/testing/nested:dx_nested"],
 )
 
 rust_binary(
@@ -186,13 +180,7 @@ rust_binary(
     crate_name = "nested_bazel_shim",
     crate_root = "nested_bazel_shim.rs",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ) + [
-        ":dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
+    deps = ["//tools/testing/nested:dx_nested"],
 )
 
 testing_rust_test(
@@ -314,11 +302,7 @@ rust_test(
     crate_root = "consumer_maven_lock_test.rs",
     data = CONSUMER_MAVEN_DATA,
     env = CONSUMER_MAVEN_ENV,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",

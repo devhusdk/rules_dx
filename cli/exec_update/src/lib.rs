@@ -1,6 +1,7 @@
 mod dep_edit;
 mod staged;
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod test_env;
 mod update;
 mod update_add_missing;

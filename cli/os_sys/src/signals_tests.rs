@@ -88,7 +88,10 @@ fn a_path_with_a_nul_byte_is_refused() {
     let path = Path::new(std::ffi::OsStr::from_bytes(b"a\0b"));
     let error = unlink_on_stop(path).expect_err("NUL");
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
-    assert!(error.to_string().contains("NUL byte at offset 1"), "{error}");
+    assert!(
+        error.to_string().contains("NUL byte at offset 1"),
+        "{error}"
+    );
 }
 
 #[test]

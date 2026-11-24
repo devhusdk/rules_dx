@@ -39,7 +39,8 @@ pub mod win32;
 #[cfg(test)]
 #[path = "console_tests.rs"]
 mod console_tests;
-#[cfg(all(test, any(target_os = "linux", target_os = "macos", windows)))]
+#[cfg(test)]
+#[cfg(any(target_os = "linux", target_os = "macos", windows))]
 #[path = "exit_tests.rs"]
 mod exit_tests;
 #[cfg(test)]

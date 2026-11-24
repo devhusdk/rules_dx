@@ -936,7 +936,7 @@ impl Isolation {
             "exec unshare --user --map-user={} --map-group={} -- \"$@\"",
             self.uid, self.gid
         ));
-        lines.join("\n") + "\n"
+        format!("{}\n", lines.join("\n"))
     }
 
     /// Wraps one command in fresh user, mount and, when denied, network namespaces.
@@ -2124,8 +2124,20 @@ fn check_compiler(name: &str, producer: &str, artifacts: &[Value]) -> Result<(),
     Ok(())
 }
 
+fn git_beside_bash(bash: &Path, exists: &dyn Fn(&Path) -> bool) -> Option<PathBuf> {
+    let bin = bash.parent().filter(|dir| dir.ends_with("usr/bin"))?;
+    let git = bin.parent()?.parent()?.join("bin").join("git.exe");
+    exists(&git).then_some(git)
+}
+
 fn git(source: &Path, args: &[&str]) -> Result<String, String> {
-    let mut command = Command::new("git");
+    let beside_bash = std::env::var_os("BAZEL_SH")
+        .filter(|_| cfg!(windows))
+        .and_then(|bash| git_beside_bash(Path::new(&bash), &|path| path.is_file()));
+    let mut command = match beside_bash {
+        Some(git) => Command::new(git),
+        None => Command::new("git"),
+    };
     command.arg("-C").arg(source).args(args);
     let outcome = capture(command)?;
     if outcome.exit != 0 {
@@ -2872,7 +2884,7 @@ fn isolation_check_script(
     }
     lines.push("echo DONE".to_owned());
     lines.push("exit /b 0".to_owned());
-    Ok(lines.join("\r\n") + "\r\n")
+    Ok(format!("{}\r\n", lines.join("\r\n")))
 }
 
 /// Turns the output of the isolation check script into the first failure it reports.

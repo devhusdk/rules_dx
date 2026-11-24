@@ -146,9 +146,11 @@ impl GenerateRequest {
 
     #[must_use]
     pub fn bazel_head(&self) -> dx_process::BazelHead {
+        let mut options = vec![BuildMode::default_for(Command::Generate).config_flag()];
+        options.extend(self.bazel_options.iter().cloned());
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
-            options: vec![BuildMode::default_for(Command::Generate).config_flag()],
+            options,
             settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
         }
     }
@@ -703,6 +705,27 @@ mod tests {
         assert_eq!(head.options, vec!["--config=dx_build_dev".to_owned()]);
         assert_eq!(head.settings, crate::plan::shared_settings("build"));
         assert_ne!(head.settings, [] as [String; 0]);
+    }
+
+    #[test]
+    fn generate_heads_carry_the_callers_bazel_options_after_the_build_mode() {
+        let mut invocation = invocation_for(Command::Generate, &[]);
+        invocation.bazel_startup_options = vec!["--output_base=/ob".to_owned()];
+        invocation.bazel_options = vec!["--config=ci".to_owned(), "--jobs=3".to_owned()];
+        let head = invocation
+            .generate_request()
+            .expect("generate")
+            .bazel_head();
+        assert_eq!(head.startup, vec!["--output_base=/ob".to_owned()]);
+        assert_eq!(
+            head.options,
+            vec![
+                "--config=dx_build_dev".to_owned(),
+                "--config=ci".to_owned(),
+                "--jobs=3".to_owned(),
+            ]
+        );
+        assert_eq!(head.settings, crate::plan::shared_settings("build"));
     }
 
     fn invocation_for(command: Command, targets: &[&str]) -> Invocation {

@@ -1150,6 +1150,59 @@ mod tests {
         );
     }
 
+    fn carries_after(argv: &[String], verb: &str, options: &[String]) -> bool {
+        argv.iter().position(|arg| arg == verb).is_some_and(|at| {
+            argv.get(at + 1..)
+                .is_some_and(|rest| rest.windows(options.len()).any(|run| run == options))
+        })
+    }
+
+    #[test]
+    fn lock_resolvers_carry_the_bazel_options_after_the_double_dash() {
+        let options = vec![
+            "--config=dx_build_dev".to_owned(),
+            "--config=ci".to_owned(),
+            "--jobs=3".to_owned(),
+        ];
+        for words in [
+            ["generate", "--", "--config=ci", "--jobs=3"],
+            ["check", "--", "--config=ci", "--jobs=3"],
+        ] {
+            let (harness, hub) = composer_set(&format!("lock-options-{}", words[0]));
+            let resolver = hub.resolver.as_deref().expect("resolver");
+            let (_, out, err) = harness.run(&words);
+            let builds: Vec<Vec<String>> = harness
+                .build_argv
+                .borrow()
+                .iter()
+                .filter(|argv| argv.last().map(String::as_str) == Some(resolver))
+                .cloned()
+                .collect();
+            assert_eq!(builds.len(), 1, "{words:?}\n{out}{err}");
+            assert!(carries_after(&builds[0], "build", &options), "{builds:?}");
+            let runs = resolver_runs(&harness, resolver);
+            assert_eq!(runs.len(), 1, "{words:?}\n{out}{err}");
+            assert!(carries_after(&runs[0], "run", &options), "{runs:?}");
+            let dir = harness.workspace.join("php");
+            assert!(
+                runs[0].ends_with(&[
+                    resolver.to_owned(),
+                    "--".to_owned(),
+                    "--dir".to_owned(),
+                    dir.to_string_lossy().into_owned(),
+                    "--check".to_owned()
+                ]),
+                "{runs:?}"
+            );
+            let queries = harness.query.calls.borrow();
+            let cquery = queries
+                .iter()
+                .find(|argv| argv.last().map(String::as_str) == Some(resolver))
+                .expect("compatibility cquery");
+            assert!(carries_after(cquery, "cquery", &options), "{cquery:?}");
+        }
+    }
+
     #[test]
     fn check_skips_a_resolver_that_is_incompatible_with_the_platform() {
         let (mut harness, hub) = composer_set("check-lock-incompatible");

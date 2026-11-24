@@ -107,7 +107,7 @@ def _dune_bootstrap_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]), executable = out)]
 
-dx_dune_bootstrap = rule(
+_dx_dune_bootstrap = rule(
     implementation = _dune_bootstrap_impl,
     doc = "Builds the dune executable from dune's own sources with its bootstrap script.",
     attrs = {
@@ -143,7 +143,7 @@ def _dune_build_impl(ctx):
         runfiles = ctx.runfiles(transitive_files = depset(ctx.files._stdlib)),
     )]
 
-dx_dune_build = rule(
+_dx_dune_build = rule(
     implementation = _dune_build_impl,
     doc = "Builds one executable target of a vendored dune workspace with the pinned native OCaml toolchain.",
     attrs = {
@@ -257,6 +257,14 @@ _dx_dune_library = rule(
     toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE, EXEC_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
+
+def dx_dune_bootstrap(name, **kwargs):
+    """Builds the dune executable; the OCaml cells are always appended to target_compatible_with."""
+    _dx_dune_bootstrap(name = name, **dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH))
+
+def dx_dune_build(name, **kwargs):
+    """Builds one dune workspace executable; the OCaml cells are always appended to target_compatible_with."""
+    _dx_dune_build(name = name, **dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH))
 
 def ocaml_dune_library(name, **kwargs):
     """Builds a dune library package; the OCaml cells are always appended to target_compatible_with."""

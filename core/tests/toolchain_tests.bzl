@@ -1,7 +1,7 @@
 """Shared toolchain target renderer and hub check tests."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "digest_problems", "hub_checks", "is_sha256", "pins_hub", "toolchain_target")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
 _DIGEST = "0123456789abcdef" * 4
 
@@ -113,6 +113,7 @@ config_setting(
 alias(
     name = "bin",
     actual = select({":linux_x86_64_exec": "@t__linux_x86_64//:bin"}),
+    target_compatible_with = select({":linux_x86_64_exec": [], "//conditions:default": ["@platforms//:incompatible"]}),
     visibility = ["//visibility:public"],
 )
 """),

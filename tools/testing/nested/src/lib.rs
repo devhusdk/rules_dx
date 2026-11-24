@@ -16,6 +16,7 @@ pub mod footprint;
 pub mod plain_consumer;
 pub mod plain_fixture;
 pub mod record;
+pub mod shared;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
@@ -50,11 +51,13 @@ const REPOSITORY_CACHE: &str = "repository-cache";
 pub const SHARED_ENV: &str = "DX_NESTED_SHARED";
 /// The variable that `nested_bazel_test(caches = "private")` sets to keep a test off the shared root.
 pub const CACHES_ENV: &str = "DX_NESTED_CACHES";
+/// The variable overriding the byte limit of the shared root.
+pub const SHARED_LIMIT_ENV: &str = "DX_NESTED_SHARED_LIMIT";
 const INSTALL: &str = "install";
 const REPO_CONTENTS: &str = "repo-contents";
 const DISK_CACHE: &str = "disk-cache";
 const SETS: &str = "sets";
-const DISK_CACHE_GC_MAX_SIZE: &str = "4G";
+const DISK_CACHE_GC_MAX_SIZE: &str = "2G";
 
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
 pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
@@ -141,6 +144,8 @@ pub struct Config {
     pub shared: Option<PathBuf>,
     /// The cache set the declared downloads come from.
     pub set: Option<String>,
+    /// The byte limit of the shared root.
+    pub limit: u64,
 }
 
 /// The output of a record mode run.
@@ -254,6 +259,12 @@ impl Config {
             ),
             _ => None,
         };
+        let limit = match text(SHARED_LIMIT_ENV).filter(|limit| !limit.is_empty()) {
+            Some(limit) => limit
+                .parse()
+                .map_err(|error| format!("{SHARED_LIMIT_ENV}={limit}: {error}"))?,
+            None => shared::DEFAULT_LIMIT,
+        };
         Ok(Config {
             root,
             bazel,
@@ -264,6 +275,7 @@ impl Config {
             record,
             shared,
             set,
+            limit,
         })
     }
 }
@@ -1022,6 +1034,7 @@ pub struct Server {
     home: PathBuf,
     workspace: Option<PathBuf>,
     reaper: Option<Child>,
+    lease: Option<shared::Lease>,
 }
 
 impl Server {
@@ -1037,6 +1050,7 @@ impl Server {
             home,
             workspace: None,
             reaper: None,
+            lease: None,
         };
         if cfg!(windows) {
             reset(&server.home)?;
@@ -1048,6 +1062,9 @@ impl Server {
         kill_slot_servers(&server.user_root(), &server.home.join(WORKSPACES));
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
+        if let Some(root) = &server.config.shared {
+            server.lease = Some(shared::lease(root, server.config.limit)?);
+        }
         let repository_cache = server.repository_cache();
         if server.config.record.is_none() {
             cache::install(&repository_cache, &server.config.cache)?;
@@ -2301,6 +2318,7 @@ mod tests {
             record: None,
             shared: None,
             set: None,
+            limit: shared::DEFAULT_LIMIT,
         }
     }
 
@@ -2659,7 +2677,7 @@ mod tests {
                 Path::new("/b/downloader.cfg"),
                 Path::new("/s/repository-cache")
             ),
-            "common --local_resources=cpu=2\ncommon --disk_cache=/s/disk-cache\ncommon --experimental_disk_cache_gc_max_size=4G\ncommon --experimental_disk_cache_gc_idle_delay=1s\ncommon --repo_contents_cache=/s/repo-contents\ncommon --remote_cache=\ncommon --repository_cache=/s/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
+            "common --local_resources=cpu=2\ncommon --disk_cache=/s/disk-cache\ncommon --experimental_disk_cache_gc_max_size=2G\ncommon --experimental_disk_cache_gc_idle_delay=1s\ncommon --repo_contents_cache=/s/repo-contents\ncommon --remote_cache=\ncommon --repository_cache=/s/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
         );
         let in_set = Config {
             set: Some("harness".to_owned()),
@@ -3209,6 +3227,7 @@ mod portable_tests {
             record: None,
             shared: None,
             set: None,
+            limit: shared::DEFAULT_LIMIT,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");

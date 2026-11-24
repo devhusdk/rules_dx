@@ -26,7 +26,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | Second build, same server | 0.04 s |
 
 - A cold nested test takes 7 seconds before it loads rules_dx. No nested test runs under 1 second.
-- The 1 second target is met by a nested test only as a cached result.
+- Only a cached result meets the 1 second target.
 - A test that must run under 1 second uncached is converted.
 
 ## Decisions
@@ -69,7 +69,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
 - The nested Bazel reads one rc file that the harness writes. It reads no home, system or workspace rc of the host.
 - The nested Bazel uses no remote cache.
-- setup-bazel sets `DX_NESTED_SHARED`, a writable root outside the sandbox. Servers share its install base and 4 GB disk cache. Repository and repo contents caches are per cache set.
+- setup-bazel sets `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, least recently used first.
 - `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 

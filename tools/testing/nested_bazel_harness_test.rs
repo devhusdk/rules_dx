@@ -459,6 +459,11 @@ fn tmpdir() -> std::path::PathBuf {
 
 /// Runs the probe as its own test binary in a fresh `TEST_TMPDIR` with `shared` as the shared cache root.
 fn probe(shared: &str) -> dx_testing::Run {
+    probe_within(shared, "")
+}
+
+/// Runs the probe with `shared` as the shared cache root and `limit` as its byte limit.
+fn probe_within(shared: &str, limit: &str) -> dx_testing::Run {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
@@ -471,6 +476,7 @@ fn probe(shared: &str) -> dx_testing::Run {
             ("TEST_TMPDIR", &probe_tmp.to_string_lossy()),
             (nested::SHARED_ENV, shared),
             (nested::CACHES_ENV, ""),
+            (nested::SHARED_LIMIT_ENV, limit),
         ],
     )
     .unwrap_or_else(|error| panic!("run probe: {error}"));
@@ -510,6 +516,36 @@ fn a_shared_root_extracts_the_install_base_once_and_reuses_a_repository() {
         second.combined()
     );
     assert_eq!(probe_line(&second, "fetched"), "", "{}", second.combined());
+}
+
+#[test]
+fn a_shared_root_over_its_limit_evicts_the_least_recently_used_entry_first() {
+    let shared = tmpdir().join("bounded");
+    let root = shared.to_string_lossy();
+    probe(&root);
+    let stale = shared.join("repo-contents").join("stale");
+    std::fs::create_dir_all(&stale).expect("mkdir");
+    let payload = std::fs::File::create(stale.join("payload")).expect("create");
+    payload.set_len(8 << 20).expect("size");
+    payload
+        .set_modified(std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(1 << 30))
+        .expect("mtime");
+    drop(payload);
+    let limit = nested::shared::usage(&shared) - (4 << 20);
+    let bounded = probe_within(&root, &limit.to_string());
+    assert!(!stale.exists(), "{}", bounded.combined());
+    assert_eq!(
+        probe_line(&bounded, "extracted"),
+        "false",
+        "{}",
+        bounded.combined()
+    );
+    assert_eq!(
+        probe_line(&bounded, "fetched"),
+        "",
+        "{}",
+        bounded.combined()
+    );
 }
 
 #[test]

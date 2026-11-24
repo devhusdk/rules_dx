@@ -73,6 +73,7 @@ jobs:
         with:
           cache-save: false
           disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
+          free-disk: true
       - uses: ./.github/actions/gate
         with:
           command: check
@@ -118,6 +119,7 @@ jobs:
         with:
           cache-save: false
           disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
+          free-disk: true
       - uses: ./.github/actions/gate
         with:
           command: coverage

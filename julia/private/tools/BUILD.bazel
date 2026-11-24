@@ -4,7 +4,7 @@ load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
 load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("//rust:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
 load(":julia_tool.bzl", "dx_julia_tool")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -78,6 +78,24 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
+)
+
+# keep
+rust_binary(
+    name = "julia_src_gen",
+    srcs = ["julia_src_gen.rs"],
+    crate_name = "julia_src_gen",
+    crate_root = "julia_src_gen.rs",
+    visibility = ["//visibility:public"],
+)
+
+# keep
+rust_test(
+    name = "julia_src_gen_test",
+    size = "small",
+    srcs = ["julia_src_gen.rs"],
+    crate_name = "julia_src_gen",
+    crate_root = "julia_src_gen.rs",
 )
 
 real_source_target(

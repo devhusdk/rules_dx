@@ -64,12 +64,12 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 
 ### Environment
 
-- The test sets `PATH=/dx_no_path` and inherits no host variable but `DX_NESTED_SHARED`. `NESTED_BAZEL_ENV_INHERIT` is deleted.
+- The test sets `PATH=/dx_no_path` and inherits no host variable. `NESTED_BAZEL_ENV_INHERIT` is deleted.
 - `HOME`, the output user root and every workspace are under `TEST_TMPDIR`.
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
 - The nested Bazel reads one rc file that the harness writes. It reads no host home, system or workspace rc.
 - The nested Bazel uses no remote cache.
-- setup-bazel exports `DX_NESTED_SHARED`, a root outside the sandbox. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, oldest first, sparing what running tests hold.
+- setup-bazel passes `DX_NESTED_SHARED`, a root outside the sandbox, as a valued `--test_env`. Servers share its install base and disk cache; fetch caches are per cache set. A starting test trims it to 6 GB, oldest first, sparing what running tests hold.
 - `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 

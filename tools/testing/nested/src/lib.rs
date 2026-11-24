@@ -55,6 +55,7 @@ const REPO_CONTENTS: &str = "repo-contents";
 const DISK_CACHE: &str = "disk-cache";
 const SETS: &str = "sets";
 const DISK_CACHE_GC_MAX_SIZE: &str = "2G";
+const SH_TOOLCHAIN_PATH: &str = env!("DX_NESTED_SH_TOOLCHAIN_PATH");
 
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
 pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
@@ -1213,6 +1214,9 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
     let user_home = home.join(HOME_DIR);
     command.env("HOME", &user_home);
     command.env("USERPROFILE", &user_home);
+    if cfg!(windows) && !SH_TOOLCHAIN_PATH.is_empty() {
+        command.env("BAZEL_SH", SH_TOOLCHAIN_PATH);
+    }
     let mut path = None;
     for (key, value) in envs {
         if *key == "PATH" {
@@ -3260,6 +3264,25 @@ mod tests {
 #[cfg(test)]
 mod portable_tests {
     use super::*;
+
+    #[test]
+    fn windows_commands_get_the_sh_toolchain_bash_and_callers_can_override_it() {
+        let bazel_sh = |envs: &[(&str, &str)]| {
+            let mut command = Command::new("/x");
+            apply_env_at(Path::new("/h"), &mut command, envs, &[]);
+            command
+                .get_envs()
+                .find(|(key, _)| *key == "BAZEL_SH")
+                .and_then(|(_, value)| value.map(|value| value.to_string_lossy().into_owned()))
+        };
+        let toolchain =
+            (cfg!(windows) && !SH_TOOLCHAIN_PATH.is_empty()).then(|| SH_TOOLCHAIN_PATH.to_owned());
+        assert_eq!(bazel_sh(&[]), toolchain);
+        assert_eq!(
+            bazel_sh(&[("BAZEL_SH", "/mine/bash")]).as_deref(),
+            Some("/mine/bash")
+        );
+    }
 
     #[test]
     fn consumer_module_appends_extra_after_override() {

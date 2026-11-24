@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-int dx_cxx_add(int a, int b);
+int dx_cxx_add(int lhs, int rhs);
 
 #ifdef __cplusplus
 }

@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -41,6 +42,7 @@ type Config struct {
 	GOARCH      string
 	Tags        []string
 	Cgo         bool
+	CgoGoSrcs   string
 	VetxOnly    bool
 	VetxOutput  string
 }
@@ -96,6 +98,71 @@ func MatchedFiles(cfg *Config) ([]string, error) {
 	return files, nil
 }
 
+func importsC(path string) (bool, error) {
+	f, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+	if err != nil {
+		return false, err
+	}
+	for _, spec := range f.Imports {
+		if strings.Trim(spec.Path.Value, "\"`") == "C" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var lineDirective = regexp.MustCompile(`(//line |/\*line )([^:\n*][^:\n]*):`)
+
+func cgoProcessed(files []string, src, dst, root string) ([]string, error) {
+	if src == "" {
+		return files, nil
+	}
+	var kept []string
+	for _, path := range files {
+		cgo, err := importsC(path)
+		if err != nil {
+			return nil, err
+		}
+		if !cgo {
+			kept = append(kept, path)
+		}
+	}
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(src, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		data = lineDirective.ReplaceAllFunc(data, func(m []byte) []byte {
+			parts := lineDirective.FindSubmatch(m)
+			name := string(parts[2])
+			if filepath.IsAbs(name) {
+				return m
+			}
+			return []byte(string(parts[1]) + filepath.Join(root, name) + ":")
+		})
+		out := filepath.Join(dst, entry.Name())
+		if err := os.WriteFile(out, data, 0o644); err != nil {
+			return nil, err
+		}
+		kept = append(kept, out)
+	}
+	return kept, nil
+}
+
+func relative(posn, root string) string {
+	if root == "" {
+		return posn
+	}
+	return strings.TrimPrefix(posn, root+string(filepath.Separator))
+}
+
 func fileOf(posn string) string {
 	for range 2 {
 		i := strings.LastIndex(posn, ":")
@@ -107,8 +174,8 @@ func fileOf(posn string) string {
 	return posn
 }
 
-func filterOwned(tree map[string]map[string]json.RawMessage, owned []string) map[string]map[string]json.RawMessage {
-	if len(owned) == 0 {
+func filterOwned(tree map[string]map[string]json.RawMessage, owned []string, root string) map[string]map[string]json.RawMessage {
+	if len(owned) == 0 && root == "" {
 		return tree
 	}
 	set := map[string]bool{}
@@ -123,7 +190,9 @@ func filterOwned(tree map[string]map[string]json.RawMessage, owned []string) map
 			}
 			kept := []diagnostic{}
 			for _, d := range list {
-				if set[fileOf(d.Posn)] {
+				d.Posn = relative(d.Posn, root)
+				d.End = relative(d.End, root)
+				if len(owned) == 0 || set[fileOf(d.Posn)] {
 					kept = append(kept, d)
 				}
 			}
@@ -244,7 +313,7 @@ func vetxForImports(cfg *Config, files []string, dir string) (map[string]string,
 	for path, file := range cfg.PackageVetx {
 		vetx[path] = file
 	}
-	importMap := map[string]string{}
+	importMap := map[string]string{"unsafe": "unsafe"}
 	for path, resolved := range cfg.ImportMap {
 		importMap[path] = resolved
 	}
@@ -337,7 +406,21 @@ func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []strin
 			return 1, err
 		}
 	}
+	dir, err := os.MkdirTemp("", "dx-unit-*")
+	if err != nil {
+		return 1, err
+	}
+	defer os.RemoveAll(dir)
+	root := ""
+	if cfg.CgoGoSrcs != "" {
+		if root, err = os.Getwd(); err != nil {
+			return 1, err
+		}
+	}
 	files, err := MatchedFiles(&cfg)
+	if err == nil {
+		files, err = cgoProcessed(files, cfg.CgoGoSrcs, dir, root)
+	}
 	if err != nil {
 		return 1, emitError(*out, stdout, &cfg, tool, err.Error())
 	}
@@ -347,11 +430,6 @@ func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []strin
 	if len(files) == 0 {
 		return 0, emit(*out, stdout, &cfg, nil)
 	}
-	dir, err := os.MkdirTemp("", "dx-unit-*")
-	if err != nil {
-		return 1, err
-	}
-	defer os.RemoveAll(dir)
 	id := cfg.ID
 	if id == "" {
 		id = cfg.ImportPath
@@ -379,7 +457,7 @@ func run(tool string, analyzers []*analysis.Analyzer, opts Options, args []strin
 		}
 		merged = mergeDiagnostics(merged, byAnalyzer)
 	}
-	owned := filterOwned(map[string]map[string]json.RawMessage{cfg.ImportPath: merged}, cfg.OwnedFiles)
+	owned := filterOwned(map[string]map[string]json.RawMessage{cfg.ImportPath: merged}, cfg.OwnedFiles, root)
 	if opts.Filter != nil {
 		owned = opts.Filter(&cfg, owned)
 	}

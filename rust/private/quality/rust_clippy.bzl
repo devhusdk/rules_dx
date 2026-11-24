@@ -58,7 +58,7 @@ def _dx_clippy_aspect_impl(target, ctx):
     if not crate_info:
         return [DxClippyInfo(diagnostics = [])]
 
-    diagnostics = ctx.actions.declare_file(ctx.label.name + ".dx_clippy.diagnostics", sibling = crate_info.output)
+    diagnostics = ctx.actions.declare_file(ctx.label.name + ".dx_clippy/diagnostics", sibling = crate_info.output)
 
     fields = structs.to_dict(crate_info)
     fields["output"] = diagnostics

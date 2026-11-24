@@ -246,9 +246,7 @@ pub(crate) fn plan(
         selection.targets = vec!["//...".to_owned()];
     }
     plan.widened.clone_from(&selection.widened);
-    if command != Command::Deploy
-        && selection.targets.iter().any(|target| target == "//...")
-    {
+    if command != Command::Deploy && selection.targets.iter().any(|target| target == "//...") {
         if command == Command::Check {
             plan.tests = vec!["//...".to_owned()];
             plan.generate = vec!["//...".to_owned()];

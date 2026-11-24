@@ -497,11 +497,7 @@ rust_test(
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
     ],

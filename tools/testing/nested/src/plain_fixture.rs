@@ -76,17 +76,27 @@ pub fn check_own_cc(resolution: &str) -> Result<(), String> {
     let foreign: Vec<&str> = selected
         .iter()
         .copied()
-        .filter(|line| !selected_repo(line).is_some_and(|repo| repo.rsplit('+').next() == Some("local_config_cc")))
+        .filter(|line| {
+            !selected_repo(line)
+                .is_some_and(|repo| repo.rsplit('+').next() == Some("local_config_cc"))
+        })
         .collect();
     if foreign.is_empty() {
         Ok(())
     } else {
-        Err(format!("C++ toolchain is not local_config_cc:\n{}", foreign.join("\n")))
+        Err(format!(
+            "C++ toolchain is not local_config_cc:\n{}",
+            foreign.join("\n")
+        ))
     }
 }
 
 fn selected_repo(line: &str) -> Option<&str> {
-    let label = line.split("-> toolchain ").nth(1)?.split_whitespace().next()?;
+    let label = line
+        .split("-> toolchain ")
+        .nth(1)?
+        .split_whitespace()
+        .next()?;
     label.trim_start_matches('@').split("//").next()
 }
 
@@ -179,7 +189,9 @@ mod tests {
 
     #[test]
     fn accepts_local_config_cc() {
-        let text = format!("{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n");
+        let text = format!(
+            "{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n"
+        );
         assert_eq!(check_own_cc(&text), Ok(()));
     }
 
@@ -189,7 +201,10 @@ mod tests {
             "{SELECTED}@@rules_cc++cc_configure_extension+local_config_cc//:cc-compiler-k8\n{SELECTED}@@llvm+//toolchain:cc\n"
         );
         let error = check_own_cc(&text).expect_err("llvm");
-        assert!(error.contains("@@llvm+//toolchain:cc") && !error.contains("cc-compiler-k8"), "{error}");
+        assert!(
+            error.contains("@@llvm+//toolchain:cc") && !error.contains("cc-compiler-k8"),
+            "{error}"
+        );
     }
 
     #[test]

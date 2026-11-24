@@ -200,13 +200,15 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
-    """Declares a rust_test that runs a nested Bazel with the shared tags, env and the cache set `cache` whose locks are the label `cache_locks`."""
+def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None, caches = "shared", data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env, the cache set `cache` whose locks are `cache_locks`, and `caches = "private"` to stay off the shared cache root."""
     target_compatible_with = target_compatible_with or []
     cache_data = []
     cache_env = {}
     if bool(cache) != bool(cache_locks):
         fail("cache and cache_locks go together")
+    if caches not in ("shared", "private"):
+        fail("%s: caches is %r, want \"shared\" or \"private\"" % (name, caches))
     if cache:
         repository_cache = "@nested_cache_%s//:cache" % cache
         locks = cache_locks
@@ -216,10 +218,13 @@ def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None
             "DX_NESTED_LOCKS": "$(rlocationpaths %s)" % locks,
             "DX_NESTED_REPOSITORY_CACHE": "$(rlocationpath %s)" % repository_cache,
         }
+    if caches == "private":
+        cache_env["DX_NESTED_CACHES"] = "private"
     rust_test(
         name = name,
         data = (data or []) + cache_data + NESTED_BAZEL_DATA,
         env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | cache_env | (env or {}),
+        env_inherit = ["DX_NESTED_SHARED"] if caches == "shared" else [],
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with,
         **kwargs

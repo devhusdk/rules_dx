@@ -74,8 +74,8 @@ rust_test(
     },
 )
 
-# One shard per case. A go, java or rust consumer fails when the repositories it fetches into an empty
-# output base differ from cold_start/<lang>.txt or include another language's repositories. A consumer
+# One shard per case. A go, java or rust consumer fails when its build and test, or the java check
+# analysis, fetch other repositories than cold_start/<case>.txt or another language's ones. A consumer
 # of the GO_GUARD_LANGS or JAVA_GUARD_LANGS fixtures pins every registry tool of the host, and every
 # registry key of each DX_PREBUILT_TARGET_TOOLS tool, with a stub. It fails when it still compiles a
 # rules_dx binary that prebuilt_guard_allowlist.txt does not name, or when a target tool does not
@@ -101,11 +101,12 @@ rust_library(
 COLD_START_LISTS = [
     "cold_start/go.txt",
     "cold_start/java.txt",
+    "cold_start/java_check.txt",
     "cold_start/rust.txt",
 ]
 
 COLD_START_ENV = {
-    "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/java.txt) $(rlocationpath cold_start/rust.txt)",
+    "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/java.txt) $(rlocationpath cold_start/java_check.txt) $(rlocationpath cold_start/rust.txt)",
 }
 
 rust_test(
@@ -144,7 +145,7 @@ nested_bazel_test(
         "DX_PREBUILT_TARGET_TOOLS": "$(rlocationpath //cli/prebuilt:target_tools)",
     },
     network = True,
-    shard_count = 5,
+    shard_count = 6,
     deps = [":consumer_network"],
 )
 

@@ -1,4 +1,6 @@
-use consumer_network::cold_start_test::fetches_only_its_cold_start_list;
+use consumer_network::cold_start_test::{
+    check_analysis_fetches_only_its_cold_start_list, fetches_only_its_cold_start_list,
+};
 use consumer_network::prebuilt_guard_test::compiles_no_rules_dx_tool;
 
 #[test]
@@ -9,6 +11,11 @@ fn go_fetches_only_its_cold_start_list() {
 #[test]
 fn java_fetches_only_its_cold_start_list() {
     fetches_only_its_cold_start_list("java");
+}
+
+#[test]
+fn java_check_analysis_fetches_only_its_cold_start_list() {
+    check_analysis_fetches_only_its_cold_start_list("java");
 }
 
 #[test]

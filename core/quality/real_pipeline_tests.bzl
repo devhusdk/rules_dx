@@ -114,8 +114,8 @@ def real_pipeline_unit_tests(name):
         mode = "unit",
         checks = [
             expect_equal(
-                "the core shards every scoped check attaches carry no biome, typos or vale attr",
-                _always_on_tool_attrs(["_biome", "_typos", "_vale"]),
+                "the core shards every scoped check attaches carry no biome, docstrfmt, typos or vale attr",
+                _always_on_tool_attrs(["_biome", "_docstrfmt", "_typos", "_vale"]),
                 [],
             ),
             expect_equal(

@@ -5,7 +5,8 @@
       "aspects": {
         "format": [
           "real_format_aspect",
-          "real_biome_format_aspect"
+          "real_biome_format_aspect",
+          "real_docstrfmt_format_aspect"
         ],
         "lint": [
           "real_lint_aspect",

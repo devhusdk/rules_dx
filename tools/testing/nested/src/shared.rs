@@ -1,32 +1,20 @@
-//! Bounds the shared cache root: a starting test evicts the least recently used entries no running test holds.
-
 use std::fs::{File, TryLockError};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-/// The byte limit of a shared root when `DX_NESTED_SHARED_LIMIT` does not set one.
 pub const DEFAULT_LIMIT: u64 = 6 << 30;
-/// Where an evicted entry moves before it is deleted, so a stopped delete never leaves half an entry in a cache.
-///
-/// Bazel's own repo contents GC uses the same name, so it is never an entry.
 pub const TRASH: &str = "_trash";
 const LOCK: &str = ".lock";
 const LEASES: &str = "leases";
-/// Covers coarse file system timestamps when a use is compared with the start of a lease.
 const SLACK: Duration = Duration::from_secs(2);
 
-/// The caches a test may read while its server runs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Holds {
-    /// Its install base.
     pub install: PathBuf,
-    /// Its repository cache, held whole because Bazel does not stamp the downloads it reads.
     pub downloads: PathBuf,
-    /// Its repo contents cache, held for the entries used since the test started.
     pub fetched: PathBuf,
 }
 
-/// A running test's claim on its [`Holds`], released when its process exits.
 #[derive(Debug)]
 pub struct Lease {
     _lock: File,
@@ -46,14 +34,6 @@ impl Held {
     }
 }
 
-/// Registers a lease on `holds` in `root` after evicting the least recently used entries above `limit`.
-///
-/// Registration and eviction run under an exclusive lock on the root, and eviction skips what running
-/// tests hold, so a starting test trims the root without waiting for the others.
-///
-/// # Errors
-///
-/// Returns `Err` when the root or its lease files cannot be created or locked.
 pub fn lease(root: &Path, limit: u64, holds: &Holds) -> Result<Lease, String> {
     let leases = root.join(LEASES);
     std::fs::create_dir_all(&leases)
@@ -107,7 +87,6 @@ fn open(path: &Path) -> Result<File, String> {
         .map_err(|error| format!("cannot open {}: {error}", path.display()))
 }
 
-/// The holds of the leases whose process still runs; the records of finished ones are removed.
 fn running(leases: &Path) -> Vec<Held> {
     let mut held = Vec::new();
     for entry in std::fs::read_dir(leases).into_iter().flatten().flatten() {
@@ -154,7 +133,6 @@ fn read_record(path: &Path) -> Option<Held> {
     })
 }
 
-/// The bytes of the files below `root`, links counted as themselves.
 #[must_use]
 pub fn usage(root: &Path) -> u64 {
     let mut total = 0;
@@ -171,9 +149,6 @@ pub fn usage(root: &Path) -> u64 {
     total
 }
 
-/// Moves unheld entries, oldest use first, into the trash until `root` holds at most `limit` bytes.
-///
-/// An entry that cannot move, such as one a lingering Windows server keeps open, stays whole.
 fn evict(root: &Path, limit: u64, held: &[Held], tag: &str) {
     let trash = root.join(TRASH);
     let mut total = usage(root).saturating_sub(usage(&trash));
@@ -214,7 +189,6 @@ fn empty_trash(root: &Path) {
     }
 }
 
-/// The evictable entries: install bases, fetched repositories and downloads of every cache set.
 fn entries(root: &Path) -> Vec<PathBuf> {
     let mut buckets = vec![root.to_path_buf()];
     buckets.extend(dirs(&root.join(crate::SETS)));
@@ -242,10 +216,6 @@ fn dirs(parent: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// When `path` was last used: its own mtime when `own`, else that of its newest entry, or its own when it is empty.
-///
-/// The Bazel client stamps an install base directory at each start but its files in the future, so an
-/// install base passes `own`; future stamps count as now.
 fn last_used(path: &Path, own: bool) -> SystemTime {
     let now = SystemTime::now();
     let modified = |meta: std::fs::Metadata| meta.modified().ok().map(|time| time.min(now));
@@ -393,7 +363,32 @@ mod tests {
         assert!(dirs(&root.join(TRASH)).is_empty());
         assert_eq!(leases(root), 4);
         drop((first, second));
-        let _third = lease(root, 0, &holds(root, "c", "")).expect("third lease");
+    }
+
+    #[test]
+    fn a_lease_whose_test_died_is_removed_and_holds_nothing() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let root = dir.path();
+        let dead = holds(root, "a", "sets/s");
+        let install = entry(root, "install/a", 100, Duration::ZERO);
+        let download = entry(
+            root,
+            "sets/s/repository-cache/content_addressable/sha256/d",
+            100,
+            Duration::ZERO,
+        );
+        let used = entry(root, "sets/s/repo-contents/used", 100, Duration::ZERO);
+        let leases_dir = root.join(LEASES);
+        std::fs::create_dir_all(&leases_dir).expect("mkdir");
+        File::create(leases_dir.join("1-1.lock")).expect("lock file");
+        let record = [
+            "1".to_owned(),
+            dead.install.display().to_string(),
+            dead.downloads.display().to_string(),
+            dead.fetched.display().to_string(),
+        ];
+        std::fs::write(leases_dir.join("1-1"), record.join("\n")).expect("record");
+        let _lease = lease(root, 0, &holds(root, "c", "")).expect("lease");
         assert!(!install.exists() && !download.exists() && !used.exists());
         assert_eq!(leases(root), 2);
     }

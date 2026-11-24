@@ -369,7 +369,6 @@ fn a_download_outside_the_cache_sets_fails_with_its_url() {
     }
     let (case, _) = locked_consumer("undeclared");
     let rules_py = "4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd";
-    // A private cache without the archive, so a shared cache root stays whole for other tests.
     let config = nested::Config::from_env().unwrap_or_else(|error| panic!("config: {error}"));
     let declared: Vec<_> = config
         .cache
@@ -457,12 +456,10 @@ fn tmpdir() -> std::path::PathBuf {
     std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"))
 }
 
-/// Runs the probe as its own test binary in a fresh `TEST_TMPDIR` with `shared` as the shared cache root.
 fn probe(shared: &str) -> dx_testing::Run {
     probe_within(shared, "")
 }
 
-/// Runs the probe with `shared` as the shared cache root and `limit` as its byte limit.
 fn probe_within(shared: &str, limit: &str) -> dx_testing::Run {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));

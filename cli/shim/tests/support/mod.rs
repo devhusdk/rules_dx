@@ -91,7 +91,8 @@ fn serve(stream: TcpStream, routes: &Mutex<HashMap<String, Reply>>) {
         Reply::Status(code) => respond(&mut out, code, b"", 0),
         Reply::Stall => {
             drop(respond_partial(&mut out));
-            std::thread::sleep(std::time::Duration::from_secs(60));
+            drop(out.set_read_timeout(Some(std::time::Duration::from_secs(60))));
+            drop(std::io::copy(&mut reader, &mut std::io::sink()));
             Ok(())
         }
     });

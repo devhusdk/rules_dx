@@ -110,7 +110,8 @@ fn answer(stream: TcpStream, reply: &Reply, log: &Mutex<Vec<String>>, full: &Mut
     drop(out.write_all(body));
     drop(out.flush());
     if let Reply::Stall(..) = reply {
-        std::thread::sleep(Duration::from_secs(30));
+        drop(out.set_read_timeout(Some(Duration::from_secs(30))));
+        drop(std::io::copy(&mut reader, &mut std::io::sink()));
     }
 }
 

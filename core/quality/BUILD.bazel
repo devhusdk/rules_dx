@@ -825,6 +825,7 @@ real_source_target(
         "family_hooks.bzl",
         "fixtures.bzl",
         "fixtures_tests.bzl",
+        "lint_results.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",
         "overlap_tests.bzl",

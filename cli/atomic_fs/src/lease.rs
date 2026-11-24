@@ -267,10 +267,10 @@ mod tests {
             "exclusive acquisition reports the holder instead of waiting"
         );
         drop(shared);
-        eventually("releasing the shared lease frees the generation", || {
-            try_acquire_exclusive(&root, GenerationUse::Environment, HEX_A)
-                .expect("probe after release")
-        });
+        free(
+            &lease_path(&root, GenerationUse::Environment, HEX_A).expect("path"),
+            "releasing the shared lease frees the generation",
+        );
         scratch.close().expect("cleanup");
     }
 
@@ -286,9 +286,7 @@ mod tests {
         let held = try_lock_file(&path, true).expect("lock").expect("free");
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(held);
-        eventually("release of the held path", || {
-            try_lock_file(&path, false).expect("probe")
-        });
+        free(&path, "release of the held path");
         scratch.close().expect("cleanup");
     }
 
@@ -307,14 +305,12 @@ mod tests {
         drop(first);
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(second);
-        let exclusive = eventually("release of both shared holders", || {
-            try_lock_file(&path, false).expect("probe")
-        });
+        let exclusive = dx_test_scratch::wait::locked(&path, RELEASE)
+            .unwrap_or_else(|error| panic!("release of both shared holders: {error}"));
         assert!(try_lock_file_shared(&path, false).expect("probe").is_none());
         drop(exclusive);
-        eventually("release of the exclusive holder", || {
-            try_lock_file_shared(&path, false).expect("probe")
-        });
+        dx_test_scratch::wait::locked_shared(&path, RELEASE)
+            .unwrap_or_else(|error| panic!("release of the exclusive holder: {error}"));
         scratch.close().expect("cleanup");
     }
 
@@ -350,9 +346,7 @@ mod tests {
             Err(io::ErrorKind::WouldBlock)
         );
         drop(first);
-        eventually("release of the first holder", || {
-            acquire_exclusive_at(&path, Duration::from_millis(100)).ok()
-        });
+        free(&path, "release of the first holder");
     }
 
     #[test]
@@ -396,12 +390,9 @@ mod tests {
             "a handed-off shared handle keeps the generation locked"
         );
         drop(file);
-        eventually(
+        free(
+            &lease_path(&root, GenerationUse::Environment, HEX_A).expect("path"),
             "the generation frees once the handed-off handle drops",
-            || {
-                (!shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"))
-                    .then_some(())
-            },
         );
         scratch.close().expect("cleanup");
     }
@@ -412,49 +403,32 @@ mod tests {
             .arg("--exact")
             .env("DX_LEASE_CHILD", mode)
             .env("DX_LEASE_ROOT", root)
+            .stdin(std::process::Stdio::piped())
             .spawn()
             .expect("spawn lease child")
     }
 
+    const RELEASE: Duration = Duration::from_secs(30);
+
     fn wait_for(path: &Path, what: &str) {
-        let start = std::time::Instant::now();
-        while !path.exists() {
-            // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            assert!(
-                start.elapsed() <= Duration::from_secs(30),
-                "timed out waiting for {what}"
-            );
-            // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            std::thread::sleep(Duration::from_millis(25));
-        }
+        dx_test_scratch::wait::path_appears(path, RELEASE)
+            .unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
-    fn eventually<T>(what: &str, mut probe: impl FnMut() -> Option<T>) -> T {
-        let start = std::time::Instant::now();
-        loop {
-            if let Some(value) = probe() {
-                return value;
-            } // LCOV_EXCL_LINE - reason: the probe succeeds on the first poll, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            // LCOV_EXCL_START - reason: test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-            assert!(
-                start.elapsed() <= Duration::from_secs(30),
-                "timed out waiting for {what}"
-            );
-            std::thread::sleep(Duration::from_millis(25));
-            // LCOV_EXCL_STOP - reason: end test timeout, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        }
+    fn free(path: &Path, what: &str) {
+        dx_test_scratch::wait::lock_free(path, RELEASE)
+            .unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
     fn child_main(root: &Path, mode: &str) {
         let ready = root.join("child-ready");
-        let release = root.join("child-release");
         match mode {
             "die" => {
                 // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 let _held = acquire_shared(root, GenerationUse::Generated, HEX_B, Duration::ZERO)
                     .expect("child acquires");
                 std::fs::write(&ready, b"ready").expect("signal ready");
-                wait_for(&release, "release");
+                drop(io::Read::read_to_end(&mut io::stdin(), &mut Vec::new()));
             }
             // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             "contend" => {
@@ -502,10 +476,10 @@ mod tests {
         child.kill().expect("kill the holder");
         let status = child.wait().expect("reap the holder");
         assert!(!status.success(), "the holder dies abnormally");
-        eventually("a killed holder must release its lease", || {
-            (!shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe"))
-                .then_some(())
-        });
+        free(
+            &lease_path(&root, GenerationUse::Generated, HEX_B).expect("path"),
+            "a killed holder must release its lease",
+        );
         scratch.close().expect("cleanup");
     }
 
@@ -542,10 +516,10 @@ mod tests {
             "a shared acquire during an exclusive cleanup hold fails instead of waiting forever"
         );
         drop(exclusive);
-        eventually("release of the exclusive cleanup hold", || {
-            (!shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe"))
-                .then_some(())
-        });
+        free(
+            &lease_path(&root, GenerationUse::Generated, HEX_B).expect("path"),
+            "release of the exclusive cleanup hold",
+        );
         std::fs::remove_file(root.join("child-verdict")).expect("reset the verdict");
         let mut admitted = spawn_child(
             "shared_acquire_fails_closed_while_cleanup_holds_exclusive",

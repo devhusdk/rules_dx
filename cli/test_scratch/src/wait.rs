@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::path::Path;
 use std::process::{Child, ExitStatus};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -61,15 +62,33 @@ pub fn watch_until(
     Ok(())
 }
 
-pub fn lock_free(path: &Path, limit: Duration) -> Result<(), String> {
+fn lock_within(
+    path: &Path,
+    limit: Duration,
+    lock: fn(&File) -> std::io::Result<()>,
+) -> Result<File, String> {
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(path)
         .map_err(|error| format!("open {}: {error}", path.display()))?;
     let what = format!("the lock on {} coming free", path.display());
-    within(&what, limit, move || file.lock())?
+    within(&what, limit, move || lock(&file).map(|()| file))?
         .map_err(|error| format!("lock {}: {error}", path.display()))
+}
+
+pub fn locked(path: &Path, limit: Duration) -> Result<File, String> {
+    lock_within(path, limit, File::lock)
+}
+
+pub fn locked_shared(path: &Path, limit: Duration) -> Result<File, String> {
+    lock_within(path, limit, File::lock_shared)
+}
+
+pub fn lock_free(path: &Path, limit: Duration) -> Result<(), String> {
+    locked(path, limit)?
+        .unlock()
+        .map_err(|error| format!("unlock {}: {error}", path.display()))
 }
 
 pub fn pid_gone(pid: u32, limit: Duration) -> Result<(), String> {

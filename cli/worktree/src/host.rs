@@ -831,8 +831,8 @@ mod tests {
         let sub = dir.path().join("sub");
         std::fs::create_dir_all(&sub).expect("sub");
         assert!(!process_in(dir.path()));
-        let mut child = std::process::Command::new("sleep")
-            .arg("30")
+        let mut child = std::process::Command::new("cat")
+            .stdin(std::process::Stdio::piped())
             .current_dir(&sub)
             .spawn()
             .expect("spawn");
@@ -849,9 +849,9 @@ mod tests {
         let dir = tempfile::tempdir().expect("dir");
         let bin = tempfile::tempdir().expect("bin");
         let git = bin.path().join("git");
-        std::os::unix::fs::symlink("/bin/sleep", &git).expect("link");
+        std::os::unix::fs::symlink("/bin/cat", &git).expect("link");
         let mut child = std::process::Command::new(&git)
-            .arg("30")
+            .stdin(std::process::Stdio::piped())
             .current_dir(dir.path())
             .spawn()
             .expect("spawn");

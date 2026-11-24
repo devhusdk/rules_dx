@@ -5,10 +5,10 @@ use crate::tty::{foreground_group, open_pty};
 #[test]
 fn a_child_in_a_terminal_leads_its_foreground_group() {
     let (master, slave) = open_pty().expect("pty");
-    let mut command = Command::new("/bin/sleep");
-    command.arg("30");
+    let mut command = Command::new("/bin/cat");
+    command.stdin(std::process::Stdio::piped());
     in_terminal(&mut command, slave);
-    let mut child = command.spawn().expect("sleep");
+    let mut child = command.spawn().expect("cat");
     let pid = i32::try_from(child.id()).expect("pid");
     let held = foreground_group(&master);
     let group = group_of(pid);

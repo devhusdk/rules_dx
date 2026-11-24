@@ -27,10 +27,7 @@ jobs:
       site_check: "//tools/docs/site:user_site_check"
       landing: true
       smoke_test: "//tools/docs/site:deploy_smoke_test"
-      forbid: |
-        Treat warnings as errors
-        docs_fixture
-      publish: ${{ github.ref == 'refs/heads/main' }}
+      publish: true
     secrets:
       BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
     permissions:

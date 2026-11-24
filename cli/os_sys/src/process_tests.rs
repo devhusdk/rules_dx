@@ -39,11 +39,11 @@ fn pid_zero_and_unknown_signals_are_rejected() {
 
 #[test]
 fn a_child_can_be_signalled_and_reaped() {
-    let mut child = std::process::Command::new("/bin/sleep")
-        .arg("30")
+    let mut child = std::process::Command::new("/bin/cat")
+        .stdin(std::process::Stdio::piped())
         .process_group(0)
         .spawn()
-        .expect("sleep");
+        .expect("cat");
     let pid = i32::try_from(child.id()).expect("pid");
     assert_eq!(group_of(pid).expect("getpgid"), pid);
     assert_eq!(stopped_by(pid).expect("waitid"), None);
@@ -56,10 +56,10 @@ fn a_child_can_be_signalled_and_reaped() {
 #[cfg(target_os = "linux")]
 #[test]
 fn an_unattributed_signal_reaches_the_child() {
-    let mut child = std::process::Command::new("/bin/sleep")
-        .arg("30")
+    let mut child = std::process::Command::new("/bin/cat")
+        .stdin(std::process::Stdio::piped())
         .spawn()
-        .expect("sleep");
+        .expect("cat");
     let pid = i32::try_from(child.id()).expect("pid");
     queue_unattributed(pid, SIGTERM).expect("rt_sigqueueinfo");
     let status = child.wait().expect("wait");

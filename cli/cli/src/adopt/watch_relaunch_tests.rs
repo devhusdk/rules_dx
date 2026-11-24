@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
@@ -85,22 +85,30 @@ impl Watch {
     }
 
     fn until(&mut self, what: &str, done: impl Fn(&Path) -> bool) {
-        let deadline = Instant::now() + Duration::from_secs(30);
-        while !done(&self.state) {
-            if let Ok(Some(status)) = self.child.try_wait() {
-                panic!("dx exited ({status:?}) before {what}");
-            }
-            assert!(
-                Instant::now() < deadline,
-                "timed out waiting for {what}\n{}\nstate: {:?}",
-                self.stderr(),
-                fs::read_dir(&self.state).map(|dir| dir
-                    .filter_map(Result::ok)
-                    .map(|entry| entry.file_name())
-                    .collect::<Vec<_>>())
-            );
-            std::thread::sleep(Duration::from_millis(20));
+        let state = self.state.clone();
+        let child = &mut self.child;
+        let mut exited = None;
+        let waited = dx_test_scratch::wait::watch_until(
+            &state.join("event"),
+            what,
+            Duration::from_secs(30),
+            || {
+                exited = child.try_wait().ok().flatten();
+                done(&state) || exited.is_some()
+            },
+        );
+        if let Some(status) = exited.filter(|_| !done(&self.state)) {
+            panic!("dx exited ({status:?}) before {what}");
         }
+        assert!(
+            waited.is_ok(),
+            "{waited:?}\n{}\nstate: {:?}",
+            self.stderr(),
+            fs::read_dir(&self.state).map(|dir| dir
+                .filter_map(Result::ok)
+                .map(|entry| entry.file_name())
+                .collect::<Vec<_>>())
+        );
     }
 
     fn stderr(&self) -> String {
@@ -178,17 +186,9 @@ fn ctrl_c_stops_the_watch(app_args: &str) {
         .status()
         .expect("helper runs");
     assert!(sent.success(), "the Ctrl-C helper failed: {sent:?}");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let status = loop {
-        if let Some(status) = watch.child.try_wait().expect("wait for dx") {
-            break status;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "dx did not stop\n{}",
-            watch.stderr()
-        );
-        std::thread::sleep(Duration::from_millis(20));
+    let stopped = dx_test_scratch::wait::child_exits(&mut watch.child, Duration::from_secs(30));
+    let Ok(status) = stopped else {
+        panic!("dx did not stop: {stopped:?}\n{}", watch.stderr());
     };
     assert_eq!(status.code(), Some(130), "{}", watch.stderr());
     assert!(watch.stderr().contains("stopped"), "{}", watch.stderr());

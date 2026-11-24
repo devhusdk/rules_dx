@@ -902,29 +902,13 @@ mod tests {
     const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
     /// Runs `cmd` and returns its exit code, stdout and untrimmed stderr.
-    ///
-    /// A script written just before the run can still be open for writing in
-    /// another test's forked child, so `ExecutableFileBusy` is retried.
     fn run_captured(cmd: &mut std::process::Command) -> (Option<i32>, String, String) {
-        let mut tries = 0;
-        loop {
-            match dx_process::capture::run_captured(cmd, RUN_TIMEOUT) {
-                Err(dx_process::capture::RunError::Spawn { source, .. })
-                    if source.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 =>
-                {
-                    tries += 1;
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                }
-                other => {
-                    let run = other.expect("launcher runs");
-                    return (
-                        run.code,
-                        run.stdout_text(),
-                        String::from_utf8_lossy(&run.stderr).into_owned(),
-                    );
-                }
-            }
-        }
+        let run = dx_process::capture::run_captured(cmd, RUN_TIMEOUT).expect("launcher runs");
+        (
+            run.code,
+            run.stdout_text(),
+            String::from_utf8_lossy(&run.stderr).into_owned(),
+        )
     }
 
     fn pinned(sha: &str) -> LauncherPins {
@@ -1605,8 +1589,9 @@ mod tests {
             }
 
             fn run(&self, env: &[(&str, &str)], args: &[&str]) -> (Option<i32>, String, String) {
-                let mut cmd = std::process::Command::new(self.path(BAZEL_WRAPPER_SH_REL));
-                cmd.args(args)
+                let mut cmd = std::process::Command::new("/bin/sh");
+                cmd.arg(self.path(BAZEL_WRAPPER_SH_REL))
+                    .args(args)
                     .current_dir(self.dir.path())
                     .env_remove("DX_BAZEL_CHILD")
                     .env("BAZEL_REAL", self.path("real"));
@@ -1680,7 +1665,8 @@ mod tests {
         #[test]
         fn without_bazelisk_the_wrapper_names_what_is_missing() {
             let wrapped = Wrapped::new(0);
-            let mut cmd = std::process::Command::new(wrapped.path(BAZEL_WRAPPER_SH_REL));
+            let mut cmd = std::process::Command::new("/bin/sh");
+            cmd.arg(wrapped.path(BAZEL_WRAPPER_SH_REL));
             let (code, _, err) = run_captured(cmd.arg("info").env_remove("BAZEL_REAL"));
             assert_ne!(code, Some(0));
             assert!(err.contains("Bazelisk"), "{err}");
@@ -1800,7 +1786,8 @@ mod tests {
             ) -> (Option<i32>, String, String) {
                 let base = &self.base;
                 run_captured(
-                    Command::new(base.join("repo/tools/dx"))
+                    Command::new("/bin/sh")
+                        .arg(base.join("repo/tools/dx"))
                         .current_dir(cwd)
                         .args(args)
                         .env_clear()
@@ -1978,7 +1965,8 @@ mod tests {
             let home = fx.base.join("home");
             let wrapper = |envs: &[(&str, &std::path::Path)]| {
                 run_captured(
-                    Command::new(repo.join(BAZEL_WRAPPER_SH_REL))
+                    Command::new("/bin/sh")
+                        .arg(repo.join(BAZEL_WRAPPER_SH_REL))
                         .current_dir(&repo)
                         .arg("info")
                         .env_clear()

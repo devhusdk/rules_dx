@@ -154,6 +154,8 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    An empty list means the last main run had no failing test. The issue body also links the run and names its commit.
 
+   On a pull request, the `baseline-diff` job compares each `check` and `coverage` job's failing labels with the last push to main. It fails only on labels that are not red on main, and its job summary lists them.
+
 Until dx is built, the hooks in `.claude/settings.json` let commands run without building it. They still stop `dx deploy --apply`.
 
 Without user namespaces, Bazel uses `processwrapper-sandbox` instead of `linux-sandbox` on its own. You need no flag.

@@ -536,7 +536,7 @@ fn finish_upgrade(
         if conflicts > 0 {
             return conflicted(invocation, to, conflicts, out, err);
         }
-        return json_pin(invocation, out, "default", to, ide_warning.as_deref())
+        return json_pin(invocation, out, "default", to, ide_warning)
             .map_or_else(|exit| exit, |()| 0);
     }
     if let Some(message) = &ide_warning {

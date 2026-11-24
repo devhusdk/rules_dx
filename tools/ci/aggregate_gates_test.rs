@@ -165,7 +165,8 @@ fn every_aggregate_job_needs_every_other_job() {
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
             if other == id
-                || (workflow == CI_WORKFLOW && other == "scheduled-report")
+                || (workflow == CI_WORKFLOW
+                    && (other == "scheduled-report" || other == BASELINE_DIFF))
                 || (workflow == CONSUMER_WORKFLOW
                     && (other == "advisory-bump"
                         || other == "bench"
@@ -335,16 +336,70 @@ fn every_matrix_cell_records_its_runner_image() {
 }
 
 #[test]
-fn one_run_per_ref_and_only_pull_requests_cancel() {
+fn one_run_per_ref_and_only_pull_requests_and_pushes_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
-        json!("ci-${{ github.workflow }}-${{ github.ref }}"),
+        json!(
+            "ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}"
+        ),
     );
     assert_eq!(
         ci["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}")
+        json!("${{ github.event_name == 'pull_request' || github.event_name == 'push' }}")
     );
+}
+
+#[test]
+fn ci_runs_on_push_only_for_main() {
+    let on = triggers(CI_WORKFLOW).unwrap();
+    assert_eq!(on["push"], json!({"branches": ["main"]}));
+}
+
+#[test]
+fn every_check_and_coverage_job_records_its_failing_labels() {
+    let document = document(CI_WORKFLOW).unwrap();
+    for id in REQUIRED_JOBS {
+        let job = &document["jobs"][id];
+        let gate = job["steps"]
+            .as_array()
+            .expect("steps")
+            .iter()
+            .find(|step| step["uses"] == "./.github/actions/gate")
+            .unwrap_or_else(|| panic!("{id} has no gate step"));
+        assert_eq!(
+            gate["with"]["baseline"],
+            json!(format!("{id}-${{{{ matrix.platform }}}}"))
+        );
+        assert_eq!(job["permissions"]["actions"], json!("read"), "{id}");
+    }
+}
+
+#[test]
+fn baseline_diff_runs_on_pull_requests_after_every_gate_job() {
+    let document = document(CI_WORKFLOW).unwrap();
+    let job = &document["jobs"][BASELINE_DIFF];
+    assert_eq!(
+        job["if"],
+        json!("${{ !cancelled() && github.event_name == 'pull_request' }}")
+    );
+    assert_eq!(job["needs"], json!(REQUIRED_JOBS));
+    assert_eq!(job["permissions"], json!({"actions": "read"}));
+    let script = job["steps"]
+        .as_array()
+        .expect("steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect::<String>();
+    for needle in [
+        "main-baseline-$job",
+        ".workflow_run.head_branch == \"main\"",
+        ".workflow_run.head_repository_id == .workflow_run.repository_id",
+        "$GITHUB_STEP_SUMMARY",
+        "exit \"$bad\"",
+    ] {
+        assert!(script.contains(needle), "{BASELINE_DIFF} must use {needle}");
+    }
 }
 
 #[test]
@@ -402,7 +457,7 @@ fn the_check_and_coverage_jobs_run_on_every_event() {
 fn every_other_job_runs_only_on_schedule_or_dispatch() {
     let document = document(CI_WORKFLOW).unwrap();
     for (id, job) in document["jobs"].as_object().expect("jobs") {
-        if REQUIRED_JOBS.contains(&id.as_str()) {
+        if REQUIRED_JOBS.contains(&id.as_str()) || id == BASELINE_DIFF {
             continue;
         }
         let condition = job["if"].as_str().unwrap_or_default();
@@ -473,6 +528,47 @@ fn the_gate_runs_a_copy_of_dx_that_bazel_cannot_rewrite_under_it() {
 }
 
 #[test]
+fn the_gate_pushes_build_on_the_last_main_baseline() {
+    let action = document(GATE_ACTION).unwrap();
+    let steps = action["runs"]["steps"].as_array().expect("gate steps");
+    let step = |name: &str| {
+        steps
+            .iter()
+            .find(|step| step["name"] == name)
+            .unwrap_or_else(|| panic!("gate has no step {name:?}"))
+    };
+    assert_eq!(
+        step("Pin the affected base")["env"]["PUSH_BEFORE"],
+        json!("${{ steps.previous.outputs.sha || github.event.before }}")
+    );
+    let find = step("Find the last main baseline")["run"]
+        .as_str()
+        .expect("find run");
+    assert!(find.contains("compare/$sha...$HEAD_SHA"), "{find}");
+    assert!(find.contains("ahead | identical"), "{find}");
+    let record = step("Record the failing labels");
+    let run = record["run"].as_str().expect("record run");
+    assert!(
+        run.contains("--failing-labels --out \"$out\" --dx \"$RUNNER_TEMP/gate.json\""),
+        "{run}"
+    );
+    assert!(run.contains("--previous \"$previous\""), "{run}");
+    let upload = step("Upload the failing labels")["if"]
+        .as_str()
+        .expect("upload if");
+    assert!(
+        upload.contains("steps.previous.outcome == 'success'"),
+        "{upload}"
+    );
+    assert_eq!(
+        step("Upload the failing labels")["with"]["name"],
+        json!(
+            "${{ github.event_name == 'push' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
+        )
+    );
+}
+
+#[test]
 fn the_gate_verifies_the_base_even_when_dx_fails() {
     let document = document(GATE_ACTION).unwrap();
     let verify = document["runs"]["steps"]
@@ -502,6 +598,8 @@ fn reported_contexts(id: &str, job: &Value) -> Vec<String> {
 }
 
 const REQUIRED_JOBS: [&str; 2] = ["check", "coverage"];
+
+const BASELINE_DIFF: &str = "baseline-diff";
 
 fn required_contexts() -> Vec<String> {
     let document = document(CI_WORKFLOW).unwrap();

@@ -352,17 +352,9 @@ mod sh {
 
     fn spawn(cmd: &mut Command) -> std::process::Child {
         cmd.stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-        let mut tries = 0;
-        loop {
-            match cmd.spawn() {
-                Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
-                    tries += 1;
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                }
-                other => return other.expect("launcher starts"),
-            }
-        }
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("launcher starts")
     }
 
     fn touch_later(path: &Path) {
@@ -452,7 +444,7 @@ mod sh {
         let stub = base.join("stub/bazel");
         dx_testing::executable_script(
             &stub,
-            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        tries=0\n        while [ ! -e \"$STUB_BUILD_HOLD\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: hold timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        tries=0\n        while [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ]; do\n          tries=$((tries + 1))\n          if [ \"$tries\" -gt 600 ]; then echo 'stub bazel: barrier timeout' >&2; exit 3; fi\n          sleep 0.05\n        done\n      else\n        sleep 0.1\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      [ ! -f \"$STUB_CQUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//cli/cli:dx)'*) echo '\"//cli/cli:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//cli/cli:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      sleep 0.1\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+            "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ -n \"${STUB_BUILD_HOLD:-}\" ]; then\n        : > \"$STUB_BUILD_HOLD.started\"\n        \"$STUB_PROBE\" --gate=\"$STUB_BUILD_HOLD\" --sleep-ms=30000 </dev/null >/dev/null 2>&1\n        [ -e \"$STUB_BUILD_HOLD\" ] || { echo 'stub bazel: hold timeout' >&2; exit 3; }\n      fi\n      if [ -n \"${STUB_BARRIER:-}\" ]; then\n        : > \"$STUB_BARRIER/$$\"\n        [ \"$(ls \"$STUB_BARRIER\" | wc -l)\" -lt \"$STUB_BARRIER_N\" ] || : > \"$STUB_BARRIER.open\"\n        \"$STUB_PROBE\" --gate=\"$STUB_BARRIER.open\" --sleep-ms=30000 </dev/null >/dev/null 2>&1\n        [ -e \"$STUB_BARRIER.open\" ] || { echo 'stub bazel: barrier timeout' >&2; exit 3; }\n      fi\n      mkdir -p bazel-bin/cli/cli\n      exe=\n      case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) exe=.exe;; esac\n      if [ -f \"$STUB_KEEP\" ] && [ -x \"bazel-bin/cli/cli/dx$exe\" ]; then exit 0; fi\n      src=\"$STUB_PAYLOAD\"\n      [ -f payload ] && src=payload\n      cp \"$src\" \"bazel-bin/cli/cli/dx.$$\"\n      chmod +x \"bazel-bin/cli/cli/dx.$$\"\n      mv \"bazel-bin/cli/cli/dx.$$\" \"bazel-bin/cli/cli/dx$exe\"\n      exit 0\n      ;;\n    cquery)\n      [ ! -f \"$STUB_CQUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      case \"$*\" in *'deps(//cli/cli:dx)'*) echo '\"//cli/cli:dx\"';; esac\n      exit 0\n      ;;\n    query)\n      [ ! -f \"$STUB_QUERY_FAIL\" ] || { echo 'Server shut down explicitly' >&2; exit 37; }\n      for q in \"$@\"; do\n        case \"$q\" in --query_file=*) while IFS= read -r l; do [ \"$l\" != '\"//cli/cli:dx\"' ] || echo //:BUILD.bazel; done < \"${q#--query_file=}\";; esac\n      done\n      echo //cli/cli:BUILD.bazel\n      echo @rules_rust//rust:defs.bzl\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
         );
         SourceRepo {
             base,
@@ -496,6 +488,7 @@ mod sh {
                 .env("STUB_QUERY_FAIL", base.join("query-fails"))
                 .env("STUB_CQUERY_FAIL", base.join("cquery-fails"))
                 .env("STUB_KEEP", base.join("keep-dx"))
+                .env("STUB_PROBE", dx_testing::process_probe())
                 .env("DX_RESTART_WAIT", "0");
             cmd
         }
@@ -1162,14 +1155,11 @@ mod sh {
         repo.touch_build_file();
         let hold = repo.base.join("hold");
         let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
-        let started = repo.base.join("hold.started");
-        for _ in 0..600 {
-            if started.exists() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        assert!(started.exists(), "stub build never started");
+        let started = dx_test_scratch::wait::path_appears(
+            &repo.base.join("hold.started"),
+            std::time::Duration::from_secs(30),
+        );
+        assert!(started.is_ok(), "stub build never started: {started:?}");
         let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "add", "x"]);
         assert_eq!(
             (code, out.as_str()),
@@ -1607,14 +1597,11 @@ mod sh {
         }
         let hold = repo.base.join("hold");
         let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
-        let started = repo.base.join("hold.started");
-        for _ in 0..600 {
-            if started.exists() {
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        assert!(started.exists(), "stub build never started");
+        let started = dx_test_scratch::wait::path_appears(
+            &repo.base.join("hold.started"),
+            std::time::Duration::from_secs(30),
+        );
+        assert!(started.is_ok(), "stub build never started: {started:?}");
         let built = state(&repo.root()).join(format!("built.{}", child.id()));
         assert!(built.exists(), "{}", built.display());
         let status = Command::new("kill")

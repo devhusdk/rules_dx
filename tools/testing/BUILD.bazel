@@ -121,20 +121,13 @@ child_runfiles(
     for os in [
         "linux",
         "macos",
+        "windows",
     ]
     for cpu in [
         "aarch64",
         "x86_64",
     ]
 ]
-
-config_setting(
-    name = "nested_bazel_windows_x86_64",
-    constraint_values = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-)
 
 alias(
     name = "nested_bazel_bin",
@@ -143,6 +136,7 @@ alias(
         ":nested_bazel_linux_x86_64": "@nested_bazel_linux_x86_64//file",
         ":nested_bazel_macos_aarch64": "@nested_bazel_darwin_arm64//file",
         ":nested_bazel_macos_x86_64": "@nested_bazel_darwin_x86_64//file",
+        ":nested_bazel_windows_aarch64": "@nested_bazel_windows_arm64//file",
         ":nested_bazel_windows_x86_64": "@nested_bazel_windows_x86_64//file",
         "//conditions:default": ":nested_bazel_unpinned",
     }),

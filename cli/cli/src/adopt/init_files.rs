@@ -757,7 +757,8 @@ mod tests {
         std::fs::write(root.join(".editorconfig"), "root = true\n").expect("editorconfig");
         std::fs::write(root.join(".gitignore"), "target/\n").expect("gitignore");
         std::fs::create_dir_all(root.join(".github/workflows")).expect("workflows");
-        let hand = ci.lines().skip(1).collect::<Vec<_>>().join("\n") + "\n";
+        let mut hand = ci.lines().skip(1).collect::<Vec<_>>().join("\n");
+        hand.push('\n');
         std::fs::write(root.join(".github/workflows/ci.yml"), &hand).expect("ci");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);
         assert_eq!(code, 0, "{err}");

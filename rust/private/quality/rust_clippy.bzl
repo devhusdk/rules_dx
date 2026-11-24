@@ -6,6 +6,7 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy_action", "rust_common")
 load("@rules_rust//rust/private:clippy.bzl", "ClippyFlagsInfo")
 load("@rules_rust//rust/private:rustc.bzl", "get_error_format")
 load("@rules_rust//rust/settings:incompatible.bzl", "IncompatibleFlagInfo")
+load("//core/quality:sources.bzl", "forwarded_upstream")
 load("//rust/private/toolchain:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 
 DxClippyInfo = provider(
@@ -48,6 +49,10 @@ def _package_clippy_config(crate_info, label, default):
     return default
 
 def _dx_clippy_aspect_impl(target, ctx):
+    # A forwarder's crate lives in the upstream's configuration, and rustc writes beside it.
+    upstream = forwarded_upstream(ctx.rule.attr, DxClippyInfo)
+    if upstream != None:
+        return [upstream[DxClippyInfo]]
     if OutputGroupInfo in target and hasattr(target[OutputGroupInfo], "clippy_checks"):
         return [DxClippyInfo(diagnostics = [])]
     crate_info = rust_clippy_action.get_clippy_ready_crate_info(target, ctx)
@@ -79,6 +84,7 @@ def _dx_clippy_aspect_impl(target, ctx):
 
 dx_clippy_aspect = aspect(
     implementation = _dx_clippy_aspect_impl,
+    attr_aspects = ["upstream"],
     doc = "Runs clippy with unused_crate_dependencies forced to a warning and keeps its JSON diagnostics.",
     fragments = ["cpp"],
     attrs = {

@@ -1528,7 +1528,7 @@ impl Gate {
             &mut |holder: &str, reason: WaitReason| {
                 let reaped = self.reap(&layout);
                 let (err, events) = &mut *out.borrow_mut();
-                let message = wait_message(holder) + &reaped_suffix(reaped.unwrap_or(0));
+                let message = format!("{}{}", wait_message(holder), reaped_suffix(reaped.unwrap_or(0)));
                 dx_output::write_stderr(&mut **err, format_args!("dx: {message}\n"));
                 if json {
                     let mut event = notice_event(

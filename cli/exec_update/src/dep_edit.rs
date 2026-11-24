@@ -260,28 +260,26 @@ pub(crate) fn preflight(
             ),
         ));
     }
-    if target.is_configured_bazel()
+    if (target.is_configured_bazel()
         || matches!(&target.configured, Some(set) if matches!(
             set.kind,
             dx_update::edit::ConfiguredKind::Cargo
                 | dx_update::edit::ConfiguredKind::Maven
                 | dx_update::edit::ConfiguredKind::Go
-        ))
-    {
-        if let Some((_, Err(dx_update::backend::BackendError::Unsupported { reason, .. }))) =
+        )))
+        && let Some((_, Err(dx_update::backend::BackendError::Unsupported { reason, .. }))) =
             refresh_plan(workspace, invocation, target, None)
-        {
-            return Err(operational(
-                invocation,
-                out,
-                err,
-                verb.failure_code,
-                &format!(
-                    "cannot refresh {selector}: {reason} (no {} performed)",
-                    verb.noun,
-                ),
-            ));
-        }
+    {
+        return Err(operational(
+            invocation,
+            out,
+            err,
+            verb.failure_code,
+            &format!(
+                "cannot refresh {selector}: {reason} (no {} performed)",
+                verb.noun,
+            ),
+        ));
     }
     Ok(())
 }

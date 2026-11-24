@@ -1,7 +1,3 @@
-#![expect(
-    clippy::disallowed_methods,
-    reason = "tests run local programs under the Bazel test timeout"
-)]
 use yaml_serde::Value;
 
 use dx_testing::read_runfiles;
@@ -303,6 +299,10 @@ fn the_template_reads_every_input_it_declares_and_no_other() {
 
 #[cfg(unix)]
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 fn setting_only_dx_remote_cache_turns_on_the_remote_cache() {
     let path = PIPELINES[0];
     let doc = document(path);

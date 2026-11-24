@@ -96,8 +96,9 @@ fn dx_runs_in_the_workspace_with_the_outer_output_base() {
         PathBuf::from(&lines[0]).canonicalize().expect("cwd"),
         setup.workspace.canonicalize().expect("workspace")
     );
+    // Rust quotes batch-file arguments that hold `=`, and `echo %*` keeps the quotes.
     assert_eq!(
-        lines[1],
+        lines[1].replace('"', ""),
         format!(
             "update --bazel-startup-option=--output_base={} --extra",
             output_base.display()

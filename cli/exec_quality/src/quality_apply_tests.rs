@@ -3,7 +3,7 @@ use dx_apply::RealFileSystem;
 use dx_digest::blake3 as digest;
 use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
-    REASON_OUTSIDE_WORKSPACE, REASON_STALE_SOURCE, REASON_WRITE_FAILED,
+    REASON_STALE_SOURCE, REASON_WRITE_FAILED,
 };
 use dx_exec_quality_testing::{FailingWrites, temp_dir};
 
@@ -208,7 +208,10 @@ fn symlink_leaving_workspace_is_not_applied() {
     assert_eq!(outcome.applied.get("src/shared.py"), Some(&false));
     assert_eq!(
         outcome.not_applied,
-        vec![("src/shared.py".to_owned(), REASON_OUTSIDE_WORKSPACE)]
+        vec![(
+            "src/shared.py".to_owned(),
+            dx_exec_core::common::REASON_OUTSIDE_WORKSPACE
+        )]
     );
 }
 

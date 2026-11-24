@@ -22,6 +22,8 @@ pub fn path_appears(path: &Path, limit: Duration) -> Result<(), String> {
     watch_until(path, &what, limit, || path.exists())
 }
 
+const RECHECK_EVERY: Duration = Duration::from_millis(50);
+
 pub fn watch_until(
     path: &Path,
     what: &str,
@@ -49,11 +51,12 @@ pub fn watch_until(
         .watch(watched, mode)
         .map_err(|error| format!("watch {}: {error}", watched.display()))?;
     while !done() {
-        match events.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
-            Ok(_) => {}
-            Err(RecvTimeoutError::Timeout) => {
-                return Err(format!("{what} did not happen within {limit:?}"));
-            }
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Err(format!("{what} did not happen within {limit:?}"));
+        }
+        match events.recv_timeout(left.min(RECHECK_EVERY)) {
+            Ok(_) | Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => {
                 return Err(format!("the watcher on {} stopped", watched.display()));
             }

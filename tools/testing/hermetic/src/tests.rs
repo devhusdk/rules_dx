@@ -1275,24 +1275,6 @@ fn git_reports_clean_dirty_and_failing_trees() {
     );
 }
 
-#[test]
-fn git_beside_bash_is_the_git_for_windows_bin_git() {
-    let git = Path::new("/git/bin/git.exe");
-    let exists = |path: &Path| path == git;
-    assert_eq!(
-        git_beside_bash(Path::new("/git/usr/bin/bash.exe"), &exists).as_deref(),
-        Some(git)
-    );
-    assert_eq!(
-        git_beside_bash(Path::new("/msys64/usr/bin/bash.exe"), &exists),
-        None
-    );
-    assert_eq!(
-        git_beside_bash(Path::new("/git/bin/bash.exe"), &exists),
-        None
-    );
-}
-
 fn fake_elf() -> Vec<u8> {
     let mut head = vec![0x7f, b'E', b'L', b'F', 2, 1, 1, 0];
     head.resize(18, 0);

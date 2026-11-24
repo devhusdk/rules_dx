@@ -7,7 +7,7 @@
     )
 )]
 
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 pub use tempfile::TempDir;
 
@@ -108,8 +108,22 @@ pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command 
 
 const GIT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(120);
 
+fn git_beside_bash(bash: &Path, exists: &dyn Fn(&Path) -> bool) -> Option<PathBuf> {
+    let bin = bash.parent().filter(|dir| dir.ends_with("usr/bin"))?;
+    let git = bin.parent()?.parent()?.join("bin").join("git.exe");
+    exists(&git).then_some(git)
+}
+
+#[must_use]
+pub fn git_program() -> PathBuf {
+    std::env::var_os("BAZEL_SH")
+        .filter(|_| cfg!(windows))
+        .and_then(|bash| git_beside_bash(Path::new(&bash), &|path| path.is_file()))
+        .unwrap_or_else(|| PathBuf::from("git"))
+}
+
 pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String> {
-    let mut cmd = Command::new("git");
+    let mut cmd = Command::new(git_program());
     cmd.arg("-C").arg(root);
     isolate_git(&mut cmd, sandbox);
     cmd.args([
@@ -163,7 +177,7 @@ mod tests {
     use super::*;
 
     fn git_in(repo: &Path) -> Command {
-        let mut cmd = Command::new("git");
+        let mut cmd = Command::new(git_program());
         cmd.arg("-C").arg(repo);
         cmd
     }
@@ -210,6 +224,24 @@ mod tests {
                 "config outside the sandbox: {line}"
             );
         }
+    }
+
+    #[test]
+    fn git_beside_bash_is_the_git_for_windows_bin_git() {
+        let git = Path::new("/git/bin/git.exe");
+        let exists = |path: &Path| path == git;
+        assert_eq!(
+            git_beside_bash(Path::new("/git/usr/bin/bash.exe"), &exists).as_deref(),
+            Some(git)
+        );
+        assert_eq!(
+            git_beside_bash(Path::new("/msys64/usr/bin/bash.exe"), &exists),
+            None
+        );
+        assert_eq!(
+            git_beside_bash(Path::new("/git/bin/bash.exe"), &exists),
+            None
+        );
     }
 
     #[test]
@@ -478,6 +510,18 @@ mod tests {
         let writer = std::thread::spawn(move || write(&root, "later/deeper/file", "x"));
         wait::path_appears(&path, LONG).unwrap();
         writer.join().expect("writer").unwrap();
+    }
+
+    #[test]
+    fn watch_until_rechecks_a_condition_no_file_event_announces() {
+        let dir = scratch("dx-wait-recheck-").unwrap();
+        let mut checks = 0;
+        wait::watch_until(&dir.path().join("quiet"), "the third check", LONG, || {
+            checks += 1;
+            checks >= 3
+        })
+        .unwrap();
+        assert_eq!(checks, 3);
     }
 
     #[test]

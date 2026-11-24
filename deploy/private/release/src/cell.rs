@@ -1004,7 +1004,7 @@ fn rename_with_retry(
     let mut attempt = 1;
     loop {
         match std::fs::rename(from, to) {
-            Err(_) if attempt < attempts => {
+            Err(_) if attempt < attempts && !to.exists() => {
                 std::thread::sleep(backoff);
                 backoff = backoff.saturating_mul(2);
                 attempt += 1;

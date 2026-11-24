@@ -243,7 +243,9 @@ fn synthetic_exe() -> Vec<u8> {
 }
 
 fn host_cell(format: &str) -> (Cell, Vec<u8>) {
-    let bytes = std::fs::read(std::env::current_exe().expect("current_exe")).expect("read exe");
+    let exe =
+        dx_testing::rlocation(&dx_testing::env_text("DX_RELEASE_HOST_EXE")).expect("host exe");
+    let bytes = std::fs::read(exe).expect("read exe");
     let images = dx_binfmt::inspect(&bytes).expect("inspect");
     let image = &images[0];
     let os = [("elf", "linux"), ("macho", "macos"), ("pe", "windows")]
@@ -1554,6 +1556,12 @@ fn rename_with_retry_moves_and_gives_up() {
     std::fs::create_dir_all(&from).expect("mkdir");
     rename_with_retry(&from, &to, 3, none).expect("rename");
     assert!(to.is_dir() && !from.exists());
+    std::fs::create_dir_all(&from).expect("mkdir");
+    std::fs::create_dir_all(to.join("keep")).expect("blocker");
+    let started = std::time::Instant::now();
+    let hour = std::time::Duration::from_secs(3600);
+    assert!(rename_with_retry(&from, &to, 3, hour).is_err());
+    assert!(started.elapsed() < hour);
 }
 
 #[test]

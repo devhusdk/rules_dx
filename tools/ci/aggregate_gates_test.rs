@@ -7,6 +7,10 @@ use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
+const AUDIT_WORKFLOW: &str = ".github/workflows/audit.yml";
+
+const AUDIT_REPORT: &str = "report";
+
 const GATE_ACTION: &str = ".github/actions/gate/action.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -19,7 +23,7 @@ const AGGREGATE: &str = "dx-ci";
 
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
 
-const NIGHTLY: &str = "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'";
+const DISPATCH: &str = "github.event_name == 'workflow_dispatch'";
 
 const FAIL_IF: &str = "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}";
 
@@ -49,14 +53,8 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "dogfood",
         "analysis-scaling",
         "in-graph-prebuilt-guard",
-        "determinism",
         "devcontainer-check",
-        "hermetic",
-        "hermetic-macos",
-        "hermetic-windows",
         "launch-heavy",
-        "msix-install",
-        "network",
         "preflight",
         "quality-matrix",
         "starter-consumer",
@@ -73,8 +71,8 @@ fn the_outer_gate_requires_every_declared_dependency() {
     );
     assert_eq!(
         document["jobs"][GATE]["if"],
-        json!(format!("${{{{ !cancelled() && ({NIGHTLY}) }}}}")),
-        "{CI_WORKFLOW} job {GATE} must run on every nightly dependency outcome unless the run is cancelled"
+        json!(format!("${{{{ !cancelled() && {DISPATCH} }}}}")),
+        "{CI_WORKFLOW} job {GATE} must run on every dispatched dependency outcome unless the run is cancelled"
     );
     let step = &document["jobs"][GATE]["steps"][0];
     assert_fails_when(step, FAIL_IF, CI_WORKFLOW);
@@ -164,8 +162,7 @@ fn every_aggregate_job_needs_every_other_job() {
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
             if other == id
-                || (workflow == CI_WORKFLOW
-                    && (other == "scheduled-report" || other == BASELINE_DIFF))
+                || (workflow == CI_WORKFLOW && other == BASELINE_DIFF)
                 || (workflow == CONSUMER_WORKFLOW
                     && (other == "advisory-bump"
                         || other == "bench"
@@ -235,23 +232,67 @@ fn every_gate_workflow_runs_on_merge_group_checks_requested() {
 }
 
 #[test]
-fn the_scheduled_report_only_follows_the_gate() {
-    let document = document(CI_WORKFLOW).unwrap();
-    let job = &document["jobs"]["scheduled-report"];
-    assert_eq!(job["needs"], json!(["ci"]));
+fn the_audit_report_follows_every_audit_job() {
+    let all = jobs(AUDIT_WORKFLOW).unwrap();
+    let report = &all
+        .iter()
+        .find(|(id, _)| id == AUDIT_REPORT)
+        .unwrap_or_else(|| panic!("{AUDIT_WORKFLOW} has no {AUDIT_REPORT} job"))
+        .1;
+    let needs = job_needs(AUDIT_WORKFLOW, AUDIT_REPORT, report);
+    for (other, _) in &all {
+        if other != AUDIT_REPORT {
+            assert!(
+                needs.contains(other),
+                "{AUDIT_WORKFLOW} job {AUDIT_REPORT} must need {other} so its failures reach the issue"
+            );
+        }
+    }
+    let condition = report["if"].as_str().unwrap_or_default();
     assert!(
-        job["if"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("github.event_name == 'schedule'")
+        condition.contains("always()"),
+        "{AUDIT_WORKFLOW} job {AUDIT_REPORT} must run when a needed job fails: {condition:?}"
     );
-    let step = &job["steps"][0];
-    assert_eq!(step["env"]["CI_RESULT"], json!("${{ needs.ci.result }}"));
-    let run = step["run"].as_str().unwrap_or_default();
-    for word in ["cancelled", "skipped", "timed_out"] {
+    let run = ci_workflow::scripts(AUDIT_WORKFLOW, AUDIT_REPORT).unwrap();
+    for word in [
+        "failure",
+        "timed_out",
+        "known-red",
+        "gh issue edit",
+        "gh issue create",
+    ] {
         assert!(
             run.contains(word),
-            "scheduled-report script must handle {word}"
+            "{AUDIT_WORKFLOW} job {AUDIT_REPORT} script lacks {word}"
+        );
+    }
+}
+
+#[test]
+fn the_audit_retries_no_test() {
+    let text = read_runfiles(AUDIT_WORKFLOW);
+    for flag in ["--flaky_test_attempts", "--runs_per_test"] {
+        assert!(
+            !text.contains(flag),
+            "{AUDIT_WORKFLOW} must report a flaky test, not retry it: {flag}"
+        );
+    }
+}
+
+#[test]
+fn the_audit_dispatches_the_advisory_and_update_workflows() {
+    let run = ci_workflow::scripts(AUDIT_WORKFLOW, "dispatch").unwrap();
+    for workflow in ["advisory-publish.yml", "dx-update.yml"] {
+        assert!(
+            run.contains(&format!("gh workflow run {workflow}")),
+            "{AUDIT_WORKFLOW} must dispatch {workflow}"
+        );
+        let on = triggers(&format!(".github/workflows/{workflow}")).unwrap();
+        let names: Vec<&String> = on.as_object().expect("triggers").keys().collect();
+        assert_eq!(
+            names,
+            ["workflow_dispatch"],
+            "{workflow} must run only when dispatched"
         );
     }
 }
@@ -264,7 +305,7 @@ fn coverage_cells_runs_only_after_dogfood_succeeds() {
     assert_eq!(
         job["if"],
         json!(format!(
-            "${{{{ !cancelled() && ({NIGHTLY}) && needs.dogfood.result == 'success' }}}}"
+            "${{{{ !cancelled() && {DISPATCH} && needs.dogfood.result == 'success' }}}}"
         )),
         "coverage-cells must skip when dogfood was skipped or failed, not report every cell missing"
     );
@@ -284,11 +325,19 @@ fn ci_can_be_dispatched_but_takes_no_inputs() {
 }
 
 #[test]
-fn ci_runs_on_a_schedule_so_main_has_a_known_result() {
-    let on = triggers(CI_WORKFLOW).unwrap();
+fn only_the_audit_workflow_runs_on_a_schedule() {
+    for path in dx_testing::workflow_files() {
+        let on = triggers(&path).unwrap();
+        assert_eq!(
+            on.get("schedule").is_some(),
+            path == AUDIT_WORKFLOW,
+            "{path}: only {AUDIT_WORKFLOW} may have a schedule trigger"
+        );
+    }
+    let on = triggers(AUDIT_WORKFLOW).unwrap();
     let cron = on["schedule"][0]["cron"]
         .as_str()
-        .expect("ci.yml needs a schedule cron");
+        .expect("audit.yml needs a schedule cron");
     let minute = cron.split_whitespace().next().unwrap();
     assert_ne!(
         minute, "0",
@@ -453,7 +502,7 @@ fn the_check_and_coverage_jobs_run_on_every_event() {
 }
 
 #[test]
-fn every_other_job_runs_only_on_schedule_or_dispatch() {
+fn every_other_job_runs_only_on_dispatch() {
     let document = document(CI_WORKFLOW).unwrap();
     for (id, job) in document["jobs"].as_object().expect("jobs") {
         if REQUIRED_JOBS.contains(&id.as_str()) || id == BASELINE_DIFF {
@@ -461,9 +510,8 @@ fn every_other_job_runs_only_on_schedule_or_dispatch() {
         }
         let condition = job["if"].as_str().unwrap_or_default();
         assert!(
-            condition.contains("github.event_name == 'schedule'")
-                && condition.contains("github.event_name == 'workflow_dispatch'"),
-            "{CI_WORKFLOW} job {id} must run only on schedule or dispatch: {condition:?}"
+            condition.contains(DISPATCH),
+            "{CI_WORKFLOW} job {id} must run only on dispatch: {condition:?}"
         );
     }
 }
@@ -680,7 +728,7 @@ fn every_required_context_is_reported_by_exactly_one_job() {
     }
 }
 
-const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [
+const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 15] = [
     (
         "ci.yml",
         "preflight",
@@ -694,13 +742,6 @@ const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [
         "Record the runner image",
         "|| true",
         "the image record is informational",
-    ),
-    (
-        "ci.yml",
-        "scheduled-report",
-        "Open, update or close the tracking issue",
-        "|| true",
-        "a failed issue lookup must not fail the report",
     ),
     (
         "evidence.yml",
@@ -731,14 +772,14 @@ const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [
         "a missing log must not hide the test failure",
     ),
     (
-        "issue-labels.yml",
+        "audit.yml",
         "missing-labels",
         "Warn about documented labels missing from the repository",
         "|| true",
         "an empty match list is the expected case",
     ),
     (
-        "issue-labels.yml",
+        "audit.yml",
         "blocked-issues",
         "Check that blocked issues name a blocker, and unblock closed ones",
         "|| true",
@@ -836,7 +877,7 @@ fn the_swallow_scanner_finds_entries() {
 #[test]
 fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
     const EVIDENCE_ACTION: &str = ".github/actions/compiler-evidence/action.yml";
-    for job in ["hermetic", "starter-consumer"] {
+    for job in ["starter-consumer"] {
         let all = steps(CI_WORKFLOW, job).unwrap();
         let probe = all
             .iter()
@@ -900,7 +941,7 @@ fn the_gate_job_merges_evidence_without_swallowing() {
 
 #[test]
 fn issue_label_jobs_read_gh_output_before_searching_it() {
-    let workflow = ".github/workflows/issue-labels.yml";
+    let workflow = AUDIT_WORKFLOW;
     for (id, _) in jobs(workflow).unwrap() {
         for line in ci_workflow::scripts(workflow, &id).unwrap().lines() {
             let (producer, consumer) = line.rsplit_once('|').unwrap_or(("", line));

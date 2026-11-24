@@ -1,8 +1,6 @@
 name: advisory-publish
 
 on:
-  schedule:
-    - cron: "30 3 * * *"
   workflow_dispatch: {}
 
 permissions:

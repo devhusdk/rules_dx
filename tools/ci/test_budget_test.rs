@@ -33,7 +33,7 @@ const NESTED_CAP: usize = 8;
 
 const CONSUMER_TAGS: [&str; 3] = ["hermetic-consumer", "network-consumer", "starter-consumer"];
 
-const WORKFLOW: &str = ".github/workflows/ci.yml";
+const WORKFLOWS: &str = ".github/workflows/ci.yml or .github/workflows/audit.yml";
 
 const UPSTREAM: &str = "_upstream";
 
@@ -456,7 +456,7 @@ fn unselected(
         .filter(|label| !tagged.contains(*label) && !workflow.contains(label.as_str()))
         .map(|label| {
             format!(
-                "{label}: no CI job runs it; tag it {}, or name it in {WORKFLOW}",
+                "{label}: no CI job runs it; tag it {}, or name it in {WORKFLOWS}",
                 CONSUMER_TAGS.join(", ")
             )
         })
@@ -603,7 +603,8 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
     let listed: BTreeSet<String> = seconds.keys().cloned().collect();
     problems.extend(nested_seconds(&seconds, &over));
     problems.extend(nested_differences(&nested_tests(&files), &listed));
-    problems.extend(unselected(&files, &listed, &read_input("CI_WORKFLOW")));
+    let workflows = read_input("CI_WORKFLOW") + &read_input("AUDIT_WORKFLOW");
+    problems.extend(unselected(&files, &listed, &workflows));
     assert!(
         problems.is_empty(),
         "{NESTED_LIST} and the tree disagree:\n{}",
@@ -817,7 +818,7 @@ smoke(name = "macro")
     assert_eq!(
         unselected(&files, &listed, "bazel test //pkg:named"),
         [format!(
-            "//pkg:orphan: no CI job runs it; tag it {}, or name it in {WORKFLOW}",
+            "//pkg:orphan: no CI job runs it; tag it {}, or name it in {WORKFLOWS}",
             CONSUMER_TAGS.join(", ")
         )],
     );

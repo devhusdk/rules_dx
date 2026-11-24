@@ -12,6 +12,11 @@ on:
         type: boolean
         required: false
         default: false
+      android_maven:
+        description: Also re-resolve third_party/jvm/rules_android_maven_install.json with REPIN=1 on linux_x86_64.
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -122,10 +127,32 @@ jobs:
           path: ${{ runner.temp }}/nested
           if-no-files-found: error
 
+  android-maven:
+    name: android maven pin
+    if: inputs.android_maven
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Pin
+        run: REPIN=1 bazel run --noshow_progress @rules_android_maven//:pin
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-maven
+          path: third_party/jvm/rules_android_maven_install.json
+          if-no-files-found: error
+
   merge:
     name: merge the platform entries
-    needs: [platform, nested]
-    if: ${{ !cancelled() && needs.platform.result == 'success' && (needs.nested.result == 'success' || needs.nested.result == 'skipped') }}
+    needs: [platform, nested, android-maven]
+    if: ${{ !cancelled() && needs.platform.result == 'success' && (needs.nested.result == 'success' || needs.nested.result == 'skipped') && (needs.android-maven.result == 'success' || needs.android-maven.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -151,6 +178,11 @@ jobs:
         with:
           pattern: nested-*
           path: ${{ runner.temp }}/nested
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.android_maven
+        with:
+          name: android-maven
+          path: third_party/jvm
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
@@ -181,6 +213,7 @@ jobs:
             MODULE.bazel.lock
             tools/testing/nested_cache/*.txt
             tools/testing/nested_cache/*.MODULE.bazel.lock
+            third_party/jvm/rules_android_maven_install.json
           if-no-files-found: error
       - name: Push to the pull request
         if: inputs.pr != ''
@@ -189,7 +222,7 @@ jobs:
           PR: ${{ inputs.pr }}
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain -- MODULE.bazel.lock tools/testing/nested_cache)" ]; then
+          if [ -z "$(git status --porcelain -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json)" ]; then
             echo "The locks are unchanged"
             exit 0
           fi
@@ -201,6 +234,6 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- MODULE.bazel.lock tools/testing/nested_cache
-          git commit -m "lock: refresh the per-platform extension entries and the nested cache sets"
+          git add -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json
+          git commit -m "lock: refresh the per-platform extension entries, the nested cache sets and the android maven pin"
           git push origin "HEAD:refs/heads/$head"

@@ -148,6 +148,8 @@ pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
+const AUDIT_WORKFLOW: &str = ".github/workflows/audit.yml";
+
 pub const ROW_LABELS_PATH: &str = "tools/docs/support_matrix/row_labels.json";
 pub const CONSUMER_LABELS_PATH: &str = "tools/docs/support_matrix/consumer_labels.json";
 pub const ROW_TESTS_COMMAND: &str = "bazel run //tools/docs/support_matrix:row_tests -- <platform>";
@@ -374,6 +376,17 @@ impl Context {
     }
 }
 
+fn merge_tag_jobs(into: &mut BTreeMap<String, Vec<String>>, from: BTreeMap<String, Vec<String>>) {
+    for (tag, on) in from {
+        let entry = into.entry(tag).or_default();
+        for platform in on {
+            if !entry.contains(&platform) {
+                entry.push(platform);
+            }
+        }
+    }
+}
+
 pub fn row_platforms(
     facts: &Facts,
     source: &dyn Source,
@@ -392,6 +405,11 @@ pub fn row_platforms(
     let lanes = workflows::quality_matrix_lanes(CI_WORKFLOW, &ci)?;
     workflows::check_evidence_lanes(CI_WORKFLOW, &lanes, &ids)?;
     let mut tag_jobs = workflows::tag_job_platforms(CI_WORKFLOW, &ci, &runners)?;
+    let audit = source.read(AUDIT_WORKFLOW)?;
+    merge_tag_jobs(
+        &mut tag_jobs,
+        workflows::tag_job_platforms(AUDIT_WORKFLOW, &audit, &runners)?,
+    );
     let mut extra = BTreeMap::new();
     for workflow in facts.rows.iter().flat_map(|row| row.workflows.iter()) {
         if extra.contains_key(workflow) {
@@ -400,14 +418,10 @@ pub fn row_platforms(
         let path = format!(".github/workflows/{workflow}");
         let text = source.read(&path)?;
         let platforms = workflows::workflow_platforms(&path, &text, &runners)?;
-        for (tag, on) in workflows::tag_job_platforms(&path, &text, &runners)? {
-            let entry: &mut Vec<String> = tag_jobs.entry(tag).or_default();
-            for platform in on {
-                if !entry.contains(&platform) {
-                    entry.push(platform);
-                }
-            }
-        }
+        merge_tag_jobs(
+            &mut tag_jobs,
+            workflows::tag_job_platforms(&path, &text, &runners)?,
+        );
         extra.insert(workflow.clone(), (platforms, text));
     }
     let context = Context {

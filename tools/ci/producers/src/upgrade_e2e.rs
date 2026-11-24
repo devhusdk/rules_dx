@@ -171,6 +171,27 @@ fn unyanked(metadata: &str) -> Result<Vec<String>, String> {
         .collect())
 }
 
+fn versions_from_response(url: &str, response: &str) -> Result<Vec<String>, String> {
+    let (body, status) = response
+        .rsplit_once('\n')
+        .ok_or_else(|| format!("{url}: curl printed no status"))?;
+    match status {
+        "200" => unyanked(body),
+        "404" => Ok(Vec::new()),
+        other => Err(format!("{url}: HTTP {other}")),
+    }
+}
+
+fn bcr_versions(root: &Path) -> Result<Vec<String>, String> {
+    let url = format!("{}/modules/rules_dx/metadata.json", bcr_url());
+    let response = output(
+        "curl",
+        &["-sSL", "--write-out", "\n%{http_code}", &url],
+        root,
+    )?;
+    versions_from_response(&url, &response)
+}
+
 fn resolve(from: &str, to: &str, versions: &[String]) -> Option<(String, String)> {
     let count = versions.len();
     let pick = |back: usize| count.checked_sub(back).and_then(|at| versions.get(at));
@@ -354,23 +375,14 @@ pub fn e2e(args: &[String]) -> Result<(), String> {
         resolve_only,
     } = parse(args)?;
     if from.is_empty() || to.is_empty() {
-        let url = bcr_url();
         let root = std::env::current_dir().map_err(|error| error.to_string())?;
-        let metadata = output(
-            "curl",
-            &["-fsSL", &format!("{url}/modules/rules_dx/metadata.json")],
-            &root,
-        )?;
-        let versions = unyanked(&metadata)?;
+        let versions = bcr_versions(&root)?;
         if let Some((f, t)) = resolve(&from, &to, &versions) {
             (from, to) = (f, t);
         } else {
             let message =
                 "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input";
-            if matches!(
-                std::env::var("GITHUB_EVENT_NAME").as_deref(),
-                Ok("workflow_dispatch" | "release")
-            ) {
+            if !from.is_empty() || !to.is_empty() {
                 return Err(message.to_string());
             }
             println!("{message}");
@@ -405,7 +417,7 @@ mod tests {
 
     use super::{
         module_version, parse, resolve, resolved as graph_versions, rule_set_floors,
-        rule_set_problems, unyanked,
+        rule_set_problems, unyanked, versions_from_response,
     };
 
     const META: &str =
@@ -448,6 +460,21 @@ mod tests {
         assert_eq!(resolve("", "", &strings(&["1.0.0"])), None);
         assert_eq!(resolve("", "1.0.0", &strings(&["1.0.0"])), None);
         assert_eq!(resolve("", "", &[]), None);
+    }
+
+    #[test]
+    fn an_unpublished_module_has_no_versions() {
+        let url = "https://bcr.example/modules/rules_dx/metadata.json";
+        assert_eq!(
+            versions_from_response(url, "Not Found\n404"),
+            Ok(Vec::new())
+        );
+        assert_eq!(
+            versions_from_response(url, &format!("{META}\n200")),
+            Ok(strings(&["1.0.0", "1.1.0", "1.2.0"]))
+        );
+        assert!(versions_from_response(url, "oops\n500").is_err());
+        assert!(versions_from_response(url, "").is_err());
     }
 
     #[test]

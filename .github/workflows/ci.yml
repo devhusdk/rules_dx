@@ -7,8 +7,6 @@ on:
   merge_group:
     types: [checks_requested]
   workflow_dispatch:
-  schedule:
-    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -20,7 +18,7 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  # A newer push cancels the older run; a scheduled or dispatched run on main only replaces a queued one.
+  # A newer push cancels the older run; a dispatched run on main only replaces a queued one.
   group: ci-${{ github.workflow }}-${{ github.event_name == 'push' && 'push-' || '' }}${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
 
@@ -211,7 +209,7 @@ jobs:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.
     needs: [workflow-check, preflight]
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.workflow-check.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && needs.workflow-check.result == 'success' }}
     uses: ./.github/workflows/reusable-consumer.yml
     with:
       platforms: '["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]'
@@ -228,7 +226,7 @@ jobs:
     name: coverage-cells (one exact coverage report from every native cell)
     needs: [dogfood]
     # Without a successful dogfood there are no cell reports to check, and dogfood is already red.
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.dogfood.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && needs.dogfood.result == 'success' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
@@ -257,7 +255,7 @@ jobs:
           bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
   devcontainer-check:
     name: devcontainer-check (init parity, definition valid)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -286,214 +284,9 @@ jobs:
         run: |
           echo "### devcontainer-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
-  hermetic:
-    name: hermetic (no-install and network-denied consumer qualification)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 120
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Allow unprivileged user namespaces
-        run: |
-          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Qualify the consumer without installs or network
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          targets="$(bazel query "$@" 'attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...) except filter("_msvc$", //...)' --output=label)"
-          test -n "$targets"
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $targets
-      - name: Run the release consumer cases offline
-        if: ${{ !cancelled() }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //deploy/private/release/tests:release_consumer_smoke_test
-      - name: Run the compiler probe tests
-        id: compiler-probes
-        if: ${{ !cancelled() }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
-          mkdir -p "$RUNNER_TEMP/ci-producers-bin"
-          cp "$(bazel info "$@" bazel-bin)/tools/ci/producers/producers_bin" "$RUNNER_TEMP/ci-producers-bin/producers_bin"
-          facts="$(bazel info "$@" bazel-bin)/tools/docs/support_matrix/facts.json"
-          jq -r --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | .identity.probe, ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
-          targets="$(cat "$RUNNER_TEMP/compiler-targets")"
-          status=0
-          # One invocation builds the probes' Starlark manifests and runs the probe tests.
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --output_groups=+starlark_manifest "$@" $targets && status=0 || status=$?
-          if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
-            exit "$status"
-          fi
-      - uses: ./.github/actions/compiler-evidence
-        if: always()
-        with:
-          platform: linux_x86_64
-          name: linux_x86_64
-          bin-from-bazel-info: "true"
-      - name: Check the upload holds no secret
-        id: scan-ci-producers-bin
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-ci-producers-bin.outcome == 'success' }}
-        with:
-          name: ci-producers-bin
-          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
-          if-no-files-found: ignore
-          retention-days: 3
-      - name: Write job summary
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Qualified a fresh C++ and Rust consumer on the nested Bazel harness: test offline from its cache set." >> "$GITHUB_STEP_SUMMARY"
-  hermetic-macos:
-    name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 150
-    runs-on: macos-15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        id: setup
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-          locate-repository-cache: "true"
-      - name: Qualify the consumer without installs or network
-        run: |
-          test "$(uname -s)" = Darwin
-          # The qualifications compatible with macOS; widen this list with the target (#8258).
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test //apple/tests:consumer_build_test //tools/testing/hermetic:cpp_rust
-      - name: Run the README quickstart and bcr_test_module cases for macos_arm64
-        if: ${{ !cancelled() }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=all --test_timeout=2400 --flaky_test_attempts=2 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::bcr_test_module_runs_its_presubmit_targets --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
-  hermetic-windows:
-    name: hermetic-windows (MSVC isolation on ${{ matrix.platform }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 90
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [windows_x86_64, windows_arm64]
-    runs-on: ${{ fromJSON('{"windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] }}
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
-        run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Deny the host MSVC trees to hermetic runs
-        run: |
-          denies=()
-          # Git Bash upper-cases ProgramFiles but keeps ProgramFiles(x86) as is.
-          for root in "${PROGRAMFILES:-$(printenv ProgramFiles)}" "$(printenv 'ProgramFiles(x86)')"; do
-            [ -n "$root" ] || continue
-            for name in "Microsoft Visual Studio" "Windows Kits" "Microsoft SDKs"; do
-              dir="$root\\$name"
-              if [ -d "$(cygpath -u "$dir")" ]; then
-                denies+=(--deny "$dir")
-              fi
-            done
-          done
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" --//cc:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
-            --backend user --ensure-host-denies "${denies[@]}"
-      - name: Probe MSVC isolation without Visual Studio or network
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //tools/testing/hermetic:isolation_windows_probe_test
-          if [ "$PLATFORM" = windows_x86_64 ]; then
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
-          fi
-  determinism:
-    name: determinism (two cold builds, exec logs compared, shard ${{ matrix.shard }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 45
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - shard: 0/7
-            patterns: //appimage/...
-          - shard: 1/7
-            patterns: //cli/archive/...
-          - shard: 2/7
-            patterns: //android/private/packaging/...
-          - shard: 3/7
-            patterns: //msix/tests/...
-          - shard: 4/7
-            patterns: ""
-          - shard: 5/7
-            patterns: //deploy/private:all
-          - shard: 6/7
-            patterns: //deploy/private/... -//deploy/private:all
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
-      - name: Build twice and compare the execution logs
-        # A step timeout fails the step and keeps the log; the job cap above discards it.
-        timeout-minutes: 40
-        env:
-          SHARD: ${{ matrix.shard }}
-          PATTERNS: ${{ matrix.patterns }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          read -ra patterns <<< "$PATTERNS"
-          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" --kinds --shard "$SHARD" "${patterns[@]}"
   analysis-scaling:
     name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:
@@ -512,7 +305,7 @@ jobs:
           bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   in-graph-prebuilt-guard:
     name: in-graph-prebuilt-guard (consumer fixtures compile no rules_dx tool on ${{ matrix.platform }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -550,50 +343,9 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard" ${LANGS:+--langs "$LANGS"}
-  network:
-    name: network (requires-network nested consumer tests)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 75
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-bazel
-        id: setup
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-          locate-repository-cache: "true"
-      - name: Allow unprivileged user namespaces
-        run: |
-          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
-            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Run the opted-in requires-network consumer tests
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          targets="$(bazel query "$@" 'attr(tags, network-consumer, //...)' --output=label)"
-          test -n "$targets"
-          echo "$targets" > "$RUNNER_TEMP/network-targets"
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "$@" $targets
-      - name: Write job summary
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          echo "### network (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran the tests tagged network-consumer. A FLAKY result means the test passed on its single retry." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/network-targets" ]; then
-            sed 's/^/- /' "$RUNNER_TEMP/network-targets" >> "$GITHUB_STEP_SUMMARY"
-          fi
   starter-consumer:
     name: starter-consumer (compiler probes) (${{ matrix.platform }}, shard ${{ matrix.shard }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 90
     defaults:
       run:
@@ -672,58 +424,27 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           name: starter-${{ matrix.platform }}
-  msix-install:
-    name: msix-install (windows_x86_64)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    timeout-minutes: 60
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
-    permissions:
-      contents: read
-    steps:
-      - name: Check out files in parallel
+      - name: Copy the producers binary for the evidence table
+        if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 }}
         run: |
-          git init "$GITHUB_WORKSPACE"
-          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --no-tags origin "$GITHUB_SHA"
-          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - name: Check for msix changes
-        id: changes
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ "$EVENT_NAME" != "pull_request" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^msix/'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: ./.github/actions/setup-bazel
-        if: steps.changes.outputs.run == 'true'
+          mkdir -p "$RUNNER_TEMP/ci-producers-bin"
+          cp "$PWD/bazel-bin/tools/ci/producers/producers_bin" "$RUNNER_TEMP/ci-producers-bin/producers_bin"
+      - name: Check the upload holds no secret
+        id: scan-ci-producers-bin
+        if: ${{ always() && matrix.platform == 'linux_x86_64' && matrix.shard == 0 }}
+        uses: ./.github/actions/assert-no-secret
         with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
-      - name: Install and launch the signed package
-        if: steps.changes.outputs.run == 'true'
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors "$@" //msix/tests:install_test
-      - name: Write job summary
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-          RAN: ${{ steps.changes.outputs.run }}
-        run: |
-          echo "### msix-install (windows_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran //msix/tests:install_test: ${RAN}. It installs the signed and unsigned packages and launches the app." >> "$GITHUB_STEP_SUMMARY"
+          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.scan-ci-producers-bin.outcome == 'success' }}
+        with:
+          name: ci-producers-bin
+          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
+          if-no-files-found: ignore
+          retention-days: 3
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 30
     defaults:
       run:
@@ -896,7 +617,7 @@ jobs:
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
   quality-matrix:
     name: quality-matrix (runner matrix tests) (${{ matrix.platform }}, ${{ matrix.runner }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -975,7 +696,7 @@ jobs:
           fi
   launch-heavy:
     name: launch-heavy (Julia tools and standalone, long cold builds) (${{ matrix.platform }}, ${{ matrix.runner }})
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -1063,7 +784,7 @@ jobs:
           fi
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -1100,7 +821,7 @@ jobs:
           echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
-    if: ${{ !cancelled() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
     needs:
       [
         check,
@@ -1109,14 +830,8 @@ jobs:
         dogfood,
         analysis-scaling,
         in-graph-prebuilt-guard,
-        determinism,
         devcontainer-check,
-        hermetic,
-        hermetic-macos,
-        hermetic-windows,
         launch-heavy,
-        msix-install,
-        network,
         preflight,
         quality-matrix,
         starter-consumer,
@@ -1179,100 +894,3 @@ jobs:
           path: ${{ runner.temp }}/compiler-evidence-all.jsonl
           if-no-files-found: ignore
           retention-days: 3
-  scheduled-report:
-    name: scheduled-report
-    if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
-    needs: [ci]
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      issues: write
-    steps:
-      - name: Open, update or close the tracking issue
-        if: ${{ github.event_name == 'schedule' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          CI_RESULT: ${{ needs.ci.result }}
-        run: |
-          title="ci: scheduled run is failing"
-          number=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq "[.[] | select(.title == \"$title\")][0].number // empty")
-          if [ "$CI_RESULT" = "cancelled" ] || [ "$CI_RESULT" = "skipped" ]; then
-            echo "Run $RUN_ID was $CI_RESULT and gave no result; leaving the tracking issue alone."
-            exit 0
-          fi
-          if [ "$CI_RESULT" = "success" ]; then
-            if [ -n "$number" ]; then
-              gh issue close "$number" --comment "Scheduled run is green again: $RUN_URL"
-            fi
-            exit 0
-          fi
-          failed=""
-          while IFS=$'\t' read -r job_id job_name step_name; do
-            [ -n "$job_id" ] || continue
-            failed="$failed${failed:+$'\n'}- $job_name (step: ${step_name:-unknown})"
-            lines=$(gh api "repos/$GH_REPO/actions/jobs/$job_id/logs" 2>/dev/null \
-              | sed -E 's/^[0-9T:.Z-]+ //' \
-              | grep -E '^ERROR:|panicked at|FAILED|^##\[error\]' \
-              | cut -c1-300 | head -n 5 || true)
-            if [ -n "$lines" ]; then
-              failed="$failed"$'\n'"$(printf '%s\n' "$lines" | sed 's/^/    /')"
-            fi
-          done < <(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | [(.databaseId | tostring), .name, ([.steps[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .name][0] // "")] | @tsv')
-          if [ -z "$failed" ]; then
-            failed="- (no failed job recorded; see the run)"
-          fi
-          body="Scheduled ci run failed: $RUN_URL"$'\n\n'"Failed jobs:"$'\n'"$failed"
-          body=${body:0:60000}
-          if [ -n "$number" ]; then
-            gh issue comment "$number" --body "$body"
-          else
-            gh issue create --title "$title" --body "$body"
-          fi
-      - name: Publish the known red tests on main
-        if: ${{ github.ref == 'refs/heads/main' && needs.ci.result != 'cancelled' && needs.ci.result != 'skipped' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          HEAD_SHA: ${{ github.sha }}
-          CI_RESULT: ${{ needs.ci.result }}
-        run: |
-          set -euo pipefail
-          # Agents read this issue without a token; keep the fenced block one label per line.
-          labels=""
-          if [ "$CI_RESULT" != "success" ]; then
-            jobs=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .databaseId')
-            for job_id in $jobs; do
-              if ! log=$(gh api "repos/$GH_REPO/actions/jobs/$job_id/logs"); then
-                echo "::warning title=known-red::no log for job $job_id"
-                continue
-              fi
-              found=$(printf '%s\n' "$log" | tr -d '\r' | sed -E 's/^[0-9T:.Z-]+ //' \
-                | awk '/^(@[^ ]*)?\/\/[^ ]+ +(\(cached\) +)?(FAILED|TIMEOUT|NO STATUS|INCOMPLETE)/ { print $1 }')
-              labels="$labels${found:+$'\n'$found}"
-            done
-          fi
-          list=$(printf '%s\n' "$labels" | sed '/^$/d' | sort -u)
-          {
-            echo "Test labels that failed on the last main ci run: $RUN_URL"
-            echo "Commit: $HEAD_SHA. Result: $CI_RESULT. The workflow rewrites this issue after each main run."
-            echo
-            echo '```text'
-            if [ -n "$list" ]; then printf '%s\n' "$list"; fi
-            echo '```'
-          } > known-red.md
-          gh label create known-red --force --color B60205 --description "Tests that failed on the last main ci run"
-          number=$(gh issue list --state open --label known-red --json number --jq '.[0].number // empty')
-          if [ -n "$number" ]; then
-            gh issue edit "$number" --body-file known-red.md
-          else
-            url=$(gh issue create --title "ci: known red tests on main" --label known-red --body-file known-red.md)
-            if ! gh issue pin "$url"; then
-              echo "::warning title=known-red::could not pin $url"
-            fi
-          fi

@@ -145,14 +145,14 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    After step 1, on 4 CPUs and 8 GB of memory, this takes about 11 seconds.
 
-4. Before you chase a red test, check whether it is already red on main. After each scheduled or dispatched `ci` run on main, the workflow rewrites the issue labelled `known-red` with the failing test labels, one per line. Read it without a token:
+4. Before you chase a red test, check whether it is already red on main. After each `audit` run on main, the workflow rewrites the issue labelled `known-red` with the failing test labels, one per line. Read it without a token:
 
    ```sh
    curl -fsS 'https://api.github.com/repos/devhusdk/rules_dx/issues?labels=known-red&state=open' \
      | jq -r '.[0].body // empty' | sed -n '/^```text$/,/^```$/{/^```/d;p}'
    ```
 
-   An empty list means the last main run had no failing test. The issue body also links the run and names its commit.
+   An empty list means the last audit run had no failing test. The issue body also links the run and names its commit.
 
    On a pull request, the `baseline-diff` job compares each `check` and `coverage` job's failing labels with the last push to main. It fails only on labels that are not red on main, and its job summary lists them.
 
@@ -218,7 +218,7 @@ git diff --name-only origin/main...HEAD |
   bazel run //tools/ci/producers:producers_bin -- --review-paths "$PWD/.github/review-paths.txt"
 ```
 
-`bazel run` starts the tool in its own directory, so pass the list by its full path. If it prints any paths, add the `needs-review` label. The pull request is not merged until a fresh session (the `reviewer` agent, not the author) posts a comment starting `Review:` that lists each finding as `file:line`, or says it found none. The daily `issue-labels` workflow warns about merged pull requests that skipped this.
+`bazel run` starts the tool in its own directory, so pass the list by its full path. If it prints any paths, add the `needs-review` label. The pull request is not merged until a fresh session (the `reviewer` agent, not the author) posts a comment starting `Review:` that lists each finding as `file:line`, or says it found none. The daily `audit` workflow warns about merged pull requests that skipped this.
 
 ## File an issue
 
@@ -240,7 +240,7 @@ Other labels:
 - `model:haiku`, `model:sonnet`, `model:opus` and `model:human` pick which agent lane handles the issue.
 - `dogfood`: an extra label, never the only one.
 
-A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line. To wait for a release of another repository, name the pull request, not an issue, and write `Blocked on: <PR URL> (merged and in a <module> release)`: the label then stays until the repository's latest GitHub release contains the merge commit. Unblock by hand when the fix ships as a cherry-picked backport or the repository has no latest GitHub release.
+A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `audit` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line. To wait for a release of another repository, name the pull request, not an issue, and write `Blocked on: <PR URL> (merged and in a <module> release)`: the label then stays until the repository's latest GitHub release contains the merge commit. Unblock by hand when the fix ships as a cherry-picked backport or the repository has no latest GitHub release.
 
 Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+-label%3Adogfood), [dogfood issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+label%3Adogfood).
 

@@ -1,34 +1,15 @@
+load("@rules_dx//core:cells.bzl", "cell_setting")
+load("@rules_dx//core:platform_support.bzl", "lang_cells")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//ocaml/private:kwargs.bzl", "OCAML_COMPATIBLE_WITH")
 
 package(default_visibility = ["//:__subpackages__"])
 
-[
-    config_setting(
-        name = "{}_{}".format(os, cpu),
-        constraint_values = [
-            "@platforms//os:" + os,
-            "@platforms//cpu:" + cpu,
-        ],
-    )
-    for os in [
-        "linux",
-        "macos",
-    ]
-    for cpu in [
-        "x86_64",
-        "aarch64",
-    ]
-]
-
 alias(
     name = "opam_binary",
-    actual = select({
-        ":linux_aarch64": "@opam_linux_arm64//file",
-        ":linux_x86_64": "@opam_linux_x86_64//file",
-        ":macos_aarch64": "@opam_macos_arm64//file",
-        ":macos_x86_64": "@opam_macos_x86_64//file",
-    }),
+    actual = select({cell_setting("//ocaml/private/toolchain", cell): "@opam_%s//file" % cell for cell in lang_cells("ocaml")}),
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 
 sh_binary(

@@ -87,7 +87,8 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-        tags=-manual,-resources:nested_bazel:1,-network-consumer,-audit
+        pr_tags=-network-consumer,-audit
+        tags=-manual,-resources:nested_bazel:1,$pr_tags
         read -ra scopes <<<"$SCOPES"
         bazel build "$@" @rules_dx//:dx
         built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
@@ -105,7 +106,12 @@ runs:
             generate) targets=() ;;
             check | format | lint | typecheck) report=(--max-findings 0) ;;
             coverage) filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags") ;;
-            test) filters=() ;;
+            test)
+              filters=()
+              if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+                filters=("--test_tag_filters=$pr_tags")
+              fi
+              ;;
           esac
           if [ "$COMMAND" = coverage ] && [ -n "$LCOV" ]; then
             mkdir -p "$(dirname "$LCOV")"

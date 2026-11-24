@@ -37,7 +37,7 @@ const AUDIT_TAGS: [&str; 2] = ["hermetic-consumer", "network-consumer"];
 
 const AUDIT_WORKFLOW: &str = ".github/workflows/audit.yml";
 
-const BAZELRC: &str = ".bazelrc";
+const GATE_ACTION: &str = ".github/actions/gate/action.yml";
 
 const UPSTREAM: &str = "_upstream";
 
@@ -332,7 +332,7 @@ fn pr_tag_filter() -> String {
         .iter()
         .map(|tag| format!("-{tag}"))
         .collect();
-    format!("test:ci-pr --test_tag_filters={}", skipped.join(","))
+    format!("pr_tags={}", skipped.join(","))
 }
 
 fn nested_constants(
@@ -628,12 +628,12 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
     problems.extend(nested_differences(&nested_tests(&files), &listed));
     problems.extend(unselected(&files, &listed, &read_input("AUDIT_WORKFLOW")));
     let filter = pr_tag_filter();
-    if !read_input("BAZELRC")
+    if !read_input("GATE_ACTION")
         .lines()
         .any(|line| line.trim() == filter)
     {
         problems.push(format!(
-            "{BAZELRC} lacks `{filter}`, so the pull request test job runs the tests audit owns"
+            "{GATE_ACTION} lacks `{filter}`, so the pull request test job runs the tests audit owns"
         ));
     }
     assert!(
@@ -859,10 +859,7 @@ smoke(name = "macro")
 
 #[test]
 fn the_pull_request_tag_filter_names_every_skipped_tag() {
-    assert_eq!(
-        pr_tag_filter(),
-        "test:ci-pr --test_tag_filters=-network-consumer,-audit"
-    );
+    assert_eq!(pr_tag_filter(), "pr_tags=-network-consumer,-audit");
 }
 
 fn seconds(entries: &[(&str, usize)]) -> BTreeMap<String, usize> {

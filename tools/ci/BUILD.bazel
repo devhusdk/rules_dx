@@ -1352,14 +1352,14 @@ rust_test(
     crate_root = "test_budget_test.rs",
     data = [
         "test_budget_allowlist.txt",
-        "//:.bazelrc",
+        "//.github:actions/gate/action.yml",
         "//.github:workflows/audit.yml",
         "//tools/testing:nested_smoke.txt",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
         "AUDIT_WORKFLOW": "$(rlocationpath //.github:workflows/audit.yml)",
-        "BAZELRC": "$(rlocationpath //:.bazelrc)",
+        "GATE_ACTION": "$(rlocationpath //.github:actions/gate/action.yml)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
         "NESTED_LIST": "$(rlocationpath //tools/testing:nested_smoke.txt)",
         "TEST_BUDGET_ALLOWLIST": "$(rlocationpath test_budget_allowlist.txt)",

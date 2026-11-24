@@ -2181,7 +2181,7 @@ cabal_dev.lock(
 use_repo(cabal_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_stack_hackage")
 
 d = use_extension("//d:extensions.bzl", "d")
-use_repo(d, "dx_d_toolchains", "dx_d_toolchains__linux_arm64", "dx_d_toolchains__linux_x86_64", "dx_d_toolchains__macos_arm64", "dx_d_toolchains__windows_x86_64")
+use_repo(d, "dx_d_toolchains", "dx_d_toolchains__linux_arm64", "dx_d_toolchains__linux_x86_64", "dx_d_toolchains__macos_arm64", "dx_d_toolchains__windows_arm64", "dx_d_toolchains__windows_x86_64")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -2225,7 +2225,7 @@ oci.pull(
     image = "gcr.io/distroless/static-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2234,7 +2234,7 @@ oci.pull(
     image = "gcr.io/distroless/cc-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2243,7 +2243,7 @@ oci.pull(
     image = "gcr.io/distroless/python3-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2252,7 +2252,7 @@ oci.pull(
     image = "gcr.io/distroless/java21-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2261,7 +2261,7 @@ oci.pull(
     image = "gcr.io/distroless/nodejs22-debian12",
     platforms = [
         "linux/amd64",
-        "linux/arm64",
+        "linux/arm64/v8",
     ],
 )
 oci.pull(
@@ -2277,19 +2277,19 @@ use_repo(
     oci,
     "distroless_cc",
     "distroless_cc_linux_amd64",
-    "distroless_cc_linux_arm64",
+    "distroless_cc_linux_arm64_v8",
     "distroless_java",
     "distroless_java_linux_amd64",
-    "distroless_java_linux_arm64",
+    "distroless_java_linux_arm64_v8",
     "distroless_nodejs",
     "distroless_nodejs_linux_amd64",
-    "distroless_nodejs_linux_arm64",
+    "distroless_nodejs_linux_arm64_v8",
     "distroless_python",
     "distroless_python_linux_amd64",
-    "distroless_python_linux_arm64",
+    "distroless_python_linux_arm64_v8",
     "distroless_static",
     "distroless_static_linux_amd64",
-    "distroless_static_linux_arm64",
+    "distroless_static_linux_arm64_v8",
     "dotnet_runtime",
     "dotnet_runtime_linux_amd64",
     "dotnet_runtime_linux_arm64",

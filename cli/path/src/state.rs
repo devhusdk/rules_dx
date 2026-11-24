@@ -1,8 +1,3 @@
-//! Where dx keeps its state inside a workspace.
-//!
-//! `.dx/` holds committed files. Machine-local state lives under
-//! `.dx/local/`, which stays out of git.
-
 use std::path::{Path, PathBuf};
 
 pub const DX_DIR: &str = ".dx";
@@ -31,10 +26,8 @@ pub const LAUNCHER: &str = "launcher";
 pub const FINGERPRINT: &str = "fingerprint";
 pub const SYNC_LOCK: &str = "sync.lock";
 pub const SYNC_FINGERPRINT: &str = "sync.fingerprint";
-/// The last workspace rule graph and the hash of the files it came from.
 pub const RULE_GRAPH: &str = "rule_graph";
 
-/// Entries that live under [`local_dir`].
 pub const LOCAL_ENTRIES: [&str; 13] = [
     SETUPS,
     CURRENT,
@@ -51,8 +44,6 @@ pub const LOCAL_ENTRIES: [&str; 13] = [
     SYNC_FINGERPRINT,
 ];
 
-/// Entries `dx clean` deletes from [`local_dir`]; `leases` only for dead holders.
-/// `fuzz`, `bench`, `advisory` and `launcher` stay.
 pub const CLEAN_ENTRIES: [&str; 14] = [
     SETUPS,
     ENVIRONMENTS,
@@ -80,19 +71,16 @@ pub fn local_dir(workspace: &Path) -> PathBuf {
     dx_dir(workspace).join("local")
 }
 
-/// The inputs and outputs hash from the last `.dx` sync.
 #[must_use]
 pub fn fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(FINGERPRINT)
 }
 
-/// What the last `dx sync` of `.dx/local` saw, so build commands know when to sync again.
 #[must_use]
 pub fn sync_fingerprint_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(SYNC_FINGERPRINT)
 }
 
-/// Held while a `.dx` sync renders and cleans up.
 #[must_use]
 pub fn sync_lock_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(SYNC_LOCK)

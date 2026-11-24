@@ -12,8 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return scala.Language() })
 
-// named returns the dot-joined text of the named, non-comment children of n, or
-// the text of n itself when it is a leaf. Dots are not nodes in this grammar.
 func named(tree *treesitter.Tree, n *treesitter.Node) string {
 	if n.ChildCount() == 0 {
 		return strings.Trim(tree.Text(n), "`")
@@ -28,8 +26,6 @@ func named(tree *treesitter.Tree, n *treesitter.Node) string {
 	return strings.Join(segs, ".")
 }
 
-// ParseImports returns the sorted, deduplicated import identities of content,
-// including imports local to blocks. Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -44,7 +40,6 @@ func ParseImports(content []byte) []string {
 			return true
 		}
 		if n.HasErrorOrMissing() || truncated(n) {
-			// A truncated or malformed import names nothing reliable.
 			return false
 		}
 		var group []*treesitter.Node
@@ -71,15 +66,11 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// truncated reports whether an error node directly follows the import, as in
-// import e. cut off at the end of the file.
 func truncated(n *treesitter.Node) bool {
 	next := n.NextSibling()
 	return next != nil && next.IsError() && next.StartByte() <= n.EndByte()+1
 }
 
-// importerIDs maps one comma-separated importer (a path of identifiers plus an
-// optional selector, wildcard or rename) to import identities.
 func importerIDs(tree *treesitter.Tree, group []*treesitter.Node, add func(string)) {
 	var path []string
 	var tail *treesitter.Node
@@ -100,7 +91,6 @@ func importerIDs(tree *treesitter.Tree, group []*treesitter.Node, add func(strin
 	}
 	switch tree.Type(tail) {
 	case "namespace_wildcard", "type_identifier", "generic_type":
-		// _, *, given and given T all import from the package on demand.
 		add(normalizeImport(pkg, true))
 	case "as_renamed_identifier", "arrow_renamed_identifier":
 		renamed(tree, pkg, tail, add)
@@ -118,7 +108,6 @@ func importerIDs(tree *treesitter.Tree, group []*treesitter.Node, add func(strin
 	}
 }
 
-// renamed handles X => Y and X as Y. A rename to _ hides X and imports nothing.
 func renamed(tree *treesitter.Tree, pkg string, n *treesitter.Node, add func(string)) {
 	var first string
 	for _, c := range n.Children() {
@@ -141,9 +130,6 @@ func joinDot(a, b string) string {
 	return a + "." + b
 }
 
-// ParsePackage joins chained and nested package clauses (package a / package b,
-// package a { package b {, package a; package b) with dots. A clause that
-// follows other code is a separate package and is an error.
 func ParsePackage(content []byte) (string, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -215,9 +201,6 @@ func errSeparatePackage(first, second string) error {
 	return &separatePackageError{first: first, second: second}
 }
 
-// DefinesMain reports whether content has an @main def, a top-level
-// def main(args: Array[String]) or one in a top-level object, or a top-level
-// object extending App.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -260,7 +243,6 @@ func DefinesMain(content []byte) bool {
 	return false
 }
 
-// topLevel returns the compilation unit members, including those inside braced package clauses.
 func topLevel(tree *treesitter.Tree, root *treesitter.Node) []*treesitter.Node {
 	var out []*treesitter.Node
 	for _, n := range root.Children() {
@@ -316,4 +298,3 @@ func normalizeImport(dotted string, onDemand bool) string {
 	}
 	return dotted + ".*"
 }
-

@@ -1,9 +1,6 @@
-//! Drops outdated packages that the pull request policy skips.
-
 use crate::discover::Candidate;
 use crate::pr::GroupPlan;
 
-/// How big an update is.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Level {
     Patch,
@@ -12,7 +9,6 @@ pub enum Level {
 }
 
 impl Level {
-    /// Reads `patch`, `minor` or `all`. `none` and anything else give `None`.
     #[must_use]
     pub fn limit(text: &str) -> Option<Level> {
         match text {
@@ -35,7 +31,6 @@ fn numbers(version: &str) -> Option<(u64, u64)> {
     Some((version.major(), version.minor()))
 }
 
-/// Sizes the move from `current` to `latest`. Zero-major versions treat a minor bump as major.
 #[must_use]
 pub fn level(current: &str, latest: &str) -> Level {
     let (Some((cm, cn)), Some((lm, ln))) = (numbers(current), numbers(latest)) else {
@@ -50,21 +45,18 @@ pub fn level(current: &str, latest: &str) -> Level {
     }
 }
 
-/// What to drop.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Policy {
     pub allow_major: bool,
     pub cutoff: Option<String>,
 }
 
-/// A dropped package and why.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Skip {
     pub candidate: Candidate,
     pub reason: &'static str,
 }
 
-/// Splits candidates into the ones to update and the ones skipped.
 #[must_use]
 pub fn filter(candidates: &[Candidate], policy: &Policy) -> (Vec<Candidate>, Vec<Skip>) {
     let mut kept = Vec::new();
@@ -108,7 +100,6 @@ fn too_new(candidate: &Candidate, cutoff: Option<&str>) -> bool {
     iso && date > cutoff
 }
 
-/// Says whether every package in the group is within `limit`. `None` means never.
 #[must_use]
 pub fn automerge(limit: Option<Level>, plan: &GroupPlan) -> bool {
     let Some(limit) = limit else {

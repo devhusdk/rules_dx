@@ -1,8 +1,6 @@
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
-/// Reads the `any.<name> ==<version>` entries of a freeze file `constraints:` field.
-/// Flag entries and `installed` boot packages carry no version and are skipped.
 pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let mut constraints = String::new();
@@ -40,7 +38,6 @@ pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     Ok(out)
 }
 
-/// Reads the `hackage:` entries a `stack.yaml.lock` completes under `packages:`.
 pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let mut in_packages = false;

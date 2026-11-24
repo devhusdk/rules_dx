@@ -211,7 +211,7 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
-_cc_fuzz_driver = dx_private_dep_rule(
+_cc_driver_lib = dx_private_dep_rule(
     Label("//cc/private:fuzz_driver"),
     _DX_CC_LIBRARY_PROVIDES + [OutputGroupInfo],
     "Provides the driver cc_fuzz_test links when libFuzzer is not linked.",
@@ -223,7 +223,7 @@ def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = N
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],
     })
-    _cc_fuzz_driver(
+    _cc_driver_lib(
         name = name + "_fuzz_driver",
         testonly = True,
         tags = dx_upstream_tags(tags),

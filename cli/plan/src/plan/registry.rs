@@ -8,8 +8,6 @@ use std::sync::OnceLock;
 pub struct CommandSpec {
     pub command: Command,
     pub aspects: &'static [&'static str],
-    /// The cheap aspects that name the shards each target needs; see `select_aspects`. The first is
-    /// the core family's, then one per family file.
     pub probes: &'static [&'static str],
     pub reports: &'static [StandardFormat],
 }
@@ -25,7 +23,6 @@ fn leak(label: String) -> &'static str {
     Box::leak(label.into_boxed_str())
 }
 
-/// The core labels of `command`: those of `core/quality/core_aspects.json`, in file order.
 fn core_labels(command: &str, probes: bool) -> Vec<String> {
     if command == "docs" {
         return dx_families::core_docs()
@@ -39,8 +36,6 @@ fn core_labels(command: &str, probes: bool) -> Vec<String> {
         .collect()
 }
 
-/// The labels of the aspect files in core, then those of every language's `quality` entry (and,
-/// for `docs`, its `docs` entry) in `lang.json`.
 fn with_languages(command: &'static str, probes: bool) -> &'static [&'static str] {
     type Key = (&'static str, bool);
     static ALL: OnceLock<BTreeMap<Key, &'static [&'static str]>> = OnceLock::new();
@@ -210,14 +205,11 @@ pub fn spec(command: Command) -> CommandSpec {
     }
 }
 
-/// What a consumer has: the extensions of the files in its workspace.
 #[derive(Debug, Clone, Copy)]
 pub struct Consumer<'a> {
     pub extensions: &'a BTreeSet<String>,
 }
 
-/// The aspects of `command` that fit the consumer: those of core files and of the languages whose
-/// files it has.
 #[must_use]
 pub fn aspects_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str> {
     spec(command)
@@ -228,8 +220,6 @@ pub fn aspects_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str
         .collect()
 }
 
-/// The probes of `command` that fit the consumer, chosen as its aspects are. Empty for a command
-/// without a probe.
 #[must_use]
 pub fn probes_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str> {
     spec(command)
@@ -240,8 +230,6 @@ pub fn probes_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str>
         .collect()
 }
 
-/// Whether the file that defines `label` is a core file or one the consumer's `lang.json` entry
-/// asks for.
 fn wanted(label: &str, consumer: Consumer<'_>) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
     if let Some(language) = quality_owner(file) {
@@ -258,16 +246,12 @@ fn wanted(label: &str, consumer: Consumer<'_>) -> bool {
         })
 }
 
-/// The language whose files decide whether the aspects of `file` run: the first whose `quality`
-/// entry names aspects or probes in it. A language that only shares a core file, as asciidoc shares
-/// `core.bzl`, decides nothing, so that file's aspects run for every consumer.
 fn quality_owner(file: &str) -> Option<&'static dx_families::QualityFiles> {
     dx_families::quality_languages().iter().find(|language| {
         language.bzl == file && (!language.aspects.is_empty() || !language.probes.is_empty())
     })
 }
 
-/// Every aspect label dx passes to Bazel.
 pub fn all_aspect_labels() -> Vec<String> {
     use clap::ValueEnum;
     let mut labels: Vec<String> = Command::value_variants()

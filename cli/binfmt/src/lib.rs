@@ -1,4 +1,3 @@
-//! Reads the format, machine, ABI and imported libraries of an executable.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -11,7 +10,6 @@ use object::read::macho::{FatArch, LoadCommandVariant, MachHeader};
 use object::read::pe::{ImageNtHeaders, ImageOptionalHeader as _, PeFile};
 use object::{FileKind, LittleEndian, Object as _, ObjectSection as _};
 
-/// One reason a binary could not be read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error(pub String);
 
@@ -27,7 +25,6 @@ fn fail(what: &str, error: impl fmt::Display) -> Error {
     Error(format!("{what}: {error}"))
 }
 
-/// The container format of one binary image.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
     Elf,
@@ -37,7 +34,6 @@ pub enum Format {
 }
 
 impl Format {
-    /// Returns the lowercase format name.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -49,7 +45,6 @@ impl Format {
     }
 }
 
-/// The runtime ABI one image needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Abi {
     Gnu,
@@ -60,7 +55,6 @@ pub enum Abi {
 }
 
 impl Abi {
-    /// Returns the ABI as one short word or phrase.
     #[must_use]
     pub fn name(&self) -> String {
         match self {
@@ -73,7 +67,6 @@ impl Abi {
     }
 }
 
-/// What one binary image says about itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Image {
     pub format: Format,
@@ -82,7 +75,6 @@ pub struct Image {
     pub needed: Vec<String>,
 }
 
-/// Names an ELF `e_machine` value.
 #[must_use]
 pub fn elf_machine_name(raw: u16) -> String {
     match raw {
@@ -95,7 +87,6 @@ pub fn elf_machine_name(raw: u16) -> String {
     }
 }
 
-/// Names a PE COFF machine value.
 #[must_use]
 pub fn pe_machine_name(raw: u16) -> String {
     match raw {
@@ -107,7 +98,6 @@ pub fn pe_machine_name(raw: u16) -> String {
     }
 }
 
-/// Names a Mach-O cputype value.
 #[must_use]
 pub fn macho_machine_name(raw: u32) -> String {
     match raw {
@@ -122,7 +112,6 @@ pub fn macho_machine_name(raw: u32) -> String {
 const WASM_MAGIC: &[u8] = b"\0asm\x01\0\0\0";
 const WASM_MACHINE: &str = "wasm32";
 
-/// Names the machine from the first header bytes of an ELF, PE, thin Mach-O or wasm file.
 #[must_use]
 pub fn machine(head: &[u8]) -> Option<String> {
     if head.starts_with(WASM_MAGIC) {
@@ -159,11 +148,6 @@ fn bytes_at<const N: usize>(data: &[u8], at: usize) -> Option<[u8; N]> {
     data.get(at..at.checked_add(N)?)?.try_into().ok()
 }
 
-/// Reads every image in one binary; a fat Mach-O yields one image per slice.
-///
-/// # Errors
-///
-/// Returns `Err` when the bytes are not a binary format dx reads, or a header is truncated.
 pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
     if bytes.starts_with(WASM_MAGIC) {
         return Ok(vec![Image {
@@ -195,13 +179,6 @@ pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
     }
 }
 
-/// Names the machine of every image in a binary, COFF object or archive member.
-///
-/// Unlike `inspect`, this accepts COFF objects, import objects and `.lib` or `.a` archives.
-///
-/// # Errors
-///
-/// Returns `Err` when the bytes are not a binary, object or archive format dx reads.
 pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
     let kind = FileKind::parse(bytes).map_err(|error| fail("unknown binary format", error))?;
     match kind {
@@ -262,10 +239,6 @@ fn macho_header_machine<H: MachHeader<Endian = object::Endianness>>(
     Ok(macho_machine_name(header.cputype(endian)))
 }
 
-/// Lists how an image names the tools that built it.
-///
-/// ELF files give the strings of the `.comment` section. PE files give one `msvc <prodid>.<build>`
-/// per entry of the Rich header. Anything else, or an image without either, yields an empty list.
 #[must_use]
 pub fn producers(bytes: &[u8]) -> Vec<String> {
     match FileKind::parse(bytes) {

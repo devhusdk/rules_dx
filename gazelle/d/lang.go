@@ -17,17 +17,12 @@ import (
 
 const languageName = "d"
 
-// BinaryKind is the rule kind generated for the main package of a DUB
-// executable.
 const BinaryKind = "d_binary"
 
-// TestKind is the rule kind generated for a library with unittest blocks.
 const TestKind = "d_test"
 
 const unresolvedHint = "add a d_library whose srcs declare that module, or an exact # gazelle:resolve d <module> <label>"
 
-// dKinds limits merging to the attributes generation owns. Handwritten
-// versions, dopts, linkopts and target_compatible_with stay as written.
 var dKinds = map[string]rule.KindInfo{
 	LibraryKind: {
 		NonEmptyAttrs: map[string]bool{"srcs": true},
@@ -46,7 +41,6 @@ func init() {
 	dKinds[TestKind] = dKinds[LibraryKind]
 }
 
-// dubConfig is the dub manifest in effect for a directory.
 type dubConfig struct {
 	rel     string
 	project *dubProject
@@ -74,7 +68,6 @@ func configureDub(c *config.Config, rel string, f *rule.File, rep common.Reporte
 	}
 }
 
-// importRootOf returns the dub root that holds the package rel, if any.
 func (d *dubConfig) importRootOf(rel string) (string, bool) {
 	if d == nil {
 		return "", false
@@ -91,8 +84,6 @@ type dLang struct {
 	*common.SingleLang
 }
 
-// NewLanguage returns the D language. Modules resolve by exact name only: a
-// prefix match could bind an import to a rule that defines a shorter module.
 func NewLanguage() language.Language {
 	return &dLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
@@ -110,8 +101,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes each source under the module it defines, read from its
-// declaration or, without one, from its file name.
 func (l *dLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind || f == nil {
 		return nil
@@ -142,7 +131,6 @@ func (l *dLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// DirTargetName names the library of directory dir.
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
@@ -159,8 +147,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return addBinariesAndTest(args, res, mains, rep)
 }
 
-// mainFiles maps the D sources of the directory with a module-scope main to
-// their content.
 func mainFiles(args language.GenerateArgs) map[string][]byte {
 	mains := make(map[string][]byte)
 	for _, file := range args.RegularFiles {
@@ -175,8 +161,6 @@ func mainFiles(args language.GenerateArgs) map[string][]byte {
 	return mains
 }
 
-// addBinariesAndTest adds a d_binary for each main source and a d_test over
-// the library sources when any of them has a unittest block.
 func addBinariesAndTest(args language.GenerateArgs, res language.GenerateResult, mains map[string][]byte, rep common.Reporter) language.GenerateResult {
 	var lib *rule.Rule
 	var libImports []string
@@ -223,9 +207,6 @@ func addBinariesAndTest(args language.GenerateArgs, res language.GenerateResult,
 	return res
 }
 
-// libraryTest builds the d_test over the library sources, or nil when none of
-// them has a unittest block. D runs unittests only in the sources compiled
-// with -unittest, so the test takes the sources instead of the library.
 func libraryTest(args language.GenerateArgs, lib *rule.Rule, imports []string) (*rule.Rule, []string) {
 	own := make(map[string]bool)
 	tested := false
@@ -262,8 +243,6 @@ func libraryTest(args language.GenerateArgs, lib *rule.Rule, imports []string) (
 	return test, external
 }
 
-// keepStale drops removals of rules this run generates, and of d_binary and
-// d_test rules that generation would not have written.
 func keepStale(build *rule.File, empty []*rule.Rule, desired map[string]bool) []*rule.Rule {
 	var kept []*rule.Rule
 	for _, r := range empty {
@@ -278,9 +257,6 @@ func keepStale(build *rule.File, empty []*rule.Rule, desired map[string]bool) []
 	return kept
 }
 
-// generatedShape reports whether the rule named like r in build is one
-// generation could have written: a binary over one source named after its
-// stem, or a test named like a library.
 func generatedShape(build *rule.File, r *rule.Rule) bool {
 	if build == nil {
 		return false
@@ -306,8 +282,6 @@ func generateDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep
 	return common.GenerateSingleDir(args, kinds, common.SingleDirSpec{
 		LanguageName: languageName,
 		LibraryKind:  LibraryKind,
-		// Only parsed D claims a .d file: DTrace scripts and Make
-		// dependency files share the extension.
 		IsSource: func(file string) bool {
 			if !isSupported(file) || mains[file] != nil {
 				return false
@@ -360,8 +334,6 @@ func generateDir(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep
 	}, rep)
 }
 
-// checkDubRoot fails when the import root the modules need is not the dub
-// root that holds the package.
 func checkDubRoot(rel, dubRoot, root string) error {
 	want := "."
 	if up := strings.Count(strings.TrimPrefix(rel, dubRoot), "/"); up > 0 {
@@ -373,7 +345,6 @@ func checkDubRoot(rel, dubRoot, root string) error {
 	return nil
 }
 
-// trackStringImports lists the files import("...") reads in string_srcs.
 func trackStringImports(r *rule.Rule, files []string, contents map[string][]byte, build *rule.File) error {
 	tracked := make(map[string]bool)
 	for _, src := range r.AttrStrings("srcs") {
@@ -408,7 +379,6 @@ func trackStringImports(r *rule.Rule, files []string, contents map[string][]byte
 			}
 		}
 	}
-	// Keep existing string_srcs that still resolve in this package.
 	for _, old := range existingStringSrcs(build, r.Name()) {
 		if !tracked[old] && (present[old] || genOuts[old] || strings.Contains(old, ":")) {
 			extra[old] = true
@@ -426,7 +396,6 @@ func trackStringImports(r *rule.Rule, files []string, contents map[string][]byte
 	return nil
 }
 
-// genruleOutputs lists the outs of the genrules in build.
 func genruleOutputs(build *rule.File) map[string]bool {
 	outs := make(map[string]bool)
 	if build == nil {
@@ -442,7 +411,6 @@ func genruleOutputs(build *rule.File) map[string]bool {
 	return outs
 }
 
-// existingStringSrcs returns the string_srcs of the library named name.
 func existingStringSrcs(build *rule.File, name string) []string {
 	if build == nil {
 		return nil

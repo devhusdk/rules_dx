@@ -10,8 +10,6 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-// IDLSpec describes a schema language whose files include or import each
-// other by path and whose library groups one directory.
 type IDLSpec struct {
 	Name        string
 	Kind        string
@@ -22,23 +20,14 @@ type IDLSpec struct {
 	Bindings    []IDLBinding
 }
 
-// IDLBinding is a code generation rule wrapping the library of a schema
-// language. It is generated when the root MODULE.bazel depends on Module.
 type IDLBinding struct {
-	Kind   string
-	Infix  string
-	Module string
-	// Attr is the attribute that names the library: "deps" (a list) or
-	// "library" (one label).
-	Attr string
-	// OneSchema leaves the binding out for libraries with other than one schema.
+	Kind      string
+	Infix     string
+	Module    string
+	Attr      string
 	OneSchema bool
 }
 
-// IDLBindings returns the cc, java and rust bindings of a schema language
-// whose rules are named <prefix>_cc_library, <prefix>_java_library and
-// <prefix>_rust_library. An empty rustAttr leaves out the rust binding.
-// oneSchema limits the rust binding to libraries with a single schema.
 func IDLBindings(prefix, rustAttr string, oneSchema bool) []IDLBinding {
 	all := []IDLBinding{
 		{prefix + "_cc_library", "_cc", "rules_cc", "deps", false},
@@ -67,8 +56,6 @@ func idlBindingKinds(spec IDLSpec) map[string]rule.KindInfo {
 	return kinds
 }
 
-// addIDLBindings appends the binding rules of each generated library and
-// empties the ones whose library is gone.
 func addIDLBindings(spec IDLSpec, args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	deps := ModuleDeps(args.Config.RepoRoot)
 	var active []IDLBinding
@@ -134,9 +121,6 @@ var (
 	hashComments  = regexp.MustCompile(`(?s)/\*.*?\*/|//[^\n]*|#[^\n]*`)
 )
 
-// ParseIDLStatements returns the sorted, deduplicated captures of every match
-// of statement in content, with comments removed first. hash also removes
-// '#' comments.
 func ParseIDLStatements(content []byte, statement *regexp.Regexp, hash bool) []string {
 	comments := slashComments
 	if hash {
@@ -159,9 +143,6 @@ func ParseIDLStatements(content []byte, statement *regexp.Regexp, hash bool) []s
 	return out
 }
 
-// NewIDLLanguage builds a language that generates one library per directory
-// holding schema files. An include resolves to the library owning the path
-// next to the including file, or from the repository root.
 func NewIDLLanguage(spec IDLSpec, parse func([]byte) []string, hint string) language.Language {
 	isSource := func(name string) bool { return HasExt(name, spec.Exts) }
 	return NewSingleLang(SingleLangSpec{

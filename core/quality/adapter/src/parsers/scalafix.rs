@@ -245,9 +245,6 @@ fn diff_findings(
     Ok(patches)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalafix(
     stdout: &[u8],
     stderr: &[u8],

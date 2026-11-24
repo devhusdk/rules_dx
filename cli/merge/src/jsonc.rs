@@ -1,5 +1,3 @@
-//! Key and array edits of JSONC text that keep comments, trailing commas and untouched bytes.
-
 use jsonc_parser::ParseOptions;
 use jsonc_parser::cst::{CstInputValue, CstObject, CstObjectProp, CstRootNode, ObjectPropName};
 use serde_json::Value;
@@ -8,7 +6,6 @@ use crate::Error;
 
 const BOM: &str = "\u{feff}";
 
-/// The text with each value set at its key path; missing objects are created.
 pub fn set_keys(text: &str, edits: &[(&[&str], Value)]) -> Result<String, Error> {
     edit(text, true, |root| {
         for (path, value) in edits {
@@ -29,7 +26,6 @@ pub fn set_keys(text: &str, edits: &[(&[&str], Value)]) -> Result<String, Error>
     })
 }
 
-/// The text without the keys at each path; paths that are not there are left alone.
 pub fn remove_keys(text: &str, paths: &[&[&str]]) -> Result<String, Error> {
     edit(text, false, |root| {
         for path in paths {
@@ -46,7 +42,6 @@ pub fn remove_keys(text: &str, paths: &[&[&str]]) -> Result<String, Error> {
     })
 }
 
-/// The text with `value` added to the array at `path` unless an equal entry is already there.
 pub fn append_missing(text: &str, path: &[&str], value: &Value) -> Result<String, Error> {
     edit(text, true, |root| {
         let (last, parents) = path.split_last().ok_or_else(|| wrong_type(&[]))?;
@@ -69,7 +64,6 @@ pub fn append_missing(text: &str, path: &[&str], value: &Value) -> Result<String
     })
 }
 
-/// The text without the entries of the array at `path` that equal any of `values`.
 pub fn remove_array_values(text: &str, path: &[&str], values: &[Value]) -> Result<String, Error> {
     edit(text, false, |root| {
         let Some((last, parents)) = path.split_last() else {
@@ -91,8 +85,6 @@ pub fn remove_array_values(text: &str, path: &[&str], values: &[Value]) -> Resul
     })
 }
 
-/// The text with the first key under `parents` that `matches` renamed to `new_name`, keeping its
-/// value and position.
 pub fn rename_key(
     text: &str,
     parents: &[&str],
@@ -143,7 +135,6 @@ fn walk_existing(mut object: CstObject, parents: &[&str]) -> Option<CstObject> {
     Some(object)
 }
 
-/// The value of JSONC text, with comments and trailing commas dropped.
 pub fn parse(text: &str) -> Result<Value, Error> {
     let body = text.strip_prefix(BOM).unwrap_or(text);
     let root = CstRootNode::parse(body, &ParseOptions::default())
@@ -162,7 +153,6 @@ fn wrong_type(path: &[&str]) -> Error {
     })
 }
 
-/// Applies `apply` to the root object; with `create` false, text without a root value is returned as is.
 fn edit(
     text: &str,
     create: bool,

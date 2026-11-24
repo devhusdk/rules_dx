@@ -139,7 +139,7 @@ Thin wrapper over julia_library. entry defaults to name.jl, else src/name.jl, wh
 julia_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over julia_binary. main is name.jl, else the single src; deprecated calls fail.
+Thin wrapper over julia_binary. main is name.jl, else the single src; depwarn is an error.
 
 ### `julia_test`
 
@@ -147,7 +147,7 @@ Thin wrapper over julia_binary. main is name.jl, else the single src; deprecated
 julia_test(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over julia_test. main is name.jl, else the single src; deprecated calls fail; under coverage it adds --code-coverage=user.
+Thin wrapper over julia_test. main is name.jl, else the single src; depwarn is an error; under coverage it adds --code-coverage=user.
 
 ### `julia_standalone_binary`
 

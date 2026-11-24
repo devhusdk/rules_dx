@@ -19,12 +19,10 @@ const (
 
 var ProjectFile = common.ManifestName("julia")
 
-// IsSrc reports whether src is a src/**/*.jl source of the package.
 func IsSrc(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, SrcDir+"/") && strings.HasSuffix(src, ".jl")
 }
 
-// IsTestSrc reports whether src is a test/**/*.jl source of the package.
 func IsTestSrc(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, TestDir+"/") && strings.HasSuffix(src, ".jl")
 }
@@ -33,9 +31,6 @@ func isLocal(src string) bool {
 	return src != "" && !strings.ContainsAny(src, ":\\") && !strings.HasPrefix(src, "/") && !strings.Contains("/"+src+"/", "/../")
 }
 
-// Owns reports whether generation could have produced r, so a stale r may be
-// removed. Rules with a source outside src/ and test/, such as a handwritten
-// julia_binary over main.jl, are never owned.
 func Owns(r *rule.Rule) bool {
 	srcs := r.AttrStrings("srcs")
 	if len(srcs) == 0 || r.Name() == "" {

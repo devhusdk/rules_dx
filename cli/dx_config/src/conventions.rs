@@ -1,14 +1,8 @@
-//! Rules every dx config file follows: a required `schema_version`, label patterns,
-//! and exceptions that carry a `reason` and a future `expires` date.
-
 use chrono::{Datelike, NaiveDate};
 use dx_path::label::Label;
 
-/// The schema version this dx writes and reads.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
-/// The additive revision of the dx.toml schema within `CURRENT_SCHEMA_VERSION`. Adding a key bumps it; files keep
-/// declaring only the major.
 pub const SCHEMA_MINOR: u32 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -31,7 +25,6 @@ pub enum ConventionProblem {
     BadPattern { value: String },
 }
 
-/// Checks the `schema_version` value of a parsed file. Only the current version is accepted.
 pub fn check_schema_version(value: Option<&toml::Value>) -> Result<(), ConventionProblem> {
     let Some(value) = value else {
         return Err(ConventionProblem::MissingSchemaVersion);
@@ -47,7 +40,6 @@ pub fn check_schema_version(value: Option<&toml::Value>) -> Result<(), Conventio
     Ok(())
 }
 
-/// Parses `YYYY-MM-DD`.
 pub fn parse_date(value: &str) -> Result<NaiveDate, ConventionProblem> {
     let bytes = value.as_bytes();
     let shaped = bytes.len() == 10
@@ -65,7 +57,6 @@ pub fn parse_date(value: &str) -> Result<NaiveDate, ConventionProblem> {
     }
 }
 
-/// `expires` must be a valid date after `today`.
 pub fn check_expiry(expires: &str, today: &str) -> Result<(), ConventionProblem> {
     let expires_date = parse_date(expires)?;
     let today_date = parse_date(today)?;
@@ -78,7 +69,6 @@ pub fn check_expiry(expires: &str, today: &str) -> Result<(), ConventionProblem>
     Ok(())
 }
 
-/// An exception needs a non-empty `reason` and a future `expires`.
 pub fn check_exception(reason: &str, expires: &str, today: &str) -> Result<(), ConventionProblem> {
     if reason.trim().is_empty() {
         return Err(ConventionProblem::EmptyField { field: "reason" });
@@ -100,7 +90,6 @@ struct ParsedPattern<'a> {
     kind: PatternKind,
 }
 
-/// A package path is `/`-separated names with no empty, `.` or `..` segment.
 fn is_clean_package(package: &str) -> bool {
     package.is_empty()
         || package
@@ -119,12 +108,10 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
     if label.relative {
         return None;
     }
-    // `@r//` and `@@r//` name the same repository here, and `@//` the main one.
     let repo = label.repo_name().unwrap_or_default();
     let (package, name) = (label.package, label.name);
     let all = matches!(name, "all" | "*" | "all-targets");
     if package == "..." || package.ends_with("/...") {
-        // `//p/...` leaves the name implicit, which the parser spells `...`.
         if name != "..." && !all {
             return None;
         }
@@ -158,7 +145,6 @@ fn parse_pattern(text: &str) -> Option<ParsedPattern<'_>> {
     })
 }
 
-/// Whether the label pattern `entry` covers the scope `root`.
 #[must_use]
 pub fn pattern_covers(entry: &str, root: &str) -> bool {
     let (Some(entry), Some(root)) = (parse_pattern(entry), parse_pattern(root)) else {
@@ -187,8 +173,6 @@ pub fn pattern_covers(entry: &str, root: &str) -> bool {
     }
 }
 
-/// The workspace-relative directory of a recursive pattern in the main repository, such as
-/// `vendor` for `//vendor/...:all`. `//...` and external patterns have none.
 #[must_use]
 pub fn recursive_dir(text: &str) -> Option<&str> {
     let pattern = parse_pattern(text)?;
@@ -198,7 +182,6 @@ pub fn recursive_dir(text: &str) -> Option<&str> {
     .then_some(pattern.package)
 }
 
-/// Whether `text` is a Bazel label pattern dx understands.
 #[must_use]
 pub fn is_valid_pattern(text: &str) -> bool {
     parse_pattern(text).is_some()

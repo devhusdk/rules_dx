@@ -1,10 +1,3 @@
-//! The one Bazel build `dx check` runs for its format, lint and typecheck phases.
-//!
-//! Each phase still resolves, plans, announces, collects and reports on its own; only the build
-//! is shared. A phase reads its own aspects' outputs from the shared build events and takes
-//! Bazel's exit code only when a failure there may be its own, so a lint failure leaves format
-//! clean.
-
 use crate::{probe_shards, probe_stop_exit};
 use dx_bep::aspect_key;
 use dx_exec_core::common::{
@@ -18,40 +11,29 @@ use dx_plan::resolve::ResolvedScope;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-/// The check-mode quality phases of one umbrella run and the build they share.
 pub struct SharedChecks {
-    /// The phase requests that have not run yet, in phase order.
     pending: Vec<QualityRequest>,
     build: Option<SharedBuild>,
 }
 
 struct SharedBuild {
     bep: PathBuf,
-    /// Each member command with the aspects it passed, named without their repository.
     members: Vec<(Command, BTreeSet<String>)>,
     bazel_options: Vec<String>,
     resolved: ResolvedScope,
     code: i32,
-    /// The aspects of the failed targets and gaps, `None` naming a target itself; `None` overall
-    /// when the events cannot say what failed.
     failing: Option<BTreeSet<Option<String>>>,
-    /// Members that have not read the build events yet.
     unread: usize,
 }
 
-/// What one phase takes from the shared build.
 pub(crate) struct SharedRead {
     pub(crate) bep: PathBuf,
-    /// The other members' aspects, whose outputs and gaps this phase leaves out.
     pub(crate) foreign: BTreeSet<String>,
-    /// Bazel's exit code as this phase owns it.
     pub(crate) code: i32,
-    /// The build's action counts, given to the phase that ran it so they count once.
     pub(crate) actions: Option<ActionCounts>,
 }
 
 impl SharedChecks {
-    /// The quality phases `request` will run in check mode.
     pub fn new(request: &UmbrellaRequest) -> Self {
         let pending = [Command::Format, Command::Lint, Command::Typecheck]
             .into_iter()
@@ -63,11 +45,6 @@ impl SharedChecks {
         }
     }
 
-    /// Joins the shared build that covers `request`, running it first when none does yet.
-    ///
-    /// `raw` is the phase request before `--breaking-against` was resolved and `request` the one
-    /// after. `Ok(None)` means the phase runs its own build; `Err` carries the phase's exit after
-    /// Bazel could not run.
     pub(crate) fn read(
         &mut self,
         raw: &QualityRequest,
@@ -109,7 +86,6 @@ impl SharedChecks {
         }))
     }
 
-    /// Records that one member has read the build events, removing them after the last one.
     pub(crate) fn finish_read(&mut self) {
         if let Some(build) = &mut self.build {
             build.unread = build.unread.saturating_sub(1);
@@ -127,13 +103,11 @@ impl SharedChecks {
 }
 
 impl Drop for SharedChecks {
-    /// A run that stops before every member read still leaves no build events behind.
     fn drop(&mut self) {
         self.discard();
     }
 }
 
-/// Whether two phase requests build the same scope with the same settings.
 fn same_build(a: &QualityRequest, b: &QualityRequest) -> bool {
     a.mode == b.mode
         && a.targets == b.targets
@@ -144,9 +118,6 @@ fn same_build(a: &QualityRequest, b: &QualityRequest) -> bool {
 }
 
 impl SharedBuild {
-    /// Runs one shard probe and then one build over the aspects of `commands` the probe keeps, with
-    /// the scope and settings of `request`, which must be the first of them. `Ok(None)` means it
-    /// could not be planned.
     fn run(
         commands: &[Command],
         request: &QualityRequest,
@@ -253,7 +224,6 @@ impl SharedBuild {
             .collect()
     }
 
-    /// The other members' aspects; one the command also passes stays its own.
     fn foreign(&self, command: Command) -> BTreeSet<String> {
         let own = self.own(command);
         self.members
@@ -265,8 +235,6 @@ impl SharedBuild {
             .collect()
     }
 
-    /// Bazel's code when a failure may be the command's own, else 0: a failure with no aspect,
-    /// an aspect no other member passed, or events that cannot say count as the command's.
     fn phase_code(&self, command: Command) -> i32 {
         if self.code == 0 {
             return 0;
@@ -284,7 +252,6 @@ impl SharedBuild {
     }
 }
 
-/// The aspects whose targets failed or never completed, or `None` when the events cannot say.
 fn failing_aspects(
     bep: &std::path::Path,
     code: i32,
@@ -301,7 +268,6 @@ fn failing_aspects(
         return None;
     }
     let key = |aspect: Option<&String>| aspect.map(|aspect| aspect_key(aspect).to_owned());
-    // The gaps the result collection would also report as missing results.
     let missing =
         |gap: &&dx_bep::EventGap| !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD");
     let failing: BTreeSet<Option<String>> = account
@@ -317,7 +283,6 @@ fn failing_aspects(
                 .map(|gap| key(gap.aspect.as_ref())),
         )
         .collect();
-    // A failure with no failed target, such as a bad flag, belongs to every phase.
     (!failing.is_empty()).then_some(failing)
 }
 

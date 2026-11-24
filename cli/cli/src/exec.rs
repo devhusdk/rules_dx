@@ -19,7 +19,8 @@ mod clean;
 mod current_dir_guard_tests;
 #[cfg(test)]
 mod delivery_sink;
-mod deploy;
+#[cfg(test)]
+mod deploy_tests;
 #[cfg(test)]
 mod docs_tests;
 mod dx_asset;

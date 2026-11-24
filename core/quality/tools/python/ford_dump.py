@@ -1,8 +1,4 @@
-"""Parses staged Fortran sources with FORD and dumps their public API as JSON.
-
-Only FORD's parser runs: nothing is compiled, no page is rendered and no
-output directory is written. Any failure exits 1 and leaves no output file.
-"""
+"""Parses staged Fortran sources with FORD and dumps their public API as JSON."""
 
 import argparse
 import json
@@ -18,7 +14,6 @@ from tool_bootstrap import import_tool
 
 FORMAT = 1
 
-# Where each kind of object is declared, to find its line: FORD keeps none.
 _DECLARATIONS = {
     "module": r"^\s*module\s+{name}\b",
     "type": r"^\s*type\b(?!\s*\().*\b{name}\s*$",

@@ -3,7 +3,6 @@ use dx_error::DxError;
 
 const JULIA_SET: &str = "julia";
 
-/// Reads `[[deps.Name]]` entries of a format 2.0 lock; stdlibs without a version are skipped.
 pub fn parse_julia_manifest(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let table: toml::Table =

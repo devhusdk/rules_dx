@@ -22,11 +22,11 @@ func TestParseImports(t *testing.T) {
 
 func TestParseModule(t *testing.T) {
 	for src, want := range map[string]string{
-		"module Lib.Utils where\n": "Lib.Utils",
+		"module Lib.Utils where\n":                                   "Lib.Utils",
 		"{-# LANGUAGE CPP #-}\nmodule A.B (\n  x,\n  y\n  ) where\n": "A.B",
-		"-- module Fake where\nmodule Real where\n": "Real",
-		"-- module Fake where\nx = 1\n": "",
-		"x = 1\n": "",
+		"-- module Fake where\nmodule Real where\n":                  "Real",
+		"-- module Fake where\nx = 1\n":                              "",
+		"x = 1\n":                                                    "",
 	} {
 		if got := ParseModule([]byte(src)); got != want {
 			t.Errorf("ParseModule(%q) = %q, want %q", src, got, want)
@@ -36,8 +36,8 @@ func TestParseModule(t *testing.T) {
 
 func TestDefinesMain(t *testing.T) {
 	for src, want := range map[string]bool{
-		"module Main where\n":          true,
-		"main :: IO ()\nmain = pure ()": true,
+		"module Main where\n":               true,
+		"main :: IO ()\nmain = pure ()":     true,
 		"module Greet where\n-- main = 1\n": false,
 		"module Greet where\nmainly = 1\n":  false,
 	} {

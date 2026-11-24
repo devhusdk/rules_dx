@@ -1,23 +1,17 @@
-//! Offline checks dx runs on Kubernetes manifests before kubeconform sees them.
-
 use std::collections::BTreeMap;
 
 pub use crate::pointer_index::escape;
 use crate::pointer_index::{Offsets, Raw, SyntaxAt, scan_yaml as scan};
 
-/// A file that does not parse as YAML or JSON, or is too large or not UTF-8.
 pub const RULE_SYNTAX: &str = "dx/kubernetes-syntax";
-/// A non-empty document with neither `apiVersion` nor `kind`.
 pub const RULE_NOT_MANIFEST: &str = "dx/kubernetes-not-manifest";
 
-/// The largest manifest file dx hands to kubeconform.
 pub const MAX_MANIFEST_BYTES: usize = 2 * 1024 * 1024;
 
 const CAPTURED: &[&str] = &["/apiVersion", "/kind", "/metadata/name"];
 
 const BOM: char = '\u{feff}';
 
-/// One problem the preflight found, placed on the file it was checking.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub rule: &'static str,
@@ -26,7 +20,6 @@ pub struct Problem {
     pub message: String,
 }
 
-/// One manifest document: its bytes, identity and pointer positions in the whole file.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Document {
     pub start: usize,
@@ -41,7 +34,6 @@ pub struct Document {
 }
 
 impl Document {
-    /// The position of a JSON pointer, falling back to its nearest known ancestor.
     #[must_use]
     pub fn locate(&self, pointer: &str) -> (u64, u64) {
         let mut at = pointer;
@@ -57,7 +49,6 @@ impl Document {
     }
 }
 
-/// The documents of one file that go to kubeconform, and the problems that keep others back.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Preflight {
     pub documents: Vec<Document>,
@@ -172,7 +163,6 @@ fn json_document(text: &str, bom: usize) -> Result<Option<Document>, Problem> {
     Ok((!value.is_null()).then_some(document))
 }
 
-/// Splits one owned file into the documents kubeconform checks and the problems it never sees.
 #[must_use]
 pub fn check_file(path: &str, bytes: &[u8]) -> Preflight {
     let mut out = Preflight::default();

@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+
 -- | Parses stock lists of the form @name,quantity,price@ per line.
 module Stock
   ( Item (..)
@@ -14,7 +16,6 @@ import Data.Word (Word32)
 import Foreign.C.String (CStringLen, withCStringLen)
 import Foreign.C.Types (CChar, CSize (..))
 import Foreign.Ptr (Ptr)
-import System.IO.Unsafe (unsafePerformIO)
 import Text.Read (readMaybe)
 
 import qualified Stock.Version as V
@@ -24,7 +25,7 @@ data Item = Item
   , itemQty :: Int
   , itemPrice :: Int
   }
-  deriving (Eq, Show)
+  deriving stock (Eq, Show)
 
 foreign import ccall unsafe "stock_checksum"
   c_checksum :: Ptr CChar -> CSize -> IO Word32
@@ -52,8 +53,8 @@ render items =
        ++ ["total " ++ show (grandTotal items)])
 
 -- | Adler-32 checksum computed by the C library.
-checksumOf :: String -> Word32
-checksumOf s = unsafePerformIO (withCStringLen s call)
+checksumOf :: String -> IO Word32
+checksumOf s = withCStringLen s call
   where
     call :: CStringLen -> IO Word32
     call (ptr, len) = c_checksum ptr (fromIntegral len)

@@ -6,11 +6,8 @@ load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "downloads_bzl
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
-# The asset tag of every prebuilt hub: name is the tool, os and cpu the
-# @platforms values the binary runs on, or "any" and "any" for a jar tool.
 ASSET_ATTRS = {
     "cpu": attr.string(doc = "The @platforms//cpu value the binary runs on; \"any\" for a jar tool.", mandatory = True),
     "name": attr.string(doc = "The tool, as named in cli/prebuilt/tools.bzl.", mandatory = True),
@@ -20,7 +17,7 @@ ASSET_ATTRS = {
 }
 
 _asset = tag_class(
-    doc = "Adds or replaces dx, the launcher, the Go lint tools, a native tool or the Python tools bundle for one os and cpu, or a jar tool; honoured only in the root module.",
+    doc = "Adds or replaces one prebuilt asset for one os and cpu; honoured only in the root module.",
     attrs = ASSET_ATTRS,
 )
 
@@ -48,7 +45,6 @@ def declare_downloads(assets):
                 urls = [asset.url],
             )
 
-# The archive repo of a Python tools bundle: every file, for dx_bundle_tree.
 _BUNDLE_BUILD = """filegroup(
     name = "files",
     srcs = glob(["**"], exclude = ["BUILD.bazel", "REPO.bazel", "WORKSPACE"]),

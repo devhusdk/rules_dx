@@ -63,7 +63,7 @@ OPT_IN_PACKAGES = [
     "emulator",
 ]
 
-_NDK_PINS = DATA["dx_android"]["archives"]
+_PINS = DATA["dx_android"]["archives"]
 
 NDK_ARTIFACTS = {
     "linux_x86_64": struct(
@@ -71,7 +71,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-linux.zip",
         directory = "android-ndk-r27",
         sha1 = "5e5cd517bdb98d7e0faf2c494a3041291e71bdcc",
-        sha256 = _NDK_PINS["android-ndk-r27-linux.zip"]["sha256"],
+        sha256 = _PINS["android-ndk-r27-linux.zip"]["sha256"],
         size = 663957918,
     ),
     "macos_arm64": struct(
@@ -79,7 +79,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-darwin.zip",
         directory = "android-ndk-r27",
         sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
-        sha256 = _NDK_PINS["android-ndk-r27-darwin.zip"]["sha256"],
+        sha256 = _PINS["android-ndk-r27-darwin.zip"]["sha256"],
         size = 836135405,
     ),
     "macos_x86_64": struct(
@@ -87,7 +87,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-darwin.zip",
         directory = "android-ndk-r27",
         sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
-        sha256 = _NDK_PINS["android-ndk-r27-darwin.zip"]["sha256"],
+        sha256 = _PINS["android-ndk-r27-darwin.zip"]["sha256"],
         size = 836135405,
     ),
     "windows_arm64": struct(
@@ -95,7 +95,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-windows.zip",
         directory = "android-ndk-r27",
         sha1 = "0ea2756e6815356831bda3af358cce4cdb6a981e",
-        sha256 = _NDK_PINS["android-ndk-r27-windows.zip"]["sha256"],
+        sha256 = _PINS["android-ndk-r27-windows.zip"]["sha256"],
         size = 781482169,
     ),
     "windows_x86_64": struct(
@@ -103,7 +103,7 @@ NDK_ARTIFACTS = {
         archive = "android-ndk-r27-windows.zip",
         directory = "android-ndk-r27",
         sha1 = "0ea2756e6815356831bda3af358cce4cdb6a981e",
-        sha256 = _NDK_PINS["android-ndk-r27-windows.zip"]["sha256"],
+        sha256 = _PINS["android-ndk-r27-windows.zip"]["sha256"],
         size = 781482169,
     ),
 }
@@ -114,7 +114,7 @@ BUILD_TOOLS_ARTIFACTS = {
         archive = "build-tools_r35_linux.zip",
         directory = "android-15",
         sha1 = "2cfaa0bbb2336e9ec18ed3ecea84fa2e2af607bc",
-        sha256 = "bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88",
+        sha256 = _PINS["build-tools_r35_linux.zip"]["sha256"],
         size = 61958799,
     ),
     "macos_arm64": struct(
@@ -122,7 +122,7 @@ BUILD_TOOLS_ARTIFACTS = {
         archive = "build-tools_r35_macosx.zip",
         directory = "android-15",
         sha1 = "93ab8ce91230e067b5add4bfa79919c52b27f072",
-        sha256 = "530cdbd1ec315e1477624d7ed2f0f2962108d69f36eddba5894cef9ea2cedb48",
+        sha256 = _PINS["build-tools_r35_macosx.zip"]["sha256"],
         size = 76857898,
     ),
     "windows_x86_64": struct(
@@ -130,7 +130,7 @@ BUILD_TOOLS_ARTIFACTS = {
         archive = "build-tools_r35_windows.zip",
         directory = "android-15",
         sha1 = "af059bb67cf7786f45ee0db85e2d24985df1b4b6",
-        sha256 = "5753c679a1b90bcf6fbc9945a2ce39dfb9e74f1df0831a1e1866ae5b594326f0",
+        sha256 = _PINS["build-tools_r35_windows.zip"]["sha256"],
         size = 59878107,
     ),
 }
@@ -141,7 +141,7 @@ PLATFORM_ARTIFACTS = {
         archive = "platform-31_r01.zip",
         directory = "android-12",
         sha1 = "ca5bcaa565cb37e9d287051d6dd0e49a5426ec29",
-        sha256 = "1d69fe1d7f9788d82ff3a374faf4f6ccc9d1d372aa84a86b5bcfb517523b0b3f",
+        sha256 = _PINS["platform-31_r01.zip"]["sha256"],
         size = 56475526,
     ),
     32: struct(
@@ -149,7 +149,7 @@ PLATFORM_ARTIFACTS = {
         archive = "platform-32_r01.zip",
         directory = "android-12",
         sha1 = "afae86ed55d29733d50996ffed832f2d1bd75b9a",
-        sha256 = "01d8da1c900e70fcf5da39767d5444e39928935b1a5927055ce749fc348ca7ae",
+        sha256 = _PINS["platform-32_r01.zip"]["sha256"],
         size = 66108299,
     ),
     33: struct(
@@ -157,7 +157,7 @@ PLATFORM_ARTIFACTS = {
         archive = "platform-33-ext3_r03.zip",
         directory = "android-13",
         sha1 = "394bc86d8d3452aa4d419b67743025a6fb2cd9d0",
-        sha256 = "b32b10f787867987f03ae8e101d217e053a9065b7136379fb353b388379aed1d",
+        sha256 = _PINS["platform-33-ext3_r03.zip"]["sha256"],
         size = 67334237,
     ),
     34: struct(
@@ -165,7 +165,7 @@ PLATFORM_ARTIFACTS = {
         archive = "platform-34-ext7_r03.zip",
         directory = "android-34",
         sha1 = "1f2e9478d6a7601425ceaa553311dc43191f103d",
-        sha256 = "16fdb74c55e59ae3ef52def135aec713508467bd56d7dabcd8c9be31fa8b20f3",
+        sha256 = _PINS["platform-34-ext7_r03.zip"]["sha256"],
         size = 63180081,
     ),
 }
@@ -176,7 +176,7 @@ PLATFORM_TOOLS_ARTIFACTS = {
         archive = "platform-tools_r37.0.1-linux.zip",
         directory = "platform-tools",
         sha1 = "477254aa5f903c15cf51001717bdf347fb6b53e0",
-        sha256 = "d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1",
+        sha256 = _PINS["platform-tools_r37.0.1-linux.zip"]["sha256"],
         size = 9054187,
     ),
     "macos_arm64": struct(
@@ -184,7 +184,7 @@ PLATFORM_TOOLS_ARTIFACTS = {
         archive = "platform-tools_r37.0.1-darwin.zip",
         directory = "platform-tools",
         sha1 = "6ae73f4de6452dc57e62ec02b68eed92a4c21661",
-        sha256 = "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d",
+        sha256 = _PINS["platform-tools_r37.0.1-darwin.zip"]["sha256"],
         size = 16110554,
     ),
     "windows_x86_64": struct(
@@ -192,7 +192,7 @@ PLATFORM_TOOLS_ARTIFACTS = {
         archive = "platform-tools_r37.0.1-win.zip",
         directory = "platform-tools",
         sha1 = "e03e78b1d80b396f1c3358e31251cb31740e1110",
-        sha256 = "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+        sha256 = _PINS["platform-tools_r37.0.1-win.zip"]["sha256"],
         size = 8044989,
     ),
 }
@@ -203,7 +203,7 @@ EMULATOR_ARTIFACTS = {
         archive = "emulator-linux_x64-16428233.zip",
         directory = "emulator",
         sha1 = "cd7362ea55dfb86a418958138dc396e74165dd01",
-        sha256 = "b08fc43d8608d2955f607f1b287beb525041e730086bdca3af152accac3af9c1",
+        sha256 = _PINS["emulator-linux_x64-16428233.zip"]["sha256"],
         size = 349654171,
     ),
 }

@@ -4,7 +4,6 @@ load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "TAXONOMY_CLASSES")
 load(":tool_defs.bzl", "is_canonical_token")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 QualitySourcesInfo = provider(
@@ -62,6 +61,20 @@ def upstream_source_class(extension):
             return class_id
     return ""
 
+def is_workspace_file(f):
+    """Reports whether a file lives in the main repository."""
+    return not f.short_path.startswith("../")
+
+def holds_workspace_source(rule_files):
+    """Reports whether a public rule attribute holds a main-repository file of an upstream source class."""
+    for name in dir(rule_files):
+        if name.startswith("_"):
+            continue
+        for f in getattr(rule_files, name):
+            if is_workspace_file(f) and upstream_source_class(f.extension) != "":
+                return True
+    return False
+
 DOCKERFILE_NAME_PATTERNS = [
     "Dockerfile",
     "Containerfile",
@@ -97,7 +110,6 @@ def dockerfile_name_error(basename):
         return ""
     return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
 
-# Classes matched by exact, case-sensitive basename or suffix.
 NAMED_SOURCE_CLASSES = {
     lang: {
         "names": row["quality"]["file_names"],
@@ -157,7 +169,6 @@ def named_source_library(class_id, doc, srcs_doc, name_error = None):
         },
     )
 
-# Checked before the extension table, so a workflow file leaves the `yaml` class.
 PATH_SOURCE_CLASSES = {
     "github_workflow": {
         "dirs": [".github/workflows"],

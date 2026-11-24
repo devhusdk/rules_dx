@@ -4,7 +4,6 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "NAMED_SOURCE_CLASSES", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "named_source_class_error")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 _GO_MOD = LOCK_REGISTRY["go"]["manifest"]
@@ -17,7 +16,6 @@ def markdown_sibling_error(what, siblings, markdown_srcs):
                 "never sources")
     return ""
 
-# File class to the extensions its `<class>_srcs` attribute accepts.
 _CLASS_EXTENSIONS = {
     "c": [".c", ".h"],
     "cpp": [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
@@ -53,7 +51,6 @@ _CLASS_EXTENSIONS = {
     "yaml": [".yaml", ".yml"],
 }
 
-# File classes with no `<class>_srcs` attribute.
 FIXTURE_EXEMPT_CLASSES = [
     "api_spec",
     "api_spec_ref",

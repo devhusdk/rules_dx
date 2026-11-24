@@ -1,7 +1,5 @@
 use serde_json::Value;
 
-/// Text that shows a step uses a write scope, one entry per scope GitHub grants.
-/// A scope missing here fails the check, so a new grant needs a reviewed marker.
 const MARKERS: &[(&str, &[&str])] = &[
     (
         "actions",
@@ -50,7 +48,6 @@ const MARKERS: &[(&str, &[&str])] = &[
     ),
 ];
 
-/// Scopes that act through OIDC, so a step needs no `GITHUB_TOKEN` to use them.
 const TOKENLESS: &[&str] = &["id-token"];
 
 const TOKEN_NEEDLES: &[&str] = &["github.token", "secrets.GITHUB_TOKEN"];
@@ -59,7 +56,6 @@ fn parse(name: &str, text: &str) -> Value {
     ci_workflow::parse(name, text).unwrap()
 }
 
-/// Returns true when one step shows it uses `scope`.
 fn step_uses_scope(step: &Value, scope: &str, markers: &[&str]) -> bool {
     let text = serde_json::to_string(step).expect("serialize step");
     if !markers.iter().any(|marker| text.contains(marker)) {
@@ -70,7 +66,6 @@ fn step_uses_scope(step: &Value, scope: &str, markers: &[&str]) -> bool {
         || TOKEN_NEEDLES.iter().any(|needle| text.contains(needle))
 }
 
-/// Returns one message per write scope that no step of its job uses.
 fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let jobs = ci_workflow::jobs_of(workflow);
@@ -79,7 +74,6 @@ fn unused_write_scopes(name: &str, workflow: &Value) -> Vec<String> {
     }
     for (id, job) in jobs {
         if job.get("uses").is_some() {
-            // A calling job's grants are checked against the called workflow elsewhere.
             continue;
         }
         let scopes = ci_workflow::effective_permissions(workflow, job);
@@ -170,10 +164,8 @@ fn a_used_write_scope_passes_and_an_unknown_one_fails() {
     );
 }
 
-/// Callers whose jobs call a reusable workflow and must grant what it requests.
 const CALLERS: [&str; 2] = ["examples/docs-ci/caller.yml", ".github/workflows/ci.yml"];
 
-/// Ranks a permission level so a grant can be compared with a request.
 fn permission_rank(level: &str) -> u8 {
     match level {
         "write" => 2,
@@ -182,7 +174,6 @@ fn permission_rank(level: &str) -> u8 {
     }
 }
 
-/// Adds each (scope, level) of one `permissions` map, which must be a map when present.
 fn add_scopes(scopes: &mut Vec<(String, String)>, permissions: &Value, what: &str) {
     if permissions.is_null() {
         return;
@@ -201,7 +192,6 @@ fn add_scopes(scopes: &mut Vec<(String, String)>, permissions: &Value, what: &st
     }
 }
 
-/// Returns every scope a reusable workflow requests: its top level and every job's.
 fn requested_scopes(path: &str) -> Vec<(String, String)> {
     let workflow = ci_workflow::document(path).unwrap();
     let mut scopes = Vec::new();
@@ -258,19 +248,19 @@ fn calling_jobs_grant_every_scope_the_called_workflow_requests() {
 }
 
 #[test]
-fn gate_job_checks_evidence_statuses_with_read_only_statuses_scope() {
+fn check_job_checks_evidence_statuses_with_read_only_statuses_scope() {
     let (_, ci) = ci_workflow::all()
         .unwrap()
         .into_iter()
         .find(|(name, _)| name.ends_with("/ci.yml"))
         .expect("ci.yml");
-    let (_, gate) = ci_workflow::jobs_of(&ci)
+    let (_, check) = ci_workflow::jobs_of(&ci)
         .into_iter()
-        .find(|(id, _)| *id == "gate")
-        .expect("gate job");
-    assert_eq!(gate["permissions"]["statuses"], "read");
-    assert_eq!(gate["permissions"]["contents"], "read");
-    let steps = ci_workflow::steps_of(gate);
+        .find(|(id, _)| *id == "check")
+        .expect("check job");
+    assert_eq!(check["permissions"]["statuses"], "read");
+    assert_eq!(check["permissions"]["contents"], "read");
+    let steps = ci_workflow::steps_of(check);
     let first = &steps[0];
     assert_eq!(first["if"], "${{ github.event_name == 'merge_group' }}");
     let run = first["run"].as_str().expect("run");

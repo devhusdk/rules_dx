@@ -3,8 +3,6 @@ use std::time::Duration;
 use base64::Engine as _;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
-/// Settings for publish and upload calls: plain http for loopback registries, a stall
-/// timeout instead of an overall deadline, and redirects returned to the caller.
 fn settings() -> dx_http::Settings {
     dx_http::Settings {
         https_only: false,
@@ -14,12 +12,10 @@ fn settings() -> dx_http::Settings {
     }
 }
 
-/// Builds the client for publish and upload calls with proxy and CA from the environment.
 pub fn client() -> Result<dx_http::Client, dx_http::Error> {
     dx_http::Client::new(settings())
 }
 
-/// A client that ignores the environment and tries each request once.
 #[cfg(test)]
 pub fn test_client() -> dx_http::Client {
     let settings = dx_http::Settings {
@@ -29,12 +25,10 @@ pub fn test_client() -> dx_http::Client {
     dx_http::Client::with_env(settings, |_| None).expect("http client")
 }
 
-/// Encodes one file as a single-part multipart/form-data body and returns its content type.
 pub fn multipart_single_file(field: &str, filename: &str, bytes: &[u8]) -> (String, Vec<u8>) {
     multipart_form(&[], field, filename, bytes)
 }
 
-/// Encodes text fields followed by one file as a multipart/form-data body and returns its content type.
 pub fn multipart_form(
     fields: &[(&str, &str)],
     file_field: &str,
@@ -73,13 +67,11 @@ pub fn multipart_form(
     (format!("multipart/form-data; boundary={boundary}"), body)
 }
 
-/// Returns the Authorization value `Bearer base64(user:pass)`.
 pub fn bearer_basic(user: &str, pass: &str) -> String {
     let token = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
     format!("Bearer {token}")
 }
 
-/// Returns the Authorization value `Basic base64(user:pass)`.
 pub fn basic_auth(user: &str, pass: &str) -> String {
     let token = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
     format!("Basic {token}")
@@ -91,7 +83,6 @@ const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'_')
     .remove(b'~');
 
-/// Percent-encodes one query value, keeping only unreserved characters.
 pub fn query_escape(value: &str) -> String {
     utf8_percent_encode(value, UNRESERVED).to_string()
 }

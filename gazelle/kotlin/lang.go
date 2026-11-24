@@ -11,7 +11,6 @@ const languageName = "kotlin"
 
 const LibraryKind = "kotlin_library"
 
-// TestKind is the rule generated for each *Test.kt source.
 const TestKind = "kotlin_test"
 
 var SupportedExts = []string{".kt"}
@@ -35,19 +34,16 @@ func NewLanguage() language.Language {
 		Variant:        common.AndroidVariant("android_kotlin_library"),
 		External:       "maven",
 		Tests: &common.TestSpec{
-			Kind:       TestKind,
-			Name:       TestTargetName,
-			Make:       makeTest,
+			Kind: TestKind,
+			Name: TestTargetName,
+			Make: makeTest,
 		},
 		TestMergeable: []string{"test_class"},
 	})
 }
 
-// TestTargetName names the kotlin_test for a test source: GreetTest.kt gives
-// greet_test.
 func TestTargetName(src string) (string, error) { return common.SnakeName(src, SupportedExts) }
 
-// makeTest emits a kotlin_test whose test_class is the source's qualified class.
 func makeTest(name, src string, content []byte) (*rule.Rule, error) {
 	pkg, err := ParsePackage(content)
 	if err != nil {

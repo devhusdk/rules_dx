@@ -168,7 +168,6 @@ fn every_agent_has_a_marker_or_a_reason() {
             Agent::Claude => Some("CLAUDECODE"),
             Agent::Codex => Some("CODEX_THREAD_ID"),
             Agent::Gemini => Some("GEMINI_CLI"),
-            // GitHub documents no variable that marks a Copilot CLI shell.
             Agent::Copilot => None,
         };
         if let Some(marker) = marker {

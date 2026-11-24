@@ -64,7 +64,6 @@ jobs:
             flags+=(-f "$arg")
           done
           printf '%s\n' "${args[@]}"
-          # The new run is the one whose id was not listed before the dispatch.
           runs() { gh run list --workflow evidence.yml --branch "$ref" --event workflow_dispatch --limit 50 --json databaseId,url "$@"; }
           before=$(runs --jq '[.[].databaseId] | tostring')
           if ! gh workflow run evidence.yml --ref "$ref" "${flags[@]}"; then

@@ -561,7 +561,6 @@ struct Target<'a> {
     locks: &'a [String],
 }
 
-/// Lists open pull requests on `dx-update/` branches as number and branch.
 pub(super) fn open_update_prs(
     tools: &Tools,
     root: &Path,
@@ -657,7 +656,6 @@ fn refresh_tracking(git: &dyn Fn(&[&str]) -> Result<String, DxError>, branch: &s
         &format!("+refs/heads/{branch}:{tracking}"),
     ]);
     if fetched.is_err() {
-        // The remote branch is gone; a stale tracking ref would fail the lease.
         if let Err(error) = git(&["update-ref", "-d", &tracking]) {
             tracing::info!(%error, %tracking, "cannot delete the stale tracking ref");
         }
@@ -1389,7 +1387,6 @@ mod tests {
         assert_eq!(argv.matches("pr edit").count(), 2);
     }
 
-    /// Runs `dx update --pr` over one crates set with open pull request 5 and `index` as the serde registry entry.
     fn run_crates_with_open_pr(index: Option<&str>, json: bool) -> (i32, String, String, String) {
         let fx = fixture("[{\"number\":5,\"headRefName\":\"dx-update/crates\"}]");
         let harness = crate::test_env::TestEnv::new("update-pr-run");
@@ -1485,7 +1482,6 @@ mod tests {
         assert!(!argv.contains("pr close"), "{argv}");
     }
 
-    /// Runs `dx update --pr` in a git workspace made of `files`, with `mirror` as the registry.
     fn run_pr_with(files: &[(&str, &str)], mirror: &[(&str, &str)]) -> (i32, String, String) {
         let (code, out, err, argv) = run_pr_full(files, mirror);
         (code, format!("{out}{err}"), argv)

@@ -22,12 +22,6 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
         .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
-/// Parses `actionlint -format '{{json .}}'`: one JSON array, or `null` when nothing was found.
-/// Exit 1 means findings; 2 and 3 are usage and fatal errors. Paths are spelled from `cwd`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_actionlint(
     stdout: &[u8],
     stderr: &[u8],

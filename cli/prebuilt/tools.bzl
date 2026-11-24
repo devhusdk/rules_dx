@@ -1,16 +1,7 @@
-"""The rules_dx tools a release ships prebuilt, and how a consumer finds each one.
-
-Hand-written. fill_pins reads the asset list rendered from this file
-(//cli/prebuilt:registry) and writes one sha256 per tool and platform into
-pins.bzl, so adding a tool here and to release.yml is all a new prebuilt needs.
-
-A platform key is "<os>_<cpu>" in release asset spelling: os is linux, macos or
-windows, cpu is x86_64 or arm64, and a jar that runs anywhere uses "any".
-"""
+"""The rules_dx tools a release ships prebuilt, and how a consumer finds each one."""
 
 visibility(["//cli/...", "//core/quality", "//tools/ci"])
 
-# Release asset spelling to @platforms constraint values.
 RELEASE_OS = {
     "linux": "linux",
     "macos": "macos",
@@ -36,7 +27,6 @@ def _exec_native(tool):
         library = "",
     )
 
-# Haskell tools: windows_arm64 runs the x86_64 build under emulation.
 _HASKELL = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]
 
 def _haskell(tool, role, source):
@@ -51,7 +41,6 @@ def _haskell(tool, role, source):
         library = "",
     )
 
-# Hackage tools released only on the platforms with no upstream binary.
 def _hackage(tool, platforms):
     return struct(
         asset = "dx-" + tool + "-{os}-{cpu}",
@@ -100,18 +89,6 @@ def _library(tool, file, source, ext = ".dll", role = "exec", platforms = ["wind
         library = file,
     )
 
-# Each tool:
-#   asset: the release asset name; {os} and {cpu} are filled from the platform key
-#     and {tool} from the tool name.
-#   role: "exec" when the tool runs during the build (the hub selects on the exec
-#     platform), "target" when it ships inside the built output (target platform).
-#   platforms: the platform keys a release builds.
-#   fallbacks: a platform key with no pin of its own that may run another key's
-#     download, such as windows_arm64 running x86_64 under emulation.
-#   source: the label that builds the tool when there is no usable pin.
-#   member: the file to run inside an archive asset; "" for a bare binary.
-#   main_class: the entry point of a jar asset; "" for a native binary.
-#   library: the file name a shared library asset is loaded as; "" for an executable.
 TOOLS = {
     "dx": struct(
         asset = "dx-{os}-{cpu}",
@@ -128,14 +105,12 @@ TOOLS = {
         role = "exec",
         platforms = _NATIVE,
         fallbacks = {"windows_arm64": "windows_x86_64"},
-        # The gazelle hub builds its own gazelle_binary from the registered languages.
         source = "@dx_gazelle//:gazelle_source",
         member = "",
         main_class = "",
         library = "",
     ),
     "go": _native_exec("@rules_dx//go/private/tools/analysis/dx_go:dx_go"),
-    # Android and iOS targets have no asset and build the launcher from source.
     "launcher": struct(
         asset = "dx-launcher-{os}-{cpu}",
         role = "target",
@@ -146,7 +121,6 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # Android and iOS targets have no asset and build the runtime from source.
     "runtime": struct(
         asset = "dx-runtime-{os}-{cpu}",
         role = "target",
@@ -170,7 +144,6 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # Upstream oapi-codegen, cross-built unmodified by the release-tools go job.
     "oapi_codegen": struct(
         asset = "dx-oapi-codegen-{os}-{cpu}",
         role = "exec",
@@ -181,7 +154,6 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # Upstream rules_go gopackagesdriver, cross-built unmodified by the release-tools go job.
     "gopackagesdriver": struct(
         asset = "dx-gopackagesdriver-{os}-{cpu}",
         role = "exec",
@@ -192,7 +164,6 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # The linker wrapper Rust links through on Windows MSVC opt builds.
     "msvc_link": struct(
         asset = "dx-msvc-link-{os}-{cpu}",
         role = "exec",
@@ -244,7 +215,6 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # One archive of Python and the PYTHON_BUNDLE_TOOLS; the hub serves its launchers.
     "python_tools": struct(
         asset = "dx-python-tools-{os}-{cpu}.tar.gz",
         role = "exec",
@@ -259,8 +229,6 @@ TOOLS = {
 
 _PYTHON_SOURCE = "@rules_dx//core/quality/tools/python:"
 
-# The tools inside the python_tools bundle, by hub name: the launcher name in the
-# bundle's bin/, the source build, and the platforms whose bundle leaves it out.
 PYTHON_BUNDLE_TOOLS = {
     "ansible_lint_tool": struct(launcher = "ansible_lint", source = _PYTHON_SOURCE + "ansible_lint_tool", missing = ["windows_arm64"]),
     "cfn_lint": struct(launcher = "cfn_lint", source = _PYTHON_SOURCE + "cfn_lint", missing = []),
@@ -272,14 +240,10 @@ PYTHON_BUNDLE_TOOLS = {
     "yamllint": struct(launcher = "yamllint", source = _PYTHON_SOURCE + "yamllint", missing = []),
 }
 
-# The tools whose source builds need rules_dx dev-only modules; a consumer hub serves
-# this label on platforms with no pin instead.
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
-# The tools released as one native binary or shared library per platform.
 NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "gopackagesdriver", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "msvc_link", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
-# The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
 
 def deploy_jar(tool):

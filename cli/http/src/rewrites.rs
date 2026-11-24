@@ -1,15 +1,11 @@
-//! Bazel's `--downloader_config` format: URL rewrites plus host allow and block lists.
-
 use std::path::Path;
 
 use regex::Regex;
 
 use crate::Error;
 
-/// The rewrites, allow list and block list of one downloader config file.
 #[derive(Clone, Debug, Default)]
 pub struct Rewrites {
-    /// Each distinct pattern once, in the order it first appears, with its replacements in file order.
     rewrites: Vec<(Regex, Vec<String>)>,
     allow: Vec<String>,
     block: Vec<String>,
@@ -17,20 +13,12 @@ pub struct Rewrites {
 }
 
 impl Rewrites {
-    /// Reads and parses the config file at `path`.
-    ///
-    /// # Errors
-    /// Fails when the file cannot be read or does not parse.
     pub fn load(path: &Path) -> Result<Self, Error> {
         let text = std::fs::read_to_string(path)
             .map_err(|error| Error::Config(format!("{}: {error}", path.display())))?;
         Self::parse(&text).map_err(|error| Error::Config(format!("{}: {error}", path.display())))
     }
 
-    /// Parses the text of a config file.
-    ///
-    /// # Errors
-    /// Fails on an unknown directive, a directive with the wrong number of arguments, or a bad regex.
     pub fn parse(text: &str) -> Result<Self, Error> {
         let mut rewrites = Self::default();
         for (index, raw) in text.lines().enumerate() {
@@ -75,11 +63,6 @@ impl Rewrites {
         }
     }
 
-    /// The URLs to try for `url`, in order: every rewrite that matches it, or `url` itself
-    /// when none does, without the URLs whose host is blocked.
-    ///
-    /// # Errors
-    /// Fails when every URL is blocked.
     pub fn amend(&self, url: &str) -> Result<Vec<String>, Error> {
         let (scheme, rest) = url.split_once("://").unwrap_or(("", url));
         let mut urls: Vec<String> = Vec::new();
@@ -123,7 +106,6 @@ impl Rewrites {
     }
 }
 
-/// The host of `url`, without user info or port.
 fn host(url: &str) -> &str {
     let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
     let authority = rest.split(['/', '?', '#']).next().unwrap_or_default();
@@ -136,8 +118,6 @@ fn host(url: &str) -> &str {
     authority.split(':').next().unwrap_or_default()
 }
 
-/// Java's `Matcher` replacement syntax in the `regex` crate's: `$n` becomes `${n}`, `\x` is a
-/// literal `x`, and a literal `$` is `$$`.
 fn java_replacement(replacement: &str) -> String {
     let mut out = String::new();
     let mut chars = replacement.chars().peekable();

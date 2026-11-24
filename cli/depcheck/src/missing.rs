@@ -4,11 +4,9 @@ use std::path::{Path, PathBuf};
 use crate::DepcheckError;
 use dx_ecosystems::{Ecosystem, Language};
 
-/// A third-party import that no declared dependency covers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MissingDep {
     pub name: String,
-    /// Source file of the first import, relative to the scanned root.
     pub file: String,
     pub line: usize,
 }
@@ -77,11 +75,6 @@ fn go_imports(text: &str) -> Result<Vec<(usize, String)>, DepcheckError> {
     Ok(out)
 }
 
-/// Go imports under `sources` of a module that neither the module itself nor a `require` covers.
-///
-/// # Errors
-///
-/// Returns an error when the manifest or a source cannot be read or does not parse.
 pub fn find_missing_go(
     manifest: &Path,
     sources: &Path,
@@ -187,13 +180,6 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
     }
 }
 
-/// Packages in `lock` that a source under `sources` imports but `manifest` does not declare.
-/// Workspace and path members are not candidates. A package imported under a different name
-/// (`PyYAML` as `yaml`) is not found.
-///
-/// # Errors
-///
-/// Returns an error when the manifest, the lock or a source cannot be read or does not parse.
 pub fn find_missing(
     eco: Language,
     manifest: &Path,

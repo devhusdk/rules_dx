@@ -7,6 +7,25 @@ pub const LAUNCHER_SH_REL: &str = "tools/dx";
 
 pub const LAUNCHER_CMD_REL: &str = "tools/dx.cmd";
 
+/// The wrapper Bazelisk runs instead of Bazel on Linux and macOS.
+pub const BAZEL_WRAPPER_SH_REL: &str = "tools/bazel";
+
+/// The wrapper Bazelisk runs instead of Bazel on Windows.
+pub const BAZEL_WRAPPER_BAT_REL: &str = "tools/bazel.bat";
+
+/// Every file `sync` writes, in order.
+const LAUNCHERS: [&str; 4] = [
+    LAUNCHER_SH_REL,
+    LAUNCHER_CMD_REL,
+    BAZEL_WRAPPER_SH_REL,
+    BAZEL_WRAPPER_BAT_REL,
+];
+
+/// The first three lines of a wrapper mark it as dx-owned, so they stay the same across versions.
+const BAZEL_WRAPPER_SH: &str = include_str!("../templates/bazel");
+
+const BAZEL_WRAPPER_BAT: &str = include_str!("../templates/bazel.bat");
+
 /// Release assets the launchers can download, one sha256 pin each.
 pub const RELEASE_ASSETS: [&str; 5] = [
     "dx-linux-x86_64",
@@ -703,6 +722,18 @@ pub fn render_launcher_cmd() -> String {
     LAUNCHER_CMD.replace('\n', "\r\n")
 }
 
+#[must_use]
+pub fn render_bazel_wrapper_sh() -> String {
+    BAZEL_WRAPPER_SH.replace("\r\n", "\n")
+}
+
+#[must_use]
+pub fn render_bazel_wrapper_bat() -> String {
+    BAZEL_WRAPPER_BAT
+        .replace("\r\n", "\n")
+        .replace('\n', "\r\n")
+}
+
 fn write_launcher(
     root: &Path,
     rel: &str,
@@ -756,11 +787,16 @@ pub enum LauncherState {
 }
 
 fn static_launcher(rel: &str) -> String {
-    if rel == LAUNCHER_SH_REL {
-        render_launcher_sh()
-    } else {
-        render_launcher_cmd()
+    match rel {
+        LAUNCHER_SH_REL => render_launcher_sh(),
+        LAUNCHER_CMD_REL => render_launcher_cmd(),
+        BAZEL_WRAPPER_SH_REL => render_bazel_wrapper_sh(),
+        _ => render_bazel_wrapper_bat(),
     }
+}
+
+fn is_shell(rel: &str) -> bool {
+    rel == LAUNCHER_SH_REL || rel == BAZEL_WRAPPER_SH_REL
 }
 
 /// The command that runs `dx init --apply` in `root`: the launcher when it is there, else Bazel.
@@ -779,9 +815,15 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     let dest = crate::scaffold::scaffold_dest_within_root(root, rel).ok()?;
     let text = std::fs::read_to_string(&dest).ok()?;
     let mut lines = text.lines().map(|line| line.trim_end_matches('\r'));
+    let wrapper = match rel {
+        BAZEL_WRAPPER_SH_REL | BAZEL_WRAPPER_BAT_REL => static_launcher(rel),
+        _ => String::new(),
+    };
+    let mut head = wrapper.lines().map(|line| line.trim_end_matches('\r'));
     let (first, second, marker) = match rel {
         LAUNCHER_SH_REL => ("#!/bin/sh", "set -eu", "DX_PINS=.dx/pins"),
         LAUNCHER_CMD_REL => ("@echo off", "setlocal", "set \"DX_PINS=.dx\\pins\""),
+        BAZEL_WRAPPER_SH_REL | BAZEL_WRAPPER_BAT_REL => (head.next()?, head.next()?, head.next()?),
         _ => return None,
     };
     if lines.next()? != first || lines.next()? != second {
@@ -790,7 +832,7 @@ pub fn launcher_state(root: &Path, rel: &str) -> Option<LauncherState> {
     if lines.next()? != marker {
         return None;
     }
-    if text != static_launcher(rel) || (rel == LAUNCHER_SH_REL && !is_executable(&dest)) {
+    if text != static_launcher(rel) || (is_shell(rel) && !is_executable(&dest)) {
         return Some(LauncherState::Stale);
     }
     Some(LauncherState::Current)
@@ -808,7 +850,7 @@ fn is_executable(_: &Path) -> bool {
 }
 
 pub fn stale_launchers(root: &Path) -> Vec<String> {
-    [LAUNCHER_SH_REL, LAUNCHER_CMD_REL]
+    LAUNCHERS
         .into_iter()
         .filter(|rel| launcher_state(root, rel) == Some(LauncherState::Stale))
         .map(str::to_owned)
@@ -821,7 +863,7 @@ fn sync(
     apply: bool,
     applied: &mut Applied,
 ) -> Result<(), AdoptError> {
-    for rel in [LAUNCHER_SH_REL, LAUNCHER_CMD_REL] {
+    for rel in LAUNCHERS {
         let dest = crate::scaffold::scaffold_dest_within_root(root, rel)?;
         let write = if dest.exists() {
             launcher_state(root, rel) == Some(LauncherState::Stale)
@@ -833,7 +875,7 @@ fn sync(
             continue;
         }
         if apply {
-            write_launcher(root, rel, &static_launcher(rel), rel == LAUNCHER_SH_REL)?;
+            write_launcher(root, rel, &static_launcher(rel), is_shell(rel))?;
         }
         applied.wrote.push(rel.to_owned());
     }
@@ -1291,10 +1333,21 @@ mod tests {
         let dir = dx_test_scratch::scratch("dx-launcher-write-").unwrap();
         let first =
             crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("writes");
-        assert_eq!(first, vec!["tools/dx", "tools/dx.cmd"]);
+        assert_eq!(
+            first,
+            vec!["tools/dx", "tools/dx.cmd", "tools/bazel", "tools/bazel.bat"]
+        );
         let current =
             crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("current");
-        assert_eq!(current, vec!["refused:tools/dx", "refused:tools/dx.cmd"]);
+        assert_eq!(
+            current,
+            vec![
+                "refused:tools/dx",
+                "refused:tools/dx.cmd",
+                "refused:tools/bazel",
+                "refused:tools/bazel.bat"
+            ]
+        );
         std::fs::write(dir.path().join(LAUNCHER_SH_REL), "custom\n").expect("edit");
         std::fs::write(
             dir.path().join(LAUNCHER_CMD_REL),
@@ -1303,7 +1356,15 @@ mod tests {
         .expect("edit");
         let second =
             crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("syncs");
-        assert_eq!(second, vec!["tools/dx.cmd", "refused:tools/dx"]);
+        assert_eq!(
+            second,
+            vec![
+                "tools/dx.cmd",
+                "refused:tools/dx",
+                "refused:tools/bazel",
+                "refused:tools/bazel.bat"
+            ]
+        );
         assert_eq!(
             std::fs::read_to_string(dir.path().join(LAUNCHER_SH_REL)).expect("read"),
             "custom\n"
@@ -1416,13 +1477,215 @@ mod tests {
         let dir = dx_test_scratch::scratch("dx-launcher-plan-").unwrap();
         assert_eq!(
             plan_launcher_files(dir.path(), true).expect("plan"),
-            vec!["tools/dx", "tools/dx.cmd"]
+            vec!["tools/dx", "tools/dx.cmd", "tools/bazel", "tools/bazel.bat"]
         );
         assert_eq!(
             plan_launcher_files(dir.path(), false).expect("plan"),
             [] as [String; 0]
         );
         assert!(!dir.path().join("tools").exists());
+    }
+
+    #[test]
+    fn bazel_wrappers_are_written_only_when_absent_or_dx_owned() {
+        let dir = dx_test_scratch::scratch("dx-launcher-wrappers-").unwrap();
+        std::fs::create_dir_all(dir.path().join("tools")).expect("tools");
+        let custom = dir.path().join(BAZEL_WRAPPER_SH_REL);
+        std::fs::write(&custom, "exec \"$BAZEL_REAL\" \"$@\"\n").expect("custom");
+        let wrote = crate::scaffold::entries(|a| write_launcher_files(dir.path(), a)).expect("w");
+        assert!(
+            wrote.contains(&"refused:tools/bazel".to_owned()),
+            "{wrote:?}"
+        );
+        assert!(wrote.contains(&"tools/bazel.bat".to_owned()), "{wrote:?}");
+        assert_eq!(launcher_state(dir.path(), BAZEL_WRAPPER_SH_REL), None);
+        assert_eq!(
+            std::fs::read_to_string(&custom).expect("read"),
+            "exec \"$BAZEL_REAL\" \"$@\"\n"
+        );
+        std::fs::write(
+            &custom,
+            format!("{}echo edited\n", render_bazel_wrapper_sh()),
+        )
+        .expect("edit");
+        let bat = dir.path().join(BAZEL_WRAPPER_BAT_REL);
+        std::fs::write(&bat, render_bazel_wrapper_bat().replace("\r\n", "\n")).expect("lf");
+        assert_eq!(
+            stale_launchers(dir.path()),
+            vec!["tools/bazel", "tools/bazel.bat"]
+        );
+        assert_eq!(
+            refresh_launcher_files(dir.path()).expect("refresh"),
+            vec!["tools/bazel", "tools/bazel.bat"]
+        );
+        assert_eq!(
+            launcher_state(dir.path(), BAZEL_WRAPPER_SH_REL),
+            Some(LauncherState::Current)
+        );
+        assert_eq!(
+            std::fs::read(&bat).expect("bat"),
+            render_bazel_wrapper_bat().into_bytes()
+        );
+    }
+
+    #[test]
+    fn the_bat_wrapper_has_crlf_lines_and_runs_the_hook_before_bazel() {
+        let bat = render_bazel_wrapper_bat();
+        assert!(bat.ends_with("\r\n"));
+        assert_eq!(bat.matches('\n').count(), bat.matches("\r\n").count());
+        let hook = bat
+            .find("call \"%~dp0dx.cmd\" worktree hook bazel -- %* 1>&2\r\n")
+            .expect("hook");
+        let real = bat.find("\"%BAZEL_REAL%\" %*\r\n").expect("bazel");
+        let child = bat
+            .find("if defined DX_BAZEL_CHILD goto bazel\r\n")
+            .expect("child");
+        assert!(child < hook && hook < real);
+        assert_eq!(render_bazel_wrapper_sh().matches('\r').count(), 0);
+    }
+
+    #[test]
+    fn the_repo_bazel_wrapper_is_the_one_dx_init_writes() {
+        let repo = std::fs::read_to_string(dx_testing::env_file("DX_REPO_BAZEL_WRAPPER"))
+            .expect("tools/bazel");
+        assert_eq!(repo, render_bazel_wrapper_sh());
+    }
+
+    #[test]
+    fn rendered_bazel_wrapper_passes_shellcheck() {
+        let shellcheck = dx_testing::env_file("DX_SHELLCHECK");
+        let dir = dx_test_scratch::scratch("wrapper-shellcheck").unwrap();
+        let script = dir.path().join("bazel");
+        std::fs::write(&script, render_bazel_wrapper_sh()).expect("write wrapper");
+        let (code, out, err) = run_captured(
+            std::process::Command::new(shellcheck)
+                .args(["--norc", "--shell=sh", "--severity=style"])
+                .arg(&script),
+        );
+        assert_eq!(code, Some(0), "{out}{err}");
+    }
+
+    #[cfg(unix)]
+    mod wrapper {
+        use super::*;
+        use std::path::PathBuf;
+
+        /// A workspace with the wrapper, a fake `tools/dx` hook and a fake real Bazel, both logging.
+        struct Wrapped {
+            dir: dx_test_scratch::TempDir,
+        }
+
+        impl Wrapped {
+            fn new(hook_exit: i32) -> Wrapped {
+                let dir = dx_test_scratch::scratch("dx-bazel-wrapper-").unwrap();
+                let root = dir.path();
+                std::fs::create_dir_all(root.join("tools")).expect("tools");
+                write_launcher(root, BAZEL_WRAPPER_SH_REL, &render_bazel_wrapper_sh(), true)
+                    .expect("wrapper");
+                let log = |name: &str| root.join(name).display().to_string();
+                dx_testing::shell_script(
+                    &root.join("tools/dx"),
+                    &format!(
+                        "printf '%s|' \"${{DX_BAZEL_CHILD:-}}\" \"$@\" >> '{}'\necho hook out\nexit {hook_exit}\n",
+                        log("hook.log")
+                    ),
+                );
+                dx_testing::shell_script(
+                    &root.join("real"),
+                    &format!(
+                        "printf '%s|' \"${{DX_BAZEL_CHILD:-}}\" \"$@\" >> '{}'\necho bazel out\n",
+                        log("real.log")
+                    ),
+                );
+                Wrapped { dir }
+            }
+
+            fn path(&self, rel: &str) -> PathBuf {
+                self.dir.path().join(rel)
+            }
+
+            fn run(&self, env: &[(&str, &str)], args: &[&str]) -> (Option<i32>, String, String) {
+                let mut cmd = std::process::Command::new(self.path(BAZEL_WRAPPER_SH_REL));
+                cmd.args(args)
+                    .current_dir(self.dir.path())
+                    .env_remove("DX_BAZEL_CHILD")
+                    .env("BAZEL_REAL", self.path("real"));
+                for (key, value) in env {
+                    cmd.env(key, value);
+                }
+                run_captured(&mut cmd)
+            }
+
+            fn log(&self, name: &str) -> String {
+                std::fs::read_to_string(self.path(name)).unwrap_or_default()
+            }
+        }
+
+        #[test]
+        fn the_hook_runs_first_and_bazel_gets_the_arguments_unchanged() {
+            let wrapped = Wrapped::new(0);
+            let args = ["build", "", "--define=a=b c", "//x:y"];
+            let (code, out, err) = wrapped.run(&[], &args);
+            assert_eq!((code, out.as_str()), (Some(0), "bazel out\n"), "{err}");
+            assert_eq!(err, "hook out\n");
+            assert_eq!(
+                wrapped.log("hook.log"),
+                "1|worktree|hook|bazel|--|build||--define=a=b c|//x:y|"
+            );
+            assert_eq!(wrapped.log("real.log"), "|build||--define=a=b c|//x:y|");
+        }
+
+        #[test]
+        fn a_refusal_or_a_stop_from_the_hook_stops_bazel_with_its_code() {
+            assert!(render_bazel_wrapper_sh().contains("77 | 130 | 143) exit"));
+            for hook_exit in [77, 130, 143] {
+                let wrapped = Wrapped::new(hook_exit);
+                let (code, _, _) = wrapped.run(&[], &["clean"]);
+                assert_eq!(code, Some(hook_exit));
+                assert_eq!(wrapped.log("real.log"), "");
+            }
+        }
+
+        #[test]
+        fn any_other_hook_failure_warns_and_runs_bazel() {
+            // 2 is the usage error of a dx without the hook; 1 a launcher that cannot run dx.
+            for hook_exit in [1, 2, 3, 126] {
+                let wrapped = Wrapped::new(hook_exit);
+                let (code, out, err) = wrapped.run(&[], &["build"]);
+                assert_eq!((code, out.as_str()), (Some(0), "bazel out\n"), "{err}");
+                assert_eq!(
+                    err,
+                    format!(
+                        "hook out\ntools/bazel: tools/dx worktree hook bazel failed (exit {hook_exit}); running Bazel without it\n"
+                    )
+                );
+                assert_eq!(wrapped.log("real.log"), "|build|");
+            }
+        }
+
+        #[test]
+        fn a_bazel_child_of_dx_skips_the_hook_and_a_missing_dx_warns() {
+            let wrapped = Wrapped::new(77);
+            let (code, _, err) = wrapped.run(&[("DX_BAZEL_CHILD", "1")], &["info"]);
+            assert_eq!(code, Some(0), "{err}");
+            assert_eq!(wrapped.log("hook.log"), "");
+            assert_eq!(wrapped.log("real.log"), "1|info|");
+            std::fs::remove_file(wrapped.path("tools/dx")).expect("rm");
+            let (code, _, err) = wrapped.run(&[], &["info"]);
+            assert_eq!(code, Some(0), "{err}");
+            assert!(err.contains("failed (exit 127); running Bazel"), "{err}");
+            assert_eq!(wrapped.log("real.log"), "1|info||info|");
+        }
+
+        #[test]
+        fn without_bazelisk_the_wrapper_names_what_is_missing() {
+            let wrapped = Wrapped::new(0);
+            let mut cmd = std::process::Command::new(wrapped.path(BAZEL_WRAPPER_SH_REL));
+            let (code, _, err) = run_captured(cmd.arg("info").env_remove("BAZEL_REAL"));
+            assert_ne!(code, Some(0));
+            assert!(err.contains("Bazelisk"), "{err}");
+            assert_eq!(wrapped.log("hook.log"), "");
+        }
     }
 
     #[cfg(unix)]
@@ -1559,6 +1822,12 @@ mod tests {
                 dx_testing::executable_script(&path, body);
             }
 
+            /// Makes the launcher see a musl host: no glibc from getconf, musl from ldd.
+            fn stub_musl(&self) {
+                self.stub("getconf", "#!/bin/sh\nexit 1\n");
+                self.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            }
+
             fn set_pin(&self, text: &str) {
                 std::fs::write(self.base.join("repo/.dx/pins"), text).expect("pin");
             }
@@ -1678,8 +1947,7 @@ mod tests {
         #[test]
         fn musl_and_old_glibc_hosts_fail_before_downloading() {
             let fx = Fixture::new("sh-musl", true, None);
-            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
-            fx.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            fx.stub_musl();
             let (code, _, err) = fx.run(&["status"]);
             assert_eq!(code, Some(1), "{err}");
             assert!(
@@ -1691,6 +1959,54 @@ mod tests {
             let (code, _, err) = fx.run(&["status"]);
             assert_eq!(code, Some(1), "{err}");
             assert!(err.contains("glibc 2.28 or newer"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn the_bazel_wrapper_runs_bazel_when_the_launcher_cannot_run_dx() {
+            let fx = Fixture::new("sh-wrapper-no-dx", true, None);
+            let repo = fx.base.join("repo");
+            write_launcher(
+                &repo,
+                BAZEL_WRAPPER_SH_REL,
+                &render_bazel_wrapper_sh(),
+                true,
+            )
+            .expect("wrapper");
+            let real = fx.base.join("real");
+            dx_testing::executable_script(&real, PAYLOAD);
+            let home = fx.base.join("home");
+            let wrapper = |envs: &[(&str, &std::path::Path)]| {
+                run_captured(
+                    Command::new(repo.join(BAZEL_WRAPPER_SH_REL))
+                        .current_dir(&repo)
+                        .arg("info")
+                        .env_clear()
+                        .env(
+                            "PATH",
+                            format!(
+                                "{}:{}",
+                                fx.base.join("stub").display(),
+                                applet_dir().display()
+                            ),
+                        )
+                        .env("BAZEL_REAL", &real)
+                        .env("STUB_LOG", fx.base.join("calls"))
+                        .envs(envs.iter().copied()),
+                )
+            };
+            let ran = |envs: &[(&str, &std::path::Path)], why: &str| {
+                let (code, out, err) = wrapper(envs);
+                assert_eq!((code, out.as_str()), (Some(0), "ran info\n"), "{err}");
+                assert!(err.contains(why), "{err}");
+                assert!(
+                    err.contains("failed (exit 1); running Bazel without it"),
+                    "{err}"
+                );
+            };
+            ran(&[], "HOME is not set");
+            fx.stub_musl();
+            ran(&[("HOME", &home)], "musl");
             assert_eq!(fx.downloads(), 0);
         }
 

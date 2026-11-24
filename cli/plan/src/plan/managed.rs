@@ -4,9 +4,6 @@ use dx_process::ProtectedFlag;
 use super::{BuildPlan, bep_guards, bep_options};
 use crate::args::Command;
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_managed(
     command: Command,
     scope: &dx_setup::SetupScope,
@@ -40,9 +37,6 @@ pub fn plan_managed(
     Ok(BuildPlan { argv, summary })
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_managed_with_roots(
     command: Command,
     roots: &[String],
@@ -55,7 +49,6 @@ pub fn plan_managed_with_roots(
     Ok(BuildPlan { argv, summary })
 }
 
-/// Returns the `dx sync` aspect labels, env first, then codegen.
 #[must_use]
 pub fn managed_aspects() -> [String; 2] {
     let repo = super::rules_dx_repo();

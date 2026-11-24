@@ -74,6 +74,14 @@ dependencies. To run a `main` script instead, set `runner = "plain"`.
 `unittest`, not `pytest`, and defines no bare `test` functions. Every other
 test gets `@pypi//pytest`.
 
+`python_test` runs the interpreter with `-Werror`, so a warning fails the
+test. On one target, set `warnings_as_errors = False` to allow warnings.
+Across the build, set:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
 `python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
 your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
 benchmark becomes one row of `dx-bench.json`, in seconds.
@@ -125,7 +133,7 @@ before it runs anything. On Windows the extension links the dynamic CRT, so
 an app that ships it must also ship `msvcp140` and `vcruntime140*` from
 `@msvc_runtime`.
 
-## Runfiles
+### Runfiles
 
 `python_binary` needs a runfiles directory; a runfiles manifest alone is not
 enough. The consumer preset sets `build:windows --enable_runfiles`.
@@ -160,7 +168,7 @@ Wrapper over py_binary that infers main.
 python_test(name, *, srcs = None, main = None, runner = "pytest", visibility = None, **kwargs)
 ```
 
-Wrapper over py_pytest_test, or py_test for the plain runner.
+Wrapper over py_pytest_test, or py_test for the plain runner. The interpreter runs with -Werror unless warnings_as_errors is False.
 
 ### `python_fuzz_test`
 

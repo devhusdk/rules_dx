@@ -145,8 +145,8 @@ _index_store_opt_in_test = analysistest.make(
     config_settings = {"//command_line_option:features": ["swift.index_while_building"]},
 )
 
-def swift_index_store_tests(name, target_under_test, **kwargs):
+def swift_index_store_tests(name, target_under_test, size = "small", **kwargs):
     """Asserts SwiftCompile writes an index store only when a build turns on swift.index_while_building."""
-    _index_store_default_test(name = name + "_default", size = "small", target_under_test = target_under_test, **kwargs)
-    _index_store_opt_in_test(name = name + "_opt_in", size = "small", target_under_test = target_under_test, **kwargs)
+    _index_store_default_test(name = name + "_default", size = size, target_under_test = target_under_test, **kwargs)
+    _index_store_opt_in_test(name = name + "_opt_in", size = size, target_under_test = target_under_test, **kwargs)
     native.test_suite(name = name, tests = [name + "_default", name + "_opt_in"], **kwargs)

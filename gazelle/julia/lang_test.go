@@ -180,8 +180,8 @@ func TestGenerateErrors(t *testing.T) {
 
 func TestGenerateSkipsNestedPackage(t *testing.T) {
 	result := generate(t, NewLanguage(), "pkg", nil, map[string]string{
-		"Project.toml":          project("Demo"),
-		"src/Demo.jl":           "",
+		"Project.toml":           project("Demo"),
+		"src/Demo.jl":            "",
 		"src/inner/Project.toml": project("Inner"),
 		"src/inner/src/Inner.jl": "",
 		"src/inner/BUILD.bazel":  "",

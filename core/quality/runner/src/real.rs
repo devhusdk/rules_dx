@@ -12,33 +12,23 @@ use crate::RunnerError;
 
 pub use tools_gen::REAL_TOOLS;
 
-/// Bicep reads the nearest `bicepconfig.json` upward from each file; one at the scratch root
-/// (the bound config) stops the search before it reaches the host.
 const BICEP_CONFIG_REL: &str = "bicepconfig.json";
-/// Home of the Bicep child: its module cache is `$HOME/.bicep`, so it starts empty and no `br:`
-/// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
-/// buf's module cache: it would default to `$HOME/.cache/buf`, and the hermetic env has no HOME.
 const BUF_CACHE_REL: &str = "dx-buf/cache";
 const LATEXINDENT_HOME_REL: &str = "dx-latexindent/home";
-/// PAR unpack root of the Windows latexindent.exe, beside the scratch trees.
 const LATEXINDENT_PAR_DIR: &str = "dx-latexindent-par";
-/// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
 const TERRAFORM_EMPTY_MIRROR_REL: &str = "dx-terraform/empty-mirror";
 const TERRAFORM_CLI_CONFIG_REL: &str = "dx-terraform/cli.tfrc";
-/// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
-/// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
 const PATH_TOOLS_DIR_REL: &str = "dx-path-tools";
 const DEADNIX_STANDARD: &str = include_str!("../../tiers/deadnix/standard.txt");
 const ZANUDA_STANDARD: &str = include_str!("../../tiers/zanuda/standard.txt");
 const ZANUDA_STRICT: &str = include_str!("../../tiers/zanuda/strict.txt");
 const JULIALINT_STANDARD: &str = include_str!("../../tiers/julialint/standard.toml");
 
-/// The non-empty lines of the bound tier file, or of the standard tier when none is bound.
 fn tier_lines(
     tool_id: &str,
     config: Option<&Path>,
@@ -58,7 +48,6 @@ fn tier_lines(
 }
 
 const CUE_STATE_REL: &str = ".dx-cue-state";
-/// The std file name selene resolves `std = "lua53+lua54"` against.
 const SELENE_STD_FILE: &str = "lua54.yml";
 const SELENE_STD_BYTES: &[u8] = include_bytes!("../../../../lua/private/quality/lua54.yml");
 
@@ -72,21 +61,17 @@ pub struct RealTool {
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
-    /// Helper executables placed on the child's `PATH` as shims.
     pub path_tools: Vec<PathTool>,
 }
 
-/// Whether a family asked yamlfmt to keep the `---` document start.
 fn yamlfmt_document_start(tool: &RealTool) -> bool {
     tool.args.iter().any(|arg| arg == "document_start")
 }
 
-/// One helper the tool finds by name on its `PATH`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathTool {
     pub name: String,
     pub binary: PathBuf,
-    /// Arguments the shim passes before the caller's, such as a dx subcommand.
     pub args: Vec<String>,
 }
 
@@ -107,16 +92,10 @@ pub struct RealBackend {
     spawn: SpawnFn,
     argv_limit: fn(&OsStr) -> Option<usize>,
     shard: String,
-    /// `dx <quality> --unsafe`: fixers also apply what their tool marks unsafe.
     unsafe_fixes: bool,
     last_stderr: std::cell::RefCell<Vec<u8>>,
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn real_spawn(
     argv: &[OsString],
     cwd: &Path,
@@ -125,12 +104,6 @@ pub fn real_spawn(
     exec::spawn(argv, cwd, env)
 }
 
-/// The invocation with its binary spelled as an absolute path.
-///
-/// A tool reads its own runfiles from `argv[0]`, and the runner starts every tool in a
-/// scratch directory it has just created. A relative binary therefore names its runfiles
-/// relative to that scratch directory, where nothing was ever built. Windows leans on this
-/// hardest: a batch launcher resolves `%~f0` against the working directory it was handed.
 fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
     let mut out = argv.to_vec();
     if let Some(first) = out.first_mut() {
@@ -144,14 +117,6 @@ fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
     out
 }
 
-/// The runfiles env that names a tool's own runfiles.
-///
-/// A launcher that guesses its own manifest can land on an unrelated runfiles tree, so
-/// name the manifest that describes this tool. Which of the two names Bazel wrote depends on
-/// whether the executable carries a suffix, so take whichever one is there.
-///
-/// Without a manifest, a tree beside the tool is named in `RUNFILES_DIR`. A tool with
-/// neither keeps the manifest name it asked for.
 fn own_runfiles_env(binary: &Path) -> Vec<(OsString, OsString)> {
     let path = if binary.is_absolute() {
         binary.to_owned()
@@ -169,20 +134,16 @@ fn own_runfiles_env(binary: &Path) -> Vec<(OsString, OsString)> {
     )]
 }
 
-/// Launchers that read the manifest beside their own binary on every platform.
 const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "rst2html"];
 
-/// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
     tool_id == "psscriptanalyzer"
 }
 
-/// Whether a tool's launcher reads the runfiles manifest beside its own binary.
 fn reads_own_manifest(tool_id: &str) -> bool {
     ALWAYS_OWN_MANIFEST.contains(&tool_id)
 }
 
-/// Names the manifest beside one resolved JavaScript launcher when it exists.
 fn javascript_manifest(binary: &Path) -> Option<(OsString, OsString)> {
     dx_path::manifest_beside(binary).map(|manifest| {
         (
@@ -192,7 +153,6 @@ fn javascript_manifest(binary: &Path) -> Option<(OsString, OsString)> {
     })
 }
 
-/// The runfiles env one launcher needs, keyed by the tool the launcher belongs to.
 fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
     if reads_own_manifest(tool_id) {
         return own_runfiles_env(binary);
@@ -203,17 +163,14 @@ fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
     Vec::new()
 }
 
-/// The first line of every Unix PATH shim.
-const UNIX_SHIM_SHEBANG: &str = "#!/bin/sh\n";
+const UNIX_WRAPPER_SHEBANG: &str = "#!/bin/sh\n";
 
-/// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path with `args` first.
-fn unix_shim(binary: &str, args: &[String], env: &[(String, String)]) -> String {
+fn unix_wrapper(binary: &str, args: &[String], env: &[(String, String)]) -> String {
     use dx_process::shell::quote;
-    let mut out = String::from(UNIX_SHIM_SHEBANG);
+    let mut out = String::from(UNIX_WRAPPER_SHEBANG);
     for (key, value) in env {
         out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
     }
-    // The child PATH is only the shim dir.
     out.push_str("unset PATH\n");
     out.push_str(&format!("exec {}", quote(binary)));
     for arg in args {
@@ -223,8 +180,11 @@ fn unix_shim(binary: &str, args: &[String], env: &[(String, String)]) -> String 
     out
 }
 
-/// A `.cmd` shim with CRLF endings. Characters `cmd.exe` would reinterpret are refused.
-fn windows_shim(binary: &str, args: &[String], env: &[(String, String)]) -> Result<String, String> {
+fn windows_wrapper(
+    binary: &str,
+    args: &[String],
+    env: &[(String, String)],
+) -> Result<String, String> {
     let bad = |text: &str| {
         text.chars()
             .any(|c| matches!(c, '%' | '"' | '^' | '!' | '\n' | '\r'))
@@ -242,9 +202,8 @@ fn windows_shim(binary: &str, args: &[String], env: &[(String, String)]) -> Resu
     out.push_str("set \"PATH=\"\r\n");
     out.push_str(&format!("\"{binary}\""));
     for arg in args {
-        // A space would split the argument; `bad` covers the rest of cmd.exe's syntax.
         if bad(arg) || arg.is_empty() || arg.contains([' ', '\t']) {
-            return Err(format!("unsafe shim argument {arg:?}"));
+            return Err(format!("unsafe wrapper argument {arg:?}"));
         }
         out.push_str(&format!(" {arg}"));
     }
@@ -252,7 +211,7 @@ fn windows_shim(binary: &str, args: &[String], env: &[(String, String)]) -> Resu
     Ok(out)
 }
 
-fn write_path_shim(
+fn write_path_wrapper(
     dir: &Path,
     tool: &PathTool,
     env: &[(OsString, OsString)],
@@ -269,11 +228,11 @@ fn write_path_shim(
         .collect();
     let binary = tool.binary.to_string_lossy();
     if cfg!(windows) {
-        let body = windows_shim(&binary, &tool.args, &env)?;
+        let body = windows_wrapper(&binary, &tool.args, &env)?;
         std::fs::write(dir.join(format!("{name}.cmd")), body).map_err(|err| err.to_string())
     } else {
         let path = dir.join(name);
-        std::fs::write(&path, unix_shim(&binary, &tool.args, &env))
+        std::fs::write(&path, unix_wrapper(&binary, &tool.args, &env))
             .map_err(|err| err.to_string())?;
         #[cfg(unix)]
         {
@@ -323,7 +282,6 @@ fn missing_tier_base(tool_id: &str) -> RunnerError {
 
 fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerError> {
     result.map_err(|err| match err {
-        // An incomplete analysis is not malformed output.
         ParseError::Incomplete { .. } => execution(tool_id, err.to_string()),
         other @ (ParseError::Json { .. }
         | ParseError::Shape { .. }
@@ -336,7 +294,6 @@ fn parsed<T>(tool_id: &str, result: Result<T, ParseError>) -> Result<T, RunnerEr
     })
 }
 
-/// Adds the last lines of a tool's stderr to its failure.
 fn with_stderr(err: RunnerError, stderr: &[u8]) -> RunnerError {
     let text = String::from_utf8_lossy(stderr);
     let lines: Vec<&str> = text.trim().lines().collect();
@@ -410,15 +367,12 @@ fn hint_dir<'a>(config_rel: Option<&'a str>, cwd_rel: &'a str) -> Option<&'a str
     config_rel.map(|_| cwd_rel)
 }
 
-/// Free-form Fortran: fortitude and ffmt both misread fixed-form `.f` and `.F` sources.
 fn fortran_free_form(path: &Path) -> bool {
     !path
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("f"))
 }
 
-/// What ffmt formats safely. It rewrites fixed-form `.F` as free-form, which corrupts the file,
-/// and exits 2 on `.f08` and `.F08`. Both the check and the fix path use this one filter.
 fn ffmt_accepts(path: &Path) -> bool {
     fortran_free_form(path)
         && !path
@@ -448,21 +402,18 @@ impl RealBackend {
         }
     }
 
-    /// Lets the fixers apply the fixes their tool marks unsafe.
     #[must_use]
     pub fn with_unsafe_fixes(mut self, unsafe_fixes: bool) -> Self {
         self.unsafe_fixes = unsafe_fixes;
         self
     }
 
-    /// Names the shard that runs this backend, for error messages.
     #[must_use]
     pub fn with_shard(mut self, shard: &str) -> Self {
         shard.clone_into(&mut self.shard);
         self
     }
 
-    /// Adds the shard, the tool's config and the stderr tail to a tool failure.
     pub fn located(&self, err: RunnerError) -> RunnerError {
         let (RunnerError::ToolExecution { tool_id, detail }
         | RunnerError::ToolOutput { tool_id, detail }) = &err
@@ -578,15 +529,14 @@ fn base_env(
         std::fs::create_dir_all(&dir)
             .map_err(|err| execution(tool_id, format!("path tools dir: {err}")))?;
         for helper in &tool.path_tools {
-            let shim_env = launcher_env(&helper.name, &helper.binary);
-            write_path_shim(&dir, helper, &shim_env)
+            let wrapper_env = launcher_env(&helper.name, &helper.binary);
+            write_path_wrapper(&dir, helper, &wrapper_env)
                 .map_err(|err| execution(tool_id, format!("path tool {}: {err}", helper.name)))?;
         }
         env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
         env.push((OsString::from("PATH"), dir.into_os_string()));
     }
     if tool_id == "terraform" {
-        // Terraform reads no user CLI config, plugin cache or extra args.
         env.retain(|(key, _)| {
             let key = key.to_string_lossy();
             key != TERRAFORM_PLUGIN_DIRS_ENV
@@ -692,8 +642,6 @@ fn tool_specific_env(
         }
     }
     if tool_id == "chktex" {
-        // kpathsea otherwise probes texmf.cnf in directories above the tool tree. The pinned
-        // texmf.cnf sets TEXMFMAIN to the tree, so the global chktexrc is the pinned one.
         env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("TEXMFCNF"));
         env.push((
             OsString::from("TEXMFCNF"),
@@ -704,7 +652,6 @@ fn tool_specific_env(
     Ok(())
 }
 
-/// The pinned `texmf-dist/web2c` dir; chktex sits at `bin/<platform>/chktex` in its TeX Live tree.
 fn chktex_texmfcnf(tool_id: &str, binary: &Path) -> Result<PathBuf, RunnerError> {
     let binary = if binary.is_absolute() {
         binary.to_owned()
@@ -722,7 +669,6 @@ fn chktex_texmfcnf(tool_id: &str, binary: &Path) -> Result<PathBuf, RunnerError>
     Ok(root.join("texmf-dist").join("web2c"))
 }
 
-/// The shared PAR unpack root next to `scratch`, created on first use.
 fn latexindent_par_dir(tool_id: &str, scratch: &Scratch) -> Result<PathBuf, RunnerError> {
     let parent = scratch
         .root()
@@ -736,7 +682,6 @@ fn latexindent_par_dir(tool_id: &str, scratch: &Scratch) -> Result<PathBuf, Runn
 
 fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsString)>) {
     if tool_id == "pkl_lsp" {
-        // Point the JVM profile directories at the scratch home.
         let home = scratch.root().join(PKL_LSP_HOME_REL);
         for name in ["USERPROFILE", "APPDATA", "LOCALAPPDATA"] {
             env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
@@ -761,7 +706,6 @@ fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsS
         }
     }
     if tool_id == "zanuda" {
-        // zanuda type checks against the compiler's standard library.
         let cwd = std::env::current_dir().unwrap_or_default();
         for (key, value) in env.iter_mut() {
             if key == "OCAMLLIB" && Path::new(value.as_os_str()).is_relative() {
@@ -776,13 +720,11 @@ fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsS
         env.push((OsString::from("PYTHONUTF8"), OsString::from("1")));
     }
     if tool_id == "mbake" {
-        // Disable ANSI codes and line wrapping so paths stay with their messages.
         env.push((OsString::from("NO_COLOR"), OsString::from("1")));
         env.push((OsString::from("TERM"), OsString::from("dumb")));
         env.push((OsString::from("COLUMNS"), OsString::from("100000")));
     }
     if tool_id == "cue" {
-        // HOME is unset; module loads need a cache and config dir, kept in the scratch.
         let state = scratch.root().join(CUE_STATE_REL);
         env.push((
             OsString::from("CUE_CACHE_DIR"),
@@ -794,7 +736,6 @@ fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsS
         ));
     }
     if tool_id == "dart" {
-        // The host HOME stays unset (dart format needs none); analytics stay off.
         env.push((
             OsString::from("DART_SUPPRESS_ANALYTICS"),
             OsString::from("true"),
@@ -809,7 +750,6 @@ fn tool_quirk_env(tool_id: &str, scratch: &Scratch, env: &mut Vec<(OsString, OsS
     }
 }
 
-/// A short-named temp directory, removed on drop, for tools that bind unix sockets there.
 struct SocketDir(PathBuf);
 
 impl SocketDir {
@@ -846,7 +786,6 @@ fn short_socket_dir() -> io::Result<SocketDir> {
     }
 }
 
-/// The argv a tool is spawned with: an absolute binary, resolved for launchers that need it.
 fn spawn_argv(tool_id: &str, invocation: &Invocation) -> Vec<OsString> {
     let mut argv = absolute_argv(&invocation.argv);
     if resolves_launcher(tool_id)
@@ -930,7 +869,6 @@ mod tests {
 
     use quality_adapter::parsers::ParseError;
 
-    /// An incomplete analysis is an execution failure for every tool, never "invalid tool output".
     #[test]
     fn incomplete_analysis_is_a_tool_execution_failure() {
         for tool in ["buf", "fantomas", "roslyn", "sarif"] {
@@ -952,7 +890,6 @@ mod tests {
         }
     }
 
-    /// Other parse errors stay malformed-output failures.
     #[test]
     fn other_parse_errors_stay_tool_output_failures() {
         let err = parsed::<()>(
@@ -1016,7 +953,6 @@ mod tests {
         );
     }
 
-    /// A tool starts in a scratch directory, so its own name is not enough to find runfiles.
     #[test]
     fn a_tool_is_always_given_its_binary_as_an_absolute_path() {
         let relative = [
@@ -1032,7 +968,6 @@ mod tests {
         assert_eq!(absolute_argv(&[]), [] as [OsString; 0]);
     }
 
-    /// The planned spawn carries the absolute binary the guard and the batches measure.
     #[test]
     fn spawn_argv_makes_the_binary_absolute() {
         let invocation = quality_adapter::commands::Invocation {
@@ -1048,7 +983,6 @@ mod tests {
         assert_eq!(argv[1], invocation.argv[1]);
     }
 
-    /// The manifest sits beside the tool that reads it.
     #[test]
     fn the_manifest_sits_beside_the_binary() {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
@@ -1063,7 +997,6 @@ mod tests {
         );
     }
 
-    /// Neither manifest is on disk yet, so the executable's own name is the answer.
     #[test]
     fn a_windows_launcher_keeps_its_own_suffix() {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
@@ -1080,7 +1013,6 @@ mod tests {
         }
     }
 
-    /// A remote action stages the runfiles tree but no manifest.
     #[test]
     fn a_launcher_without_a_manifest_gets_its_runfiles_tree() {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
@@ -1094,7 +1026,6 @@ mod tests {
         );
     }
 
-    /// A manifest beside the launcher wins over its tree.
     #[test]
     fn a_manifest_wins_over_the_tree() {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
@@ -1112,7 +1043,6 @@ mod tests {
         );
     }
 
-    /// A suffix Bazel dropped from the executable still names the manifest.
     #[test]
     fn a_manifest_named_without_the_suffix_is_taken_when_it_exists() {
         let dir = tempfile::TempDir::new().expect("tempdir");
@@ -1128,7 +1058,6 @@ mod tests {
         );
     }
 
-    /// The Python launchers read wheels from the manifest on every platform.
     #[test]
     fn python_tools_read_their_own_manifest_everywhere() {
         {
@@ -1139,13 +1068,13 @@ mod tests {
 
     #[test]
     fn unix_shims_export_env_then_exec_the_quoted_launcher() {
-        let body = super::unix_shim(
+        let body = super::unix_wrapper(
             "/w/it's/bin",
             &[],
             &[("RUNFILES_MANIFEST_FILE".to_owned(), "/w/m".to_owned())],
         );
         assert_eq!(
-            body.strip_prefix(super::UNIX_SHIM_SHEBANG),
+            body.strip_prefix(super::UNIX_WRAPPER_SHEBANG),
             Some(
                 "RUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nunset PATH\nexec '/w/it'\\''s/bin' \"$@\"\n"
             )
@@ -1154,36 +1083,38 @@ mod tests {
 
     #[test]
     fn unix_shims_pass_quoted_leading_args_before_the_callers() {
-        let body = super::unix_shim("/w/dx", &["buf_diff".to_owned(), "a b".to_owned()], &[]);
+        let body = super::unix_wrapper("/w/dx", &["buf_diff".to_owned(), "a b".to_owned()], &[]);
         assert_eq!(
-            body.strip_prefix(super::UNIX_SHIM_SHEBANG),
+            body.strip_prefix(super::UNIX_WRAPPER_SHEBANG),
             Some("unset PATH\nexec '/w/dx' 'buf_diff' 'a b' \"$@\"\n")
         );
     }
 
     #[test]
     fn windows_shims_use_crlf_and_refuse_cmd_metacharacters() {
-        let body = super::windows_shim("C:\\t\\bin.bat", &[], &[("K".to_owned(), "V".to_owned())])
-            .expect("shim");
+        let body =
+            super::windows_wrapper("C:\\t\\bin.bat", &[], &[("K".to_owned(), "V".to_owned())])
+                .expect("wrapper");
         assert_eq!(
             body,
             "@echo off\r\nset \"K=V\"\r\nset \"PATH=\"\r\n\"C:\\t\\bin.bat\" %*\r\n"
         );
         for bad in ["a%b", "a\"b", "a^b", "a!b", "a\nb"] {
-            assert!(super::windows_shim(bad, &[], &[]).is_err(), "{bad}");
+            assert!(super::windows_wrapper(bad, &[], &[]).is_err(), "{bad}");
         }
     }
 
     #[test]
     fn windows_shims_pass_leading_args_and_refuse_ones_cmd_would_split() {
-        let body = super::windows_shim("C:\\dx.exe", &["buf_diff".to_owned()], &[]).expect("shim");
+        let body =
+            super::windows_wrapper("C:\\dx.exe", &["buf_diff".to_owned()], &[]).expect("wrapper");
         assert_eq!(
             body,
             "@echo off\r\nset \"PATH=\"\r\n\"C:\\dx.exe\" buf_diff %*\r\n"
         );
         for bad in ["a b", "", "a%b", "a\tb"] {
             assert!(
-                super::windows_shim("C:\\dx.exe", &[bad.to_owned()], &[]).is_err(),
+                super::windows_wrapper("C:\\dx.exe", &[bad.to_owned()], &[]).is_err(),
                 "{bad:?}"
             );
         }
@@ -1191,7 +1122,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_path_shim_runs_the_launcher_with_its_env() {
+    fn a_path_wrapper_runs_the_launcher_with_its_env() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().expect("dir");
         let launcher = dir.path().join("fake");
@@ -1203,13 +1134,14 @@ mod tests {
             args: args.iter().map(|arg| (*arg).to_owned()).collect(),
         };
         let env = [(OsString::from("K"), OsString::from("v"))];
-        super::write_path_shim(dir.path(), &helper("rst2html", &[]), &env).expect("shim");
+        super::write_path_wrapper(dir.path(), &helper("rst2html", &[]), &env).expect("wrapper");
         let out = std::process::Command::new(dir.path().join("rst2html"))
             .arg("arg")
             .output()
             .expect("run");
         assert_eq!(String::from_utf8_lossy(&out.stdout), "arg:v\n");
-        super::write_path_shim(dir.path(), &helper("diff", &["buf_diff"]), &env).expect("shim");
+        super::write_path_wrapper(dir.path(), &helper("diff", &["buf_diff"]), &env)
+            .expect("wrapper");
         let out = std::process::Command::new(dir.path().join("diff"))
             .arg("arg")
             .output()
@@ -1219,7 +1151,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_path_shim_lets_env_shebang_launchers_find_their_interpreter() {
+    fn a_path_wrapper_lets_env_shebang_launchers_find_their_interpreter() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().expect("dir");
         let launcher = dir.path().join("fake");
@@ -1230,7 +1162,7 @@ mod tests {
             binary: launcher,
             args: Vec::new(),
         };
-        super::write_path_shim(dir.path(), &helper, &[]).expect("shim");
+        super::write_path_wrapper(dir.path(), &helper, &[]).expect("wrapper");
         let body = std::fs::read_to_string(dir.path().join("tool")).expect("read");
         assert!(body.contains("unset PATH\n"), "{body}");
         let out = std::process::Command::new(dir.path().join("tool"))
@@ -1240,21 +1172,18 @@ mod tests {
         assert_eq!(String::from_utf8_lossy(&out.stdout), "ok\n");
     }
 
-    /// The PowerShell launcher runs from its real path.
     #[test]
     fn the_powershell_launcher_is_resolved_through_symlinks() {
         assert!(resolves_launcher("psscriptanalyzer"));
         assert!(!resolves_launcher("buildifier"));
     }
 
-    /// A Julia tool reads the runfiles Bazel staged beside the symlink it was handed.
     #[test]
     fn julia_launchers_keep_their_symlink_path() {
         assert!(!resolves_launcher("julia_format"));
         assert!(!resolves_launcher("julialint"));
     }
 
-    /// The resolved JavaScript launch names its own runfiles on every platform.
     #[test]
     fn javascript_tools_resolve_to_their_own_manifest() {
         for tool_id in [
@@ -1274,7 +1203,6 @@ mod tests {
         }
     }
 
-    /// A manifest beside the launcher is named, and an absent one is inherited.
     #[test]
     fn a_javascript_manifest_is_taken_only_when_it_exists() {
         let dir = tempfile::TempDir::new().expect("tempdir");
@@ -1291,7 +1219,6 @@ mod tests {
         );
     }
 
-    /// A tool sits in one list, because the two reasons do not overlap.
     #[test]
     fn one_tool_has_one_reason_to_read_its_manifest() {
         for tool_id in ALWAYS_OWN_MANIFEST {
@@ -1310,7 +1237,6 @@ mod tests {
         }
     }
 
-    /// A tool whose launcher finds its own tree is left alone.
     #[test]
     fn a_tool_that_finds_its_own_tree_is_left_alone() {
         for tool_id in ["buildifier", "biome"] {

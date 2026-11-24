@@ -9,9 +9,6 @@ import (
 	"github.com/bazelbuild/buildtools/build"
 )
 
-// moduleCalls returns the top-level calls of the root MODULE.bazel and of every
-// file it includes, in source order. Includes that are not workspace labels
-// ending in .MODULE.bazel are ignored, as are unreadable or unparsable files.
 func moduleCalls(repoRoot string) []*build.CallExpr {
 	var calls []*build.CallExpr
 	seen := map[string]bool{}

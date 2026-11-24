@@ -1,6 +1,3 @@
-//! Native runtimes in the shipped inventory: records with packaged-byte hashes
-//! and the NOTICE section they add.
-
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -10,10 +7,8 @@ use serde::{Deserialize, Serialize};
 
 pub const SCHEMA: &str = "runtime-inventory/v1";
 
-/// The line that starts the runtime section of a NOTICE.
 pub const SECTION_MARKER: &str = "=== native runtimes ===";
 
-/// One runtime as the rule wrote it into the shipped JSON.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ShippedRuntime {
@@ -33,7 +28,6 @@ pub struct RuntimeFile {
     pub sha256: String,
 }
 
-/// One runtime record: the hashes come from the bytes the archive ships.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeRecord {
     pub name: String,
@@ -50,7 +44,6 @@ struct Doc {
     runtimes: Vec<RuntimeRecord>,
 }
 
-/// A runtime that cannot ship, an unreadable runtime file or a bad record document.
 #[derive(Debug)]
 pub enum RuntimesError {
     BuildOnly {
@@ -123,11 +116,6 @@ impl std::error::Error for RuntimesError {
     }
 }
 
-/// Hashes each runtime's files and reads its notice. Runtimes that cannot ship are errors.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, RuntimesError> {
     let mut records = Vec::with_capacity(runtimes.len());
     for runtime in runtimes {
@@ -192,9 +180,6 @@ pub fn render_records(records: &[RuntimeRecord]) -> String {
     text
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, RuntimesError> {
     let doc: Doc = serde_json::from_str(text).map_err(RuntimesError::Json)?;
     if doc.schema != SCHEMA {
@@ -203,9 +188,6 @@ pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, RuntimesError> {
     Ok(doc.runtimes)
 }
 
-/// The NOTICE section for the records: nothing when empty, else the marker,
-/// then each runtime by name. `app_local` runtimes carry their notice;
-/// `os_supplied` ones get one line.
 #[must_use]
 pub fn render_section(records: &[RuntimeRecord]) -> String {
     if records.is_empty() {
@@ -235,7 +217,6 @@ pub fn render_section(records: &[RuntimeRecord]) -> String {
     out
 }
 
-/// The NOTICE text without its runtime section.
 #[must_use]
 pub fn strip_section(notice: &str) -> &str {
     let mut offset = 0;
@@ -248,11 +229,6 @@ pub fn strip_section(notice: &str) -> &str {
     notice
 }
 
-/// Reads the sidecar file of runtime records.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn read_records(path: &Path) -> Result<Vec<RuntimeRecord>, RuntimesError> {
     parse_records(&path_io::read_to_string(path).map_err(RuntimesError::Io)?)
 }

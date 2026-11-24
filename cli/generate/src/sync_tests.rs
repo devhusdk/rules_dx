@@ -8,7 +8,6 @@ use super::*;
 const DX_TOML: &str = "schema_version = 1\n";
 const RUFF_BASE: &str = ".dx/config/ruff/base.toml";
 
-/// Runs a sync with a detector that finds `families` and counts its calls.
 fn sync_with(
     root: &Path,
     mode: Mode,

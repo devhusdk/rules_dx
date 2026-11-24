@@ -325,7 +325,7 @@ _runner_matrix_test = rule(
             doc = "Executable behind each path tool.",
         ),
         "path_tool_args": attr.string_list_dict(
-            doc = "Leading args the shim of each named path tool passes.",
+            doc = "Leading args the wrapper of each named path tool passes.",
         ),
         "toolfile_tools": attr.string_list(),
         "toolfile_rels": attr.string_list(

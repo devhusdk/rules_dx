@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Builds one relocatable Python quality tools bundle.
-# usage: build_bundle.sh OUT UV PYTHON_MARKER UV_PLATFORM WINDOWS SKIP_PACKAGES TOOLS_DIR GROUPS...
-# Each group is NAME=PROJECT_DIR=TOOL[:MAIN],TOOL[:MAIN]... with TOOL launchers backed by MAIN.py.
 set -euo pipefail
 out="$(realpath -m "$1")"
 uv="$(realpath "$2")"

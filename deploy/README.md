@@ -1063,7 +1063,8 @@ conan_deploy(
   when the recipe sets none.
 - `conan`, `conan_files`: optional. A `conan` executable and the files it
   needs. Defaults to the pinned conan on Linux x86_64 and arm64, macOS x86_64
-  and arm64, and Windows x86_64.
+  and arm64, and Windows x86_64. On other hosts the target is skipped unless
+  you set `conan`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Check it first. This needs no credentials and uploads nothing:
@@ -1218,7 +1219,7 @@ fetched with `rules_oci` and `rules_pkg`.
 | `@distroless_nodejs` | `gcr.io/distroless/nodejs22-debian12` |
 
 Each pin is the multi-arch index digest. `@<name>_linux_amd64` and
-`@<name>_linux_arm64` hold the single-platform images.
+`@<name>_linux_arm64_v8` hold the single-platform images.
 
 ```sh
 bazel build @distroless_static

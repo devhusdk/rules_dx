@@ -1,30 +1,23 @@
-/// One start, end or empty-element tag found by [`tags`].
 pub(crate) struct Tag<'a> {
     pub name: &'a str,
     pub attrs: &'a str,
-    /// True for an empty-element tag such as `<methods/>`, which has no matching end tag.
     pub empty: bool,
-    /// The text after the closing `>`.
     pub tail: &'a str,
 }
 
-/// The markup that a [`tags`] scan could not find the end of.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Unterminated(pub &'static str);
 
-/// Markup that holds text, not tags, and the string that ends it.
 const SKIPPED: [(&str, &str, &str); 3] = [
     ("!--", "-->", "comment"),
     ("![CDATA[", "]]>", "CDATA section"),
     ("?", "?>", "processing instruction"),
 ];
 
-/// Scans XML tags in order, skipping comments, CDATA and processing instructions.
 pub(crate) fn tags(xml: &str) -> Tags<'_> {
     Tags { rest: xml }
 }
 
-/// Iterator returned by [`tags`]; it stops after the first error.
 pub(crate) struct Tags<'a> {
     rest: &'a str,
 }
@@ -63,7 +56,6 @@ impl<'a> Iterator for Tags<'a> {
     }
 }
 
-/// Splits at the first `>` outside a quoted attribute value; XML allows a raw `>` inside one.
 fn split_at_tag_end(text: &str) -> Option<(&str, &str)> {
     let mut quote = None;
     for (at, ch) in text.char_indices() {
@@ -80,7 +72,6 @@ fn split_at_tag_end(text: &str) -> Option<(&str, &str)> {
     None
 }
 
-/// Returns the decoded value of attribute `key`, or `None` when it is missing or badly quoted.
 pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
     let mut rest = attrs;
     while let Some((name, tail)) = rest.split_once('=') {
@@ -96,7 +87,6 @@ pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
     None
 }
 
-/// Decodes the predefined entities and character references in text or an attribute value.
 pub(crate) fn unescape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;

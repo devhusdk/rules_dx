@@ -11,6 +11,7 @@ rust_test(
 
 resolved_cc_toolchain(
     name = "android_device_cc",
+    exec_host = "@rules_dx//android:llvm_readelf",
     expected = "ndk-device-android",
     platform = "@rules_dx//android:android_device",
 )

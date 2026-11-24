@@ -950,7 +950,6 @@ fn fetch_takes_scopes_affected_and_an_optional_vendor_dir() {
             .expect("affected")
             .affected
     );
-    // Like build, fetch keeps only the affected targets inside the scopes it is given.
     let narrowed = parse(&strings(&[
         "fetch",
         "--affected",

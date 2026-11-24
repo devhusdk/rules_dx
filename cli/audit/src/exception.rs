@@ -138,7 +138,6 @@ pub fn validate_exception(exception: &RiskException, today: &str) -> Result<(), 
     check_expiry(&exception.expires, today)
 }
 
-/// The exceptions in `set` that are complete and not yet expired on `today`.
 #[must_use]
 pub fn live_exceptions_for_set<'a>(
     policy: &'a SecurityPolicy,
@@ -245,8 +244,6 @@ pub(crate) fn toml_message(text: &str, error: &toml::de::Error, message: String)
     }
 }
 
-/// The policy for `tier`: its embedded base with `text`, the workspace's
-/// security.toml, merged over it. Missing or blank text means the base alone.
 pub fn load_security(text: Option<&str>, tier: Tier) -> Result<SecurityPolicy, SecurityProblem> {
     let base_text = base_text("security", tier).ok_or_else(|| SecurityProblem::InvalidToml {
         message: format!("the {} base is missing", tier.as_str()),

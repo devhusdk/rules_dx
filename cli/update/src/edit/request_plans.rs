@@ -36,12 +36,6 @@ pub(super) fn plan_bazelversion(
     }
 }
 
-/// Widens one MODULE.bazel dep: the tested override by default, or the floor.
-///
-/// A tested update edits the `single_version_override` version when one has a literal
-/// version, else the `bazel_dep`; it refuses to drop below the `bazel_dep` floor. A floor
-/// update edits the `bazel_dep` and its `# floor: ` comment; it refuses to rise above the
-/// override's tested version.
 pub(super) fn plan_module_bazel(
     content: &str,
     package: &str,
@@ -114,7 +108,6 @@ pub(super) fn plan_module_bazel(
     }
 }
 
-/// Sets the `digest` of the `oci.pull` named `package` in MODULE.bazel.
 pub(super) fn plan_oci_pull(
     content: &str,
     package: &str,
@@ -437,9 +430,6 @@ pub(super) fn plan_go_mod(
     })
 }
 
-/// Rewrites the version on the one `gem "<package>"` line of a ruby manifest, keeping its operator.
-///
-/// Only a single literal requirement is rewritten; other lines are returned untouched.
 pub(super) fn plan_gemfile(
     manifest: &str,
     content: &str,
@@ -515,9 +505,6 @@ pub(super) fn plan_gemfile(
     Ok(edited)
 }
 
-/// Rewrites the constraint of a package in the `require` or `require-dev` of a composer manifest.
-///
-/// The operator stays; only a single constraint such as `^1.2` or `~1.2.3` is rewritten.
 pub(super) fn plan_composer_json(
     manifest: &str,
     content: &str,
@@ -612,12 +599,10 @@ pub(super) fn plan_composer_json(
 
 struct Literal<'a> {
     text: &'a str,
-    /// Byte range of the text inside the quotes, relative to the line.
     start: usize,
     end: usize,
 }
 
-/// The leading quoted strings of a line that starts with `keyword`, in order; empty when it is not one.
 fn literals<'a>(line: &'a str, keyword: &str) -> Vec<Literal<'a>> {
     let Some(rest) = line.trim_start().strip_prefix(keyword) else {
         return Vec::new();
@@ -648,7 +633,6 @@ fn literals<'a>(line: &'a str, keyword: &str) -> Vec<Literal<'a>> {
     }
 }
 
-/// Rewrites the version of the one `requires '<Module>', '<op> <version>'` line of a cpan manifest.
 pub(super) fn plan_cpanfile(
     manifest: &str,
     content: &str,
@@ -722,10 +706,6 @@ pub(super) fn plan_cpanfile(
     Ok(edited)
 }
 
-/// Rewrites the bound of one package in the `build-depends` fields of a `.cabal` file.
-///
-/// A single `^>=`, `>=` or `==` bound takes the new version; a `>=L && <U` range keeps its
-/// lower bound and gets the upper bound of the new major.
 pub(super) fn plan_cabal(
     manifest: &str,
     content: &str,
@@ -815,8 +795,6 @@ fn next_major(version: &str) -> Option<String> {
     })
 }
 
-/// Rewrites the constraint of one scalar `package: <constraint>` entry in the
-/// `dependencies` or `dev_dependencies` of a pub manifest, keeping its `^` or range form.
 pub(super) fn plan_pubspec(
     manifest: &str,
     content: &str,
@@ -915,8 +893,6 @@ pub(super) fn plan_pubspec(
     Ok(edited)
 }
 
-/// Rewrites the `from:` or `exact:` version of the one `.package(url:, ...)` whose
-/// identity (the last URL path segment without `.git`) is `package`.
 pub(super) fn plan_package_swift(
     manifest: &str,
     content: &str,
@@ -997,7 +973,6 @@ pub(super) fn plan_package_swift(
     Ok(edited)
 }
 
-/// The string literal after `label` in a call: its text, content offset and length.
 fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize, usize)> {
     let rest = call.find(label).map(|n| n + label.len())?;
     let after = call.get(rest..)?;
@@ -1010,8 +985,6 @@ fn swift_string_after<'a>(call: &'a str, label: &str) -> Option<(&'a str, usize,
     Some((call.get(open..open + len)?, open, len))
 }
 
-/// Rewrites the requirement of the one `{:package, "<op> x.y.z"}` tuple in a hex manifest,
-/// keeping its operator.
 pub(super) fn plan_mix_exs(
     manifest: &str,
     content: &str,
@@ -1079,8 +1052,6 @@ pub(super) fn plan_mix_exs(
     Ok(edited)
 }
 
-/// Sets the `[compat]` entry of a package declared in the `[deps]` of a julia manifest,
-/// keeping a leading `=` or `~` and adding the entry when it is absent.
 pub(super) fn plan_julia_project(
     manifest: &str,
     content: &str,

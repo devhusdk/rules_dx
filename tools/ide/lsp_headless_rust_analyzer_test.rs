@@ -259,8 +259,6 @@ fn rust_project_syntax_diagnostic_publishes_without_check_runner() {
             }),
         )
         .expect("rust-analyzer opens the typed file");
-    // rust-analyzer pushes each opened file's native diagnostics once; the typed file's
-    // first publication is its full set.
     let published = session
         .wait_publication(
             &fixture.typed_uri,

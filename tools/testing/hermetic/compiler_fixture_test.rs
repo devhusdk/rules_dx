@@ -4,7 +4,6 @@ fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is set"))
 }
 
-/// Drops the colour escapes a compiler writes around its diagnostics.
 fn plain(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;

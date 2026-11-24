@@ -1,6 +1,10 @@
 package swift
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+)
 
 func TestAppKind(t *testing.T) {
 	for src, want := range map[string]string{
@@ -29,5 +33,18 @@ func TestAppRule(t *testing.T) {
 	}
 	if mac := appRule(MacOSAppKind, "desk"); mac.Attr("platform") != nil || mac.AttrString("bundle_id") != "com.example.desk" {
 		t.Errorf("macOS app platform = %v, bundle_id = %q", mac.Attr("platform"), mac.AttrString("bundle_id"))
+	}
+}
+
+func TestAppIsEmptyWithoutAnEntryPoint(t *testing.T) {
+	for attr, value := range map[string]any{"entry": ":phone", "library": ":phone_stub", "srcs": []string{"main.m"}} {
+		app := rule.NewRule(IOSAppKind, "phone_app")
+		app.SetAttr(attr, value)
+		if app.IsEmpty(appKindInfo) {
+			t.Errorf("an app with %s is empty", attr)
+		}
+	}
+	if !rule.NewRule(IOSAppKind, "phone_app").IsEmpty(appKindInfo) {
+		t.Error("an app with no entry point is not empty")
 	}
 }

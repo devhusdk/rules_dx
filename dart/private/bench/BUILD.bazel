@@ -18,8 +18,8 @@ exports_files([
 # keep
 dart_library(
     name = "bench",
-    package = ":pubspec-metadata",
     srcs = ["lib/dx_bench.dart"],
+    package = ":pubspec-metadata",
     deps = ["@dx_dart_bench_deps//:benchmark_harness"],
 )
 

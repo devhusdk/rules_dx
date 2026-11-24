@@ -11,7 +11,6 @@ rust_library(
         "src/lib.rs",
     ],
     aliases = {},  # keep
-    # Clippy reads this config for dx_exec_docs instead of the workspace one.
     compile_data = ["clippy.toml"],
     crate_name = "dx_exec_docs",
     crate_root = "src/lib.rs",
@@ -55,7 +54,6 @@ rust_test(
     ],
 )
 
-# Read by the dx_cli source guards, which scan every production CLI file.
 filegroup(
     name = "rust_srcs",
     srcs = glob(["src/**/*.rs"]),

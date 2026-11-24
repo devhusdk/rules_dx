@@ -8,7 +8,6 @@ use std::process::{Child, ChildStderr, ChildStdout};
 
 const ERROR_ACCESS_DENIED: i32 = 5;
 
-/// Records Ctrl-C and Ctrl-Break as a SIGINT stop and passes every other event on.
 pub(crate) struct RecordStop;
 
 impl CtrlHandler for RecordStop {
@@ -23,9 +22,7 @@ impl CtrlHandler for RecordStop {
     }
 }
 
-/// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT. Every process on the console gets the event itself, so nothing is forwarded.
 pub fn install_console_stop() -> io::Result<()> {
-    // A parent that started dx with Ctrl-C disabled passes that on; dx wants the event.
     console::restore_ctrl_c()?;
     console::add_handler::<RecordStop>()
 }
@@ -47,7 +44,6 @@ impl Job {
         })
     }
 
-    /// Puts the suspended child in the job and lets it run.
     fn start(&self, child: &Child) -> io::Result<()> {
         self.job.assign(child.as_handle())?;
         resume_threads(child.id())
@@ -62,14 +58,12 @@ impl Job {
         let console = console::process_ids();
         let targets = super::attached_targets(std::process::id(), members.as_deref(), &console);
         for pid in targets.iter().flatten() {
-            // A member that exited before it was opened needs no ending.
             let _: io::Result<()> = self.job.terminate_member(*pid);
         }
         targets.is_some()
     }
 
     fn stop(&self) {
-        // Without a console this ends the whole job, server included.
         if self.descendants != Descendants::Detachable || !self.stop_attached() {
             self.terminate();
         }
@@ -79,7 +73,6 @@ impl Job {
 impl Drop for Job {
     fn drop(&mut self) {
         if self.descendants == Descendants::Detachable {
-            // No console: nothing is killed, so a normal exit leaves the server alone.
             self.stop_attached();
         }
     }
@@ -136,13 +129,10 @@ pub fn spawn_owned(command: &mut Command, descendants: Descendants) -> io::Resul
     Ok(OwnedChild { child, job })
 }
 
-/// Keeps a streamed child's kill-on-close job open while the run lasts.
 pub struct StreamTree {
     _job: Option<Job>,
 }
 
-/// Spawns a streamed child; an owned or lock-holding child runs in a
-/// kill-on-close job so its tree never outlives the run.
 pub fn spawn_streamed(
     command: &mut Command,
     group: super::backend::Group,
@@ -200,7 +190,6 @@ pub fn terminal_foreground() -> bool {
 
 pub fn allow_background_tty_writes() {}
 
-/// No terminal job on Windows; streamed children share the console.
 pub struct TerminalJob;
 
 impl TerminalJob {
@@ -223,7 +212,6 @@ impl TerminalJob {
     pub fn tend(&self, _child: i32) {}
 }
 
-/// Ends what an owned run left in the child's job once the child has exited.
 pub fn end_owned_descendants(owned: &mut OwnedChild) {
     if owned.job.descendants == Descendants::Owned {
         owned.job.terminate();

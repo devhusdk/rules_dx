@@ -18,7 +18,6 @@ def lang_platform_setting(name):
             ],
         )
 
-    # Public: consumer packages use it as a select key, and Bazel checks select keys against the consumer.
     selects.config_setting_group(
         name = name,
         match_any = [":" + name + "_" + id for id in platforms],
@@ -32,7 +31,6 @@ def lang_unsupported(name):
         fail("expected <lang>_unsupported for a language in LANGS, got " + name)
     native.constraint_setting(name = name + "_setting")
 
-    # Public: target_compatible_with in consumer packages names it, and Bazel checks those labels against the consumer.
     native.constraint_value(
         name = name,
         constraint_setting = ":" + name + "_setting",

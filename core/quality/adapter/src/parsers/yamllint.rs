@@ -4,11 +4,6 @@ use super::{
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-/// `yamllint -f parsable` prints `<path>:<line>:<column>: [<level>] <message> (<rule>)`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_yamllint(
     stdout: &[u8],
     code: Option<i32>,

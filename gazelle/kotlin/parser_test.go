@@ -101,8 +101,6 @@ func TestNestedBlockCommentInert(t *testing.T) {
 	}
 }
 
-// Intended behavior change from the regex parser: several imports on one line
-// are all recognized, where the line-anchored regex missed them.
 func TestParseImportsTreeSitterShapes(t *testing.T) {
 	tests := []struct {
 		name, src string

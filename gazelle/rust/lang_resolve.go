@@ -45,10 +45,8 @@ const (
 	rustProstModule       = "rules_rust_prost"
 )
 
-// builtinProstCrates are the crates rules_dx re-exports under //rust when the root module depends on rules_rust_prost.
 var builtinProstCrates = map[string]bool{"prost": true, "prost_types": true, "tonic": true}
 
-// builtinCrate reports whether name has a built-in default label.
 func builtinCrate(c *config.Config, name string) bool {
 	if name == builtinRunfilesImport {
 		return true
@@ -56,7 +54,6 @@ func builtinCrate(c *config.Config, name string) bool {
 	return builtinProstCrates[name] && c != nil && c.RepoRoot != "" && common.ModuleDeps(c.RepoRoot)[rustProstModule]
 }
 
-// builtinLabel is the default dep for a built-in crate, relative to from.
 func builtinLabel(c *config.Config, from label.Label, name string) string {
 	if name == builtinRunfilesImport {
 		return builtinRunfilesLabel
@@ -71,7 +68,6 @@ func builtinLabel(c *config.Config, from label.Label, name string) string {
 	return label.New(repo, "rust", name).Rel(from.Repo, from.Pkg).String()
 }
 
-// builtinImport reports whether name takes a built-in default, unless the manifest declares a crate of that name.
 func builtinImport(c *config.Config, manifest *cargoManifest, name string) bool {
 	if !builtinCrate(c, name) {
 		return false
@@ -81,7 +77,6 @@ func builtinImport(c *config.Config, manifest *cargoManifest, name string) bool 
 	return !normal && !dev
 }
 
-// undeclaredImport reports whether no Cargo scope declares name and it is neither built in nor the crate itself.
 func undeclaredImport(c *config.Config, manifest *cargoManifest, name string) bool {
 	if builtinImport(c, manifest, name) {
 		return false
@@ -95,8 +90,6 @@ func undeclaredImport(c *config.Config, manifest *cargoManifest, name string) bo
 	return err == nil && !self
 }
 
-// selfImport reports whether name is the manifest's own library crate, which
-// can differ from the package name when [lib] sets name.
 func selfImport(manifest *cargoManifest, name string) (bool, error) {
 	if _, err := CrateName(manifest.packageName); err != nil {
 		return false, err
@@ -316,9 +309,6 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 	return result
 }
 
-// providedByCrateDeps reports whether name is an external crate of the
-// manifest in scope. all_crate_deps supplies it, so a resolve mapping for the
-// same crate must not add it again.
 func providedByCrateDeps(manifest *cargoManifest, name string, includeDev bool) bool {
 	if dep, ok := manifest.normalDeps[name]; ok && dep.external {
 		return true
@@ -403,9 +393,6 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	return result
 }
 
-// setCargoAttrs reports whether the deps call names external crates. A
-// target that imports none of them gets no new call, since every crate it
-// adds would be an unused dependency; a call the BUILD file has stays.
 func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool, used map[string]bool) bool {
 	packageName := crateUniversePackage(packagePath, manifest)
 	external := hasExternal(manifest.normalDeps) || (includeDev && hasExternal(manifest.devDeps))
@@ -481,7 +468,6 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 		deps[dep] = true
 	}
 	aliases := make(map[string]string)
-	// lookup finds providers by the renamed crate name when no override exists.
 	lookup := func(name string) []resolve.FindResult {
 		target := name
 		if crate, ok := imports.renames[name]; ok {

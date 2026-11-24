@@ -9,7 +9,6 @@ use crate::exception::{
     validate_exception,
 };
 
-/// The single dispatch table from a lock set to its version matcher.
 #[must_use]
 pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     match set {
@@ -35,7 +34,6 @@ pub fn version_assess(set: &str, scope: &str, version: &str) -> VersionScope {
     }
 }
 
-/// The scope that matches exactly `version` in the given lock set, as written by `--accept`.
 #[must_use]
 pub fn exact_scope(set: &str, version: &str) -> String {
     let version = version.trim();

@@ -7,7 +7,6 @@ use dx_testing::cli::json_events;
 use serde_json::Value;
 use std::cell::RefCell;
 
-/// A workspace whose format, lint and typecheck aspects each report their own finding.
 fn mixed(name: &str, lint_succeeds: bool) -> (Harness, Vec<(Option<&'static str>, String)>) {
     let harness = umbrella_clean(name);
     let mut events = aspect_events(&harness, FORMAT_ASPECT, "format finding", true);
@@ -27,8 +26,6 @@ fn umbrella_invocation(harness: &Harness, words: &[&str]) -> Invocation {
     dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("workspace")
 }
 
-/// Runs every quality phase of `dx check` on its own build, then on one shared build, and
-/// returns each phase's run and output both ways along with the builds of each.
 #[expect(clippy::type_complexity, reason = "the type is spelled out once")]
 fn both_ways(
     harness: &Harness,
@@ -76,7 +73,6 @@ fn leftover_events(harness: &Harness) -> Vec<String> {
         .expect("temp")
         .filter_map(|entry| entry.ok())
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        // `<bep>.shards<n>.json` are the shard files the fake probe writes as Bazel outputs.
         .filter(|name| name.starts_with("dx-bep-") && !name.contains(".json.shards"))
         .collect()
 }

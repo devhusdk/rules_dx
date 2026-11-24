@@ -9,10 +9,8 @@ use dx_process::lifecycle::{
 
 use super::WorktreeError;
 
-/// Bound for slot-changing git runs such as checkouts of large trees.
 const WRITE_TIMEOUT: Duration = Duration::from_mins(30);
 
-/// Bound for the per-slot status reads. A timeout keeps the slot.
 const READ_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn base(cwd: &Path) -> Command {
@@ -24,7 +22,6 @@ fn base(cwd: &Path) -> Command {
 }
 
 fn command(cwd: &Path) -> Command {
-    // Tests must not see the developer's global hooks, `insteadOf` or signing config.
     #[cfg(test)]
     {
         static SANDBOX: std::sync::OnceLock<dx_test_scratch::TempDir> = std::sync::OnceLock::new();
@@ -37,7 +34,6 @@ fn command(cwd: &Path) -> Command {
     base(cwd)
 }
 
-/// Runs git and returns stdout, or the failure with its stderr.
 pub(super) fn run<S: AsRef<OsStr>>(cwd: &Path, args: &[S]) -> Result<String, WorktreeError> {
     let mut cmd = command(cwd);
     cmd.args(args);
@@ -49,9 +45,6 @@ pub(super) fn run<S: AsRef<OsStr>>(cwd: &Path, args: &[S]) -> Result<String, Wor
     Err(WorktreeError::git(args, &output.stderr_text()))
 }
 
-/// Like `run`, for reads only: stops the child once `stop` returns a signal
-/// and bounds it by `timeout`. A stop is `WorktreeError::stopped`; a timeout
-/// is a git failure, never a result.
 pub(super) fn run_until<S: AsRef<OsStr>>(
     cwd: &Path,
     args: &[S],
@@ -90,21 +83,17 @@ pub(super) fn run_until<S: AsRef<OsStr>>(
     }
 }
 
-/// Environment variables that inject config above the repository's own.
 const CONFIG_OVERRIDES: [&str; 3] = ["GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"];
 
-/// A git read that sees only the repository's own config, even in a repository another user owns.
 pub(super) fn own_config_command(cwd: &Path, args: &[&str]) -> Command {
     let mut cmd = command(cwd);
     for name in CONFIG_OVERRIDES {
         cmd.env_remove(name);
     }
-    // Reading config and paths runs nothing from the repository, so an unsafe owner may not hide its config.
     cmd.args(["-c", "safe.directory=*"]).args(args);
     cmd
 }
 
-/// Runs `own_config_command` and returns what it wrote, none when git is not on PATH, or why it did not finish.
 pub(super) fn own_config(
     cwd: &Path,
     args: &[&str],
@@ -120,19 +109,16 @@ pub(super) fn own_config(
     }
 }
 
-/// Runs git and returns trimmed stdout.
 pub(super) fn line(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
     run(cwd, args).map(|text| text.trim().to_owned())
 }
 
-/// Reports whether git exits zero.
 pub(super) fn succeeds(cwd: &Path, args: &[&str]) -> bool {
     let mut cmd = command(cwd);
     cmd.args(args);
     dx_process::capture::run_captured(&mut cmd, WRITE_TIMEOUT).is_ok_and(|output| output.success())
 }
 
-/// Runs git with data on stdin and returns stdout. A zero or one exit is a result.
 pub(super) fn run_with_input(
     cwd: &Path,
     args: &[&str],
@@ -148,7 +134,6 @@ pub(super) fn run_with_input(
     Err(WorktreeError::git(args, &output.stderr_text()))
 }
 
-/// One entry of `git worktree list --porcelain`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Checkout {
     pub(super) path: PathBuf,
@@ -158,7 +143,6 @@ pub(super) struct Checkout {
     pub(super) bare: bool,
 }
 
-/// Parses `git worktree list --porcelain` output.
 pub(super) fn parse_checkouts(text: &str) -> Vec<Checkout> {
     let mut found = Vec::new();
     let mut current: Option<Checkout> = None;
@@ -192,7 +176,6 @@ pub(super) fn parse_checkouts(text: &str) -> Vec<Checkout> {
     found
 }
 
-/// Every checkout of the repository, main checkout first.
 pub(super) fn checkouts(cwd: &Path) -> Result<Vec<Checkout>, WorktreeError> {
     Ok(parse_checkouts(&run(
         cwd,
@@ -200,7 +183,6 @@ pub(super) fn checkouts(cwd: &Path) -> Result<Vec<Checkout>, WorktreeError> {
     )?))
 }
 
-/// The `core.worktree` checkout recorded in a common git directory.
 pub(super) fn common_worktree(common: &Path) -> Option<PathBuf> {
     let config = common.join("config");
     let config = config.to_str()?;
@@ -215,7 +197,6 @@ pub(super) fn common_worktree(common: &Path) -> Option<PathBuf> {
     Some(super::host::resolved(&common.join(value)))
 }
 
-/// Whether the checkout has changes git would commit or untracked files.
 pub(super) fn dirty(
     checkout: &Path,
     stop: &dyn Fn() -> Option<i32>,
@@ -231,7 +212,6 @@ pub(super) fn dirty(
         .any(|line| !bazel_link(checkout, line, "?? ")))
 }
 
-/// Whether the checkout has any change, untracked file or ignored file besides `bazel-*` links.
 pub(super) fn holds_files(
     checkout: &Path,
     stop: &dyn Fn() -> Option<i32>,
@@ -252,7 +232,6 @@ pub(super) fn holds_files(
         .any(|line| !bazel_link(checkout, line, "?? ") && !bazel_link(checkout, line, "!! ")))
 }
 
-/// Whether a porcelain status line names a Bazel convenience link.
 fn bazel_link(checkout: &Path, line: &str, prefix: &str) -> bool {
     let Some(name) = line.strip_prefix(prefix) else {
         return false;
@@ -273,7 +252,6 @@ fn bazel_link(checkout: &Path, line: &str, prefix: &str) -> bool {
             .is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
-/// Whether a rebase, merge, cherry-pick, revert or bisect is in progress in the checkout.
 pub(super) fn operation_in_progress(
     checkout: &Path,
     stop: &dyn Fn() -> Option<i32>,
@@ -298,7 +276,6 @@ pub(super) fn operation_in_progress(
     .any(|name| dir.join(name).exists()))
 }
 
-/// How many commits on HEAD are on no remote.
 pub(super) fn unpushed(
     checkout: &Path,
     stop: &dyn Fn() -> Option<i32>,
@@ -315,7 +292,6 @@ pub(super) fn unpushed(
     })
 }
 
-/// Branches on origin named `stem` or `stem-*`, read from the remote itself.
 pub(super) fn remote_heads(
     repo: &Path,
     stem: &str,
@@ -337,14 +313,12 @@ pub(super) fn remote_heads(
         .collect())
 }
 
-/// The branch the checkout has switched to, if any.
 pub(super) fn current_branch(checkout: &Path) -> Option<String> {
     line(checkout, &["symbolic-ref", "--quiet", "--short", "HEAD"])
         .ok()
         .filter(|name| !name.is_empty())
 }
 
-/// The remote-tracking ref of the default branch, such as `origin/main`.
 pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
     if let Ok(name) = line(
         repo,
@@ -370,7 +344,6 @@ pub(super) fn default_base(repo: &Path) -> Result<String, WorktreeError> {
     ))
 }
 
-/// Whether the ref resolves to an object.
 pub(super) fn ref_exists(repo: &Path, name: &str) -> bool {
     succeeds(
         repo,
@@ -383,9 +356,6 @@ pub(super) fn ref_exists(repo: &Path, name: &str) -> bool {
     )
 }
 
-/// Whether local branch `name` is strictly behind `base`: its tip is an
-/// ancestor of `base` but not equal to it, so it holds no unmerged work and
-/// would start an agent on an old commit.
 pub(super) fn branch_behind(repo: &Path, name: &str, base: &str) -> bool {
     let tip = line(
         repo,
@@ -413,7 +383,6 @@ pub(super) fn branch_behind(repo: &Path, name: &str, base: &str) -> bool {
     }
 }
 
-/// Whether a local branch with this name exists.
 pub(super) fn branch_exists(repo: &Path, branch: &str) -> bool {
     succeeds(
         repo,
@@ -426,7 +395,6 @@ pub(super) fn branch_exists(repo: &Path, branch: &str) -> bool {
     )
 }
 
-/// The blob id of `MODULE.bazel.lock` at a ref, if it has one.
 pub(super) fn lock_digest(repo: &Path, reference: &str) -> Option<String> {
     line(
         repo,
@@ -441,7 +409,6 @@ pub(super) fn lock_digest(repo: &Path, reference: &str) -> Option<String> {
     .filter(|id| !id.is_empty())
 }
 
-/// The checkout's own git directory, such as `<repo>/.git/worktrees/<name>`.
 pub(super) fn admin_dir(checkout: &Path) -> Option<PathBuf> {
     line(checkout, &["rev-parse", "--absolute-git-dir"])
         .ok()
@@ -449,12 +416,10 @@ pub(super) fn admin_dir(checkout: &Path) -> Option<PathBuf> {
         .map(PathBuf::from)
 }
 
-/// Whether `rev` is reachable from `base`.
 pub(super) fn is_ancestor(repo: &Path, rev: &str, base: &str) -> bool {
     succeeds(repo, &["merge-base", "--is-ancestor", rev, base])
 }
 
-/// Whether the branch tracks origin/<branch>.
 pub(super) fn tracks_own_remote(repo: &Path, branch: &str) -> bool {
     line(
         repo,
@@ -467,7 +432,6 @@ pub(super) fn tracks_own_remote(repo: &Path, branch: &str) -> bool {
     .is_ok_and(|text| text == format!("refs/remotes/origin/{branch}"))
 }
 
-/// Whether the branch tracks a remote branch that no longer exists.
 pub(super) fn upstream_gone(repo: &Path, branch: &str) -> bool {
     line(
         repo,

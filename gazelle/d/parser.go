@@ -14,9 +14,6 @@ var (
 	dtraceProvide = regexp.MustCompile(`(?m)^provider\s+\w+\s*\{`)
 )
 
-// IsForeign reports whether a .d file is not D source: a Make dependency
-// file or a DTrace script. Only these explicit facts skip a file; any other
-// file that fails to parse is an error.
 func IsForeign(content []byte) bool {
 	content = common.StripBOM(content)
 	text := string(content)
@@ -34,25 +31,15 @@ func IsForeign(content []byte) bool {
 	return !strings.HasPrefix(first, "//") && !strings.HasPrefix(first, "/*") && !strings.HasPrefix(first, "/+") && makeDepLine.MatchString(first)
 }
 
-// Info holds the facts read from one D source file.
 type Info struct {
-	// Module is the declared module name, or "" without a declaration.
-	Module string
-	// Imports lists the imported modules, sorted and deduplicated.
-	Imports []string
-	// StringImports lists the literal import("file") arguments.
-	StringImports []string
-	// StringImportErr is set when an import(expr) argument is not a literal.
+	Module          string
+	Imports         []string
+	StringImports   []string
 	StringImportErr error
-	// DefinesMain reports a module-scope main function.
-	DefinesMain bool
-	// HasUnittest reports a unittest block.
-	HasUnittest bool
+	DefinesMain     bool
+	HasUnittest     bool
 }
 
-// Analyze reads content. An unterminated literal or comment, or a malformed
-// import, fails with its line, so malformed input is never taken for a clean
-// file.
 func Analyze(content []byte) (Info, error) {
 	toks, err := lex(string(common.StripBOM(content)))
 	if err != nil {
@@ -82,12 +69,9 @@ type scanner struct {
 	info    Info
 	imports map[string]bool
 	strs    map[string]bool
-	// braces holds one entry per open brace: true when declarations inside
-	// are still module scope.
-	braces []bool
-	parens int
-	// stmt is the index of the first token after the last ; { or }.
-	stmt int
+	braces  []bool
+	parens  int
+	stmt    int
 }
 
 func (p *scanner) at(i int) token {
@@ -174,8 +158,6 @@ func (p *scanner) module() {
 	}
 }
 
-// importAt reads an import declaration or an import("file") expression at
-// the current token and leaves i on its last token.
 func (p *scanner) importAt() error {
 	line := p.toks[p.i].line
 	if p.at(p.i + 1).is("(") {
@@ -227,9 +209,6 @@ var attributeKeywords = map[string]bool{
 	"align": true, "scope": true, "auto": true, "ref": true, "lazy": true,
 }
 
-// transparentBlock reports whether the brace that follows head keeps its
-// contents in module scope: version, debug, static if, else and attribute
-// blocks do, everything else does not.
 func (p *scanner) transparentBlock(head []token) bool {
 	i := 0
 	if len(head) > 0 && head[0].is("else") {
@@ -275,21 +254,16 @@ func skipGroup(head []token, i int) int {
 	return i
 }
 
-// ParseModule returns the declared module name, or "" when the file has no
-// module declaration or does not parse.
 func ParseModule(content []byte) string {
 	info, _ := Analyze(content)
 	return info.Module
 }
 
-// ParseImports returns the sorted imported modules of content.
 func ParseImports(content []byte) []string {
 	info, _ := Analyze(content)
 	return info.Imports
 }
 
-// ParseStringImports returns the literal import("file") arguments, and an
-// error when any import expression is not a literal.
 func ParseStringImports(content []byte) ([]string, error) {
 	info, err := Analyze(content)
 	if err != nil {
@@ -298,14 +272,11 @@ func ParseStringImports(content []byte) ([]string, error) {
 	return info.StringImports, info.StringImportErr
 }
 
-// DefinesMain reports a module-scope main function. Aggregate members and
-// function bodies never count.
 func DefinesMain(content []byte) bool {
 	info, _ := Analyze(content)
 	return info.DefinesMain
 }
 
-// HasUnittest reports whether content has a unittest block.
 func HasUnittest(content []byte) bool {
 	info, _ := Analyze(content)
 	return info.HasUnittest

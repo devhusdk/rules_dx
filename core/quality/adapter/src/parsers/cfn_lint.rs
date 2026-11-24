@@ -28,11 +28,6 @@ fn place(value: &serde_json::Value, key: &str) -> Result<(u64, u64), ParseError>
     Ok((number("LineNumber")?, number("ColumnNumber")?))
 }
 
-/// Parses `cfn-lint --format json --non-zero-exit-code informational`: the exit code is a bitmask of the levels reported.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_cfn_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -131,7 +126,6 @@ pub fn parse_cfn_lint(
 mod tests {
     use super::*;
 
-    /// Recorded from cfn-lint 1.58.0 with the argv `cfn_lint_check` builds, files named `/scratch/<name>.yaml`, whitespace removed.
     const DIRTY_ERROR: &str = r#"[{"Filename":"/scratch/err.yaml","Id":"7020632d-c87f-0e1b-508e-f56cf783d086","Level":"Error","Location":{"End":{"ColumnNumber":12,"LineNumber":7},"Path":["Resources","Bucket","Properties","Bogus"],"Start":{"ColumnNumber":7,"LineNumber":7}},"Message":"Additional properties are not allowed ('Bogus' was unexpected)","ParentId":null,"Rule":{"Description":"Making sure that resources properties are properly configured","Id":"E3002","ShortDescription":"Resource properties are invalid","Source":"https://github.com/aws-cloudformation/cfn-lint/blob/main/docs/cfn-schema-specification.md#properties"}}]"#;
     const DIRTY_WARNING: &str = r#"[{"Filename":"/scratch/warn.yaml","Id":"d65377d7-c0bb-ccaa-e2e6-3e2b33db0252","Level":"Warning","Location":{"End":{"ColumnNumber":9,"LineNumber":3},"Path":["Parameters","Unused"],"Start":{"ColumnNumber":3,"LineNumber":3}},"Message":"Parameter Unused not used.","ParentId":null,"Rule":{"Description":"Making sure the parameters defined are used","Id":"W2001","ShortDescription":"Check if Parameters are Used","Source":"https://github.com/aws-cloudformation/cfn-lint"}},{"Filename":"/scratch/warn.yaml","Id":"76492e06-c810-33d9-f1c2-8344c81c2c91","Level":"Warning","Location":{"End":{"ColumnNumber":16,"LineNumber":9},"Path":["Resources","Topic","Properties","TopicName","Fn::Sub"],"Start":{"ColumnNumber":7,"LineNumber":9}},"Message":"'Fn::Sub' isn't needed because there are no variables","ParentId":null,"Rule":{"Description":"Checks sub strings to see if a variable is defined.","Id":"W1020","ShortDescription":"Sub isn't needed if it doesn't have a variable defined","Source":"https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-sub.html"}}]"#;
     const SYNTAX_ERROR: &str = r#"[{"Filename":"/scratch/syn.yaml","Id":"9cd63f65-268c-392a-1b81-1efadd15c256","Level":"Error","Location":{"End":{"ColumnNumber":2,"LineNumber":3},"Path":null,"Start":{"ColumnNumber":1,"LineNumber":3}},"Message":"did not find expected node content","ParentId":null,"Rule":{"Description":"Checks for JSON/YAML formatting errors in your template","Id":"E0000","ShortDescription":"Parsing error found when parsing the template","Source":"https://github.com/aws-cloudformation/cfn-lint"}}]"#;

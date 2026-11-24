@@ -90,6 +90,7 @@ rust_test(
     srcs = ["subcommand_test.rs"],
     aliases = aliases(
         package_name = "swift/private/tools/swift_lock",
+        normal = True,
         normal_dev = True,
     ),
     crate_name = "subcommand_test",
@@ -99,6 +100,7 @@ rust_test(
     tags = ["block-network"],
     deps = all_crate_deps(
         package_name = "swift/private/tools/swift_lock",
+        normal = True,
         normal_dev = True,
     ) + ["//tools/testing:dx_testing"],
 )

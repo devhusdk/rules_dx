@@ -1,7 +1,5 @@
 use dx_audit::locks::LicensedPackage;
 
-/// Builds the SPDX 2.3 document for one `dx license` run: a root package for the scope and one
-/// package per resolved dependency, in the order given.
 pub(super) fn license_spdx(
     scopes: &[String],
     packages: &[LicensedPackage],
@@ -59,7 +57,6 @@ pub(super) fn license_spdx(
         .map_err(|error| dx_error::DxError::failure(error.to_string()))
 }
 
-/// Formats `SOURCE_DATE_EPOCH` seconds, else the audit date, as the document creation time.
 pub(super) fn created_time(epoch: Option<&str>, today: &str) -> String {
     epoch
         .and_then(|text| text.trim().parse::<i64>().ok())

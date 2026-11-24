@@ -1,12 +1,8 @@
-//! The dx.dotnet-api/1 contract written by the C# and F# drivers.
-
 use crate::DotnetExtractError;
 use serde::Deserialize;
 
-/// The only contract version this mapper reads.
 pub const SCHEMA: &str = "dx.dotnet-api/1";
 
-/// Every public fact one driver reports about one assembly.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Api {
@@ -16,7 +12,6 @@ pub struct Api {
     pub items: Vec<Item>,
 }
 
-/// One public namespace, module, type or member.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Item {
@@ -49,7 +44,6 @@ pub struct Item {
     pub incomplete: Vec<String>,
 }
 
-/// One documented parameter.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Param {
@@ -60,7 +54,6 @@ pub struct Param {
     pub doc: String,
 }
 
-/// The documented return value.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Returns {
@@ -70,7 +63,6 @@ pub struct Returns {
     pub doc: String,
 }
 
-/// Parses one API document, rejecting a wrong schema version or unknown fields.
 pub fn parse_api(json: &str) -> Result<Api, DotnetExtractError> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(DotnetExtractError::MalformedApi)?;

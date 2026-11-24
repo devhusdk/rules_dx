@@ -4,11 +4,8 @@ use quality_adapter::{commands, parsers};
 use super::check::ToolDef;
 use super::{Path, RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed};
 
-/// Where the Haskell family stages the `.hie` files of the target.
 const HIE_REL: &str = "weeder.hie";
 const CONFIG_FILE: &str = "weeder.toml";
-/// Only `Main.main` and instance methods count as used, so an exported function nobody imports is
-/// reported.
 const DEFAULT_CONFIG: &str =
     "roots = [\"^Main\\\\.main$\"]\ntype-class-roots = true\nunused-types = false\n";
 
@@ -18,7 +15,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Runs weeder over the staged `.hie` files and keeps the findings in the target's own files.
     pub(super) fn check_weeder(
         &self,
         tool_id: &str,

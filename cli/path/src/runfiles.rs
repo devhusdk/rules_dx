@@ -1,14 +1,8 @@
-//! Finding the runfiles that belong to one binary.
-
 use std::io;
 use std::path::{Path, PathBuf};
 
 use runfiles::{Runfiles, RunfilesBuilder};
 
-/// Names the runfiles manifest that sits beside one binary.
-///
-/// A launcher keeps its own suffix on some hosts and drops it on others, so try
-/// the name as written and the name without its suffix.
 #[must_use]
 pub fn manifest_beside(binary: &Path) -> Option<PathBuf> {
     names_beside(binary)
@@ -17,9 +11,6 @@ pub fn manifest_beside(binary: &Path) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// Names one binary by each spelling its runfiles may carry, best first.
-///
-/// A launcher run as `app` on Windows still has Bazel's `app.exe` beside it.
 fn names_beside(binary: &Path) -> Vec<PathBuf> {
     let mut names = vec![binary.to_path_buf(), binary.with_extension("")];
     if binary.extension().is_none() {
@@ -28,32 +19,24 @@ fn names_beside(binary: &Path) -> Vec<PathBuf> {
     names
 }
 
-/// Names the runfiles manifest for one binary, preferring the one on disk.
 #[must_use]
 pub fn manifest_for(binary: &Path) -> PathBuf {
     manifest_beside(binary).unwrap_or_else(|| with_suffix(binary, ".runfiles_manifest"))
 }
 
-/// Names the runfiles tree that sits beside one binary.
 #[must_use]
 pub fn runfiles_dir_beside(binary: &Path) -> Option<PathBuf> {
     tree_beside(binary)
 }
 
-/// The runfiles of one binary, read with the upstream runfiles library.
-///
-/// Only the files beside the binary are read, never `RUNFILES_MANIFEST_FILE`,
-/// which describes whatever started this process.
 #[derive(Debug)]
 pub struct Resolver {
     inner: Runfiles,
     source: PathBuf,
-    /// Keys read from a tree on disk, which need an existence check.
     directory: bool,
 }
 
 impl Resolver {
-    /// Reads a populated tree beside one binary, then its sibling manifest, then the tree's MANIFEST.
     pub fn for_binary(binary: &Path) -> io::Result<Self> {
         let tree = tree_beside(binary);
         if let Some(tree) = tree.as_ref().filter(|tree| populated(tree)) {
@@ -71,7 +54,6 @@ impl Resolver {
             }
             return Resolver::new(Runfiles::builder().directory(&tree), tree, true);
         }
-        // A tool run from inside another target's runfiles has none of its own.
         for ancestor in binary.ancestors().skip(1) {
             let Some(name) = ancestor.file_name().and_then(|n| n.to_str()) else {
                 continue;
@@ -107,11 +89,6 @@ impl Resolver {
         ))
     }
 
-    /// Reads the runfiles of an invoked executable without following symlinks.
-    ///
-    /// An executable inside a `.runfiles` directory reads that tree; any other
-    /// reads the runfiles beside it. A relative path is read against the current
-    /// directory.
     pub fn for_executable(exe: &Path) -> io::Result<Self> {
         if exe.is_absolute() {
             return Resolver::for_executable_in(Path::new(""), exe);
@@ -119,7 +96,6 @@ impl Resolver {
         Resolver::for_executable_in(&std::env::current_dir()?, exe)
     }
 
-    /// Reads the runfiles of an executable named relative to `cwd`.
     fn for_executable_in(cwd: &Path, exe: &Path) -> io::Result<Self> {
         let exe = cwd.join(exe);
         if let Some(tree) = tree_ancestor(&exe).filter(|tree| tree.is_dir()) {
@@ -128,13 +104,11 @@ impl Resolver {
         Resolver::for_binary(&exe)
     }
 
-    /// Names the manifest or tree this resolver read.
     #[must_use]
     pub fn source(&self) -> &Path {
         &self.source
     }
 
-    /// Reads the runfiles tree rooted at one directory.
     pub fn for_tree(tree: &Path) -> io::Result<Self> {
         if !tree.is_dir() {
             return Err(io::Error::new(
@@ -149,12 +123,10 @@ impl Resolver {
         )
     }
 
-    /// Returns the file one key names, read as this runfiles' own repository.
     pub fn lookup(&self, key: &str) -> io::Result<PathBuf> {
         self.lookup_from(key, "")
     }
 
-    /// Returns the file one key names, read as `source_repo` spells it.
     pub fn lookup_from(&self, key: &str, source_repo: &str) -> io::Result<PathBuf> {
         let not_found = || {
             io::Error::new(
@@ -187,20 +159,17 @@ impl Resolver {
     }
 }
 
-/// Reads one manifest as text, naming it in any error.
 fn read_manifest(manifest: &Path) -> io::Result<String> {
     std::fs::read_to_string(manifest)
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", manifest.display())))
 }
 
-/// Whether a key is absolute or a relative path with no `.` or `..` component.
 fn is_plain_key(key: &str) -> bool {
     !key.is_empty()
         && (crate::is_absolute(key)
             || !key.contains('\\') && key.split('/').all(|part| !matches!(part, "." | "..")))
 }
 
-/// Returns the first `.runfiles` directory on one path, when there is one.
 fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
     let mut root = PathBuf::new();
     for component in exe.components() {
@@ -234,7 +203,6 @@ fn populated(tree: &Path) -> bool {
     })
 }
 
-/// Appends a suffix to a path without going through UTF-8.
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut name = path.as_os_str().to_owned();
     name.push(suffix);

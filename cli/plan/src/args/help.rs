@@ -4,7 +4,6 @@ use super::ArgsError;
 use super::command::Command;
 use super::grammar::{Cli, option_at};
 
-/// Index of the word after the flag `arg` at `index`, skipping its separate value word.
 fn skip_flag<S: AsRef<OsStr>>(args: &[S], index: usize, arg: &str) -> usize {
     let next = args.get(index + 1).and_then(|next| next.as_ref().to_str());
     let used_next = option_at(arg, next).is_some_and(|option| option.used_next);
@@ -83,7 +82,6 @@ pub(crate) fn help_verb_error_in<S: AsRef<OsStr>>(args: &[S]) -> Option<ArgsErro
     }
 }
 
-/// Ask clap to render the failure for a word that names no command.
 pub(crate) fn unknown_command_text(word: &str) -> String {
     use clap::CommandFactory;
     let root = Cli::command();
@@ -110,7 +108,6 @@ pub(crate) fn render_top_help() -> String {
     out
 }
 
-/// Variables `dx --help` documents besides the `DX_` flag defaults: name, value shape and meaning.
 pub(crate) const OTHER_ENV: [(&str, &str, &str); 3] = [
     ("NO_COLOR", "non-empty", "Disable color output."),
     (
@@ -147,7 +144,6 @@ fn render_env_help() -> String {
     out
 }
 
-/// The exit-code line for one command's long help.
 pub(crate) fn exit_codes(command: Command) -> &'static str {
     if command == Command::Watch {
         "Exit codes: 2 usage errors, not watchable, or CI=true; 3 operational failures such as watch_failed; 141 when stdout closes; 129 after SIGHUP, 130 after Ctrl-C, 143 after SIGTERM."
@@ -163,7 +159,6 @@ pub(crate) fn exit_codes(command: Command) -> &'static str {
     }
 }
 
-/// Whether `dx <command>` can launch Bazel and so preserve its exit code.
 #[must_use]
 pub fn runs_bazel(command: Command) -> bool {
     !matches!(
@@ -220,7 +215,6 @@ pub(crate) fn output_line(command: Command) -> String {
     )
 }
 
-/// Example invocations shown in each command's long help, without the leading `dx`.
 const EXAMPLES: &[(Command, &[&str])] = &[
     (
         Command::Security,
@@ -321,7 +315,6 @@ fn examples_text(command: Command) -> String {
     out
 }
 
-/// The prose clap appends to each command's long help.
 pub(crate) fn after_long_help(command: Command) -> String {
     let mut out = examples_text(command);
     out.push_str(command.scopes_text());

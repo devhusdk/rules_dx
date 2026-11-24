@@ -1,13 +1,9 @@
-//! The dx.powershell.api/1 contract written by extract.ps1.
-
 use crate::PowershellExtractError;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-/// The only contract version this mapper reads.
 pub const SCHEMA: &str = "dx.powershell.api/1";
 
-/// Every fact extract.ps1 reports about one module.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Api {
@@ -18,7 +14,6 @@ pub struct Api {
     pub files: Vec<File>,
 }
 
-/// The constant keys of one module manifest.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
@@ -33,7 +28,6 @@ pub struct Manifest {
     pub aliases_to_export: Option<Names>,
 }
 
-/// A manifest export list: either "*" or a list of names and wildcards.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum Names {
@@ -41,7 +35,6 @@ pub enum Names {
     List(Vec<String>),
 }
 
-/// The facts of one source file.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct File {
@@ -52,7 +45,6 @@ pub struct File {
     pub unresolved_uses: Vec<String>,
 }
 
-/// The Export-ModuleMember calls of one file.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Exports {
@@ -60,7 +52,6 @@ pub struct Exports {
     pub functions: Vec<String>,
 }
 
-/// Whether a file exports functions, and whether the names are literal.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportKind {
@@ -69,7 +60,6 @@ pub enum ExportKind {
     Dynamic,
 }
 
-/// One top-level function definition.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Function {
@@ -86,7 +76,6 @@ pub struct Function {
     pub params: Vec<Parameter>,
 }
 
-/// The `CmdletBinding` attribute of one function.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct CmdletBinding {
@@ -95,7 +84,6 @@ pub struct CmdletBinding {
     pub positional_binding: bool,
 }
 
-/// One parameter of a function.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Parameter {
@@ -106,7 +94,6 @@ pub struct Parameter {
     pub aliases: Vec<String>,
 }
 
-/// One Parameter attribute: the set it belongs to and how it binds there.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct ParameterSet {
@@ -117,7 +104,6 @@ pub struct ParameterSet {
     pub pipeline: bool,
 }
 
-/// Comment-based help as the parser reports it.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct Help {
@@ -129,7 +115,6 @@ pub struct Help {
     pub notes: String,
 }
 
-/// Parses the contract, rejecting other versions before any field check.
 pub fn parse_api(json: &str) -> Result<Api, PowershellExtractError> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(PowershellExtractError::MalformedApi)?;

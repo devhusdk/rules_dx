@@ -10,10 +10,6 @@ import (
 	"testing"
 )
 
-// readList reads a one-line Starlark list such as `_CUDA_SRCS = [".cu"]` or
-// the dict entry `"c": ["c", "h"],` from the file named by envVar. name is the
-// assignment target or the quoted dict key. It fails the test when the
-// variable, file or list is missing or has an unexpected format.
 func readList(t *testing.T, envVar, name string) []string {
 	t.Helper()
 	rel := os.Getenv(envVar)
@@ -73,9 +69,6 @@ func sameSet(a, b []string) bool {
 }
 
 func TestWrapperExtsMatchGazelle(t *testing.T) {
-	// The cc wrappers accept any file and leave the check to rules_cc, so
-	// every extension Gazelle writes into cc srcs or hdrs must have a C or
-	// C++ lint class in UPSTREAM_CC_CLASS_EXTENSIONS.
 	linted := append(readList(t, "QUALITY_SOURCES_BZL", `"c"`), readList(t, "QUALITY_SOURCES_BZL", `"cpp"`)...)
 	for _, list := range [][]string{SupportedSrcExts, SupportedHdrExts} {
 		for _, ext := range list {

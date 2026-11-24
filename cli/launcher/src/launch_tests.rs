@@ -3,7 +3,6 @@ use dx_path::Resolver;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-/// A program that exits with its argument count plus 4.
 #[cfg(unix)]
 const ARG_COUNT_EXIT: &str = "#!/bin/sh\nexit $(( $# + 4 ))\n";
 
@@ -374,12 +373,9 @@ fn run_scrubs_unset_variables() {
         "program=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",
     )
     .unwrap();
-    // The built launcher runs as `app.exe` with the variable set on that child only.
     let launcher = dx_testing::env_file("DX_EXEC_LAUNCHER");
     let app = dir.join("app.exe");
     std::fs::copy(&launcher, &app).unwrap();
-    // A parallel test that forks while the copy is open holds its write fd until
-    // its child execs, so exec of `app.exe` may briefly fail with ETXTBSY.
     let mut tries = 0;
     let status = loop {
         match std::process::Command::new(&app)

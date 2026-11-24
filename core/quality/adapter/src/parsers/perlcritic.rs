@@ -5,17 +5,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding, known};
 
 const TOOL: &str = "perlcritic";
 
-/// Findings from one batched `perlcritic` run in the fixed tab-separated format.
-///
-/// Every stdout line must carry the format's sentinel and name one of `files`. `Perl::Critic` exits
-/// 2 exactly when it printed a violation, so exit 0 with lines, exit 2 without lines and any
-/// other exit (1: no files, 3: a file could not be critiqued) are errors, never a clean run.
-/// Lines are the physical file and line, so `#line` directives cannot redirect a finding. The
-/// column is `Perl::Critic`'s visual column: 1-based with tabs expanded to multiples of 8.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_perlcritic(
     stdout: &[u8],
     code: Option<i32>,
@@ -70,7 +59,6 @@ fn violation(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         line: number(line_text)?,
         column: number(column_text)?,
     };
-    // Severities 1 to 5 all parse.
     let severity = match *severity_text {
         "5" | "4" => ToolSeverity::Error,
         "3" | "2" | "1" => ToolSeverity::Warning,

@@ -1,5 +1,3 @@
-//! The root MODULE.bazel and every `<lang>/tests/consumer` fixture follow docs/design/consumer-setup.md outside tools/testing/consumer/pending.txt, and the list holds no spare line.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use starlark_syntax::syntax::ast::{
@@ -8,13 +6,10 @@ use starlark_syntax::syntax::ast::{
 use starlark_syntax::syntax::module::AstModuleFields;
 use starlark_syntax::syntax::{AstModule, Dialect};
 
-/// The pending list named in failures.
 const PENDING: &str = "tools/testing/consumer/pending.txt";
 
-/// The file that lists the fixtures with a test.
 const FIXTURES: &str = "tools/testing/consumer/fixtures.bzl";
 
-/// Every kind a pending line may start with.
 const KINDS: [&str; 5] = [
     "dev-registration",
     "dev-repo",
@@ -23,16 +18,12 @@ const KINDS: [&str; 5] = [
     "override",
 ];
 
-/// The directories whose files may name a repo that only a `dev_dependency` usage brings in.
 const DEV_DIRS: [&str; 3] = ["examples", "tests", "tools"];
 
-/// The label and name of the one extension a consumer `MODULE.bazel` uses.
 const LICENSES: [&str; 2] = ["@rules_dx//core:extensions.bzl", "dx_licenses"];
 
-/// Fewer languages than this means the snapshot lost the tree.
 const MIN_LANGS: usize = 40;
 
-/// What the root `MODULE.bazel` declares.
 #[derive(Default)]
 struct Root {
     overrides: BTreeSet<String>,
@@ -42,20 +33,13 @@ struct Root {
     dev_proxies: BTreeMap<String, bool>,
 }
 
-/// The snapshot files the guard reads.
 #[derive(Default)]
 struct Tree {
-    /// The root `MODULE.bazel`.
     module: String,
-    /// Each language directory and whether its manifest has `entry_points`.
     langs: BTreeMap<String, bool>,
-    /// Every `BUILD.bazel` and `.bzl` file by path.
     sources: BTreeMap<String, String>,
-    /// Every file under a `<lang>/tests/consumer` directory by path.
     consumer: BTreeMap<String, String>,
-    /// The languages `CONSUMER_FIXTURES` lists.
     tested: BTreeSet<String>,
-    /// The paths the root `.bazelignore` lists.
     ignored: BTreeSet<String>,
 }
 
@@ -131,7 +115,6 @@ fn identifier(expr: &AstExpr) -> Option<&str> {
     }
 }
 
-/// The arguments of one call: positional ones in order, and named ones by name.
 struct Args<'a> {
     positional: Vec<&'a AstExpr>,
     named: BTreeMap<&'a str, &'a AstExpr>,
@@ -165,7 +148,6 @@ impl<'a> Args<'a> {
             .is_some_and(|value| identifier(value) == Some("True"))
     }
 
-    /// The repo names a `use_repo`, `override_repo` or `inject_repo` call gives after its proxy.
     fn repos(&self) -> Vec<String> {
         let mut out: Vec<String> = self
             .positional
@@ -271,7 +253,6 @@ impl Root {
         }
     }
 
-    /// The repos that only a `dev_dependency` usage brings in.
     fn dev_only(&self) -> BTreeSet<&str> {
         self.dev_repos
             .difference(&self.repos)
@@ -284,7 +265,6 @@ fn repo_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b'-' | b'+' | b'~')
 }
 
-/// The repos of `known` that `text` names as `@repo//` or `"@repo"`.
 fn named_repos<'a>(text: &str, known: &BTreeSet<&'a str>) -> BTreeSet<&'a str> {
     let bytes = text.as_bytes();
     let mut out = BTreeSet::new();
@@ -323,7 +303,6 @@ fn dev_dir(path: &str) -> bool {
     consumer_lang(path).is_none() && parts.iter().any(|part| DEV_DIRS.contains(part))
 }
 
-/// What a consumer `MODULE.bazel` holds besides `module`, the `rules_dx` `bazel_dep` and license tags.
 fn consumer_module_problems(path: &str, source: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut licenses: Option<String> = None;
@@ -426,7 +405,6 @@ fn consumer_module_problems(path: &str, source: &str) -> Vec<String> {
     out
 }
 
-/// The loads of a fixture `BUILD.bazel` that are not `@rules_dx//<lang>:defs.bzl`.
 fn fixture_load_problems(path: &str, source: &str) -> Vec<String> {
     statements(path, source)
         .iter()
@@ -455,7 +433,6 @@ fn fixture_load_problems(path: &str, source: &str) -> Vec<String> {
         .collect()
 }
 
-/// The pending lines the tree needs, besides `init` lines, and the problems no line allows.
 fn lint(tree: &Tree) -> (BTreeSet<String>, Vec<String>) {
     let mut lines = BTreeSet::new();
     let mut problems = Vec::new();
@@ -510,7 +487,6 @@ fn lint(tree: &Tree) -> (BTreeSet<String>, Vec<String>) {
     (lines, problems)
 }
 
-/// The well-formed lines of the pending list, and what is wrong with the others.
 fn parse_pending(text: &str) -> (BTreeSet<String>, Vec<String>) {
     let mut lines = BTreeSet::new();
     let mut problems = Vec::new();
@@ -535,7 +511,6 @@ fn parse_pending(text: &str) -> (BTreeSet<String>, Vec<String>) {
     (lines, problems)
 }
 
-/// What differs between the tree and the pending list.
 fn differences(tree: &Tree, pending: &str) -> Vec<String> {
     let (allowed, mut out) = parse_pending(pending);
     let (found, problems) = lint(tree);

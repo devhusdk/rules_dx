@@ -16,12 +16,6 @@ struct Record {
     corrections: Option<Vec<String>>,
 }
 
-/// `typos --format json` prints one JSON object per line. It exits 0 when nothing is wrong, 2
-/// when it found typos and anything else on a usage or file error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_typos(
     stdout: &[u8],
     code: Option<i32>,

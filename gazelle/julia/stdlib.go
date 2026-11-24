@@ -21,13 +21,11 @@ func parseStdlib(text string) map[string]string {
 	return out
 }
 
-// IsStdLib reports whether name is a standard library of the pinned Julia.
 func IsStdLib(name string) bool {
 	_, ok := stdlibUUIDs[name]
 	return ok
 }
 
-// StdlibUUID returns the UUID of the standard library name.
 func StdlibUUID(name string) (string, bool) {
 	id, ok := stdlibUUIDs[name]
 	return id, ok

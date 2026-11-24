@@ -103,12 +103,18 @@ pub(super) const TOOLS: &[ToolDef] = &[
         id: "perlcritic",
         run: |backend, call| {
             // perlcritic exits 3 on a file it cannot read, so it is never a clean run.
+            let Some(config) = call.config else {
+                return Err(execution(
+                    call.tool_id,
+                    "perlcritic needs a profile; the tier binds one".to_owned(),
+                ));
+            };
             let (refs, names) = paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
             let out = run(
                 backend,
                 call,
-                &commands::perlcritic_check(&call.tool.binary, &refs, call.config),
+                &commands::perlcritic_check(&call.tool.binary, &refs, config),
             )?;
             parsed(
                 call.tool_id,

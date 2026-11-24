@@ -5,12 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::put;
 
-/// Reads the `build-depends` of every component in a `.cabal` file. Test suites and
-/// benchmarks are `dev`; `base` and the package's own library are not dependencies to check.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut package = String::new();
@@ -89,8 +83,6 @@ pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
     Ok(deps)
 }
 
-/// Turns a cabal version range into the comma-separated form `satisfies_for` reads:
-/// `^>=1.2` becomes `~1.2`, `==1.2.*` becomes `~1.2`, `&&` becomes `,`.
 fn haskell_spec(range: &str) -> String {
     let range = range.trim();
     if range.is_empty() || range.contains("||") {
@@ -115,12 +107,6 @@ fn haskell_spec(range: &str) -> String {
     parts.join(", ")
 }
 
-/// Reads the pinned packages of the cabal freeze file (`any.text ==2.0.2`) or
-/// `stack.yaml.lock` (`hackage: text-2.0.2@sha256:...`).
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_haskell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let freeze = regex::Regex::new(
@@ -146,8 +132,6 @@ pub fn parse_haskell_lock(path: &Path) -> Result<BTreeMap<String, String>, Depch
     Ok(pkgs)
 }
 
-/// Module prefixes a package exposes. Cabal packages carry no import list without the
-/// solver's plan, so well known packages are listed and others fall back to their own name.
 pub(crate) fn module_prefixes(package: &str) -> Vec<String> {
     let known: &[&str] = match package {
         "containers" => &[

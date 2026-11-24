@@ -82,18 +82,22 @@ rust_test(
 
 cc_library(
     name = "mingw_coff",
+    testonly = True,
     srcs = ["mingw_coff.c"],
     target_compatible_with = ["@platforms//os:windows"],
+    visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "mingw_coff_objects",
+    testonly = True,
     srcs = [":mingw_coff"],
     output_group = "compilation_outputs",
 )
 
 platform_transition_filegroup(
     name = "mingw_coff_windows_x86_64",
+    testonly = True,
     srcs = [":mingw_coff_objects"],
     target_compatible_with = ["@platforms//os:linux"],
     target_platform = "@llvm//platforms:windows_x86_64",

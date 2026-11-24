@@ -12,17 +12,13 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return dart.Language() })
 
-// Directive is one import, export or part URI of a Dart file.
 type Directive struct {
-	Kind string // import, export or part
+	Kind string
 	URI  string
 }
 
 var directiveKeywords = map[string]bool{"import": true, "export": true, "part": true, "library": true}
 
-// ParseDirectives returns every import, export and part URI of content. A
-// conditional import yields all of its URIs. A syntax error before the first
-// declaration is an error, because the directives cannot be trusted.
 func ParseDirectives(content []byte) ([]Directive, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -40,7 +36,6 @@ func ParseDirectives(content []byte) ([]Directive, error) {
 		}
 		kind := firstWord(tree.Text(c))
 		if !directiveKeywords[kind] {
-			// First declaration: the directive region is over.
 			return out, nil
 		}
 		isPartOf := false
@@ -73,8 +68,6 @@ func firstWord(s string) string {
 	return s[:end]
 }
 
-// directiveURIs collects the URI string literals of a directive, leaving out
-// the string compared in a conditional import's test.
 func directiveURIs(tree *treesitter.Tree, n *treesitter.Node) ([]string, error) {
 	var out []string
 	var err error

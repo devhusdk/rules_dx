@@ -1,17 +1,8 @@
-//! Offline checks dx runs on Terraform files before trivy or `terraform init` reads them.
-//!
-//! Both download every remote `module` source they meet, so dx hands a Terraform file to them
-//! only when each module it calls, and each module those call, is a local `./` or `../`
-//! directory inside the scan root. `terraform init` also installs the modules that the `run`
-//! blocks of test files name, so those are checked the same way.
-
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 
-/// A module source that is not a local path inside the scan root, or a file dx cannot read.
 pub const RULE_MODULE_SOURCE: &str = "dx/terraform-module-source";
 
-/// One problem, placed on the file the tool would have read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub line: u64,
@@ -19,7 +10,6 @@ pub struct Problem {
     pub message: String,
 }
 
-/// One `source` of a `module` block. `value` is `None` when it is not a plain string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleSource {
     pub value: Option<String>,
@@ -27,7 +17,6 @@ pub struct ModuleSource {
     pub column: u64,
 }
 
-/// True for Terraform files: `.tf` and `.tf.json`.
 #[must_use]
 pub fn is_terraform(path: &Path) -> bool {
     let name = path
@@ -37,7 +26,6 @@ pub fn is_terraform(path: &Path) -> bool {
     name.ends_with(".tf") || name.ends_with(".tf.json")
 }
 
-/// True for Terraform test files: `.tftest.hcl` and `.tftest.json`.
 #[must_use]
 pub fn is_terraform_test(path: &Path) -> bool {
     let name = path
@@ -47,15 +35,8 @@ pub fn is_terraform_test(path: &Path) -> bool {
     name.ends_with(".tftest.hcl") || name.ends_with(".tftest.json")
 }
 
-/// The directory under a root module that `terraform init` also reads test files from.
 const TEST_DIR: &str = "tests";
 
-/// Lists the module sources of one Terraform or Terraform test file, picking the syntax by its
-/// name. In a test file these are the `module` blocks inside `run` blocks.
-///
-/// # Errors
-///
-/// Returns a message when the file is not valid UTF-8, HCL or JSON.
 pub fn module_sources(name: &str, bytes: &[u8]) -> Result<Vec<ModuleSource>, String> {
     let text = std::str::from_utf8(bytes).map_err(|err| format!("not valid UTF-8: {err}"))?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
@@ -70,7 +51,6 @@ pub fn module_sources(name: &str, bytes: &[u8]) -> Result<Vec<ModuleSource>, Str
     }
 }
 
-/// The relative path of a local module source, or `None` for anything Terraform would fetch.
 #[must_use]
 pub fn local_path(source: &str) -> Option<&str> {
     let local = source.starts_with("./") || source.starts_with("../");
@@ -78,11 +58,6 @@ pub fn local_path(source: &str) -> Option<&str> {
     (local && plain).then_some(source)
 }
 
-/// Checks `file` and every local module it reaches under `root`. Returns the first problem.
-///
-/// # Errors
-///
-/// Returns a message when a file or directory under `root` cannot be read.
 pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
     let root = normalize(root).ok_or_else(|| format!("bad scan root {}", root.display()))?;
     let Some(file) = normalize(file) else {
@@ -97,13 +72,6 @@ pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
     check_sources(&root, &file, dir)
 }
 
-/// Checks every file `terraform init` reads for the root module in `dir`: its `.tf` and
-/// `.tf.json` files, and the test files in it and in its `tests` directory. Returns each file
-/// that has a problem with its first problem, in path order.
-///
-/// # Errors
-///
-/// Returns a message when a file or directory under `root` cannot be read.
 pub fn check_init_dir(root: &Path, dir: &Path) -> Result<Vec<(PathBuf, Problem)>, String> {
     let root = normalize(root).ok_or_else(|| format!("bad scan root {}", root.display()))?;
     let Some(dir) = normalize(dir) else {
@@ -116,7 +84,6 @@ pub fn check_init_dir(root: &Path, dir: &Path) -> Result<Vec<(PathBuf, Problem)>
     }
     let mut out = Vec::new();
     for file in files {
-        // A test file in `tests` names local modules relative to the root module, not to itself.
         if let Some(problem) = check_sources(&root, &file, &dir)? {
             out.push((file, problem));
         }
@@ -124,7 +91,6 @@ pub fn check_init_dir(root: &Path, dir: &Path) -> Result<Vec<(PathBuf, Problem)>
     Ok(out)
 }
 
-/// Checks the sources in `file`, resolved against `dir`, and every local module they reach.
 fn check_sources(root: &Path, file: &Path, dir: &Path) -> Result<Option<Problem>, String> {
     let bytes = std::fs::read(file).map_err(|err| format!("read {}: {err}", file.display()))?;
     let name = file.to_string_lossy();
@@ -193,7 +159,6 @@ fn at(line: u64, column: u64, message: String) -> Problem {
     }
 }
 
-/// The module directory a source names, or why dx refuses it.
 fn follow(root: &Path, dir: &Path, source: &ModuleSource) -> Result<PathBuf, String> {
     let Some(value) = &source.value else {
         return Err(
@@ -213,7 +178,6 @@ fn follow(root: &Path, dir: &Path, source: &ModuleSource) -> Result<PathBuf, Str
     }
 }
 
-/// Resolves `.` and `..` without touching the disk. `None` when `..` climbs past the start.
 fn normalize(path: &Path) -> Option<PathBuf> {
     let mut out = PathBuf::new();
     for part in path.components() {
@@ -230,7 +194,6 @@ fn normalize(path: &Path) -> Option<PathBuf> {
     Some(out)
 }
 
-/// The files directly in `dir` that `keep` accepts, sorted so the first problem is stable.
 fn files_in(dir: &Path, keep: fn(&Path) -> bool) -> Result<Vec<PathBuf>, String> {
     let entries = std::fs::read_dir(dir).map_err(|err| format!("read {}: {err}", dir.display()))?;
     let mut files = Vec::new();
@@ -264,7 +227,6 @@ fn json_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
     Ok(out)
 }
 
-/// The `source` of the `module` block in every `run` block of a JSON test file.
 fn json_test_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
     let value: serde_json::Value =
         serde_json::from_str(text).map_err(|err| format!("not valid JSON: {err}"))?;
@@ -291,7 +253,6 @@ fn json_test_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
     Ok(out)
 }
 
-/// Every module body under a JSON `module` value: `{name: body}`, `{name: [body]}` or a list of those.
 fn json_bodies(modules: &serde_json::Value) -> Vec<&serde_json::Map<String, serde_json::Value>> {
     let mut out = Vec::new();
     let tops: Vec<&serde_json::Value> = match modules {
@@ -325,7 +286,6 @@ fn json_bodies(modules: &serde_json::Value) -> Vec<&serde_json::Map<String, serd
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Token {
     Ident(String),
-    /// A quoted string; `None` when it has a template sequence.
     Str(Option<String>),
     Heredoc,
     Open,
@@ -428,7 +388,6 @@ impl Lexer {
         }
     }
 
-    /// Skips a `/* */` comment. True when it spans a line break.
     fn block_comment(&mut self) -> Result<bool, String> {
         let start = self.line;
         self.bump();
@@ -458,7 +417,6 @@ impl Lexer {
         out
     }
 
-    /// Reads a quoted string after its opening quote. `None` when it holds a template.
     fn string(&mut self) -> Result<Option<String>, String> {
         self.bump();
         let mut out = String::new();
@@ -489,7 +447,6 @@ impl Lexer {
         }
     }
 
-    /// Skips a `${ }` or `%{ }` sequence after its opening brace, nested strings included.
     fn template(&mut self) -> Result<(), String> {
         let mut depth = 1_usize;
         while depth > 0 {
@@ -514,7 +471,6 @@ impl Lexer {
         Ok(())
     }
 
-    /// Skips a `<<EOF` or `<<-EOF` heredoc through its closing marker line.
     fn heredoc(&mut self) -> Result<(), String> {
         self.bump();
         self.bump();
@@ -547,8 +503,6 @@ impl Lexer {
     }
 }
 
-/// Finds the `source` attribute of every block nested exactly as `path` in HCL text: `["module"]`
-/// for a top-level `module` block, `["run", "module"]` for the `module` block of a test run.
 fn hcl_sources(text: &str, path: &[&str]) -> Result<Vec<ModuleSource>, String> {
     let lexer = Lexer {
         chars: text.chars().collect(),
@@ -558,9 +512,7 @@ fn hcl_sources(text: &str, path: &[&str]) -> Result<Vec<ModuleSource>, String> {
     };
     let tokens = lexer.tokens()?;
     let mut out = Vec::new();
-    // The block type of each open brace, or `None` for an object or map value.
     let mut blocks: Vec<Option<&str>> = Vec::new();
-    // A block header just read: its type and the index of the brace that opens its body.
     let mut header: Option<(&str, usize)> = None;
     let mut statement_start = true;
     let mut index = 0;

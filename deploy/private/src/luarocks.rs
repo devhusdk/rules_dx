@@ -1,5 +1,3 @@
-//! LuaRocks publisher: rockspec identity checks, local staging and the upload.
-
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
@@ -10,7 +8,6 @@ use dx_atomic_fs::path_io::{self, PathIoError};
 use std::fmt;
 use std::path::Path;
 
-/// Owner approval gate for luarocks_deploy.
 pub(crate) const LUAROCKS_GATE: OwnerGate = OwnerGate {
     tool: "luarocks_deploy",
     action: "upload",
@@ -18,7 +15,6 @@ pub(crate) const LUAROCKS_GATE: OwnerGate = OwnerGate {
     approved: "LUAROCKS_PUBLISH_APPROVED",
 };
 
-/// Extra env names `luarocks` needs to find its config and Lua install.
 const LUAROCKS_CHILD_ENV_EXTRA: &[&str] = &[
     "LUAROCKS_CONFIG",
     "LUAROCKS_SYSCONFDIR",
@@ -28,7 +24,6 @@ const LUAROCKS_CHILD_ENV_EXTRA: &[&str] = &[
     "XDG_CACHE_HOME",
 ];
 
-/// Why a rockspec failed its identity check.
 #[derive(Debug)]
 pub enum LuarocksError {
     NotRockspec {
@@ -101,7 +96,6 @@ impl std::error::Error for LuarocksError {
     }
 }
 
-/// Returns the string a rockspec assigns to one top-level variable.
 fn rockspec_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     text.lines().find_map(|line| {
         let (name, value) = line.split_once('=')?;
@@ -114,9 +108,6 @@ fn rockspec_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     })
 }
 
-/// Reads the package and version a rockspec declares, checked against its file name.
-///
-/// The file must be named `<package>-<version>.rockspec`, as `luarocks upload` requires.
 pub fn luarocks_read_identity(rockspec: &Path) -> Result<(String, String), LuarocksError> {
     let file_name = rockspec
         .file_name()
@@ -144,9 +135,6 @@ pub fn luarocks_read_identity(rockspec: &Path) -> Result<(String, String), Luaro
     Ok((package.to_owned(), version.to_owned()))
 }
 
-/// Checks the rockspec identity against the declared package and version.
-///
-/// A declared version matches the full `<version>-<revision>` or the part before the revision.
 pub fn luarocks_check_identity(
     actual: &(String, String),
     expected_package: &str,
@@ -172,7 +160,6 @@ pub fn luarocks_check_identity(
     Ok(())
 }
 
-/// Builds the `luarocks upload` launch reading its key from beside `config`.
 fn luarocks_upload_command(
     luarocks: &Path,
     rockspec: &Path,
@@ -188,13 +175,11 @@ fn luarocks_upload_command(
     cmd
 }
 
-/// Writes the private user config and upload config that carry the key.
 fn write_luarocks_config(dir: &PrivateConfigDir, key: &str) -> std::io::Result<std::path::PathBuf> {
     dir.write("upload_config.lua", &format!("key = \"{key}\"\n"))?;
     dir.write("config.lua", "-- dx_deploy private config\n")
 }
 
-/// Packs and uploads the rockspec with `luarocks upload`.
 fn luarocks_live_upload(
     luarocks: &Path,
     rockspec: &Path,
@@ -239,7 +224,6 @@ fn luarocks_live_upload(
     }
 }
 
-/// Runs the LuaRocks deploy tool.
 pub fn luarocks_main(
     rockspec_rloc: &str,
     target_name: &str,

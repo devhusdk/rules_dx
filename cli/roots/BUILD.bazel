@@ -50,7 +50,6 @@ write_file(
     content = [],
 )
 
-# dx sync builds these roots in every consumer, so they must not compile Rust.
 diff_test(
     name = "sync_roots_build_no_rust_test",
     file1 = ":sync_roots_rust",

@@ -1,23 +1,18 @@
-//! Groups outdated packages into pull requests and writes their branch names and bodies.
-
 use crate::discover::{Candidate, Registry};
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
-/// Which `dx-update/` branches one run owns.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Scope {
     sets: Vec<String>,
 }
 
 impl Scope {
-    /// Builds a scope from the sets this run updates whole.
     #[must_use]
     pub fn new(sets: Vec<String>) -> Scope {
         Scope { sets }
     }
 
-    /// Drops `sets` from the scope, so their pull requests stay open.
     #[must_use]
     pub fn without<'a>(mut self, sets: impl IntoIterator<Item = &'a str>) -> Scope {
         for set in sets {
@@ -26,7 +21,6 @@ impl Scope {
         self
     }
 
-    /// Tells whether this run may close the pull request on `branch`.
     #[must_use]
     pub fn covers(&self, branch: &str) -> bool {
         self.sets
@@ -35,16 +29,13 @@ impl Scope {
     }
 }
 
-/// One outdated package and where it is published.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Item {
     pub candidate: Candidate,
     pub registry: Registry,
-    /// The repository's tags were listed and none matched the versions.
     pub untagged: bool,
 }
 
-/// One pull request: its branch, title and packages.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroupPlan {
     pub branch: String,
@@ -52,7 +43,6 @@ pub struct GroupPlan {
     pub items: Vec<Item>,
 }
 
-/// Splits items into one plan per set, or one per package for sets in `by_package`.
 #[must_use]
 pub fn plan(items: &[Item], by_package: &[String]) -> Vec<GroupPlan> {
     let mut plans: BTreeMap<String, GroupPlan> = BTreeMap::new();
@@ -83,13 +73,11 @@ pub fn plan(items: &[Item], by_package: &[String]) -> Vec<GroupPlan> {
     plans.into_values().collect()
 }
 
-/// Names the branch of the pull request for one package of a set.
 #[must_use]
 pub fn package_branch(set: &str, package: &str) -> String {
     format!("dx-update/{}--{}", slug(set), slug(package))
 }
 
-/// Drops packages that have their own open pull request on one of `open` branches.
 #[must_use]
 pub fn leave_out(plans: &[GroupPlan], open: &[String]) -> Vec<GroupPlan> {
     plans
@@ -124,7 +112,6 @@ fn slug(text: &str) -> String {
         .collect()
 }
 
-/// Writes the pull request body: one line per package, then the lock file changes.
 #[must_use]
 pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
     let mut text = String::new();
@@ -169,7 +156,6 @@ pub fn body(plan: &GroupPlan, numstat: &[(String, u64, u64)]) -> String {
     text
 }
 
-/// Picks the old and new tag names from `git ls-remote --tags --refs` output.
 #[must_use]
 pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(String, String)> {
     let tags: std::collections::BTreeSet<&str> = listing
@@ -190,7 +176,6 @@ pub fn pick_tags(listing: &str, package: &str, old: &str, new: &str) -> Option<(
     })
 }
 
-/// Reads `git diff --numstat` lines, keeping the lock files the sets own.
 #[must_use]
 pub fn lock_numstat(text: &str, locks: &[String]) -> Vec<(String, u64, u64)> {
     text.lines()

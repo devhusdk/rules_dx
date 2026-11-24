@@ -1,5 +1,3 @@
-//! Converts the PowerShell API facts of extract.ps1 into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod convert;
@@ -14,7 +12,6 @@ use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use std::fmt;
 use std::path::Path;
 
-/// A function defined twice, or twice up to case, among the exports.
 #[derive(Debug)]
 pub struct Duplicate {
     pub rel: String,
@@ -26,7 +23,6 @@ pub struct Duplicate {
     pub first_line: u64,
 }
 
-/// Why one PowerShell API document could not become a shard.
 #[derive(Debug)]
 pub enum PowershellExtractError {
     Flag(FlagError),
@@ -115,7 +111,6 @@ impl std::error::Error for PowershellExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub api: String,
@@ -124,23 +119,16 @@ pub struct Options {
     pub config: String,
 }
 
-/// Runs `powershell_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("powershell_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: powershell_extract --api FILE --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--api", "--out", "--package", "--config"])?;
@@ -152,11 +140,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard. Nothing is written on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), PowershellExtractError> {
     let json =
         path_io::read_to_string(Path::new(&options.api)).map_err(PowershellExtractError::Io)?;

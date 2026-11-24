@@ -1,4 +1,3 @@
-# Load-free: loaded through --override_repository, where @rules_dx is not visible.
 exports_files([
     "BUILD.bazel",
     "REPO.bazel",

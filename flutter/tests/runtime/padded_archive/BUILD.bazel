@@ -1,8 +1,17 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(["pubspec.lock"])
 
 build_test(
     name = "padded_pub_archive_test",
+    size = "small",
     targets = ["@dx_flutter_padded_archive//:nested"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

@@ -24,7 +24,10 @@ _to_platform = transition(
 )
 
 def _impl(ctx):
-    toolchain_id = find_cpp_toolchain(ctx).toolchain_id
+    toolchain = find_cpp_toolchain(ctx, mandatory = False)
+    if not toolchain:
+        fail("{} resolved no C++ toolchain, want {}".format(ctx.label, ctx.attr.expected))
+    toolchain_id = toolchain.toolchain_id
     if toolchain_id != ctx.attr.expected:
         fail("{} resolved the C++ toolchain {}, want {}".format(ctx.label, toolchain_id, ctx.attr.expected))
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
@@ -34,10 +37,15 @@ def _impl(ctx):
 resolved_cc_toolchain = rule(
     implementation = _impl,
     attrs = {
+        "exec_host": attr.label(
+            doc = "Exec-configured target that is incompatible on hosts the toolchain does not run on.",
+            cfg = "exec",
+        ),
         "expected": attr.string(mandatory = True),
         "platform": attr.string(),
     },
     cfg = _to_platform,
     fragments = ["cpp"],
-    toolchains = use_cpp_toolchain(),
+    # Optional so a host without the toolchain reaches exec_host and is skipped as incompatible.
+    toolchains = use_cpp_toolchain(mandatory = False),
 )

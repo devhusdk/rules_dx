@@ -1,9 +1,5 @@
 use super::test_support::*;
 
-/// A local `file://` URI for a path that is not there, spelled the way this host spells one.
-///
-/// Windows only reads a local `file://` URI back as a path when it carries a drive letter, so
-/// the rooted spelling every other host accepts would read as a remote host there.
 fn missing_uri(name: &str) -> String {
     if cfg!(windows) {
         format!("file:///C:/nonexistent/{name}")
@@ -332,7 +328,6 @@ const SOURCES_ASPECT: &str = "//core/quality:coverage_sources.bzl%dx_coverage_so
 
 const PY_SOURCES: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 
-/// Adds one `//a:lib` source manifest to a harness's build events.
 fn with_sources(harness: Harness, manifest: &str) -> Harness {
     write_manifest_sources(&harness, manifest);
     let uri = write_bep_artifact(&harness, "sources.txt", manifest.as_bytes());
@@ -368,7 +363,6 @@ fn sources_set(set: &str, uri: &str) -> String {
     .to_string()
 }
 
-/// Prepends a manifest owning `src/a.py`, so `--min-coverage` can account the run's sources.
 fn owning_a(mut harness: Harness) -> Harness {
     write_manifest_sources(&harness, "prod source src/a.py\n");
     let uri = write_bep_artifact(
@@ -448,7 +442,6 @@ const ORPHAN_MANIFEST: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 
 const ORPHAN_MESSAGE: &str = "tracked source not owned by any Bazel target: src/orphan.py";
 
-/// Scripts a clean Git checkout whose tracked files include a used and an unused source.
 fn script_checkout(harness: &Harness) {
     std::fs::create_dir_all(harness.workspace.join("src")).expect("mkdir");
     std::fs::write(harness.workspace.join("src/BUILD.bazel"), "").expect("build");

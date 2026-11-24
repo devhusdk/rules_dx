@@ -1,6 +1,3 @@
-//! Entry points for the symbols helpers `dx` runs as subcommands. Each takes argv with the helper
-//! name first.
-
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -11,7 +8,6 @@ use crate::cli::{CliError, parse_flags, run_tool, write_manifest};
 const SPLIT_TIMEOUT: Duration = Duration::from_secs(600);
 const DSYM_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// `symbols_split`: writes a stripped ELF binary, its debug file and a symbols manifest.
 #[must_use]
 pub fn split(argv: &[String]) -> i32 {
     let args = argv.get(1..).unwrap_or_default();
@@ -25,7 +21,6 @@ pub fn split(argv: &[String]) -> i32 {
     match split_paths(&paths) {
         Ok(()) => 0,
         Err(e) => {
-            // A half-written output must not look like a finished split.
             let [_, _, stripped, debug, manifest] = &paths;
             for p in [stripped, debug, manifest] {
                 dx_atomic_fs::discard_file(p);
@@ -35,7 +30,6 @@ pub fn split(argv: &[String]) -> i32 {
     }
 }
 
-/// `symbols_dsym`: checks a macOS dSYM bundle against its binary and writes the dsym manifest.
 #[must_use]
 pub fn dsym(argv: &[String]) -> i32 {
     let args = argv.get(1..).unwrap_or_default();
@@ -45,7 +39,6 @@ pub fn dsym(argv: &[String]) -> i32 {
     }
 }
 
-/// `symbols_pdb`: checks a Windows PDB against its PE file and writes the pdb manifest.
 #[must_use]
 pub fn pdb(argv: &[String]) -> i32 {
     let args = argv.get(1..).unwrap_or_default();

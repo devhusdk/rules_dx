@@ -6,6 +6,6 @@ class CoreTest extends AnyFlatSpec {
   def box = Core.make()
 
   "Core.make" should "return a box" in {
-    assert(box != null)
+    assert(Option(box).isDefined)
   }
 }

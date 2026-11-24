@@ -166,6 +166,7 @@ rust_test(
 
 dx_kcov_unpinned_test(
     name = "unpinned_test",
+    size = "small",
     upstream = ":kcov_launcher",
 )
 

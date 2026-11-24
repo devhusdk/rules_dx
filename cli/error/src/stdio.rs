@@ -1,13 +1,6 @@
-//! Line output on the standard streams that treats a closed reader as success.
-
 use std::fmt;
 use std::io::{self, Write};
 
-/// Writes `args` and a newline to `out`. A reader that closed the pipe counts as success.
-///
-/// # Errors
-///
-/// Any write error other than [`io::ErrorKind::BrokenPipe`].
 pub fn write_line(out: &mut dyn Write, args: fmt::Arguments<'_>) -> io::Result<()> {
     match out.write_fmt(args).and_then(|()| out.write_all(b"\n")) {
         Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
@@ -15,10 +8,8 @@ pub fn write_line(out: &mut dyn Write, args: fmt::Arguments<'_>) -> io::Result<(
     }
 }
 
-/// Writes `args` and a newline to stderr.
 pub fn eprint_line(args: fmt::Arguments<'_>) {
     match write_line(&mut io::stderr().lock(), args) {
-        // A failing stderr has no channel left to report on.
         Ok(()) | Err(_) => {}
     }
 }

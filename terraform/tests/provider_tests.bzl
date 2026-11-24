@@ -33,6 +33,7 @@ def provider_unit_tests(name):
         }}),
         expect_equal("every platform maps to a target", sorted(PLATFORM_TARGETS.values()), sorted(TARGETS.keys())),
         expect_equal("hub build selects per target", "@hub_null_linux_amd64//:provider" in hub_build(hub_providers("hub", lock)), True),
+        expect_equal("hub build is incompatible off the locked targets", "\"//conditions:default\": [\"@platforms//:incompatible\"]" in hub_build(hub_providers("hub", lock)), True),
         expect_equal("mirror root", provider_mirror_root("a/b/" + _SRC + "/3.2.4/linux_amd64/tf", _SRC, "3.2.4", "linux_amd64"), "a/b"),
         expect_equal("mirror root mismatch", provider_mirror_root("a/tf", _SRC, "3.2.4", "linux_amd64"), None),
     ])

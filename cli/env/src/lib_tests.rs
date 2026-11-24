@@ -678,7 +678,6 @@ fn stale_prev_undeletable_reports_install() {
         Ok(RefreshOutcome::InstalledFresh)
     ));
     let dx = dx_path::state::local_dir(&root.join("ws"));
-    // A file where the tree belongs cannot be cleared as a tree, even by root.
     fs::write(dx.join(PREV_DIR_NAME), b"").expect("stale prev");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
     assert!(matches!(
@@ -697,7 +696,6 @@ fn stale_stage_undeletable_reports_install() {
     let opts = options(&root, staged_bin, metadata);
     let dx = dx_path::state::local_dir(&root.join("ws"));
     fs::create_dir_all(&dx).expect("dx dir");
-    // A file where the tree belongs cannot be cleared as a tree, even by root.
     fs::write(dx.join(STAGE_DIR_NAME), b"").expect("stale stage");
     let error = refresh(&opts, &|_: &Path| Ok(())).unwrap_err();
     assert!(matches!(

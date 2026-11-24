@@ -1,22 +1,15 @@
-//! Stops idle Bazel servers so a waiting build has memory to start in.
-
 use std::path::PathBuf;
 
 use super::host::{Host, Server, same_path};
 
-/// Longest a reap may keep starting shutdowns, in seconds; below the slot ticket's 30 s staleness.
 pub const BUDGET_SECS: u64 = 20;
 
-/// Servers a reap must leave running.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Keep {
-    /// Workspaces whose servers stay, whatever their output base.
     pub workspaces: Vec<PathBuf>,
-    /// Output user roots a reap may touch; servers under any other root stay.
     pub roots: Vec<PathBuf>,
 }
 
-/// What a reap stopped.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Reaped {
     pub servers: usize,
@@ -24,7 +17,6 @@ pub struct Reaped {
 }
 
 impl Keep {
-    /// Whether `server` may be stopped at all, before its lock and age are read.
     fn allows(&self, server: &Server) -> bool {
         let (Some(workspace), Some(_), Some(root)) = (
             server.workspace.as_deref(),
@@ -41,9 +33,6 @@ impl Keep {
     }
 }
 
-/// Stops idle servers outside `keep`, least recently used first, until `target` bytes are freed.
-///
-/// A server is stopped only when its output-base lock is free and it has been unused for `min_idle` seconds.
 pub fn reap_idle(host: &dyn Host, keep: &Keep, target: u64, min_idle: u64) -> Reaped {
     let start = host.now();
     let mut candidates: Vec<(u64, Server)> = host

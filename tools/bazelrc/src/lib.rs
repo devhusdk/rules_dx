@@ -8,13 +8,10 @@ pub const PRESET_BAZEL_VERSION: &str = env!("DX_PRESET_BAZEL_VERSION");
 
 pub const PRESET_DX_VERSION: &str = "0.0.0";
 
-/// Where `dx init` writes the preset layers in a consumer workspace.
 pub const CONSUMER_DIR: &str = ".dx/bazelrc";
 
-/// The first line of every generated layer; a file that starts with it belongs to dx.
 pub const HEADER_MARKER: &str = "# Vendored Bazel execution preset -- GENERATED";
 
-/// One generated line: the flag and the comment rendered directly above it.
 type Flag = (&'static str, &'static str);
 
 const UPSTREAM_FLAGS: [Flag; 3] = [
@@ -321,22 +318,16 @@ const CI_RESOURCE_FLAGS: [Flag; 1] = [(
     "Under --config=ci, schedule local actions on every CPU.",
 )];
 
-/// One generated preset file. A workspace imports every layer it wants from its root `.bazelrc`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Layer {
-    /// Flags that change what a build or test produces.
     Correctness,
-    /// Flags that trade build speed against output, plus the dx configs.
     Performance,
-    /// Flags that bound memory, CPU and cache use on the host.
     Resources,
 }
 
 impl Layer {
-    /// Every layer, in the order a root `.bazelrc` imports them.
     pub const ALL: [Layer; 3] = [Layer::Correctness, Layer::Performance, Layer::Resources];
 
-    /// The layer name, as used in its file name.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -346,7 +337,6 @@ impl Layer {
         }
     }
 
-    /// The layer's file name, for example `correctness.bazelrc`.
     #[must_use]
     pub fn file_name(self) -> &'static str {
         match self {
@@ -389,31 +379,24 @@ impl Layer {
     }
 }
 
-/// The name `rules_dx` has in its own workspace.
 pub const DEFAULT_REPO: &str = "rules_dx";
 
-/// Renders one layer file for a workspace that names `rules_dx` `repo`.
-/// Labels follow `repo`; the bytes are otherwise the same everywhere.
 #[must_use]
 pub fn render_layer(layer: Layer, repo: &str) -> String {
     render_layer_with(layer, repo, None)
 }
 
-/// The flag that sets `warnings_as_errors` for a workspace that names `rules_dx` `repo`.
 fn warnings_flag(repo: &str, on: bool) -> String {
     format!("common --@{repo}//config:warnings_as_errors={on}")
 }
 
-/// The flag that sets `config_tier`, the compiler warning set, from the same tier.
 fn config_tier_flag(repo: &str, strict: bool) -> String {
     let name = if strict { "strict" } else { "standard" };
     format!("common --@{repo}//config:config_tier={name}")
 }
 
-/// The comment above the `warnings_as_errors` line.
 const WARNINGS_COMMENT: &str = "Compiler warnings fail the build under the strict profile.";
 
-/// Like [`render_layer`]; the correctness layer also pins `warnings_as_errors` when it is `Some`.
 #[must_use]
 pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bool>) -> String {
     let mut out = format!(
@@ -443,7 +426,6 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
     out
 }
 
-/// The `warnings_as_errors` value a rendered correctness layer pins, if any.
 #[must_use]
 pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
     normalized(text).lines().find_map(|line| {
@@ -453,7 +435,6 @@ pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
     })
 }
 
-/// Renders every layer in import order, for collision checks over the whole preset.
 #[must_use]
 pub fn render_all(repo: &str) -> String {
     Layer::ALL
@@ -462,17 +443,14 @@ pub fn render_all(repo: &str) -> String {
         .collect()
 }
 
-/// The root `.bazelrc` line that imports `layer` from `dir`.
 #[must_use]
 pub fn import_line(dir: &str, layer: Layer) -> String {
     format!("try-import %workspace%/{dir}/{}", layer.file_name())
 }
 
-/// The per-user file that holds machine-specific flags.
 const USER_BAZELRC: &str = "user.bazelrc";
 const USER_IMPORT: &str = "try-import %workspace%/user.bazelrc";
 
-/// The comment `prepend_imports` writes above the import block.
 pub const IMPORT_COMMENT: &str = "# dx Bazel preset; comment out an import to drop that layer.";
 
 fn normalized(text: &str) -> String {
@@ -481,7 +459,6 @@ fn normalized(text: &str) -> String {
         .replace('\r', "")
 }
 
-/// Whether `text` is a dx-generated layer file (starts with the header, ignoring a BOM).
 #[must_use]
 pub fn is_generated(text: &str) -> bool {
     text.strip_prefix('\u{feff}')
@@ -489,8 +466,6 @@ pub fn is_generated(text: &str) -> bool {
         .starts_with(HEADER_MARKER)
 }
 
-/// Whether `text` is what dx renders for `layer`, ignoring a BOM and CRLF line endings.
-/// A correctness layer that pins `warnings_as_errors` either way counts as current.
 #[must_use]
 pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
     [None, Some(false), Some(true)]
@@ -498,7 +473,6 @@ pub fn layer_is_current(text: &str, layer: Layer, repo: &str) -> bool {
         .any(|pin| layer_is_current_with(text, layer, repo, pin))
 }
 
-/// Whether `text` is what dx renders for `layer` with the given `warnings_as_errors` pin.
 #[must_use]
 pub fn layer_is_current_with(
     text: &str,
@@ -509,9 +483,6 @@ pub fn layer_is_current_with(
     normalized(text) == render_layer_with(layer, repo, warnings_as_errors)
 }
 
-/// Puts the import block for `layers` from `dir` at the top of `text`, after any BOM.
-///
-/// Uses the line ending of `text`; the rest of `text` stays byte-identical.
 #[must_use]
 pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
     let (bom, rest) = match text.strip_prefix('\u{feff}') {
@@ -541,14 +512,10 @@ pub fn prepend_imports(text: &str, dir: &str, layers: &[Layer]) -> String {
     out
 }
 
-/// How a root `.bazelrc` refers to one layer.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ImportState {
-    /// An `import` or `try-import` line names the layer.
     Active,
-    /// Only a commented-out import names the layer, so the workspace opted out of it.
     CommentedOut,
-    /// No line names the layer.
     Absent,
 }
 
@@ -566,7 +533,6 @@ fn joined_lines(text: &str) -> String {
         .replace("\\\n", "")
 }
 
-/// The workspace-relative file one rc line imports through `%workspace%`, if it is such an import.
 #[must_use]
 pub fn workspace_import(line: &str) -> Option<String> {
     let rest = line
@@ -581,7 +547,6 @@ pub fn workspace_import(line: &str) -> Option<String> {
         .map(|rel| rel.trim_start_matches('/').to_owned())
 }
 
-/// Lists the workspace-relative files a root `.bazelrc` imports through `%workspace%`.
 #[must_use]
 pub fn bazelrc_imports(text: &str) -> Vec<String> {
     joined_lines(text)
@@ -590,7 +555,6 @@ pub fn bazelrc_imports(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Reports, for every layer, whether `text` imports it from `dir`, comments the import out, or omits it.
 #[must_use]
 pub fn layer_import_state(text: &str, dir: &str) -> [(Layer, ImportState); 3] {
     let joined = joined_lines(text);
@@ -636,10 +600,6 @@ pub fn rendered_flag_lines(rendered: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Preset lines a root `.bazelrc` may repeat: the rendered flag lines minus the telemetry opt-out,
-/// which the quickstart asks users to set before `dx init` runs, the JDK lines, which older
-/// READMEs told JVM users to copy into their root, and the `ci` config lines, which the remote
-/// cache guide had users copy.
 #[must_use]
 pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
     let mut lines = rendered_flag_lines(rendered);
@@ -656,7 +616,6 @@ pub fn collision_lines(rendered: &str) -> BTreeSet<String> {
     lines
 }
 
-/// Lists root .bazelrc lines that exactly repeat a generated preset line.
 #[must_use]
 pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<String> {
     let owned = collision_lines(rendered);
@@ -679,7 +638,6 @@ pub fn owned_collisions_in_content(root_content: &str, rendered: &str) -> Vec<St
     collisions
 }
 
-/// The path of every layer file under `dir` in `workspace`, in import order.
 #[must_use]
 pub fn preset_paths(workspace: &Path, dir: &str) -> Vec<(Layer, PathBuf)> {
     Layer::ALL

@@ -35,7 +35,6 @@ func ParseImports(content []byte) ([]string, error) {
 	return out, nil
 }
 
-// HasBenchmarks reports whether the file declares a func BenchmarkXxx(b *testing.B).
 func HasBenchmarks(content []byte) bool {
 	f, err := parser.ParseFile(token.NewFileSet(), "source.go", content, 0)
 	if err != nil {
@@ -70,7 +69,6 @@ func ParsePackage(content []byte) (string, error) {
 	return f.Name.Name, nil
 }
 
-// BuildExcluded reports whether the file's build constraint cannot hold without the ignore or tools tag.
 func BuildExcluded(content []byte) (bool, error) {
 	expr, err := buildConstraint(content)
 	if err != nil || expr == nil {

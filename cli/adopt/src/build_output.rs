@@ -9,10 +9,8 @@ use crate::git_changes::{
 };
 use crate::lock_hubs::{lock_of, manifest_of, state_of};
 
-/// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
 pub const MAX_FILE_BYTES: u64 = 1_048_576;
 
-/// Lock files are generated and often large, so the size limit skips them.
 const LOCK_FILES: [&str; 10] = [
     "MODULE.bazel.lock",
     "cargo-bazel-lock.json",
@@ -30,10 +28,8 @@ const REGISTRY_LOCKS: [&str; 6] = ["cargo", "uv", "npm", "go", "maven", "ruby"];
 
 const REGISTRY_STATES: [&str; 1] = ["composer"];
 
-/// Directory names that always hold build output.
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
 
-/// Lines dx keeps in `.gitignore`; the preset adds the missing ones.
 pub const IGNORE_LINES: [&str; 10] = [
     "target/",
     "/bazel-*",
@@ -44,7 +40,6 @@ pub const IGNORE_LINES: [&str; 10] = [
     "/build/",
     "/.dx/bazelrc/",
     "/.dx/local/",
-    // rules_rust discover writes last_warnings.log here.
     "/.vscode/.rules_rust_analyzer/",
 ];
 
@@ -58,7 +53,6 @@ const SOURCE_MANIFESTS: [&str; 5] = [
 
 const REGISTRY_MANIFESTS: [&str; 4] = ["cargo", "npm", "go", "uv"];
 
-/// One path that must not be part of a change, with the reason.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BuildOutputFinding {
     pub path: String,
@@ -197,7 +191,6 @@ fn classify_kinds(
     Ok(findings)
 }
 
-/// Classifies changed paths as build output or oversized files. The flag marks added paths.
 pub fn classify(
     root: &Path,
     paths: &[(String, bool)],
@@ -208,7 +201,6 @@ pub fn classify(
         .collect())
 }
 
-/// Result of scanning a change.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScanReport {
     pub findings: Vec<BuildOutputFinding>,
@@ -221,7 +213,6 @@ struct Git<'a> {
 }
 
 impl Git<'_> {
-    /// `Ok(None)` when git cannot start; any other failure to finish is an error.
     fn run(&self, args: &[&str]) -> Result<Option<dx_process::capture::Captured>, DxError> {
         let mut cmd = dx_process::capture::git(self.root);
         cmd.args(args);
@@ -296,12 +287,10 @@ fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, DxErro
         .collect())
 }
 
-/// Scans the change: untracked files, staged and unstaged edits, and commits since the default branch.
 pub fn scan(root: &Path) -> Result<ScanReport, DxError> {
     scan_with(root, &|_| {})
 }
 
-/// `scan` with a hook that configures every git command, so tests can isolate git.
 fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport, DxError> {
     let git = &Git { root, configure };
     let mut report = ScanReport::default();
@@ -379,7 +368,6 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     Ok(report)
 }
 
-/// Reads one NUL-separated git path as UTF-8.
 fn git_path(field: &[u8]) -> Result<&str, DxError> {
     std::str::from_utf8(field).map_err(|error| {
         let lossy = String::from_utf8_lossy(field);
@@ -393,7 +381,6 @@ fn git_path(field: &[u8]) -> Result<&str, DxError> {
 mod tests {
     use super::*;
 
-    /// A repo directory at `sandbox/repo`; derefs to the repo path.
     struct Fixture {
         _sandbox: dx_test_scratch::TempDir,
         repo: std::path::PathBuf,
@@ -738,7 +725,6 @@ mod tests {
         for line in [
             "/.dx/bazelrc/",
             "/.dx/local/",
-            // See the comment on IGNORE_LINES.
             "/.vscode/.rules_rust_analyzer/",
         ] {
             assert!(IGNORE_LINES.contains(&line), "{line}");

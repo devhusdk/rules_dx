@@ -1,5 +1,3 @@
-//! How dx reads Bazel rc files and which disk cache and resource flags it adds.
-
 use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -9,13 +7,10 @@ use crate::{WORKFLOW_STARTUP_OPTS, is_ci_value};
 
 pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
-/// The `--local_resources` values the vendored preset sets.
 pub const PRESET_LOCAL_RESOURCES: [&str; 2] = ["cpu=HOST_CPUS*.75", "memory=HOST_RAM*.5"];
 
-/// The `--experimental_disk_cache_gc_max_size` dx and the vendored preset set.
 pub const DISK_CACHE_GC_MAX_SIZE: &str = "20G";
 
-/// The `--experimental_disk_cache_gc_max_age` dx and the vendored preset set.
 pub const DISK_CACHE_GC_MAX_AGE: &str = "14d";
 
 const GC_MAX_SIZE_FLAG: &str = "--experimental_disk_cache_gc_max_size";
@@ -23,13 +18,10 @@ const GC_MAX_AGE_FLAG: &str = "--experimental_disk_cache_gc_max_age";
 const UPLOAD_FLAG: &str = "--remote_upload_local_results";
 const GC_IDLE_DELAY_FLAG: &str = "--experimental_disk_cache_gc_idle_delay";
 
-/// Bazel's default `--experimental_disk_cache_gc_idle_delay`, in seconds.
 const BAZEL_GC_IDLE_DELAY_SECS: u64 = 300;
 
-/// The Bazel verbs dx adds `--local_resources` caps to.
 const RESOURCE_VERBS: [&str; 4] = ["build", "test", "coverage", "run"];
 
-/// A set of the verbs in `RESOURCE_VERBS`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VerbMask(u8);
 
@@ -37,7 +29,6 @@ impl VerbMask {
     pub const ALL: VerbMask = VerbMask(0b1111);
     pub const NONE: VerbMask = VerbMask(0);
 
-    /// Whether `verb` is in the set.
     #[must_use]
     pub fn contains(self, verb: &str) -> bool {
         RESOURCE_VERBS
@@ -46,7 +37,6 @@ impl VerbMask {
             .is_some_and(|bit| self.0 & (1 << bit) != 0)
     }
 
-    /// The set with `verb` added; other verbs are ignored.
     #[must_use]
     pub fn with(self, verb: &str) -> VerbMask {
         match RESOURCE_VERBS.iter().position(|known| *known == verb) {
@@ -55,7 +45,6 @@ impl VerbMask {
         }
     }
 
-    /// The verbs where the effective rc options do not already set `resource` to a non-preset value.
     fn where_rc_leaves_free(lines: &[sections::Line], resource: &str) -> VerbMask {
         RESOURCE_VERBS
             .iter()
@@ -66,7 +55,6 @@ impl VerbMask {
             .fold(VerbMask::NONE, |mask, verb| mask.with(verb))
     }
 
-    /// The verbs where the effective rc options, without command-line configs, set `flag`.
     fn where_rc_sets(lines: &[sections::Line], flag: &str) -> VerbMask {
         RESOURCE_VERBS
             .iter()
@@ -79,12 +67,9 @@ impl VerbMask {
     }
 }
 
-/// Where the rc files set `--color`: plainly per verb, or once a named config is passed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RcColor {
-    /// The verbs whose rc options set `--color` without any command-line `--config`.
     pub plain: VerbMask,
-    /// Each named config and the verbs where expanding it sets `--color`.
     pub configs: Vec<(String, VerbMask)>,
 }
 
@@ -115,7 +100,6 @@ impl RcColor {
         }
     }
 
-    /// Whether the rc files choose `--color` for the Bazel call `argv`.
     pub fn chosen(&self, argv: &[String]) -> bool {
         let Some((at, verb)) = argv
             .iter()
@@ -154,7 +138,6 @@ impl RcColor {
     }
 }
 
-/// Whether the last `resource` setting in `options` is not the preset default.
 fn rc_resource_in_effect(options: &[String], resource: &str) -> bool {
     let mut in_effect = false;
     for (index, token) in options.iter().enumerate() {
@@ -168,26 +151,17 @@ fn rc_resource_in_effect(options: &[String], resource: &str) -> bool {
     in_effect
 }
 
-/// The rc files dx lets Bazel read, the disk cache it adds, and which resource caps it may add.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RcPolicy {
     pub read_user_rc: bool,
     pub disk_cache: Option<String>,
-    /// The disk cache a plain `build` uses: the rc value when an rc sets one, else dx's own.
     pub bazel_disk_cache: Option<PathBuf>,
-    /// The verbs for which dx may add its `--local_resources=cpu` cap.
     pub local_cpu: VerbMask,
-    /// The verbs for which dx may add its `--local_resources=memory` cap.
     pub local_memory: VerbMask,
-    /// Whether dx bounds its disk cache with the gc max size and max age pair.
     pub disk_cache_gc: bool,
-    /// The gc idle delay dx adds so cleanup can run before an idle server exits.
     pub gc_idle_delay_secs: Option<u64>,
-    /// The `--max_idle_secs` dx starts a worktree slot's server with.
     pub slot_idle_secs: Option<u64>,
-    /// Where an rc file sets `--color`, which then wins over `NO_COLOR`.
     pub rc_color: RcColor,
-    /// Whether `DX_REMOTE_CACHE_READ_ONLY` is set, so dx adds `--noremote_upload_local_results`.
     pub remote_cache_read_only: bool,
 }
 
@@ -195,7 +169,6 @@ static HERMETIC: RcPolicy = RcPolicy {
     read_user_rc: false,
     disk_cache: None,
     bazel_disk_cache: None,
-    // CI and nested tests skip user rc files but still honor the slot share.
     local_cpu: VerbMask::ALL,
     local_memory: VerbMask::ALL,
     disk_cache_gc: false,
@@ -219,11 +192,9 @@ static SHARE: RwLock<Option<ShareSource>> = RwLock::new(None);
 
 static NEXT_TOKEN: AtomicU64 = AtomicU64::new(1);
 
-/// Identifies one registered live share source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ShareToken(u64);
 
-/// The CPUs and memory one build slot may plan for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LocalShare {
     pub cpus: u64,
@@ -231,13 +202,11 @@ pub struct LocalShare {
 }
 
 impl LocalShare {
-    /// The share as `cpu=N,memory=M`.
     #[must_use]
     pub fn to_env(&self) -> String {
         format!("cpu={},memory={}", self.cpus, self.memory_mb)
     }
 
-    /// Parses `cpu=N,memory=M`; anything else is `None`.
     #[must_use]
     pub fn parse(text: &str) -> Option<LocalShare> {
         let (cpu, memory) = text.trim().split_once(',')?;
@@ -247,14 +216,12 @@ impl LocalShare {
     }
 }
 
-/// Sets a fixed share this process passes to Bazel, replacing any live source.
 pub fn set_share(share: Option<LocalShare>) {
     if let Ok(mut current) = SHARE.write() {
         *current = share.map(ShareSource::Fixed);
     }
 }
 
-/// Clears the share when it is the fixed value `share`.
 pub fn clear_share(share: &LocalShare) {
     if let Ok(mut current) = SHARE.write()
         && matches!(current.as_ref(), Some(ShareSource::Fixed(fixed)) if fixed == share)
@@ -263,7 +230,6 @@ pub fn clear_share(share: &LocalShare) {
     }
 }
 
-/// Makes `share()` evaluate `f` on every call, replacing any earlier source.
 pub fn set_share_source(f: impl Fn() -> LocalShare + Send + Sync + 'static) -> ShareToken {
     let token = NEXT_TOKEN.fetch_add(1, Ordering::Relaxed);
     if let Ok(mut current) = SHARE.write() {
@@ -275,7 +241,6 @@ pub fn set_share_source(f: impl Fn() -> LocalShare + Send + Sync + 'static) -> S
     ShareToken(token)
 }
 
-/// Removes the live source registered under `token`; a newer source stays.
 pub fn clear_share_source(token: ShareToken) {
     if let Ok(mut current) = SHARE.write()
         && matches!(current.as_ref(), Some(ShareSource::Live { token: t, .. }) if *t == token.0)
@@ -284,7 +249,6 @@ pub fn clear_share_source(token: ShareToken) {
     }
 }
 
-/// The share this process passes to Bazel, if any. A live source runs with no lock held.
 pub fn share() -> Option<LocalShare> {
     let source = SHARE.read().ok().and_then(|current| current.clone())?;
     Some(match source {
@@ -294,13 +258,11 @@ pub fn share() -> Option<LocalShare> {
 }
 
 impl RcPolicy {
-    /// The policy that skips user rc files and adds no disk cache.
     #[must_use]
     pub fn hermetic() -> RcPolicy {
         HERMETIC.clone()
     }
 
-    /// Resolves the policy from the environment and the rc files Bazel would read.
     pub fn from_env(
         env_get: &dyn Fn(&str) -> Option<String>,
         workspace: &Path,
@@ -309,7 +271,6 @@ impl RcPolicy {
         Self::from_env_in(env_get, workspace, read_file, None)
     }
 
-    /// `from_env` for a workspace whose server idles out after `slot_idle_secs`, when given.
     pub fn from_env_in(
         env_get: &dyn Fn(&str) -> Option<String>,
         workspace: &Path,
@@ -322,7 +283,6 @@ impl RcPolicy {
         }
         let ci = is_ci_value(env_get("CI").as_deref());
         let lines = sections::load_rc(env_get, workspace, read_file, true, &[]);
-        // Any rc line naming a disk cache flag, in any section, means dx adds no cache.
         let (disk_cache, bazel_disk_cache) =
             if sections::any_line_sets(&lines, &["--disk_cache", "--nodisk_cache"]) {
                 let build = sections::effective_options(&lines, "build", &[]);
@@ -368,7 +328,6 @@ impl RcPolicy {
         }
     }
 
-    /// The startup flags every Bazel call starts with.
     #[must_use]
     pub fn startup_opts(&self) -> &'static [&'static str] {
         if self.read_user_rc {
@@ -378,7 +337,6 @@ impl RcPolicy {
         }
     }
 
-    /// The cache, cache gc, and resource flags added right after a build, test, coverage, or run verb.
     #[must_use]
     pub fn verb_options(
         &self,
@@ -438,7 +396,6 @@ impl RcPolicy {
     }
 }
 
-/// The value a flag token gives `name`, reading the next token for the split form.
 fn flag_value<'a>(flag: &'a str, next: Option<&'a str>, name: &str) -> Option<&'a str> {
     match flag.strip_prefix(name)? {
         "" => next,
@@ -446,24 +403,20 @@ fn flag_value<'a>(flag: &'a str, next: Option<&'a str>, name: &str) -> Option<&'
     }
 }
 
-/// Whether a flag token is exactly `name`, alone or followed by `=`.
 fn sets_flag(flag: &str, name: &str) -> bool {
     flag.strip_prefix(name)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with('='))
 }
 
-/// The gc idle delay that fits under `max_idle_secs`, or `None` when Bazel's default already does.
 fn gc_idle_delay_for(max_idle_secs: u64) -> Option<u64> {
     let delay = max_idle_secs / 3;
     (max_idle_secs > 0 && delay < BAZEL_GC_IDLE_DELAY_SECS).then_some(delay.max(1))
 }
 
-/// The `--local_resources` value a flag token sets, reading the next token for the split form.
 fn local_resources_value<'a>(flag: &'a str, next: Option<&'a str>) -> Option<&'a str> {
     flag_value(flag, next, "--local_resources")
 }
 
-/// Whether a flag token, with the token after it, sets `resource`.
 fn sets_local_resource(token: &str, next: Option<&str>, resource: &str) -> bool {
     let flag = token.trim_start_matches(['"', '\'']);
     local_resources_value(flag, next)
@@ -471,17 +424,14 @@ fn sets_local_resource(token: &str, next: Option<&str>, resource: &str) -> bool 
         .is_some_and(|rest| rest.starts_with('='))
 }
 
-/// Sets the policy for this process; the first call wins.
 pub fn configure(policy: RcPolicy) {
     drop(CURRENT.set(policy));
 }
 
-/// Sets the policy for this process from the real environment and files.
 pub fn configure_real(workspace: &Path) {
     configure_real_in(workspace, None);
 }
 
-/// `configure_real` for a workspace whose server idles out after `slot_idle_secs`, when given.
 pub fn configure_real_in(workspace: &Path, slot_idle_secs: Option<u64>) {
     configure(RcPolicy::from_env_in(
         &|name| std::env::var(name).ok(),
@@ -491,8 +441,6 @@ pub fn configure_real_in(workspace: &Path, slot_idle_secs: Option<u64>) {
     ));
 }
 
-/// Reads an rc file the way Bazel does. A missing file is `None`; any other read error is
-/// reported once per path and also read as `None`.
 #[must_use]
 pub fn read_file(path: &Path) -> Option<String> {
     match std::fs::read(path) {
@@ -505,7 +453,6 @@ pub fn read_file(path: &Path) -> Option<String> {
     }
 }
 
-/// The rc text in `bytes`: invalid UTF-8 becomes U+FFFD and a leading byte-order mark is dropped.
 fn decode(bytes: &[u8]) -> String {
     let text = String::from_utf8_lossy(bytes);
     text.strip_prefix('\u{feff}').unwrap_or(&text).to_owned()
@@ -522,21 +469,17 @@ fn report_unreadable(path: &Path, error: &std::io::Error) {
     }
 }
 
-/// The policy for this process, hermetic until configured.
 pub fn current() -> &'static RcPolicy {
     CURRENT.get().unwrap_or(&HERMETIC)
 }
 
-/// The cache and resource flags this process adds after `bazel_command`.
 #[must_use]
 pub fn build_verb_options(bazel_command: &str, user_options: &[String]) -> Vec<String> {
     current().verb_options(bazel_command, share().as_ref(), user_options)
 }
 
-/// The user cache directory: an absolute `XDG_CACHE_HOME`, then HOME/.cache, then LOCALAPPDATA.
 pub fn user_cache_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
-    // The XDG spec says to ignore a relative XDG_CACHE_HOME; using it would give each cwd its own cache.
     // has_root, not is_absolute, so a rooted `/x` still counts on Windows.
     let xdg = non_empty("XDG_CACHE_HOME").filter(|cache| Path::new(cache).has_root());
     match xdg {
@@ -548,18 +491,15 @@ pub fn user_cache_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBu
     }
 }
 
-/// The disk cache dx shares across every checkout under `cache`.
 #[must_use]
 pub fn default_disk_cache(cache: &Path) -> PathBuf {
     cache.join("dx").join("disk-cache")
 }
 
-/// The home directory Bazel expands `~` and finds the user rc in.
 fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     crate::home_with(env_get).map(PathBuf::from)
 }
 
-/// The system rc file: under `ProgramData` on Windows, else `/etc`.
 pub(crate) fn system_rc(
     env_get: &dyn Fn(&str) -> Option<String>,
     windows: bool,
@@ -573,7 +513,6 @@ pub(crate) fn system_rc(
     }
 }
 
-/// The repository cache directories Bazel may use, most likely first, without duplicates.
 pub fn repository_caches(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -645,8 +584,6 @@ pub fn repository_caches(
     candidates
 }
 
-/// The `--downloader_config` Bazel would use for `bazel run` with `options`, resolved against
-/// the workspace. The last one set wins; an empty value means none.
 pub fn downloader_config(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -671,7 +608,6 @@ pub fn downloader_config(
         .map(|value| import_path(value, workspace))
 }
 
-/// Expands a leading `~` to the home directory and `%workspace%` to the workspace.
 fn expand_path(value: &str, env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> PathBuf {
     let expanded = match (value.strip_prefix('~'), home_dir(env_get)) {
         (Some(rest), Some(home)) if rest.is_empty() || rest.starts_with('/') => {
@@ -682,12 +618,10 @@ fn expand_path(value: &str, env_get: &dyn Fn(&str) -> Option<String>, workspace:
     import_path(&expanded.to_string_lossy(), workspace)
 }
 
-/// Whether any rc line sets the gc max size or max age.
 fn rc_sets_disk_cache_gc(lines: &[sections::Line]) -> bool {
     sections::any_line_sets(lines, &[GC_MAX_SIZE_FLAG, GC_MAX_AGE_FLAG])
 }
 
-/// The smallest `startup --max_idle_secs` any rc line sets.
 fn rc_min_max_idle_secs(lines: &[sections::Line]) -> Option<u64> {
     let mut least: Option<u64> = None;
     for line in lines.iter().filter(|line| line.is_startup()) {
@@ -703,7 +637,6 @@ fn rc_min_max_idle_secs(lines: &[sections::Line]) -> Option<u64> {
     least
 }
 
-/// Splits an rc line on whitespace outside quotes, removing the quotes.
 #[must_use]
 pub fn tokenize(line: &str) -> Vec<String> {
     let mut tokens = Vec::new();
@@ -748,8 +681,6 @@ pub(crate) fn unquote(token: &str) -> &str {
         .unwrap_or(token)
 }
 
-/// Resolves an rc import against the workspace one component at a time, so a `\\?\` workspace
-/// never ends up with a `/` separator inside it.
 pub(crate) fn import_path(raw: &str, workspace: &Path) -> PathBuf {
     let relative = match raw.strip_prefix("%workspace%") {
         Some(rest) => rest,

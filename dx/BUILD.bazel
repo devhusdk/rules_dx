@@ -21,7 +21,10 @@ dx_generate(
     visibility = VIS_DX_COMMANDS,
 )
 
-dx_generate_tests(name = "generate_test")
+dx_generate_tests(
+    name = "generate_test",
+    size = "small",
+)
 
 filegroup(
     name = "env",

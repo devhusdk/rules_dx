@@ -1,12 +1,3 @@
-//! Finds the `deps` of a Java or Kotlin rule whose jars the compiler never read.
-//!
-//! The aspect writes a JSON Lines map next to the compiler's jdeps file. The first line holds the
-//! target. Each later line is a direct dependency with its compile jars (`{"dep": label, "jars":
-//! [path]}`), a jar the target may use without listing it (`{"known": path}`) or one jar of its
-//! transitive compile classpath with the label that owns it (`{"jar": path, "label": owner}`). A dependency is unused
-//! when none of its jars is named as used in the jdeps file. A transitive jar is indirect when it
-//! is neither a direct jar nor a known jar and the target itself does not own it.
-
 use std::collections::BTreeSet;
 
 use serde::Deserialize;
@@ -16,7 +7,6 @@ use super::rust_unused_deps::UnusedDependency;
 
 pub const RULE_ID: &str = "unused_deps";
 
-/// Suffix the aspect adds to the label of the wrapped target in an upstream wrapper.
 const UPSTREAM_SUFFIX: &str = "_upstream";
 
 #[derive(Debug, Deserialize)]
@@ -54,7 +44,6 @@ struct Dep {
     jars: Vec<String>,
 }
 
-/// Reads the JSON Lines map the aspect writes and works out its indirect jars.
 fn read_map(tool: &'static str, bytes: &[u8]) -> Result<DepsMap, ParseError> {
     let json = |err: serde_json::Error| ParseError::Json {
         tool,
@@ -105,11 +94,6 @@ fn read_map(tool: &'static str, bytes: &[u8]) -> Result<DepsMap, ParseError> {
     })
 }
 
-/// Names every dependency in `map` that none of the used jars of `jdeps` belongs to.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_dependencies(
     tool: &'static str,
     map: &[u8],
@@ -133,7 +117,6 @@ pub fn parse_unused_dependencies(
         .collect())
 }
 
-/// A dependency the compiler used that the rule does not list in `deps`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MissingDependency {
     pub package: String,
@@ -151,11 +134,6 @@ impl MissingDependency {
     }
 }
 
-/// Names every transitive dependency in `map` whose jar the compiler used, once per label.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_missing_dependencies(
     tool: &'static str,
     map: &[u8],
@@ -188,16 +166,8 @@ struct ScalacDiagnostic {
     message: String,
 }
 
-/// Code the scalac driver gives the dependency analyzer's unused-dependency warnings.
 const SCALAC_UNUSED_DEP_CODE: &str = "scalac.unused.dep";
 
-/// Names every dependency in `map` that the scalac log reports as unused.
-///
-/// The warning reads `Target '<label>' is specified as a dependency to <target> but isn't used`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalac_unused_dependencies(
     map: &[u8],
     log: &[u8],
@@ -237,16 +207,8 @@ pub fn parse_scalac_unused_dependencies(
     Ok(found)
 }
 
-/// Code the scalac driver gives the dependency analyzer's missing-dependency warnings.
 const SCALAC_MISSING_DEP_CODE: &str = "scalac.missing.dep";
 
-/// Names every transitive dependency in `map` that the scalac log reports as used but not listed.
-///
-/// The warning reads `Target '<label>' is used but isn't explicitly declared, please add it to the deps.`
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_scalac_missing_dependencies(
     map: &[u8],
     log: &[u8],
@@ -290,8 +252,6 @@ pub fn parse_scalac_missing_dependencies(
         .collect())
 }
 
-/// Reads the `Dependencies` message of a jdeps file and returns the paths not marked unused.
-/// Kotlin marks an idle jar UNUSED (2) where `JavaBuilder` writes 3.
 fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     const NOT_USED: [u64; 2] = [2, 3];
     let mut used = BTreeSet::new();
@@ -319,7 +279,6 @@ fn used_jars(bytes: &[u8]) -> Result<BTreeSet<String>, String> {
     Ok(used)
 }
 
-/// Splits one field off the front of `rest`. Varints come back as their encoded bytes.
 fn next_field<'a>(rest: &mut &'a [u8]) -> Result<(u64, u64, &'a [u8]), String> {
     let (tag, used) = varint(rest)?;
     let (_, body) = split(rest, used)?;
@@ -350,7 +309,6 @@ fn split(bytes: &[u8], len: usize) -> Result<(&[u8], &[u8]), String> {
     Ok(bytes.split_at(len))
 }
 
-/// Decodes a varint from the front of `bytes` and returns it with the byte count.
 fn varint(bytes: &[u8]) -> Result<(u64, usize), String> {
     let mut value = 0u64;
     for (index, byte) in bytes.iter().enumerate().take(10) {

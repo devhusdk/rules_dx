@@ -1,6 +1,3 @@
-//! Startup-defaults tests that run the built `dx` binary, so they live in the
-//! launcher layer next to the binary's other process tests.
-
 use dx_adopt::defaults::DX_OUTPUT_ENV;
 
 #[test]
@@ -49,8 +46,6 @@ fn dx_binary() -> std::path::PathBuf {
         .join("cli/cli/dx")
 }
 
-/// Runs the built binary in `dir` with extra environment, returning exit code,
-// stdout, and stderr.
 fn run_dx(
     dir: &std::path::Path,
     words: &[&str],
@@ -69,9 +64,6 @@ fn run_dx(
     )
 }
 
-/// Checks one pre-execution failure stream: an `error` event naming the
-/// machine-readable code, then the terminal `command_finished` with the
-/// process exit and incomplete results, and nothing else on stdout.
 fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
     let mut lines = out.lines();
     let first: serde_json::Value = serde_json::from_str(lines.next().expect("an error event"))

@@ -207,6 +207,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | --- | --- | --- |
 | `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | whole | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
+| `tools/bazel`, `tools/bazel.bat` | whole | Written when missing. Rewritten when it differs from the current [Bazel wrapper](#bazel-wrapper) text. A wrapper dx did not write is kept, and `dx status` warns about it. |
 | `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated from `dx.toml`, not committed. Rewritten when they differ, by `dx init --apply`, `dx upgrade --apply` and every other dx command except `status`. |
 | `.bazelrc` | lines | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
 | `MODULE.bazel` | lines | Written in a fresh directory. |
@@ -366,6 +367,31 @@ touched. A dx launcher is rewritten when stale, so hand edits to it are lost.
 When `.dx/pins` is not semver, `dx init --apply` fails with `init_failed`
 before writing any file. It also fails when `MODULE.bazel` pins a different
 `rules_dx` than the running `dx`. `dx upgrade --apply` refreshes existing launchers the same way.
+
+## Bazel wrapper
+
+Bazelisk runs `tools/bazel` on Linux and macOS and `tools/bazel.bat` on Windows
+in place of Bazel. The wrapper first runs
+`tools/dx worktree hook bazel -- <args>`, which applies the
+[main-checkout rule](worktree.md#main-checkout) and
+[memory admission](worktree.md#memory-admission). Then it runs `$BAZEL_REAL`
+with the same arguments. The hook's output goes to stderr.
+
+Only a refusal (exit `77`) or a stop (exit `130` or `143`) from the hook stops
+Bazel, and the wrapper exits with that code. On any other failure the wrapper
+prints a warning to stderr and runs Bazel anyway. Such failures include a
+`tools/dx` that is missing, a dx too old for the hook, and a launcher that
+cannot run dx (unsupported libc, `HOME` unset).
+
+The wrapper skips the hook when `DX_BAZEL_CHILD` is set. dx sets
+`DX_BAZEL_CHILD=1` on every Bazel it starts. The wrapper exits non-zero when
+`BAZEL_REAL` is unset, as it is without Bazelisk.
+
+dx treats a wrapper as its own when it starts with the template's first three
+lines. `dx status` warns about a `tools/bazel` or `tools/bazel.bat` dx did not
+write. On Windows, Bazelisk runs a `tools/bazel.ps1` in place of
+`tools/bazel.bat`, so `dx status` also warns about a `tools/bazel.ps1` that does
+not run `worktree hook bazel`.
 
 ## Git hooks
 

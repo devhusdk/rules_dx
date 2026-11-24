@@ -4,7 +4,6 @@ use dx_error::DxError;
 
 pub const FPM_SET: &str = "fpm";
 
-/// Reads the packages of an fpm lock.
 pub fn parse_fpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let value: serde_json::Value = serde_json::from_str(text)

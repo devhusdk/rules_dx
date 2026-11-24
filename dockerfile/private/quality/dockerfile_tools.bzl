@@ -7,7 +7,7 @@ TOOLS = [
         id = "hadolint",
         adapters = {"lint": ["dockerfile"]},
         config = config(suffixes = [".yaml", ".yml"], tier_active = True),
-        severity = severity(default = "warning", categories = {"DL1": "error"}),
+        severity = severity(default = "warning", categories = {"DL1": "error", "guard/": "error"}),
         support = [
             row(
                 capability = "lint",

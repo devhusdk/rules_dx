@@ -260,7 +260,7 @@ def app_sources(kwargs, glob = None):
     return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
 
 def _app(upstream_macro, defaults, name, testonly, visibility, kwargs):
-    kwargs = erlang_erlc_kwargs(kwargs, defaults)
+    kwargs = erlang_erlc_kwargs(kwargs, defaults, test = testonly)
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
@@ -528,7 +528,7 @@ def ct_run_args(extra_args):
 
 def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro."""
-    kwargs = erlang_erlc_kwargs(kwargs, _DEFAULT_TEST_ERLC_OPTS)
+    kwargs = erlang_erlc_kwargs(kwargs, _DEFAULT_TEST_ERLC_OPTS, test = True)
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
 

@@ -3,7 +3,6 @@ use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "checkmake";
 
-/// Go `%q` for the config path checkmake logs when it loads the file it was asked to load.
 fn go_quoted(path: &str) -> String {
     let mut quoted = String::from("\"");
     for ch in path.chars() {
@@ -48,16 +47,6 @@ fn finding(
     }
 }
 
-/// Parses `checkmake --debug --output json --config <config> <files>`.
-///
-/// checkmake exits 1 for findings and for failures alike and silently falls back to its
-/// defaults when the config is unreadable, so this never decides from the exit code alone:
-/// the run only counts when stderr confirms it loaded exactly `config`. `--debug` is what
-/// makes checkmake log that. Pass `config: None` only for already-validated delegated JSON.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_checkmake(
     stdout: &[u8],
     stderr: &[u8],

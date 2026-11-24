@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
@@ -70,9 +71,10 @@ scala_binary(
     deps = ["@maven//:junit_junit"],
 )
 
-filegroup(
-    name = "hello_deploy_jar",
-    srcs = [":hello_deploy.jar"],
+build_test(
+    name = "hello_deploy_jar_test",
+    size = "small",
+    targets = [":hello_deploy.jar"],
 )
 
 dx_conformance_suite(

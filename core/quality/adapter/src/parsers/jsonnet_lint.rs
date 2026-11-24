@@ -4,17 +4,8 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "jsonnet_lint";
 
-/// The closing line `jsonnet-lint` prints after its last problem.
 const TRAILER: &str = "Problems found!";
 
-/// `jsonnet-lint` prints nothing and exits 0 when clean. Otherwise it exits 2 and writes every
-/// problem to stderr as `<path>:<line>:<column>[-<column>] <message>`, each followed by the
-/// offending source line, then `Problems found!`. Exit 1 is a failure to run (an unreadable file)
-/// and carries no location, so it is an error here and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jsonnet_lint(
     stdout: &[u8],
     stderr: &[u8],
@@ -48,7 +39,6 @@ fn problems(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError
             let (row, column) = start_position(location)?;
             Some((file, row, column, message))
         });
-        // Anything else is the echoed source line or the trailer.
         let Some((file, row, column, message)) = located else {
             continue;
         };
@@ -126,13 +116,10 @@ mod tests {
     #[test]
     fn jsonnet_lint_fails_closed() {
         let located = b"/s/jsonnet/a.jsonnet:1:1 m\n\nProblems found!\n";
-        // Output on a clean exit.
         assert!(parse_jsonnet_lint(b"", located, Some(0), &FILES).is_err());
         assert!(parse_jsonnet_lint(b"x", b"", Some(0), &FILES).is_err());
-        // No output, or no located problem, on a failing exit.
         assert!(parse_jsonnet_lint(b"", b"", Some(2), &FILES).is_err());
         assert!(parse_jsonnet_lint(b"", b"Problems found!\n", Some(2), &FILES).is_err());
-        // A run failure carries no location.
         assert!(
             parse_jsonnet_lint(
                 b"",
@@ -142,7 +129,6 @@ mod tests {
             )
             .is_err()
         );
-        // A problem in a file that was not passed.
         assert!(
             parse_jsonnet_lint(
                 b"",
@@ -152,9 +138,7 @@ mod tests {
             )
             .is_err()
         );
-        // A truncated run lacks the trailer.
         assert!(parse_jsonnet_lint(b"", b"/s/jsonnet/a.jsonnet:1:1 m\n", Some(2), &FILES).is_err());
-        // Signal exit and other codes.
         assert!(parse_jsonnet_lint(b"", located, None, &FILES).is_err());
         assert!(parse_jsonnet_lint(b"", located, Some(3), &FILES).is_err());
         assert!(parse_jsonnet_lint(b"", &[0xff, 0xfe], Some(2), &FILES).is_err());

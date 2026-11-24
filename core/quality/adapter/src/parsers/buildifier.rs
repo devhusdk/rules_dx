@@ -30,9 +30,6 @@ struct BuildifierPosition {
     column: u64,
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_buildifier(
     stdout: &[u8],
     stderr: &[u8],

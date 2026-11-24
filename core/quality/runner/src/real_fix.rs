@@ -10,7 +10,6 @@ use super::{
     write_all,
 };
 
-/// Empty stand-ins for the other known files with these extensions.
 #[cfg(test)]
 pub(super) fn placeholders(
     path: &str,
@@ -20,7 +19,6 @@ pub(super) fn placeholders(
     placeholders_except(&[path.to_owned()], known, extensions)
 }
 
-/// Empty stand-ins for the known files outside `staged` with these extensions.
 fn placeholders_except(
     staged: &[String],
     known: &BTreeSet<String>,
@@ -47,14 +45,12 @@ enum FixConfig {
     Buildifier,
 }
 
-/// Finds the stderr line that shows a tool crashed.
 type CrashFinder = fn(&[u8]) -> Option<String>;
 
 struct FixSpec {
     tool: &'static str,
     config: FixConfig,
     keep_exit_one: bool,
-    /// Names a tool crash in stderr that must fail the fix even when the exit code is kept.
     crash_stderr: Option<CrashFinder>,
 }
 
@@ -350,7 +346,6 @@ fn fix_spec(tool_id: &str, format: bool) -> Option<&'static FixSpec> {
     FIX_SPECS.iter().find(|spec| spec.tool == tool_id)
 }
 
-/// How one tool fixes files in one capability.
 #[derive(Clone, Copy)]
 pub(super) enum Route {
     Keep,
@@ -368,14 +363,12 @@ pub(super) enum Route {
     Rewrite(fn(&Path, &[&Path]) -> Invocation),
 }
 
-/// What one fix spawn did to its targets.
 pub(super) enum Outcome {
     Fixed,
     Kept,
     Failed(RunnerError),
 }
 
-/// The single routing table from a tool and capability to its fixer.
 fn keeps_unchanged(tool_id: &str) -> bool {
     matches!(
         tool_id,
@@ -489,7 +482,6 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
                 Ok(Route::Keep)
             }
         }
-        // The analyzer has no fixer here; only the formatter rewrites Dart sources.
         "dart" => {
             if capability == "format" {
                 spec(false)
@@ -503,7 +495,6 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
             format: capability == "format",
             placeholders: &["py", "pyi"],
         }),
-        // Lint is check-only; only the format capability rewrites files.
         "sqlfluff" if capability != "format" => Ok(Route::Keep),
         "sqlfluff" => Ok(Route::Sqlfluff),
         "scalafix" => Ok(Route::Scalafix),
@@ -548,7 +539,6 @@ struct SessionScratch {
 }
 
 impl SessionScratch {
-    /// Stages one spawn: its targets at their current text, every other placeholder empty.
     fn stage(
         &mut self,
         current: &BTreeMap<String, String>,
@@ -668,7 +658,6 @@ fn text_of(current: &BTreeMap<String, String>, path: &String) -> Result<String, 
         .ok_or(RunnerError::MissingFile { path: path.clone() })
 }
 
-/// Fix state for one convergence run: one scratch per stage, reused across rounds.
 pub(super) struct FixSession<'a> {
     backend: &'a RealBackend,
     capability: &'a str,
@@ -690,7 +679,6 @@ impl<'a> FixSession<'a> {
         }
     }
 
-    /// Fixes the targets of one stage, batching spawns and isolating files only on failure.
     pub(super) fn fix(
         &mut self,
         index: usize,
@@ -762,7 +750,6 @@ impl<'a> FixSession<'a> {
             })
             .collect();
         let refs: Vec<&Path> = absolute.iter().map(PathBuf::as_path).collect();
-        // opa, bicep and latexindent fix exactly one target per run.
         let batches = if matches!(tool_id, "opa" | "latexindent" | "bicep") {
             refs.iter().map(|file| vec![*file]).collect()
         } else {
@@ -841,7 +828,6 @@ impl<'a> FixSession<'a> {
         })
     }
 
-    /// Removes every stage scratch and reports the first cleanup failure.
     pub(super) fn close(self) -> Result<(), RunnerError> {
         let mut first = Ok(());
         for (_, session) in self.scratches {
@@ -855,11 +841,6 @@ impl<'a> FixSession<'a> {
 }
 
 impl RealBackend {
-    /// Returns the result of the call.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix(
         &self,
@@ -871,11 +852,6 @@ impl RealBackend {
         self.apply_fix_in_context(tool_id, path, text, capability, &BTreeSet::new())
     }
 
-    /// Returns the result of the call.
-    ///
-    /// # Errors
-    ///
-    /// Returns the error describing the first step that failed.
     #[cfg(test)]
     pub fn apply_fix_in_context(
         &self,
@@ -899,10 +875,6 @@ impl RealBackend {
         })
     }
 
-    /// Decides which bytes a fix may return for one file. Notebooks never take
-    /// the tool's raw rewrite: Ruff re-indents the JSON, sorts its keys and adds
-    /// cell ids, so only the edited code-cell sources are copied back. The
-    /// Windows latexindent writes CRLF, so an LF source keeps LF.
     pub(super) fn settle(
         tool_id: &str,
         path: &str,
@@ -916,7 +888,6 @@ impl RealBackend {
             return Ok(fixed);
         }
         if tool_id == "notebook_outputs" {
-            // The single allow-list entry besides ruff.
             let want = quality_notebook::strip_outputs(before)
                 .map_err(|err| execution(tool_id, format!("{path}: {err}")))?;
             if fixed != want {
@@ -1021,7 +992,6 @@ impl RealBackend {
                 let Some(config) = self.config_abs(tool_id, tool, scratch)? else {
                     return Err(missing_tier_base(tool_id));
                 };
-                // Only sizes the batches; spawn_sqlfluff_fix picks each run's dialect.
                 Ok(commands::sqlfluff_format_fix(
                     &tool.binary,
                     refs,
@@ -1057,7 +1027,6 @@ impl RealBackend {
         }
     }
 
-    /// Preflights, then runs `sqlfluff format` once per distinct config chain.
     fn spawn_sqlfluff_fix(
         &self,
         tool_id: &str,
@@ -1086,7 +1055,6 @@ impl RealBackend {
         Ok(if fixed { Outcome::Fixed } else { Outcome::Kept })
     }
 
-    /// Runs one fix spawn and judges it by the per-file rule of its route.
     fn spawn_fix(
         &self,
         route: Route,
@@ -1125,7 +1093,6 @@ impl RealBackend {
                     Outcome::Kept
                 }
             }
-            // Violations that remain after the rewrite exit 2.
             Route::AnsibleLint => {
                 if matches!(out.code, Some(0 | 2 | 8)) {
                     Outcome::Fixed

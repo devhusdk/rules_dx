@@ -45,6 +45,7 @@ go_test(
     embed = [":ocaml"],
     pure = "on",
     deps = [
+        "@gazelle//config",
         "@gazelle//language",
         "@gazelle//v2/rule",
     ],

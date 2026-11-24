@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use shared_tasks::{asset_report, Board, CORE_VERSION};
+use shared_tasks::{Board, CORE_VERSION, asset_report};
 
 fn read(path: &str) -> Result<Vec<u8>, ExitCode> {
     std::fs::read(path).map_err(|error| {

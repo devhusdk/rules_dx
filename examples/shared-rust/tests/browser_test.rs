@@ -44,7 +44,7 @@ impl Server {
         std::thread::spawn(move || {
             let mut line = String::new();
             let outcome = BufReader::new(stdout).read_line(&mut line);
-            let _: Result<(), _> = done.send((outcome, line));
+            drop(done.send((outcome, line)));
         });
         let (outcome, line) = ready
             .recv_timeout(Duration::from_secs(30))
@@ -61,8 +61,8 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _: std::io::Result<()> = self.child.kill();
-        let _: std::io::Result<std::process::ExitStatus> = self.child.wait();
+        drop(self.child.kill());
+        drop(self.child.wait());
     }
 }
 

@@ -19,7 +19,6 @@ fn absolute_names(pairs: &[StagedPair]) -> Vec<String> {
         .collect()
 }
 
-/// The spelling rustfmt reports for a staged file: symlinks and short names resolved, no `\\?\` prefix.
 fn resolved_name(name: &str) -> Option<String> {
     let canonical = std::fs::canonicalize(name).ok()?;
     let plain = dx_path::without_verbatim(&canonical)
@@ -163,7 +162,6 @@ impl RealBackend {
     }
 }
 
-/// Judges one rustfmt fix spawn: error-only parse findings keep the input.
 pub(super) fn fix_outcome(root: &Path, names: &[String], out: &ChildOutput) -> Outcome {
     if out.code == Some(0) {
         return Outcome::Fixed;

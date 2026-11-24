@@ -5,7 +5,6 @@ pub const MAX_REASON_LEN: usize = 120;
 fn key_value(line: &str, key: &str) -> Option<String> {
     let (_, value) = line.split_once(key)?;
     let value = value.trim();
-    // An OCaml marker closes its comment on the same line.
     let value = value
         .strip_suffix("*)")
         .unwrap_or(value)

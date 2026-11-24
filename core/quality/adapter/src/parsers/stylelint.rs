@@ -1,9 +1,6 @@
 use super::{FileFinding, ParseError, check_output_size, code_name, known, point};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_stylelint(
     stdout: &[u8],
     code: Option<i32>,

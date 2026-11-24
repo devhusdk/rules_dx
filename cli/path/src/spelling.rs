@@ -1,21 +1,13 @@
-//! One path in the spelling each consumer needs.
-
 use std::path::Path;
 
-/// The spellings one path is read in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Spelling {
-    /// Slashes the host filesystem uses.
     Native,
-    /// Forward slashes only.
     Posix,
-    /// A runfiles manifest key.
     Manifest,
-    /// The path spelling Git's `sh` on Windows reads.
     Msys,
 }
 
-/// Returns one path in the requested spelling.
 #[must_use]
 pub fn spell(path: &Path, spelling: Spelling) -> String {
     match spelling {
@@ -26,25 +18,21 @@ pub fn spell(path: &Path, spelling: Spelling) -> String {
     }
 }
 
-/// Returns one path in the host's own slashes.
 #[must_use]
 pub fn native(path: &Path) -> String {
     spell(path, Spelling::Native)
 }
 
-/// Returns one path with forward slashes.
 #[must_use]
 pub fn posix(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-/// Returns one string path with forward slashes.
 #[must_use]
 pub fn posix_str(path: &str) -> String {
     path.replace('\\', "/")
 }
 
-/// Returns one path as a runfiles manifest key.
 #[must_use]
 pub fn manifest(path: &Path) -> String {
     posix_str(&crate::verbatim::without_verbatim_str(
@@ -52,7 +40,6 @@ pub fn manifest(path: &Path) -> String {
     ))
 }
 
-/// Returns one path the way Git's `sh` on Windows reads it.
 #[must_use]
 pub fn msys(path: &Path) -> String {
     let text = manifest(path);

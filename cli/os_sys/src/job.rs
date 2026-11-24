@@ -1,8 +1,3 @@
-//! The forked watcher that leads a terminal job's foreground group.
-//!
-//! The watcher never execs, so after the fork it calls only async-signal-safe functions.
-//! It reports each stop signal the terminal sends the group as one byte on a pipe.
-
 #![expect(
     unsafe_code,
     reason = "fork, sigaction and signal handler bodies have no safe API"
@@ -15,24 +10,16 @@ use std::io;
 use std::os::fd::{AsRawFd, OwnedFd};
 use std::sync::atomic::{AtomicI32, Ordering};
 
-/// The job-control stops the watcher ignores and dx follows.
 pub const JOB_STOPS: [i32; 3] = [libc::SIGTSTP, libc::SIGTTIN, libc::SIGTTOU];
-/// Asks the watcher to report its pending stop signals and then [`SETTLED`].
 pub const SETTLE: i32 = libc::SIGUSR1;
-/// The byte the watcher writes once every earlier stop signal is reported.
 pub const SETTLED: u8 = 0;
-/// The signals blocked while the watcher forks.
 const WATCHED: [i32; 4] = [STOP_SIGNALS[0], STOP_SIGNALS[1], STOP_SIGNALS[2], SETTLE];
 const MAX_CLOSE: i32 = 65536;
 
-/// dx's pid, read by the watcher's signal handler.
 static WATCHER_PARENT: AtomicI32 = AtomicI32::new(0);
-/// The pipe end the watcher's signal handler reports into.
 static WATCHER_REPORT: AtomicI32 = AtomicI32::new(-1);
 
 // LCOV_EXCL_START - reason: needs a controlling terminal in the foreground, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// Forks the watcher and returns its pid. `report` is the write end of the
-/// watcher's pipe; this process closes its copy before returning.
 pub fn spawn_watcher(report: OwnedFd) -> io::Result<i32> {
     let parent = rustix::process::getpid().as_raw_nonzero().get();
     WATCHER_PARENT.store(parent, Ordering::SeqCst);
@@ -55,7 +42,6 @@ pub fn spawn_watcher(report: OwnedFd) -> io::Result<i32> {
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
-/// Whether a signal with this `si_code` was sent by a process rather than the kernel.
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn user_sent(code: i32) -> bool {
     code <= 0
@@ -66,7 +52,6 @@ fn user_sent(_code: i32) -> bool {
     true
 }
 
-/// Whether dx sent this signal itself, so the child already has it.
 fn from_parent(info: Option<&libc::siginfo_t>) -> bool {
     let Some(info) = info else {
         return false;
@@ -92,7 +77,6 @@ extern "C" fn report_settled(_: libc::c_int, _: *mut libc::siginfo_t, _: *mut li
     report(libc::c_int::from(SETTLED));
 }
 
-/// Writes `signo` as one byte to the watcher pipe; async-signal-safe.
 fn report(signo: libc::c_int) {
     let byte = u8::try_from(signo).unwrap_or(SETTLED);
     // SAFETY: byte is a valid one-byte buffer; a closed or invalid descriptor only fails the write.
@@ -106,7 +90,6 @@ fn report(signo: libc::c_int) {
 }
 
 // LCOV_EXCL_START - reason: runs only in the forked watcher, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// Closes every descriptor from 3 up except `keep`.
 fn close_others(keep: i32) {
     #[cfg(target_os = "linux")]
     {
@@ -139,15 +122,12 @@ fn close_others(keep: i32) {
     }
 }
 
-/// Exits the forked watcher without running any of dx's exit handlers.
 fn quit() -> ! {
     // SAFETY: _exit ends this process at once and has no preconditions.
     unsafe { libc::_exit(0) }
 }
 
-/// The watcher's whole life: lead its group, report stop signals, die with dx.
 fn watch(parent: i32, report: i32) -> ! {
-    // dx moves the watcher into its own group too, so a failure here is covered.
     match rustix::process::setpgid(None, None) {
         Ok(()) | Err(_) => {}
     }

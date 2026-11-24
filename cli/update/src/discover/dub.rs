@@ -1,5 +1,3 @@
-//! Lists DUB selections whose newest release on code.dlang.org is newer than the pinned one.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
@@ -7,7 +5,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://code.dlang.org";
 
-/// Checks each package of the dub selections files against the API at `base`.
 pub fn outdated(
     set: &str,
     selections: &[String],
@@ -64,7 +61,6 @@ pub fn outdated(
     found
 }
 
-/// The `(name, version)` pairs of released versions; branch pins such as `~master` are skipped.
 fn pinned(text: &str) -> Result<Vec<(String, String)>, DxError> {
     let root: serde_json::Value = serde_json::from_str(text)
         .map_err(|e| DxError::failure(format!("invalid dub selections file: {e}")))?;

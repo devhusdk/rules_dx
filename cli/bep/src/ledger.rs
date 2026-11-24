@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value};
 
-/// One announced or aborted event that never delivered its payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EventGap {
     pub kind: String,
@@ -16,13 +15,11 @@ pub struct EventGap {
 }
 
 impl EventGap {
-    /// True when Bazel skipped the work on purpose, such as an incompatible target.
     #[must_use]
     pub fn is_skipped(&self) -> bool {
         self.aborted.as_deref() == Some("SKIPPED")
     }
 
-    /// The machine outcome for this gap.
     #[must_use]
     pub fn outcome(&self) -> &'static str {
         match self.aborted.as_deref() {
@@ -35,7 +32,6 @@ impl EventGap {
         }
     }
 
-    /// Names the gap for a human: its kind, identity, and why it is missing.
     #[must_use]
     pub fn describe(&self) -> String {
         let mut text = self.kind.clone();
@@ -58,7 +54,6 @@ impl EventGap {
     }
 }
 
-/// The announced, delivered, and aborted event ids of one build event stream.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EventLedger {
     ended: bool,
@@ -88,7 +83,6 @@ fn canonical(value: &Value) -> String {
     }
 }
 
-/// The kind and body of one event id, when it has exactly one kind.
 fn id_parts(id: &Map<String, Value>) -> Option<(String, Map<String, Value>)> {
     let mut entries = id.iter();
     let (kind, body) = entries.next()?;
@@ -105,7 +99,6 @@ fn index_of(body: &Map<String, Value>, field: &str) -> Option<u32> {
 }
 
 impl EventLedger {
-    /// Records one event: its own id, the ids it announces, and whether it ends the stream.
     pub fn observe(&mut self, object: &Map<String, Value>) {
         if object.get("lastMessage").and_then(Value::as_bool) == Some(true) {
             self.ended = true;
@@ -139,13 +132,11 @@ impl EventLedger {
         }
     }
 
-    /// True once Bazel's last event arrived.
     #[must_use]
     pub fn ended(&self) -> bool {
         self.ended
     }
 
-    /// Every announced or aborted event of these kinds that never delivered its payload.
     #[must_use]
     pub fn gaps(&self, kinds: &[&str]) -> Vec<EventGap> {
         let mut gaps = Vec::new();

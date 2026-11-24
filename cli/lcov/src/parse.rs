@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use super::LcovError;
 
-/// Line hits plus retained branch records for one source file.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct FileHits {
     pub lines: BTreeMap<u32, u64>,
@@ -11,7 +10,6 @@ pub struct FileHits {
 }
 
 impl FileHits {
-    /// Folds `other` in: the higher hit count wins per line, branch records union.
     pub fn merge(&mut self, other: FileHits) {
         for (line, count) in other.lines {
             let cell = self.lines.entry(line).or_insert(0);

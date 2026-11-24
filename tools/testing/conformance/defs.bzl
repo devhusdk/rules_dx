@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core/modules:langs.bzl", "LANGS")
-load("//core/quality:families/core.bzl", "real_biome_format_aspect", "real_biome_lint_aspect", "real_format_aspect", "real_lint_aspect", "real_vale_lint_aspect")
+load("//core/quality:families/core.bzl", "real_biome_format_aspect", "real_biome_lint_aspect", "real_docstrfmt_format_aspect", "real_format_aspect", "real_lint_aspect", "real_vale_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
@@ -70,11 +70,10 @@ def quality_config(lang, kind):
         return config.get(kind, _QUALITY_CONFIG)
     return config
 
-_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect], [OutputGroupInfo])
+_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect, real_docstrfmt_format_aspect], [OutputGroupInfo])
 
 _core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect], [OutputGroupInfo])
 
-# Framework and MDX sources go through the JavaScript aspects; mdx links are linted by the core aspect.
 _JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
 
 _CORE_QUALITY_SUBJECTS = {
@@ -107,7 +106,6 @@ _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
 
-# The platform a cross_test builds the fixture binary for, per platform it runs on.
 CROSS_TARGETS = {
     "linux_arm64": "linux_x86_64",
     "linux_x86_64": "linux_arm64",
@@ -138,20 +136,10 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
-# Mirrors the build:windows coverage line of .bazelrc.
 WINDOWS_GCC_COVERAGE_OFF = ["-gcc_coverage_map_format"]
 
 def coverage_subject_settings(features, windows, instrumentation_filter):
-    """Returns the build settings of a coverage subject.
-
-    Args:
-      features: Value of --features before the transition.
-      windows: Whether the subject targets Windows.
-      instrumentation_filter: Value of --instrumentation_filter.
-
-    Returns:
-      Dict of the settings the coverage transition sets.
-    """
+    """Returns the build settings of a coverage subject."""
     if windows:
         features = features + [f for f in WINDOWS_GCC_COVERAGE_OFF if f not in features]
     return {
@@ -343,19 +331,7 @@ dx_conformance_manifest = rule(
 )
 
 def dx_coverage_test(name, subject, covered_source, args = [], instrumented_packages = [], size = "small", **kwargs):
-    """Declares a test that runs subject under code coverage and requires covered_source to be fully executed.
-
-    Also declares name + "_off", which runs subject built without code coverage and requires no hits in covered_source.
-
-    Args:
-      name: Name of the test.
-      subject: Test target to run; built under the coverage transition.
-      covered_source: File name whose lines the subject must cover.
-      args: Arguments passed to subject.
-      instrumented_packages: Packages instrumented besides the calling package.
-      size: Size of the tests.
-      **kwargs: Forwarded to the tests.
-    """
+    """Declares a coverage test that requires covered_source to be fully executed."""
     args_env = {"DX_CONFORMANCE_ARGS": " ".join(args)} if args else {}
     dx_conformance_subject(
         name = name + "_off_subject",
@@ -496,14 +472,7 @@ def dx_quality_error_tests(name, lang, quality, size = "small", **kwargs):
         )
 
 def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", cross_platforms = "//tools/platforms", size = "small", **kwargs):
-    """Declares the conformance tests of one language.
-
-    A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
-    `cross_platforms` names the package whose `<os>_<cpu>` platforms cross_test builds the binary for.
-    A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
-    A runfiles `tree_only` reason makes runfiles_test require the manifest-only run to fail.
-    A `lock` without `binary` and `expected` runs only the depcheck half of lock_test.
-    """
+    """Declares the conformance tests of one language."""
     if lang not in LANGS:
         fail("unknown lang %r" % lang)
     if _all_pending(lang):

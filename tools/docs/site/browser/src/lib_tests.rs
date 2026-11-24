@@ -7,7 +7,6 @@ use super::{
     missing_libraries, wait_for_control,
 };
 
-/// A child that keeps running until the test kills it.
 fn running_child() -> std::process::Child {
     Command::new("sleep")
         .arg("30")

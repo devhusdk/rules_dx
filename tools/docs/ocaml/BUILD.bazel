@@ -11,7 +11,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-# odoc 3.2.2, built from source with dune on every OCaml cell.
 dx_dune_build(
     name = "odoc",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
@@ -58,7 +57,6 @@ dx_unavailable_tool(
     tool = "odoc",
 )
 
-# odoc where the OCaml toolchain has a cell, else a marked stub the docs aspect skips.
 alias(
     name = "odoc_tool",
     actual = select({

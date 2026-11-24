@@ -574,7 +574,6 @@ pub fn check_rendered(rendered: &Rendered, forbid: &[String]) -> Vec<RenderedFin
     errors
 }
 
-/// The first page whose HTML contains `needle`.
 fn first_publisher<'a>(
     root: &Path,
     pages: &'a [Page],

@@ -1,10 +1,8 @@
 use dx_error::DxError;
 use std::path::Path;
 
-/// Branch names tried, in order, when origin/HEAD is unset.
 pub const DEFAULT_BRANCH_CANDIDATES: [&str; 4] = ["origin/main", "main", "origin/master", "master"];
 
-/// Filenames Git reports for one workspace change.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChangeKind {
     Added,
@@ -16,7 +14,6 @@ pub enum ChangeKind {
     Unmerged,
 }
 
-/// One path Git names, with its rename source when Git reports one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GitChange {
     pub path: String,
@@ -54,7 +51,6 @@ fn utf8_path(bytes: &[u8]) -> Result<String, DxError> {
         })
 }
 
-/// Parses `git diff --name-status -z` output into typed changes with rename identities kept.
 pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, DxError> {
     let mut fields: Vec<&[u8]> = output.split(|byte| *byte == 0).collect();
     if fields.last().is_some_and(|field| field.is_empty()) {
@@ -100,9 +96,6 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, DxError> {
     Ok(changes)
 }
 
-/// True when `path` (relative to a root) is dx's machine-local state, `.dx/local`.
-///
-/// Only the top level of the root counts; a nested `.dx` is an ordinary file.
 #[must_use]
 pub fn is_dx_state(path: &str) -> bool {
     let dir = dx_path::state::LOCAL_DIR;
@@ -112,7 +105,6 @@ pub fn is_dx_state(path: &str) -> bool {
             .is_some_and(|rest| rest.starts_with('/'))
 }
 
-/// True when git ignores the generated `.dx` files, so they would not be committed.
 #[must_use]
 pub fn dx_config_git_ignored(root: &Path) -> bool {
     dx_process::capture::run_captured(
@@ -122,7 +114,6 @@ pub fn dx_config_git_ignored(root: &Path) -> bool {
     .is_ok_and(|output| output.success())
 }
 
-/// Sorts changes by path and drops duplicate paths, keeping rename sources.
 #[must_use]
 pub fn dedupe_changes(changes: Vec<GitChange>) -> Vec<GitChange> {
     let mut sorted = changes;
@@ -148,7 +139,6 @@ fn is_package_dir(workspace: &Path, dir: &str) -> bool {
     dx_path::bazel_package::is_package_dir(&base)
 }
 
-/// Maps a missing path to the nearest enclosing Bazel package pattern for fallback.
 #[must_use]
 pub fn nearest_package_pattern(workspace: &Path, rel: &str) -> String {
     let mut dir = match rel.rsplit_once('/') {

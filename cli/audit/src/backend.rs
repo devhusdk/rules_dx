@@ -190,7 +190,6 @@ mod tests {
         assert!(super::lock_name("no-such-ecosystem").is_err());
     }
 
-    /// The pinned gitleaks path, spelled the way this host spells an absolute one.
     fn hermetic_gitleaks() -> String {
         if cfg!(windows) {
             r"C:\hermetic\gitleaks.exe".to_owned()

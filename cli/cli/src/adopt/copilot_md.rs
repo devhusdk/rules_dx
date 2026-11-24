@@ -1,5 +1,3 @@
-//! The pointer to `AGENTS.md` in `.github/copilot-instructions.md`.
-
 use std::io;
 use std::path::Path;
 
@@ -7,7 +5,6 @@ use super::agents::{FILE as AGENTS, eol, target};
 
 pub(crate) const FILE: &str = ".github/copilot-instructions.md";
 
-/// The text init owns; Copilot has no import syntax, so it names the file in prose.
 pub(crate) const BLOCK: &str = "Follow the rules in AGENTS.md. Run dx commands through tools/dx.\n";
 
 fn read(path: &Path) -> io::Result<Option<String>> {
@@ -18,12 +15,10 @@ fn read(path: &Path) -> io::Result<Option<String>> {
     }
 }
 
-/// Whether the file exists and points at AGENTS.md.
 pub(crate) fn imported(workspace: &Path) -> io::Result<bool> {
     Ok(read(&workspace.join(FILE))?.is_some_and(|text| text.contains(AGENTS)))
 }
 
-/// Adds the block when the file does not mention AGENTS.md, keeping every other byte. True when the file changed.
 pub(crate) fn write(workspace: &Path) -> io::Result<bool> {
     if imported(workspace)? {
         return Ok(false);
@@ -46,7 +41,6 @@ pub(crate) fn write(workspace: &Path) -> io::Result<bool> {
     Ok(true)
 }
 
-/// Like [`write`], but leaves an absent file absent.
 pub(crate) fn refresh(workspace: &Path) -> io::Result<bool> {
     if std::fs::symlink_metadata(workspace.join(FILE)).is_err() {
         return Ok(false);

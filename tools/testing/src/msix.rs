@@ -1,5 +1,3 @@
-//! Reads the manifest and packed executable of an `.msix` package.
-
 use std::path::Path;
 
 const MANIFEST: &str = "AppxManifest.xml";
@@ -8,15 +6,11 @@ const EXE_MAX_BYTES: u64 = 512 << 20;
 
 #[derive(Debug)]
 pub struct Package {
-    /// `ProcessorArchitecture` of the `<Identity>` element.
     pub arch: String,
-    /// Package-relative path of the `<Application>` executable, with `/` separators.
     pub executable: String,
-    /// Bytes of that executable as packed.
     pub exe: Vec<u8>,
 }
 
-/// Reads `AppxManifest.xml` from the package at `path` and the executable it names.
 pub fn read(path: &Path) -> Result<Package, String> {
     let manifest = member(path, MANIFEST, MANIFEST_MAX_BYTES)?;
     let manifest = String::from_utf8(manifest)
@@ -49,7 +43,6 @@ fn member(path: &Path, name: &str, max_bytes: u64) -> Result<Vec<u8>, String> {
         .ok_or_else(|| format!("{}: no member {name}", path.display()))
 }
 
-/// Value of `name="..."` inside the first tag that starts with `tag`, XML-unescaped.
 fn attribute(xml: &str, tag: &str, name: &str) -> Option<String> {
     let (_, rest) = xml.split_once(tag)?;
     let (element, _) = rest.split_once('>')?;

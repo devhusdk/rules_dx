@@ -35,7 +35,6 @@ fn gate_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
     }
 }
 
-/// Scripts the default branch, its verification, its merge-base, the diff, and the untracked listing.
 fn script_changes(harness: &Harness, diff: &str, untracked: &str) {
     harness.query.script_git(0, "origin/main\n");
     harness.query.script_git(0, "def456\n");
@@ -297,7 +296,6 @@ fn without_the_flag_dx_runs_no_git() {
     assert!(!out.contains("changed_line_coverage"), "{out}");
 }
 
-/// Runs real `git` for `changed_lines`.
 struct RealGit;
 
 impl QueryRunner for RealGit {
@@ -423,7 +421,6 @@ fn unreadable_untracked_source_is_unavailable() {
     let full = harness.workspace.join("src/n.py");
     std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o000)).expect("chmod");
     if std::fs::read(&full).is_ok() {
-        // Root reads a mode 000 file, so there is no unreadable file to test.
         return;
     }
     script_changes(&harness, "", "src/n.py\0");

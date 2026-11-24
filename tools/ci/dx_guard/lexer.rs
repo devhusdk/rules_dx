@@ -1,6 +1,3 @@
-//! A lexer for Rust source that keeps words, string literals and punctuation.
-
-/// One token of Rust source. Comments and character literals are dropped.
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Word(String),
@@ -8,7 +5,6 @@ pub enum Token {
     Punct(char),
 }
 
-/// Lexes Rust source into words, string literals and punctuation.
 pub fn rust_tokens(source: &str) -> Vec<Token> {
     Lexer {
         chars: source.chars().collect(),
@@ -72,7 +68,6 @@ impl Lexer {
         }
     }
 
-    /// Reads a string body after its opening quote.
     fn quoted(&mut self) {
         let mut text = String::new();
         while let Some(current) = self.peek(0) {
@@ -99,7 +94,6 @@ impl Lexer {
         self.out.push(Token::Text(text));
     }
 
-    /// Reads a raw string body after its opening quote, closed by a quote and `hashes` hashes.
     fn raw(&mut self, hashes: usize) {
         let mut text = String::new();
         while let Some(current) = self.peek(0) {
@@ -113,7 +107,6 @@ impl Lexer {
         self.out.push(Token::Text(text));
     }
 
-    /// Skips a character literal, or the quote of a lifetime.
     fn quote(&mut self) {
         if self.peek(1) == Some('\\') {
             self.at += 3;

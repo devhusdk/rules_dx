@@ -7,27 +7,20 @@ use super::{
     stable_exec_path, tally_cases, validate_lcov,
 };
 
-/// The aspect that writes coverage source manifests, as the build events name it.
 pub(super) const SOURCES_ASPECT_SUFFIX: &str = "coverage_sources.bzl%dx_coverage_sources_aspect";
 
-/// The coverage source manifests a run reported, and every problem that left one missing.
 #[derive(Default)]
 pub(super) struct Sources {
     pub(super) manifests: Vec<SourceManifest>,
     pub(super) missing: Vec<String>,
     pub(super) invalid: Vec<String>,
-    /// `bazel <version>` from the build events' `started` event.
     pub(super) collector: Option<String>,
-    /// The checkout measured, when the workspace is a Git work tree.
     pub(super) candidate: Option<Candidate>,
-    /// Why the tracked-source check did not run, when it is not an accounting error.
     pub(super) tracked_unavailable: Option<String>,
 }
 
-/// Reads the coverage source manifests from the run's build events.
 pub(super) fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
     let mut sources = Sources {
-        // An unreadable build event stream leaves the collector unnamed.
         collector: dx_bep::stream_build_tool_version(bep)
             .ok()
             .flatten()
@@ -71,7 +64,6 @@ pub(super) fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
     sources
 }
 
-/// Everything one run's results produced: report inputs, outcomes and the evidence gap.
 #[derive(Default)]
 pub(super) struct Collected {
     pub(super) suites: Vec<(String, Vec<JunitCase>)>,
@@ -79,11 +71,9 @@ pub(super) struct Collected {
     pub(super) sources: Sources,
     pub(super) reported: Vec<TestOutcome>,
     pub(super) gap: Option<String>,
-    /// Sorted, deduplicated (label, language) pairs that ran under coverage without a collector.
     pub(super) no_collector: Vec<(String, String)>,
 }
 
-/// Reads every result's test.xml into suites and outcomes for `dx test`.
 pub(super) fn collect_test_xml(
     events: &TestEvents,
     summaries: &Summaries<'_>,
@@ -181,7 +171,6 @@ pub(super) fn collect_test_xml(
     }
 }
 
-/// Reads every result's final coverage output into LCOV documents and outcomes for `dx coverage`.
 pub(super) fn collect_lcov(
     events: &TestEvents,
     summaries: &Summaries<'_>,
@@ -251,7 +240,6 @@ pub(super) fn collect_lcov(
             && outcome.artifacts_invalid == 0)
             || !result.files.iter().any(is_coverage_file);
         if outcome.outcome != "passed" {
-            // Best effort: coverage completeness stays about the LCOV files only.
             let mut cases_seen: Vec<TestCase> = Vec::new();
             for file in result.files.iter().filter(|file| file.name == "test.xml") {
                 let Ok(bytes) = reader.read_artifact(&file.exec_path) else {
@@ -286,7 +274,6 @@ pub(super) fn collect_lcov(
     }
 }
 
-/// Tests tagged as having no coverage collector that produced a result, as (label, language), once each.
 pub(super) fn no_collector_labels(events: &TestEvents) -> Vec<(String, String)> {
     let mut tests: Vec<(String, String)> = events
         .results
@@ -301,8 +288,6 @@ pub(super) fn no_collector_labels(events: &TestEvents) -> Vec<(String, String)> 
     tests
 }
 
-/// Reports tests that ran under coverage with no collector; true when none should fail the run.
-/// Without `strict` they are skipped with one summary line per language.
 pub(super) fn announce_no_collector(
     output: OutputMode,
     out: &mut dyn Write,

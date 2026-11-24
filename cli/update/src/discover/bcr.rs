@@ -1,5 +1,3 @@
-//! Lists `bazel_dep` modules whose declared version is behind the newest stable BCR version.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
@@ -10,7 +8,6 @@ pub const DEFAULT_BASE: &str = "https://bcr.bazel.build";
 
 const SKIPPED_OVERRIDES: [&str; 3] = ["local_path_override", "git_override", "archive_override"];
 
-/// Checks each `bazel_dep` of `module` against the registry at `base`.
 pub fn outdated(
     set: &str,
     module: &ModuleFile,
@@ -67,7 +64,6 @@ pub fn outdated(
     found
 }
 
-/// Returns the newest stable version of `name` in the registry at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     newest(
         &fetch.get(&format!("{base}/modules/{name}/metadata.json"))?,
@@ -75,8 +71,6 @@ pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String
     )
 }
 
-/// The text of a newest-version snapshot: a JSON object from each `bazel_dep` of `module` that no
-/// path, git or archive override replaces to its newest stable version in the registry at `base`.
 pub fn newest_snapshot(
     module: &ModuleFile,
     base: &str,

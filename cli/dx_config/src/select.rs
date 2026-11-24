@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::config::{DxConfig, FamilyConfig, Tier};
 use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, OPT_IN_FAMILIES, OVERLAPS, TOOLS};
 
-/// One row of the generated curated table.
 #[derive(Clone, Copy)]
 pub struct CuratedFamily {
     pub id: &'static str,
@@ -13,7 +12,6 @@ pub struct CuratedFamily {
     pub audit: &'static [&'static str],
 }
 
-/// Two tools that own the same concern for one file class of a family.
 pub struct Overlap {
     pub family: &'static str,
     pub class: &'static str,
@@ -53,7 +51,6 @@ impl FamilySelection {
 pub struct Selection {
     pub tier: Tier,
     pub families: BTreeMap<String, FamilySelection>,
-    /// Families dx.toml turns off.
     pub disabled: BTreeSet<String>,
     pub exclude: Vec<String>,
 }
@@ -107,7 +104,6 @@ fn suggestion(closest: &Option<String>) -> String {
     }
 }
 
-/// The candidate closest to `name`, when it is near enough to be a typo.
 fn closest(name: &str, candidates: impl Iterator<Item = &'static str>) -> Option<String> {
     let limit = (name.len() / 3).max(2);
     candidates
@@ -214,8 +210,6 @@ fn apply(
     })
 }
 
-/// The curated selection with the `dx.toml` overrides applied. No file means the
-/// curated tools at the strict tier.
 pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProblem> {
     let root = config.and_then(|config| config.tier).unwrap_or_default();
     let skip = config

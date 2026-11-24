@@ -10,7 +10,6 @@ import unittest
 
 import check_jsonschema_main
 
-# The drafts dx accepts, mirrored by `DRAFTS` in core/quality/adapter/src/json_schema.rs.
 ACCEPTED = {
     "http://json-schema.org/draft-04/schema",
     "http://json-schema.org/draft-06/schema",

@@ -1,5 +1,3 @@
-//! Converts a protoc descriptor set with source info into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -20,7 +18,6 @@ use prost_types::{
 const LANGUAGE: &str = "protobuf";
 const KEY_INCOMPLETE: &str = "protobuf.incomplete";
 
-// Field numbers of the descriptor messages, used in source info paths.
 const FILE_MESSAGE: i32 = 4;
 const FILE_ENUM: i32 = 5;
 const FILE_SERVICE: i32 = 6;
@@ -30,7 +27,6 @@ const MESSAGE_ENUM: i32 = 4;
 const ENUM_VALUE: i32 = 2;
 const SERVICE_METHOD: i32 = 2;
 
-/// Why the `protobuf_extract` arguments were rejected.
 #[derive(Debug)]
 pub enum ArgsError {
     Flag(FlagError),
@@ -63,7 +59,6 @@ impl From<FlagError> for ArgsError {
     }
 }
 
-/// Why one descriptor set could not become a shard.
 #[derive(Debug)]
 pub enum ProtobufExtractError {
     Read(PathIoError),
@@ -115,35 +110,25 @@ impl std::error::Error for ProtobufExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub descriptor: String,
     pub package: String,
     pub out: String,
-    /// Proto name (as in the descriptor) to workspace-relative path.
     pub srcs: BTreeMap<String, String>,
-    /// Proto names whose source is build output.
     pub generated: BTreeSet<String>,
 }
 
-/// Runs `protobuf_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("protobuf_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: protobuf_extract --descriptor FILE --package NAME --out FILE --src PROTO=PATH... [--generated PROTO]..."
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -176,11 +161,6 @@ pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     Ok(options)
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), ProtobufExtractError> {
     let bytes =
         path_io::read(Path::new(&options.descriptor)).map_err(ProtobufExtractError::Read)?;
@@ -188,7 +168,6 @@ pub fn run(options: &Options) -> Result<(), ProtobufExtractError> {
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(ProtobufExtractError::Write)
 }
 
-/// Strips the comment markers' shared leading space and trailing blank space.
 fn clean_comment(text: &str) -> String {
     let text = text.replace("\r\n", "\n");
     let lines: Vec<&str> = text
@@ -198,7 +177,6 @@ fn clean_comment(text: &str) -> String {
     lines.join("\n").trim().to_owned()
 }
 
-/// The comments and line of every item in one file, keyed by source info path.
 struct Locations {
     by_path: BTreeMap<Vec<i32>, (String, u64)>,
 }
@@ -263,7 +241,6 @@ struct Builder<'a> {
     package: String,
     source: String,
     generated: bool,
-    /// Full names of the generated `map<K, V>` entry messages and their types.
     maps: BTreeMap<String, (String, String)>,
     symbols: Vec<Symbol>,
 }
@@ -500,11 +477,6 @@ impl Builder<'_> {
     }
 }
 
-/// Converts one descriptor set into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, ProtobufExtractError> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {

@@ -33,8 +33,6 @@ struct Line {
     code: Code,
 }
 
-/// zanuda reports the line only, so the finding starts at column 1 and has no end. The one
-/// place that builds a position, so a tool that later reports columns changes only this.
 fn position(line: u64) -> Result<TextPosition, ParseError> {
     if line == 0 {
         return Err(ParseError::shape(TOOL, "line 0 in a finding"));
@@ -42,15 +40,6 @@ fn position(line: u64) -> Result<TextPosition, ParseError> {
     Ok(TextPosition { line, column: 1 })
 }
 
-/// Parses the `-ordjsonl` file of `zanuda -cmt-list`. One JSON object per line. zanuda exits 0
-/// whether or not it found anything, and 1 when it skipped or could not read a listed entry, so
-/// any exit other than 0 is an error, as is a finding with no rule id, a line below 1, a
-/// malformed line and a finding for a file that was not listed. zanuda prints every finding as
-/// `INFO`; the level carries no information, so each finding is a warning.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zanuda(
     report: &[u8],
     code: Option<i32>,
@@ -155,18 +144,14 @@ mod tests {
 
     #[test]
     fn zanuda_fails_closed() {
-        // Exit 1 means a listed entry was skipped or unreadable; the report is incomplete.
         assert!(parse_zanuda(b"", Some(1), &FILES).is_err());
         assert!(parse_zanuda(DIRTY.as_bytes(), Some(1), &FILES).is_err());
         assert!(parse_zanuda(b"", Some(2), &FILES).is_err());
         assert!(parse_zanuda(b"", None, &FILES).is_err());
-        // Garbage, truncation and non-UTF-8.
         assert!(parse_zanuda(b"not json", Some(0), &FILES).is_err());
         assert!(parse_zanuda(&DIRTY.as_bytes()[..60], Some(0), &FILES).is_err());
         assert!(parse_zanuda(&[0xff, 0xfe], Some(0), &FILES).is_err());
-        // A finding in a file that was not listed.
         assert!(parse_zanuda(DIRTY.as_bytes(), Some(0), &["/s/other.ml"]).is_err());
-        // A finding without a rule id.
         let no_code = DIRTY.replace(
             r#""code":{"value":"if_bool","url":"https://kakadu.github.io/zanuda/"}"#,
             r#""code":{}"#,
@@ -174,7 +159,6 @@ mod tests {
         assert!(parse_zanuda(no_code.as_bytes(), Some(0), &FILES).is_err());
         let empty_code = DIRTY.replace("\"if_bool\"", "\"\"");
         assert!(parse_zanuda(empty_code.as_bytes(), Some(0), &FILES).is_err());
-        // Line 0.
         let line_zero = DIRTY.replace("\"line\":1", "\"line\":0");
         assert!(parse_zanuda(line_zero.as_bytes(), Some(0), &FILES).is_err());
     }

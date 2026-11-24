@@ -8,11 +8,6 @@ use super::{
 
 const TOOL: &str = "julia_format";
 
-/// Findings from `format.jl --check`: listed files are unformatted, `path:line:col: error:` lines are syntax errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_julia_format(
     stdout: &[u8],
     stderr: &[u8],

@@ -13,7 +13,6 @@ var (
 	mainSig  = regexp.MustCompile(`^main\s*(?:::|=)`)
 )
 
-// codeLines returns the source lines with comments blanked out.
 func codeLines(content []byte) []string {
 	s := string(content)
 	var out strings.Builder
@@ -42,7 +41,6 @@ func codeLines(content []byte) []string {
 	return strings.Split(strings.ReplaceAll(out.String(), "\r", ""), "\n")
 }
 
-// ParseImports returns the sorted unique module names imported by content.
 func ParseImports(content []byte) []string {
 	set := make(map[string]struct{})
 	for _, line := range codeLines(content) {
@@ -58,7 +56,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// DefinesMain reports whether content is a Main module or defines main.
 func DefinesMain(content []byte) bool {
 	for _, line := range codeLines(content) {
 		if mainRe.MatchString(line) || mainSig.MatchString(line) {
@@ -68,8 +65,6 @@ func DefinesMain(content []byte) bool {
 	return false
 }
 
-// ParseModule returns the module name declared in the header of content, or
-// "" when there is none.
 func ParseModule(content []byte) string {
 	for _, line := range codeLines(content) {
 		if m := moduleRe.FindStringSubmatch(line); m != nil {

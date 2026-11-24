@@ -1,5 +1,3 @@
-//! `diff -u OLD NEW`: the unified diff of two files, for tools that exec `diff` from PATH.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::ffi::OsString;
@@ -13,8 +11,6 @@ pub const TROUBLE: i32 = 2;
 
 const CONTEXT: usize = 3;
 
-/// The unified diff of `old` and `new` under `--- old_name` and `+++ new_name`; empty when equal.
-/// Inputs that are not UTF-8 are reported as differing binary files.
 #[must_use]
 pub fn unified(old_name: &str, new_name: &str, old: &[u8], new: &[u8]) -> Vec<u8> {
     if old == new {
@@ -33,11 +29,6 @@ pub fn unified(old_name: &str, new_name: &str, old: &[u8], new: &[u8]) -> Vec<u8
         .into_bytes()
 }
 
-/// Runs `diff -u OLD NEW`, writing the diff to `out`. Returns the exit code.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(args: &[OsString], out: &mut dyn Write) -> Result<i32, String> {
     let [flag, old, new] = args else {
         return Err(USAGE.to_owned());
@@ -63,7 +54,6 @@ pub fn run(args: &[OsString], out: &mut dyn Write) -> Result<i32, String> {
     Ok(DIFFERENT)
 }
 
-/// Runs `dx buf_diff -u OLD NEW` and returns the process exit code.
 pub fn run_process(args: &[OsString]) -> i32 {
     let mut stdout = std::io::stdout().lock();
     match run(args, &mut stdout).and_then(|code| {

@@ -1,13 +1,7 @@
-//! Positions of JSON pointers in YAML, JSON and TOML sources.
-//!
-//! Shared by the offline preflights and the JSON Schema adapter, so every finding that
-//! names a data path can be placed on a line and column of the file it came from.
-
 use std::collections::BTreeMap;
 
 use saphyr_parser::{Event, Parser, ScalarStyle};
 
-/// A syntax error at a zero-based line and column (the parser's own units).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyntaxAt {
     pub line: usize,
@@ -26,7 +20,6 @@ impl SyntaxAt {
     }
 }
 
-/// Escapes one JSON pointer reference token.
 #[must_use]
 pub fn escape(token: &str) -> String {
     token.replace('~', "~0").replace('/', "~1")
@@ -73,9 +66,6 @@ pub fn is_null(value: &str, style: ScalarStyle) -> bool {
     style == ScalarStyle::Plain && matches!(value, "" | "~" | "null" | "Null" | "NULL")
 }
 
-/// # Errors
-///
-/// Returns the position of the first syntax error.
 pub fn on_node(
     raw: &mut Raw,
     stack: &mut Vec<Frame>,
@@ -137,7 +127,6 @@ pub fn on_node(
     Ok(())
 }
 
-/// The byte offset of each char index the parser reports.
 pub struct Offsets<'a> {
     text: &'a str,
     table: Option<Vec<usize>>,
@@ -159,9 +148,6 @@ impl<'a> Offsets<'a> {
     }
 }
 
-/// # Errors
-///
-/// Returns the position of the first syntax error.
 pub fn scan_yaml(text: &str, captured: &[&str]) -> Result<Vec<Raw>, SyntaxAt> {
     let mut done = Vec::new();
     let mut current: Option<Raw> = None;
@@ -204,7 +190,6 @@ pub fn scan_yaml(text: &str, captured: &[&str]) -> Result<Vec<Raw>, SyntaxAt> {
     Ok(done)
 }
 
-/// Pointer positions of one document, one-based line and char-based column.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Index {
     pub line: u64,
@@ -213,7 +198,6 @@ pub struct Index {
 }
 
 impl Index {
-    /// The position of a JSON pointer, falling back to its nearest known ancestor.
     #[must_use]
     pub fn locate(&self, pointer: &str) -> (u64, u64) {
         let mut at = pointer;
@@ -248,11 +232,6 @@ impl Index {
     }
 }
 
-/// Indexes every document of a YAML stream.
-///
-/// # Errors
-///
-/// Returns the position of the first syntax error.
 pub fn yaml_documents(text: &str) -> Result<Vec<Index>, SyntaxAt> {
     Ok(scan_yaml(text, &[])?
         .into_iter()
@@ -260,8 +239,6 @@ pub fn yaml_documents(text: &str) -> Result<Vec<Index>, SyntaxAt> {
         .collect())
 }
 
-/// Indexes a JSON text. JSON is read through the YAML scanner; when that fails the
-/// index only knows the root, so lookups land on line 1.
 #[must_use]
 pub fn json_index(text: &str) -> Index {
     match scan_yaml(text, &[]) {
@@ -270,7 +247,6 @@ pub fn json_index(text: &str) -> Index {
     }
 }
 
-/// Byte offsets to one-based line and char-based column.
 struct Lines<'a> {
     text: &'a str,
     starts: Vec<usize>,
@@ -302,11 +278,6 @@ impl<'a> Lines<'a> {
     }
 }
 
-/// Indexes a TOML text. Tables, arrays of tables (`/a/0`), dotted and inline keys are covered.
-///
-/// # Errors
-///
-/// Returns the position of the first syntax error.
 pub fn toml_index(text: &str) -> Result<Index, SyntaxAt> {
     let lines = Lines::new(text);
     let doc = match toml_edit::Document::parse(text) {

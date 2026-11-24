@@ -1,8 +1,3 @@
-//! Re-pins a Maven lock of the nested consumers and writes it over the committed file.
-//!
-//! With `DX_HERMETIC_MANIFEST` it pins in the materialized consumer of that manifest; without it
-//! it pins the lock every nested consumer shares. `DX_MAVEN_LOCK` is the workspace path of the lock.
-
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{ExitCode, Stdio};

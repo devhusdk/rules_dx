@@ -6,7 +6,7 @@ load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//java/private:coverage.bzl", "dx_jvm_test_coverage")
-load("//java/private:defs.bzl", "java_deploy_jar_alias", "java_jmh_test")
+load("//java/private:defs.bzl", "java_deploy_jar_target", "java_jmh_test")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench_generated")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
@@ -67,7 +67,7 @@ def scala_library(name, srcs = None, visibility = None, **kwargs):
 def scala_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_binary. -Xfatal-warnings is on unless warnings_as_errors is False."""
     dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
-    java_deploy_jar_alias(name, visibility, kwargs)
+    java_deploy_jar_target(name, visibility, kwargs)
 
 def scala_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_test. The dx test runner runs unless main_class is set. -Xfatal-warnings is on unless warnings_as_errors is False."""

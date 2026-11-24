@@ -103,10 +103,11 @@ pub fn windows_support_override() -> String {
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 3] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 4] = [
     "lock_extension",
     "registrant_javacopts",
     "windows_golden_comparator",
+    "deterministic_web_compile",
 ];
 
 /// The patches of `//patches/cgrindel_bazel_starlib` that `rules_flutter_override` names, without `.patch`.

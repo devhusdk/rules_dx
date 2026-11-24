@@ -18,10 +18,8 @@ var SupportedExts = []string{".fs", ".fsi"}
 
 const LibraryKind = "fsharp_library"
 
-// TestKind is the rule generated for each test source.
 const TestKind = "fsharp_test"
 
-// TestTargetName names the test rule for a test source: DemoTest gives demo_test.
 func TestTargetName(src string) (string, error) { return common.SnakeName(src, SupportedExts) }
 
 func NewLanguage() language.Language {
@@ -40,7 +38,7 @@ func NewLanguage() language.Language {
 		DefinesMain:    DefinesMain,
 		ParseImports:   ParseImports,
 		IsStdLib:       IsStdLib,
-		Tests: &common.TestSpec{Kind: TestKind, Name: TestTargetName},
+		Tests:          &common.TestSpec{Kind: TestKind, Name: TestTargetName},
 		OrderSrcs: func(_ string, sources []string, contents map[string][]byte) ([]string, error) {
 			return orderSourcesByDependency(sources, contents)
 		},

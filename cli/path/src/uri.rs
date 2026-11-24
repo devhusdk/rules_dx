@@ -1,12 +1,9 @@
-//! One path as a `file://` URI, and the local path one names.
-
 use std::path::{Path, PathBuf};
 
 use url::Url;
 
 use crate::verbatim::without_verbatim;
 
-/// Why a path and a file URI could not be spelled for each other.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum UriError {
     #[error("path {path:?} is not absolute: a file URI names an absolute path")]
@@ -23,10 +20,6 @@ pub enum UriError {
     NotLocalPath { uri: String },
 }
 
-/// Returns one absolute path as a `file://` URI.
-///
-/// A relative path has no file URI; read one with `native` or `posix` instead.
-/// A path a `file://` URI would not read back as the same path has none either.
 pub fn uri(path: &Path) -> Result<String, UriError> {
     if !path.is_absolute() {
         return Err(UriError::NotAbsolute {
@@ -43,7 +36,6 @@ pub fn uri(path: &Path) -> Result<String, UriError> {
     }
 }
 
-/// Returns the local path one `file://` URI names.
 pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
     let parsed = Url::parse(uri).map_err(|error| UriError::Malformed {
         uri: uri.to_owned(),
@@ -62,7 +54,6 @@ pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
             uri: uri.to_owned(),
         });
     }
-    // A backslash separates components only on Windows; elsewhere it is a filename character.
     let escaped_separator = parsed.path().split('/').any(|part| {
         let upper = part.to_ascii_uppercase();
         upper.contains("%2F") || (cfg!(windows) && upper.contains("%5C")) || upper.contains("%00")
@@ -81,24 +72,20 @@ pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
 mod tests {
     use super::*;
 
-    /// A file URI for one path this host spells absolutely.
     fn uri_of(text: &str) -> String {
         uri(Path::new(text)).expect("absolute")
     }
 
-    /// A directory this host spells absolutely, with forward slashes for URIs.
     #[cfg(windows)]
     fn root() -> (&'static str, &'static str) {
         (r"C:\tmp", "/C:/tmp")
     }
 
-    /// A directory this host spells absolutely, with forward slashes for URIs.
     #[cfg(not(windows))]
     fn root() -> (&'static str, &'static str) {
         ("/tmp", "/tmp")
     }
 
-    /// Filenames a temp directory holds on this host, with the URI each one spells as.
     #[cfg(windows)]
     fn escapes() -> &'static [(&'static str, &'static str)] {
         &[
@@ -108,7 +95,6 @@ mod tests {
         ]
     }
 
-    /// Filenames a temp directory holds on this host, with the URI each one spells as.
     #[cfg(not(windows))]
     fn escapes() -> &'static [(&'static str, &'static str)] {
         &[
@@ -367,9 +353,9 @@ mod tests {
     #[test]
     fn uri_round_trips_a_path_that_is_not_text() {
         use std::os::unix::ffi::OsStrExt;
-        let path = Path::new(std::ffi::OsStr::from_bytes(b"/tmp/\xff.pb"));
+        let path = Path::new(std::ffi::OsStr::from_bytes(b"/srv/\xff.pb"));
         let spelled = uri(path).expect("absolute");
-        assert_eq!(spelled, "file:///tmp/%FF.pb");
+        assert_eq!(spelled, "file:///srv/%FF.pb");
         assert_eq!(uri_to_path(&spelled).expect("local"), path);
     }
 }

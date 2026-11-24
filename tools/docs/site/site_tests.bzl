@@ -313,7 +313,6 @@ def docs_book_coverage_tests(name, pages):
     routes = [chapter.route for chapter in USER_BOOK if chapter.kind == "page"]
     missing = [page for page in pages if page not in routes and page not in BOOK_EXCLUDED_DOCS]
 
-    # Design notes are for contributors; the published book is for users.
     design = [route for route in routes if route.startswith("docs/design/")]
     starlark_test(
         name = name,

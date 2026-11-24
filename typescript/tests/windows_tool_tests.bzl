@@ -1,16 +1,16 @@
-"""Analysis tests for the Windows tsc shim."""
+"""Analysis tests for the Windows tsc launcher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 
 def _bin_relative(ctx, file):
     return file.path[len(ctx.bin_dir.path) + 1:]
 
-def _shim_impl(ctx):
+def _windows_launcher_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
-    shim = target[DefaultInfo].files_to_run.executable
+    launcher = target[DefaultInfo].files_to_run.executable
     tool = ctx.executable.tool
-    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite" and shim in a.outputs.to_list()]
+    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite" and launcher in a.outputs.to_list()]
     asserts.equals(env, 1, len(writes))
     content = writes[0].content
     for line in [
@@ -19,15 +19,15 @@ def _shim_impl(ctx):
         "if exist \"%~f0.runfiles\\MANIFEST\" set \"RUNFILES_MANIFEST_FILE=%~f0.runfiles\\MANIFEST\"\r\n",
     ]:
         asserts.true(env, line in content, "missing line: " + line)
-    rel = "../" * _bin_relative(ctx, shim).count("/") + _bin_relative(ctx, tool)
+    rel = "../" * _bin_relative(ctx, launcher).count("/") + _bin_relative(ctx, tool)
     call = "call \"%~dp0" + rel.replace("/", "\\") + "\" %*\r\n"
     asserts.true(env, call in content, "expected %r in %r" % (call, content))
-    asserts.true(env, tool in target[DefaultInfo].default_runfiles.files.to_list(), "shim runfiles lack " + tool.path)
-    asserts.true(env, hasattr(target[OutputGroupInfo], "execroot_data_files"), "shim lacks the execroot_data_files output group")
+    asserts.true(env, tool in target[DefaultInfo].default_runfiles.files.to_list(), "launcher runfiles lack " + tool.path)
+    asserts.true(env, hasattr(target[OutputGroupInfo], "execroot_data_files"), "launcher lacks the execroot_data_files output group")
     return analysistest.end(env)
 
-shim_test = analysistest.make(
-    _shim_impl,
+windows_launcher_test = analysistest.make(
+    _windows_launcher_impl,
     attrs = {"tool": attr.label(default = "@npm_typescript//:tsc", executable = True, cfg = "target")},
 )
 
@@ -159,33 +159,33 @@ _CASES = [
     ("svelte_component_meta", "//javascript/private/quality/bin:svelte_component_meta_tool", "//javascript/private/quality/bin:svelte_component_meta"),
 ]
 
-def windows_tool_tests(name):
-    """Declares the shim and select tests for each js_build_tool case."""
+def windows_tool_tests(name, size = "small"):
+    """Declares the launcher and select tests for each js_build_tool case."""
     tests = []
     for case, alias, tool in _CASES:
         prefix = "{}_{}".format(name, case)
-        shim_test(name = prefix + "_shim", target_under_test = alias + "_windows", tool = tool, size = "small")
+        windows_launcher_test(name = prefix + "_windows_launcher", target_under_test = alias + "_windows", tool = tool, size = size)
         windows_select_test(
             name = prefix + "_windows_select",
             target_under_test = alias,
             basename = Label(alias).name + "_windows.bat",
-            size = "small",
+            size = size,
         )
-        default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = "small")
-        tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
-    upstream_launcher_test(name = name + "_upstream_launcher", target_under_test = "@npm_typescript//:tsc", size = "small")
-    upstream_fix_signals_test(name = name + "_upstream_fix_signals", size = "small")
+        default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = size)
+        tests += [prefix + "_windows_launcher", prefix + "_windows_select", prefix + "_default_select"]
+    upstream_launcher_test(name = name + "_upstream_launcher", target_under_test = "@npm_typescript//:tsc", size = size)
+    upstream_fix_signals_test(name = name + "_upstream_fix_signals", size = size)
     tests += [name + "_upstream_launcher", name + "_upstream_fix_signals"]
     native.test_suite(name = name, tests = tests)
 
 def ts_project_tool_tests(name, project):
-    """Declares the shim and select tests for the per-project tsc and validator tools."""
+    """Declares the launcher and select tests for the per-project tsc and validator tools."""
     tests = []
     for tool in ["tsc", "validator"]:
         prefix = "{}_{}".format(name, tool)
         alias = ":{}_{}".format(project, tool)
         upstream = Label("@npm_typescript//:" + tool)
-        shim_test(name = prefix + "_shim", target_under_test = alias + "_windows", tool = upstream, size = "small")
+        windows_launcher_test(name = prefix + "_windows_launcher", target_under_test = alias + "_windows", tool = upstream, size = "small")
         windows_select_test(
             name = prefix + "_windows_select",
             target_under_test = alias,
@@ -193,19 +193,19 @@ def ts_project_tool_tests(name, project):
             size = "small",
         )
         default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = upstream, size = "small")
-        tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
+        tests += [prefix + "_windows_launcher", prefix + "_windows_select", prefix + "_default_select"]
     native.test_suite(name = name, tests = tests)
 
-def framework_build_tool_tests(name, build):
-    """Declares the shim and select tests for the build tool of one framework build."""
+def framework_build_tool_tests(name, build, size = "small"):
+    """Declares the launcher and select tests for the build tool of one framework build."""
     alias = ":{}_dx_tool_build".format(build)
     tool = ":{}_dx_tool".format(build)
-    shim_test(name = name + "_shim", target_under_test = alias + "_windows", tool = tool, size = "small")
+    windows_launcher_test(name = name + "_windows_launcher", target_under_test = alias + "_windows", tool = tool, size = size)
     windows_select_test(
         name = name + "_windows_select",
         target_under_test = alias,
         basename = "{}_dx_tool_build_windows.bat".format(build),
-        size = "small",
+        size = size,
     )
-    default_select_test(name = name + "_default_select", target_under_test = alias, tool = tool, size = "small")
-    native.test_suite(name = name, tests = [name + "_shim", name + "_windows_select", name + "_default_select"])
+    default_select_test(name = name + "_default_select", target_under_test = alias, tool = tool, size = size)
+    native.test_suite(name = name, tests = [name + "_windows_launcher", name + "_windows_select", name + "_default_select"])

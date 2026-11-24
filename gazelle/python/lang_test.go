@@ -837,11 +837,11 @@ func TestGenerateKeepsPlainTestWithoutSource(t *testing.T) {
 
 func TestGeneratePackageLibrary(t *testing.T) {
 	result := generateFixture(t, map[string]string{
-		"pkg/__init__.py":        "",
-		"pkg/demo/__init__.py":   "from .core import run\n",
-		"pkg/demo/core.py":       "from . import util\nfrom ..other import thing\nimport os\n",
-		"pkg/demo/util.py":       "",
-		"pkg/demo/test_core.py":  "import pkg.demo.core\n",
+		"pkg/__init__.py":       "",
+		"pkg/demo/__init__.py":  "from .core import run\n",
+		"pkg/demo/core.py":      "from . import util\nfrom ..other import thing\nimport os\n",
+		"pkg/demo/util.py":      "",
+		"pkg/demo/test_core.py": "import pkg.demo.core\n",
 	}, []string{"__init__.py", "core.py", "util.py", "test_core.py"})
 	if len(result.Gen) != 2 {
 		t.Fatalf("generated %d rules, want 2", len(result.Gen))

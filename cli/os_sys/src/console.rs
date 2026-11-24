@@ -1,11 +1,8 @@
-//! Console control events and handlers.
-
 #![cfg_attr(
     windows,
     expect(unsafe_code, reason = "console control has no safe std API")
 )]
 
-/// A console control event Windows sends to every process on the console.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CtrlEvent {
     C,
@@ -16,7 +13,6 @@ pub enum CtrlEvent {
 }
 
 impl CtrlEvent {
-    /// The event for a raw `CTRL_*_EVENT` value, or `None` for one Windows does not define.
     #[must_use]
     pub fn from_raw(raw: u32) -> Option<CtrlEvent> {
         match raw {
@@ -47,8 +43,6 @@ pub(crate) mod windows {
 
     const LIST_ATTEMPTS: usize = 8;
 
-    /// A console control handler. Windows calls the handlers last-added first until one
-    /// returns `true`; `false` passes the event on, ending with the default that exits.
     pub trait CtrlHandler {
         fn handle(event: CtrlEvent) -> bool;
     }
@@ -57,7 +51,6 @@ pub(crate) mod windows {
         CtrlEvent::from_raw(raw).map_or(0, |event| BOOL::from(H::handle(event)))
     }
 
-    /// Adds `H` in front of the console control handlers.
     pub fn add_handler<H: CtrlHandler>() -> io::Result<()> {
         // SAFETY: the trampoline is a static function that lives as long as the process.
         let added = unsafe { SetConsoleCtrlHandler(Some(trampoline::<H>), 1) };
@@ -67,7 +60,6 @@ pub(crate) mod windows {
         Ok(())
     }
 
-    /// Undoes a parent's request to ignore Ctrl-C, which children inherit.
     pub fn restore_ctrl_c() -> io::Result<()> {
         // SAFETY: a null handler with add = 0 only clears the inherited ignore flag.
         let restored = unsafe { SetConsoleCtrlHandler(None, 0) };
@@ -85,15 +77,10 @@ pub(crate) mod windows {
         }
     }
 
-    /// Keeps this process alive through Ctrl-C; other console events pass on.
     pub fn ignore_ctrl_c() -> io::Result<()> {
         add_handler::<SwallowCtrlC>()
     }
 
-    /// Sends Ctrl-C to every process on the console of process `pid`.
-    ///
-    /// Moves this process onto that console and ignores Ctrl-C itself, so call it only from a
-    /// short-lived helper process.
     pub fn send_ctrl_c(pid: u32) -> io::Result<()> {
         // SAFETY: FreeConsole takes no arguments; it fails only when there is no console to leave.
         unsafe { FreeConsole() };
@@ -120,7 +107,6 @@ pub(crate) mod windows {
         Ok(())
     }
 
-    /// The ids of the processes attached to this console; empty without a console.
     #[must_use]
     pub fn process_ids() -> Vec<u32> {
         let mut list = vec![0u32; 64];

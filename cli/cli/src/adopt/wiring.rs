@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(code, 0);
         assert_eq!(
             out,
-            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\nwrote demo/.dx/BUILD.bazel\nwrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.dx/config/gitleaks/base.toml\nwrote demo/.dx/config/lychee/base.toml\nwrote demo/.dx/config/typos/base.toml\n"
+            "wrote demo/tools/dx\nwrote demo/tools/dx.cmd\nwrote demo/tools/bazel\nwrote demo/tools/bazel.bat\nwrote demo/.bazelrc\nwrote demo/.gitignore\nwrote demo/.claude/settings.json\nwrote demo/.codex/hooks.json\nwrote demo/.gemini/settings.json\nwrote demo/.github/hooks/dx.json\nwrote demo/AGENTS.md\nwrote demo/CLAUDE.md\nwrote demo/.github/copilot-instructions.md\nwrote demo/.dx/BUILD.bazel\nwrote demo/.dx/bazelrc/correctness.bazelrc\nwrote demo/.dx/bazelrc/performance.bazelrc\nwrote demo/.dx/bazelrc/resources.bazelrc\nwrote demo/.dx/config/gitleaks/base.toml\nwrote demo/.dx/config/lychee/base.toml\nwrote demo/.dx/config/typos/base.toml\n"
         );
         std::fs::write(root.join(".claude/settings.json"), "{\"hooks\": {}}\n").expect("seed");
         let (code, out, err) = applied(root, "demo/", CODE_INIT_FAILED, &words);

@@ -297,7 +297,6 @@ pub enum ParseError {
 }
 
 impl ParseError {
-    /// The failure for output outside the pinned grammar.
     fn shape(tool: &'static str, detail: impl Into<String>) -> Self {
         Self::Shape {
             tool,
@@ -308,9 +307,6 @@ impl ParseError {
 
 pub const MAX_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseError> {
     if bytes.len() > MAX_OUTPUT_BYTES {
         return Err(ParseError::TooLarge {
@@ -322,9 +318,6 @@ pub fn check_output_size(tool: &'static str, bytes: &[u8]) -> Result<(), ParseEr
     Ok(())
 }
 
-/// Whether two paths are equal. Paths that start with a Windows drive letter compare that
-/// letter case-insensitively and treat `\` and `/` as the same separator; other paths compare
-/// exactly.
 pub(super) fn same_drive_path(a: &str, b: &str) -> bool {
     fn drive(path: &str) -> Option<(u8, &str)> {
         match path.as_bytes() {
@@ -362,7 +355,6 @@ fn known<'a>(tool: &'static str, files: &[&'a str], path: &str) -> Result<&'a st
         })
 }
 
-/// The checked file a tool named, accepting a path spelled from the tool's working directory.
 fn known_relative<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -387,7 +379,6 @@ fn known_relative<'a>(
         })
 }
 
-/// The checked file a tool named, accepting either separator spelling.
 fn known_spelled<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -404,7 +395,6 @@ fn known_spelled<'a>(
         })
 }
 
-/// The checked file a tool named in the host's own slashes.
 fn known_native<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -417,7 +407,6 @@ fn known_native<'a>(
     }
 }
 
-/// The checked file a tool named, matching the path after dropping `.` and `..` components.
 fn known_lexical<'a>(
     tool: &'static str,
     files: &[&'a str],
@@ -446,7 +435,6 @@ fn known_lexical<'a>(
         })
 }
 
-/// The lines a tool wrote, blank ones dropped and each one trimmed.
 fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseError> {
     Ok(as_text(tool, raw)?
         .lines()
@@ -455,7 +443,6 @@ fn lines<'a>(tool: &'static str, raw: &'a [u8]) -> Result<Vec<&'a str>, ParseErr
         .collect())
 }
 
-/// The checked file a line starts with (longest wins), with everything after its colon.
 fn located<'a>(
     tool: &'static str,
     line: &'a str,
@@ -478,8 +465,6 @@ fn located<'a>(
     })
 }
 
-/// The checked file a line starts with (longest wins), followed by a colon, and the rest. On
-/// Windows the line may spell the file with either separator.
 fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> {
     files
         .iter()
@@ -498,13 +483,11 @@ fn prefixed<'a>(line: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> 
         .max_by_key(|(file, _)| file.len())
 }
 
-/// Exactly `row<sep>col`, both numbers trimmed.
 fn row_col(text: &str, sep: char) -> Option<(u64, u64)> {
     let (row, col) = text.split_once(sep)?;
     Some((row.trim().parse().ok()?, col.trim().parse().ok()?))
 }
 
-/// A `path:row:col` triple split from the right, with a non-empty path.
 fn path_row_col(text: &str) -> Option<(&str, u64, u64)> {
     let (rest, col) = text.rsplit_once(':')?;
     let (path, row) = rest.rsplit_once(':')?;
@@ -514,7 +497,6 @@ fn path_row_col(text: &str) -> Option<(&str, u64, u64)> {
     Some((path, row.trim().parse().ok()?, col.trim().parse().ok()?))
 }
 
-/// The line and column of a diagnostic that spells both, with its tail.
 fn columned<'a>(
     tool: &'static str,
     line: &str,
@@ -530,7 +512,6 @@ fn columned<'a>(
     Ok((line_no, column, tail))
 }
 
-/// A number a diagnostic spelled, or the shape failure naming the field it missed.
 fn numbered(
     tool: &'static str,
     what: &str,
@@ -543,7 +524,6 @@ fn numbered(
         .map_err(|error| ParseError::shape(tool, format!("malformed {what}: {line}: {error}")))
 }
 
-/// A finding at a line and column, spanning nothing and suggesting nothing.
 fn finding(
     tool: &'static str,
     file: &str,
@@ -569,7 +549,6 @@ fn finding(
     }
 }
 
-/// An exit that reported nothing is a shape failure, whatever the code said.
 fn require_findings(
     tool: &'static str,
     findings: &[FileFinding],
@@ -598,7 +577,6 @@ fn code_name(code: Option<i32>) -> String {
 
 const DEV_NULL: &str = "/dev/null";
 
-/// The paths a unified diff says were reformatted, in the order the diff names them.
 fn diff_paths(text: &str) -> Vec<String> {
     let mut paths: Vec<String> = Vec::new();
     let lines: Vec<&str> = text.lines().collect();
@@ -631,7 +609,6 @@ fn diff_paths(text: &str) -> Vec<String> {
     paths
 }
 
-/// The old-side and new-side line counts a `@@` header declares, absent counts meaning 1.
 fn hunk_counts(line: &str) -> Option<(usize, usize)> {
     let rest = line.strip_prefix("@@ -")?;
     let (old, rest) = rest.split_once(" +")?;
@@ -646,7 +623,6 @@ fn range_count(range: &str) -> Option<usize> {
     }
 }
 
-/// The index just past the hunk that starts at `index` with the given side counts.
 fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize) -> usize {
     let mut old_seen = 0;
     let mut new_seen = 0;
@@ -667,7 +643,6 @@ fn hunk_end(lines: &[&str], mut index: usize, old_count: usize, new_count: usize
     }
     index
 }
-/// Whether the `a/` and `b/` in a header are `git diff` prefixes rather than directories.
 fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
     match (old, new) {
         (Some(old), Some(new)) if new == DEV_NULL => old.starts_with("a/"),
@@ -677,7 +652,6 @@ fn git_prefixed(old: Option<&str>, new: Option<&str>) -> bool {
     }
 }
 
-/// The path one side of a diff header names.
 fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     let path = raw.split('\t').next().unwrap_or(raw).trim();
     let path = if git {
@@ -698,21 +672,15 @@ fn diff_path(raw: &str, git: bool, orig: bool) -> Option<String> {
     Some(path.to_owned())
 }
 
-/// The exit codes a diff-reporting formatter is allowed to exit with when it named files.
 #[derive(Debug, Clone, Copy)]
 pub enum DiffExit {
-    /// `-d`-style tools print a diff and still exit 0.
     Zero,
-    /// `--check`-style tools exit non-zero once the diff exists.
     NonZero,
-    /// `--check --diff` tools exit 1, but 0 is also pinned.
     ZeroOrOne,
-    /// gofmt-style `-d` exits exactly 1 once a diff exists; 2 is a parse error.
     One,
 }
 
 impl DiffExit {
-    /// Whether the tool may exit with `code` once it named files.
     fn allows(self, code: Option<i32>) -> bool {
         match self {
             Self::Zero => code == Some(0),
@@ -794,7 +762,6 @@ fn rubocop_offense(
     })
 }
 
-/// Report the offenses in the `RuboCop` JSON grammar, used by `rubocop`.
 pub(super) fn rubocop_json(
     tool: &'static str,
     stdout: &[u8],
@@ -868,7 +835,6 @@ pub(super) fn rubocop_json(
     Ok(findings)
 }
 
-/// Find the stderr line that shows a `RuboCop` cop crashed, shared by the check and fix paths.
 #[must_use]
 pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
     let stderr = String::from_utf8_lossy(stderr);
@@ -884,7 +850,6 @@ pub fn rubocop_crash(stderr: &[u8]) -> Option<String> {
         .cloned()
 }
 
-/// Whether a stderr line is `RuboCop`'s `N error(s) occurred:` crash summary.
 fn rubocop_error_summary(line: &str) -> bool {
     let Some((count, rest)) = line.split_once(' ') else {
         return false;
@@ -894,7 +859,6 @@ fn rubocop_error_summary(line: &str) -> bool {
         && matches!(rest, "error occurred:" | "errors occurred:")
 }
 
-/// Report one "file is not formatted" finding per path in a unified diff.
 fn diff_format(
     tool: &'static str,
     bytes: &[u8],
@@ -922,16 +886,12 @@ fn diff_format(
     unformatted(tool, files, &paths)
 }
 
-/// How a tool spells a path it listed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Spelling<'a> {
-    /// The path the tool wrote, held to the run's own files.
     Exact,
-    /// The path the tool wrote, taken from the directory it ran in.
     Below(&'a Path),
 }
 
-/// Report one "file is not formatted" finding per path a tool listed, one per line.
 pub(super) fn listed_paths(
     tool: &'static str,
     bytes: &[u8],
@@ -972,7 +932,6 @@ pub(super) fn listed_paths(
     Ok(findings)
 }
 
-/// One "file is not formatted" finding when a tool that prints the formatted file differs from its input.
 pub(super) fn rewrite_format(
     tool: &'static str,
     stdout: &[u8],
@@ -997,7 +956,6 @@ pub(super) fn rewrite_format(
     Ok(vec![unformatted_at(tool, file, 1, 1, encoding)])
 }
 
-/// The bytes as UTF-8 text, or a shape error naming the tool.
 fn as_text<'a>(tool: &'static str, bytes: &'a [u8]) -> Result<&'a str, ParseError> {
     check_output_size(tool, bytes)?;
     std::str::from_utf8(bytes).map_err(|err| ParseError::Shape {
@@ -1006,7 +964,6 @@ fn as_text<'a>(tool: &'static str, bytes: &'a [u8]) -> Result<&'a str, ParseErro
     })
 }
 
-/// One "file is not formatted" finding per path, each path held to the run's own file set.
 fn unformatted(
     tool: &'static str,
     files: &[&str],
@@ -1026,7 +983,6 @@ fn unformatted(
         .collect()
 }
 
-/// A "file is not formatted" finding at a line and column.
 pub(super) fn unformatted_at(
     tool: &'static str,
     file: &str,
@@ -1075,7 +1031,6 @@ mod tests {
         ));
     }
 
-    /// A tool may name a file in the host's own slashes.
     #[test]
     fn a_path_in_host_slashes_names_its_checked_file() {
         let files = ["src/a.js"];
@@ -1417,72 +1372,60 @@ mod tests {
 
     #[test]
     fn diff_headers_resolve_every_real_producer_shape() {
-        // git diff, and the `a/` prefix the fixtures were written with.
         assert_eq!(
             super::diff_paths("--- a/x.go\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
             ["x.go"]
         );
-        // gofumpt -d, shfmt -d, cue fmt --diff: the OLD side is "<path>.orig".
         assert_eq!(
             super::diff_paths(
                 "diff x.go.orig x.go\n--- x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n"
             ),
             ["x.go"]
         );
-        // buf format --diff: `.orig` plus a tab-separated timestamp, from `diff -u`.
         assert_eq!(
             super::diff_paths(
                 "diff -u x.proto.orig x.proto\n--- x.proto.orig\t2024-01-02 03:04:05.0 +0000\n+++ x.proto\t2024-01-02 03:04:06.0 +0000\n@@ -1 +1 @@\n-a\n+b\n"
             ),
             ["x.proto"]
         );
-        // A hunk may remove a line whose own text starts with `-- `; that is body, not a header.
         assert_eq!(
             super::diff_paths(
                 "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,2 @@\n CREATE TABLE t (id int);\n--- drop the old table\n+-- drop the unused table\n"
             ),
             ["q.sql"]
         );
-        // The counts still end the hunk before the section name.
         assert_eq!(
             super::diff_paths(
                 "--- a/k.go\n+++ b/k.go\n@@ -5,5 +5,5 @@ import \"fmt\"\n func main() {\n \tfmt.Println(\"a\")\n \tfmt.Println(\"b\")\n--- keep\n+--- other\n }\n"
             ),
             ["k.go"]
         );
-        // A second file after a hunk is still found.
         assert_eq!(
             super::diff_paths(
                 "--- a/x.go.orig\n+++ x.go\n@@ -1 +1 @@\n-a\n+b\n--- a/y.go.orig\n+++ y.go\n@@ -1 +1 @@\n-c\n+d\n"
             ),
             ["x.go", "y.go"]
         );
-        // A blank line inside a hunk ends it, so the next header is a header and not body.
         assert_eq!(
             super::diff_paths(
                 "--- a/x.go\n+++ b/x.go\n@@ -1,2 +1,2 @@\n-a\n\n+b\n--- a/y.go\n+++ b/y.go\n@@ -1 +1 @@\n-c\n+d\n"
             ),
             ["x.go", "y.go"]
         );
-        // `/dev/null` on the new side is a deletion, so the old side names the file.
         assert_eq!(
             super::diff_paths("--- a/gone.go\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["gone.go"]
         );
-        // A deletion from a producer that also names the old side `<path>.orig`.
         assert_eq!(
             super::diff_paths("--- gone.go.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["gone.go"]
         );
-        // Whichever side is not `/dev/null` names the file, whichever side that is.
         assert_eq!(
             super::diff_paths("--- /dev/null\n+++ b/new.go\n@@ -0,0 +1 @@\n+a\n"),
             ["new.go"]
         );
-        // A bare `.orig` reduces to nothing rather than an empty path.
         let actual = super::diff_paths("--- .orig\n@@ -1 +1 @@\n-a\n+b\n");
         assert!(actual.is_empty(), "{actual:?}");
-        // A `git diff` pair names the file, so a real `.orig` file is a path like any other.
         assert_eq!(
             super::diff_paths("--- a/.orig\n+++ b/.orig\n@@ -1 +1 @@\n-a\n+b\n"),
             [".orig"]
@@ -1491,12 +1434,10 @@ mod tests {
 
     #[test]
     fn diff_headers_keep_a_file_whose_own_name_ends_in_orig() {
-        // `git diff` of a file that really is called `x.orig`.
         assert_eq!(
             super::diff_paths("--- a/patch.orig\n+++ b/patch.orig\n@@ -1 +1 @@\n-a\n+b\n"),
             ["patch.orig"]
         );
-        // A `git diff` deletion of that file keeps the name too.
         assert_eq!(
             super::diff_paths("--- a/patch.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["patch.orig"]
@@ -1507,7 +1448,6 @@ mod tests {
             ),
             ["patch.orig"]
         );
-        // A `.orig` producer's deletion still resolves, because that side is the copy.
         assert_eq!(
             super::diff_paths("--- patch.orig.orig\n+++ /dev/null\n@@ -1 +0,0 @@\n-a\n"),
             ["patch.orig"]
@@ -1520,14 +1460,12 @@ mod tests {
 
     #[test]
     fn diff_headers_keep_a_real_a_directory_that_is_not_a_git_prefix() {
-        // `gofumpt -d a/x.go` names the path, so `a/` is a directory here, and both sides carry it.
         assert_eq!(
             super::diff_paths(
                 "diff a/x.go.orig a/x.go\n--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n"
             ),
             ["a/x.go"]
         );
-        // One side alone is not a `git diff` header either.
         assert_eq!(
             super::diff_paths("--- a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
             ["a/x.go"]
@@ -1536,12 +1474,10 @@ mod tests {
             super::diff_paths("--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
             ["a/x.go"]
         );
-        // A `b/` directory the same way, from the `.orig` side.
         assert_eq!(
             super::diff_paths("--- b/x.go.orig\n+++ b/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
             ["b/x.go"]
         );
-        // The git shape still strips: only a pair using `a/` and `b/` is a prefix.
         assert_eq!(
             super::diff_paths("--- a/a/x.go\n+++ b/a/x.go\n@@ -1 +1 @@\n-a\n+b\n"),
             ["a/x.go"]
@@ -1550,7 +1486,6 @@ mod tests {
 
     #[test]
     fn diff_format_rejects_a_header_naming_a_file_the_run_never_gave() {
-        // The old reader stripped `a/` and named `x.go`, so a real `a/x.go` passed.
         let diff = b"--- a/x.go.orig\n+++ a/x.go\n@@ -1 +1 @@\n-a\n+b\n";
         let err = super::diff_format("t", diff, Some(0), &["x.go"], super::DiffExit::Zero)
             .expect_err("a/x.go was never checked");
@@ -1600,7 +1535,6 @@ mod tests {
             let got = super::diff_format("t", diff, code, &["x.go"], exit).is_ok();
             assert_eq!(got, ok, "{name} at {code:?}");
         }
-        // A clean exit with no diff is fine for every policy.
         for exit in [
             super::DiffExit::Zero,
             super::DiffExit::NonZero,
@@ -1674,7 +1608,6 @@ mod tests {
         ));
     }
 
-    /// `terraform fmt -check` names a file by its path from the directory it ran in.
     #[test]
     fn listed_paths_reads_a_path_spelled_below_the_working_directory() {
         let cwd = Path::new("/w");

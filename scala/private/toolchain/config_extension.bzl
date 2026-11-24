@@ -24,6 +24,31 @@ def scala_versions(settings):
             fail("scala_config.settings: Scala version {} is not <major>.<minor>.<patch>".format(repr(v)))
     return version, versions
 
+_CONFIG_BUILD = """load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
+string_setting(
+    name = "scala_version",
+    build_setting_default = "{version}",
+    scope = "universal",
+    values = {versions},
+    visibility = ["//visibility:public"],
+)
+"""
+
+_CONFIG_SETTING = """config_setting(
+    name = "scala_version{suffix}",
+    flag_values = {{":scala_version": "{version}"}},
+    visibility = ["//visibility:public"],
+)
+"""
+
+_CONFIG_SRCS = """
+filegroup(
+    name = "dx_bzl_srcs",
+    srcs = ["config.bzl"],
+    visibility = ["//visibility:public"],
+)
+"""
+
 def _config_impl(rctx):
     version = rctx.attr.scala_version
     versions = rctx.attr.scala_versions
@@ -35,29 +60,11 @@ def _config_impl(rctx):
         "SCALA_MINOR_VERSION='" + minor + "'",
         "ENABLE_COMPILER_DEPENDENCY_TRACKING=False",
     ]))
-    build = """load("@bazel_skylib//rules:common_settings.bzl", "string_setting")
-string_setting(
-    name = "scala_version",
-    build_setting_default = "{version}",
-    scope = "universal",
-    values = {versions},
-    visibility = ["//visibility:public"],
-)
-""".format(version = version, versions = versions)
-    build += "".join(["""config_setting(
-    name = "scala_version{suffix}",
-    flag_values = {{":scala_version": "{version}"}},
-    visibility = ["//visibility:public"],
-)
-""".format(suffix = _suffix(v), version = v) for v in versions])
-    build += """
-filegroup(
-    name = "dx_bzl_srcs",
-    srcs = ["config.bzl"],
-    visibility = ["//visibility:public"],
-)
-"""
+    build = _CONFIG_BUILD.format(version = version, versions = versions)
+    build += "".join([_CONFIG_SETTING.format(suffix = _suffix(v), version = v) for v in versions])
+    build += _CONFIG_SRCS
     rctx.file("BUILD", build)
+    return rctx.repo_metadata(reproducible = True)
 
 _config_repository = repository_rule(
     implementation = _config_impl,

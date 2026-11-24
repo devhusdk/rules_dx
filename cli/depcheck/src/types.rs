@@ -44,7 +44,6 @@ pub enum DepcheckError {
     NoMavenCoords,
 }
 
-/// Every distinct locked version per package name, in lock order.
 pub type LockVersions = std::collections::BTreeMap<String, Vec<String>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,7 +55,6 @@ pub struct DepInfo {
     pub raw: String,
     pub peer: bool,
     pub sha256: String,
-    /// Lock name when the dependency is renamed, empty otherwise.
     pub package: String,
 }
 
@@ -67,11 +65,6 @@ pub struct Usage {
     pub build: bool,
 }
 
-/// Parses the language named by `--ecosystem`.
-///
-/// # Errors
-///
-/// Returns an error when `text` names no known ecosystem.
 pub fn language_named(text: &str) -> Result<Language, DepcheckError> {
     Language::parse(text).ok_or_else(|| DepcheckError::UnknownEcosystem(text.to_owned()))
 }

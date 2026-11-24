@@ -8,6 +8,7 @@ exports_files([
     "crate_universe_module_labels.patch",
     "exec_scope_universal.patch",
     "msvc_pdb_output.patch",
+    "msvc_stdlib_ntdll.patch",
     "pipelined_rmeta_path.patch",
     "rust_analyzer_rustc_lib.patch",
     "static_archive_link_arg.patch",

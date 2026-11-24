@@ -1,5 +1,3 @@
-//! The tree breaks no rule of the Checks section of docs/design/locks.md.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -10,7 +8,6 @@ use starlark_syntax::syntax::ast::{
 use starlark_syntax::syntax::{AstModule, Dialect};
 use yaml_serde as _;
 
-/// Attribute names no hub extension tag may have.
 const BANNED_ATTRS: [&str; 7] = [
     "checksums",
     "digest",
@@ -21,10 +18,8 @@ const BANNED_ATTRS: [&str; 7] = [
     "version",
 ];
 
-/// Banned names that also count as the last word of a longer attribute name.
 const BANNED_SUFFIXES: [&str; 5] = ["checksums", "digest", "digests", "integrity", "sha256"];
 
-/// The keys every `setup.hubs` entry holds.
 const ENTRY_KEYS: [&str; 9] = [
     "ecosystem",
     "extension",
@@ -37,15 +32,12 @@ const ENTRY_KEYS: [&str; 9] = [
     "tag",
 ];
 
-/// Fewer snapshot entries than this means the sweep lost the tree.
 const MIN_SOURCES: usize = 1000;
 const MIN_PATHS: usize = 1000;
 const MIN_LANGUAGES: usize = 50;
 
-/// Fewer non-test Rust files than this means the sweep lost the tree.
 const MIN_RUST: usize = 300;
 
-/// The declared inputs: BUILD and .bzl texts, other texts, non-test Rust texts, and paths under language directories.
 #[derive(Default)]
 struct Tree {
     sources: BTreeMap<String, String>,
@@ -55,22 +47,14 @@ struct Tree {
     paths: Vec<String>,
 }
 
-/// What the `lang.json` files say about dependency sets.
 #[derive(Default)]
 struct Languages {
-    /// The `extension` labels of `setup.hubs`, without the `@rules_dx` repository.
     hub_extensions: BTreeSet<String>,
-    /// The language directories of those labels.
     hub_dirs: BTreeSet<String>,
-    /// The `resolver` labels of `setup.hubs`, without the `@rules_dx` repository.
     resolvers: BTreeSet<String>,
-    /// Ecosystems named by any language.
     ecosystems: BTreeSet<String>,
-    /// Ecosystems with a complete `setup.hubs` entry.
     registered: BTreeSet<String>,
-    /// Manifest, lock and state names of the registry.
     registry_names: BTreeSet<String>,
-    /// `<lang>/lang.json` paired with a manifest or lockfile name the registry lacks.
     stray_names: BTreeSet<(String, String)>,
 }
 
@@ -138,7 +122,6 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
     out
 }
 
-/// Whether `path` is test, fixture, patch or vendored Starlark.
 fn test_path(path: &str) -> bool {
     path.starts_with("examples/")
         || path
@@ -149,7 +132,6 @@ fn test_path(path: &str) -> bool {
             .any(|end| path.ends_with(end))
 }
 
-/// The first directory of `path`.
 fn top_dir(path: &str) -> &str {
     path.split_once('/').map_or("", |(top, _)| top)
 }
@@ -218,7 +200,6 @@ fn parse(path: &str, source: &str) -> AstModule {
         .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()))
 }
 
-/// Calls `visit` on every expression under `stmt`.
 fn each_expr<'a>(stmt: &'a AstStmt, visit: &mut dyn FnMut(&'a AstExpr)) {
     fn walk<'a>(expr: &'a AstExpr, visit: &mut dyn FnMut(&'a AstExpr)) {
         visit(expr);
@@ -228,7 +209,6 @@ fn each_expr<'a>(stmt: &'a AstStmt, visit: &mut dyn FnMut(&'a AstExpr)) {
     stmt.node.visit_stmt(|child| each_expr(child, visit));
 }
 
-/// The top-level assignments of a module, by name.
 fn globals(stmt: &AstStmt) -> BTreeMap<String, &AstExpr> {
     let mut out = BTreeMap::new();
     let mut pending = vec![stmt];
@@ -256,7 +236,6 @@ fn globals(stmt: &AstStmt) -> BTreeMap<String, &AstExpr> {
     out
 }
 
-/// The banned attribute names of every `tag_class` in one .bzl file.
 fn banned_tag_attrs(path: &str, source: &str) -> BTreeSet<String> {
     let module = parse(path, source);
     let globals = globals(module.statement());
@@ -293,7 +272,6 @@ fn banned_tag_attrs(path: &str, source: &str) -> BTreeSet<String> {
     found
 }
 
-/// A rules_dx label as `//<package>:<name>`, if it is one.
 fn local_label(label: &str) -> Option<String> {
     let rest = label
         .strip_prefix("@rules_dx//")
@@ -301,14 +279,12 @@ fn local_label(label: &str) -> Option<String> {
     Some(format!("//{rest}"))
 }
 
-/// The language directory of a `//<package>:<name>` label.
 fn extension_dir(label: &str) -> Option<&str> {
     let rest = label.strip_prefix("//")?;
     let package = rest.split(':').next().unwrap_or(rest);
     package.split('/').next()
 }
 
-/// The rule that declares a `//<package>[:<name>]` label unless it is `dx_subcommand`, or `missing` when nothing declares it.
 fn resolver_kind(label: &str, sources: &BTreeMap<String, String>) -> Option<String> {
     let rest = label.strip_prefix("//").unwrap_or(label);
     let (package, name) = rest
@@ -339,7 +315,6 @@ fn resolver_kind(label: &str, sources: &BTreeMap<String, String>) -> Option<Stri
     }
 }
 
-/// `<extension>.<tag>.<attribute>` for every banned keyword on a tag of an extension loaded from one of `labels`.
 fn banned_tag_uses(path: &str, source: &str, labels: &BTreeSet<String>) -> BTreeSet<String> {
     let module = parse(path, source);
     let mut proxies = BTreeMap::new();
@@ -386,7 +361,6 @@ fn banned_tag_uses(path: &str, source: &str, labels: &BTreeSet<String>) -> BTree
     found
 }
 
-/// Whether a .bzl file is a lock parser: named for a lock, or defining a function that parses one.
 fn lock_parser(path: &str, source: &str) -> bool {
     let stem = path
         .rsplit('/')
@@ -403,7 +377,6 @@ fn lock_parser(path: &str, source: &str) -> bool {
         .any(|name| name.contains("lock") && (name.contains("parse") || name.contains("packages")))
 }
 
-/// The file names a text states: runs of letters, digits, `_`, `.` and `-`.
 fn stated_names(text: &str) -> BTreeSet<&str> {
     text.split(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-')))
         .map(|word| word.trim_end_matches('.'))
@@ -411,7 +384,6 @@ fn stated_names(text: &str) -> BTreeSet<&str> {
         .collect()
 }
 
-/// Whether a line holds a repository label such as `@composer//:monolog`.
 fn hub_label(line: &str) -> bool {
     line.split('@').skip(1).any(|rest| {
         let name = rest
@@ -425,12 +397,10 @@ fn hub_label(line: &str) -> bool {
     })
 }
 
-/// Whether the file is generated from the registry, so its names are the registry's own.
 fn registry_generated(source: &str) -> bool {
     source.starts_with("\"\"\"Generated from every <lang>/lang.json ")
 }
 
-/// One line per broken rule.
 fn violations(tree: &Tree) -> BTreeSet<String> {
     let langs = languages(&tree.files);
     let mut out = BTreeSet::new();
@@ -526,7 +496,6 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
     out
 }
 
-/// What to do about a new line of each rule.
 fn fix(line: &str) -> &'static str {
     match line.split(' ').next().unwrap_or("") {
         "registry" => "add its `setup.hubs` entry with every key",
@@ -541,7 +510,6 @@ fn fix(line: &str) -> &'static str {
     }
 }
 
-/// Each broken rule with what to do about it.
 fn report(violations: &BTreeSet<String>) -> Vec<String> {
     violations
         .iter()
@@ -549,7 +517,6 @@ fn report(violations: &BTreeSet<String>) -> Vec<String> {
         .collect()
 }
 
-/// Reads one runfile named by an environment variable.
 fn read_input(variable: &str) -> String {
     let key = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} is set by the test"));
     let path = dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("{variable}: {error}"));

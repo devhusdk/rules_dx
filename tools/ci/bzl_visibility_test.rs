@@ -1,7 +1,3 @@
-//! Every `.bzl` outside the public API (`defs.bzl`, `extensions.bzl`) and outside `private/`, `tests/`, `tools/` and `third_party/` declares its load visibility, so a consumer cannot come to depend on an internal file by loading it.
-//!
-//! Files a consumer, a generated BUILD file or a nested fixture really loads say `visibility("public")`; the rest name the packages that load them or say `visibility("private")`.
-
 use std::collections::BTreeSet;
 
 use dx_guard::masked::masked;
@@ -10,24 +6,18 @@ use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// Directory names whose `.bzl` files are internal by layout, so need no declaration of their own.
 const LAYOUT_DIRS: [&str; 4] = ["private", "tests", "tools", "third_party"];
 
-/// The public entry points of a package.
 const PUBLIC_NAMES: [&str; 2] = ["defs.bzl", "extensions.bzl"];
 
-/// File names that start a separate Bazel workspace, whose `.bzl` files belong to that fixture and not to `rules_dx`.
 const WORKSPACE_MARKERS: [&str; 4] = ["MODULE.bazel", "REPO.bazel", "WORKSPACE", "WORKSPACE.bazel"];
 
-/// Fewer checked files than this means the sweep lost the tree.
 const MIN_FILES: usize = 150;
 
-/// The directory of a repo path.
 fn dir_of(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-/// The directories, other than the root, that hold their own workspace.
 fn workspace_roots(files: &[(String, String)]) -> BTreeSet<&str> {
     files
         .iter()
@@ -41,7 +31,6 @@ fn workspace_roots(files: &[(String, String)]) -> BTreeSet<&str> {
         .collect()
 }
 
-/// True when `path` is a `.bzl` file of `rules_dx` that must declare its load visibility.
 fn needs_declaration(path: &str, roots: &BTreeSet<&str>) -> bool {
     let (dirs, name) = path.rsplit_once('/').unwrap_or(("", path));
     if !name.ends_with(".bzl") || PUBLIC_NAMES.contains(&name) {
@@ -55,7 +44,6 @@ fn needs_declaration(path: &str, roots: &BTreeSet<&str>) -> bool {
         .any(|root| path.starts_with(root) && path.as_bytes().get(root.len()) == Some(&b'/'))
 }
 
-/// True when `text` calls `visibility(` at the top level.
 fn declares_visibility(text: &str) -> bool {
     masked(text)
         .mask
@@ -63,7 +51,6 @@ fn declares_visibility(text: &str) -> bool {
         .any(|line| line.starts_with("visibility("))
 }
 
-/// The files of `files` that must declare their load visibility, and the subset that does not.
 fn undeclared(files: &[(String, String)]) -> (usize, Vec<&str>) {
     let roots = workspace_roots(files);
     let mut checked = 0;

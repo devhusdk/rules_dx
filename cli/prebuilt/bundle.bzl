@@ -2,7 +2,6 @@
 
 load("//core:rlocation.bzl", "rlocation_path")
 
-# Loaded from the generated @dx_prebuilt hub.
 visibility("public")
 
 DxBundleInfo = provider(
@@ -17,7 +16,6 @@ def _dx_bundle_tree_impl(ctx):
     links = []
     launchers = {}
     for src in ctx.files.srcs:
-        # A file of the archive repo's root package is named by its path in the archive.
         path = src.owner.name
         if path.startswith("bin/"):
             launchers[path] = src
@@ -35,8 +33,6 @@ dx_bundle_tree = rule(
     },
 )
 
-# Runs the launcher from this wrapper's runfiles, where the linked tree sits beside
-# it; a sandboxed action stages a tool's runfiles there and nowhere else.
 _WRAPPER = """#!/bin/sh
 for root in "$0.runfiles" "${{RUNFILES_DIR:-}}"; do
   if [ -n "$root" ] && [ -x "$root/{launcher}" ]; then
@@ -53,13 +49,10 @@ def _dx_bundle_tool_impl(ctx):
     if launcher == None:
         fail("{}: the bundle has no {}; it has {}".format(ctx.label, ctx.attr.launcher, ", ".join(sorted(bundle.launchers.keys()))))
 
-    # The launcher finds Python and its packages from its own directory, so it
-    # sits in the linked tree rather than in the archive repo.
     link = ctx.actions.declare_file(ctx.attr.tree.label.name + "/" + ctx.attr.launcher)
     ctx.actions.symlink(output = link, target_file = launcher, is_executable = True)
     runfiles = ctx.runfiles(files = [link], transitive_files = bundle.files)
     if launcher.extension == "cmd":
-        # Windows actions run unsandboxed in the execroot, beside the linked tree.
         return [DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles)]
     wrapper = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(wrapper, _WRAPPER.format(label = ctx.label, launcher = rlocation_path(ctx, link)), is_executable = True)

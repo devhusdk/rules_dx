@@ -634,7 +634,6 @@ fn mixed_applied_and_not_applied_fail_together() {
     assert!(err.contains("Not applied: src/b.py (stale_source)"));
 }
 
-/// One stable result whose only content is a replacement of `src/a.py`.
 fn replacement_only(name: &str) -> Harness {
     let mut harness = Harness::new(name);
     harness.write_source("src/a.py", "x = 1\n");

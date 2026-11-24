@@ -3,14 +3,6 @@ use super::{FileFinding, ParseError, as_text, code_name, prefixed};
 
 const TOOL: &str = "zig";
 
-/// `zig build-exe|build-lib|test -fno-emit-bin` output: `path:line:col: error:` lines on stderr.
-///
-/// Fails closed: a nonzero exit without an error for an owned file, or an error in a file
-/// that is not owned, is never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_compile(
     output: &[u8],
     code: Option<i32>,

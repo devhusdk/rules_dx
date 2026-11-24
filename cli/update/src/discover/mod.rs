@@ -1,5 +1,3 @@
-//! Finds packages whose newest stable version is outside the declared requirement.
-
 use dx_error::DxError;
 
 pub mod bcr;
@@ -23,17 +21,13 @@ pub mod pypi;
 pub mod ruby;
 pub mod swiftpm;
 
-/// Reads one registry URL and returns the response body.
 pub trait Fetch {
-    /// Returns the body, or a short reason the lookup failed.
     fn get(&self, url: &str) -> Result<String, DxError>;
 
-    /// Returns the sha256, as 64 hex digits, of the bytes a url serves.
     fn download_sha256(&self, _url: &str) -> Result<String, DxError> {
         Err(DxError::failure("this fetcher cannot download files"))
     }
 
-    /// Returns the `Docker-Content-Digest` a registry reports for a manifest URL.
     fn digest(&self, _url: &str) -> Result<String, DxError> {
         Err(DxError::failure("this fetcher cannot read image digests"))
     }
@@ -45,7 +39,6 @@ impl<F: Fn(&str) -> Result<String, DxError>> Fetch for F {
     }
 }
 
-/// One package that is outdated.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Candidate {
     pub set: String,
@@ -54,13 +47,10 @@ pub struct Candidate {
     pub latest: String,
     pub published: Option<String>,
     pub prerelease: bool,
-    /// The GitHub repository as `owner/name`, when the registry names one.
     pub repo: Option<String>,
-    /// The exact old and new tag names in `repo`, when they are not the bare versions.
     pub tags: Option<(String, String)>,
 }
 
-/// One package that could not be looked up.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LookupError {
     pub set: String,
@@ -68,7 +58,6 @@ pub struct LookupError {
     pub reason: String,
 }
 
-/// A declared version that dependency resolution replaced in the lock.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Overridden {
     pub set: String,
@@ -77,7 +66,6 @@ pub struct Overridden {
     pub resolved: String,
 }
 
-/// Everything one set produced.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Findings {
     pub candidates: Vec<Candidate>,
@@ -86,7 +74,6 @@ pub struct Findings {
     pub overridden: Vec<Overridden>,
 }
 
-/// Reads `owner/name` from a GitHub repository URL or `github:owner/name` shorthand.
 #[must_use]
 pub fn github_repo(url: &str) -> Option<String> {
     let url = url.trim();
@@ -104,13 +91,11 @@ pub fn github_repo(url: &str) -> Option<String> {
     Some(format!("{owner}/{name}"))
 }
 
-/// Keeps a package when no filter is given or the filter names it.
 #[must_use]
 pub fn wanted(only: &[String], package: &str) -> bool {
     only.is_empty() || only.iter().any(|name| name == package)
 }
 
-/// The newest release of one package.
 pub(crate) struct Latest {
     pub version: String,
     pub published: Option<String>,
@@ -118,8 +103,6 @@ pub(crate) struct Latest {
     pub repo: Option<String>,
 }
 
-/// Reports each declared `(package, version)` whose newest release is greater.
-/// `lookup` returns `Ok(None)` to skip a package without an error.
 pub(crate) fn compare_declared(
     set: &str,
     declared: impl IntoIterator<Item = (String, String)>,
@@ -170,7 +153,6 @@ pub(crate) fn compare_declared(
     found
 }
 
-/// The registry a set's packages come from.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Registry {
     Bcr,
@@ -196,7 +178,6 @@ pub enum Registry {
 }
 
 impl Registry {
-    /// The page that lists a package's releases.
     #[must_use]
     pub fn url(self, package: &str) -> String {
         match self {
@@ -229,7 +210,6 @@ impl Registry {
     }
 }
 
-/// The text inside a leading single- or double-quoted literal.
 pub(crate) fn unquote(text: &str) -> Option<&str> {
     let quote = text.chars().next().filter(|c| matches!(c, '"' | '\''))?;
     text.strip_prefix(quote)?
@@ -237,7 +217,6 @@ pub(crate) fn unquote(text: &str) -> Option<&str> {
         .map(|(inside, _)| inside)
 }
 
-/// Orders versions by `dx_semver` precedence; text that is not a version sorts below one.
 pub(crate) fn semver_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     match (dx_semver::Version::parse(a), dx_semver::Version::parse(b)) {
         (Ok(left), Ok(right)) => left.cmp(&right),
@@ -245,7 +224,6 @@ pub(crate) fn semver_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-/// Compares versions where a suffix such as `-rc.1` or `.rc1` sorts below the bare release.
 pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     let split = |text: &'_ str| -> (String, String) {
         let end = text
@@ -269,14 +247,12 @@ pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     })
 }
 
-/// One run of a prerelease suffix; a number sorts below a word.
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum SuffixRun {
     Number(u64),
     Word(String),
 }
 
-/// Splits a prerelease suffix such as `rc.10` or `beta2` into its number and word runs.
 fn suffix_runs(suffix: &str) -> Vec<SuffixRun> {
     let mut runs = Vec::new();
     let mut rest = suffix;

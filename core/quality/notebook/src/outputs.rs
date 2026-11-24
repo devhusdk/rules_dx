@@ -1,27 +1,14 @@
-//! Output-stripping check: finds and removes cell outputs and execution counts.
-//!
-//! Only the byte spans of `outputs` and `execution_count` are rewritten, so
-//! every other byte of the notebook stays as it was.
-
 use crate::{Cell, Notebook, NotebookError, Span};
 
-/// Rule id for a code cell whose `outputs` array is not empty.
 pub const CELL_OUTPUTS: &str = "cell-outputs";
-/// Rule id for a code cell whose `execution_count` is not null.
 pub const EXECUTION_COUNT: &str = "execution-count";
 
-/// One output-check finding, located in the notebook file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutputFinding {
-    /// 1-based cell number.
     pub cell: usize,
-    /// 1-based file line of the offending field.
     pub line: u64,
-    /// 1-based scalar column of the offending field.
     pub column: u64,
-    /// Stable rule id.
     pub rule: &'static str,
-    /// Human-readable message, starting with `cell N:`.
     pub message: String,
 }
 
@@ -64,11 +51,6 @@ fn dirty_fields(notebook: &Notebook<'_>) -> Vec<(usize, &'static str, Span)> {
     found
 }
 
-/// Lists the code cells that keep outputs or an execution count.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn output_findings(text: &str) -> Result<Vec<OutputFinding>, NotebookError> {
     let notebook = Notebook::parse(text)?;
     crate::validate(text)?;
@@ -92,12 +74,6 @@ pub fn output_findings(text: &str) -> Result<Vec<OutputFinding>, NotebookError> 
         .collect())
 }
 
-/// Clears `outputs` to `[]` and `execution_count` to `null` in code cells,
-/// leaving every other byte untouched.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn strip_outputs(text: &str) -> Result<String, NotebookError> {
     let notebook = Notebook::parse(text)?;
     crate::validate(text)?;

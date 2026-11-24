@@ -170,6 +170,7 @@ rust_test(
 
 scala_version_tests(
     name = "scala_version_tests",
+    size = "small",
     lib = "//tools/docs/jvm/fixture:scala_shapes",
     shard = "//tools/docs/jvm/fixture:scala_shapes_docs",
 )

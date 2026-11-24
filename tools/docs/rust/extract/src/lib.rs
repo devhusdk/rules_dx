@@ -229,19 +229,15 @@ pub fn extract(
 
 type Pos = (String, u64, u64);
 
-/// A rustdoc item reference whose final symbol id is known only after every
-/// id has been assigned.
 struct Ref {
     id: Id,
     fallback: String,
 }
 
-/// One symbol before ids are assigned.
 struct Entry {
     base: String,
     rank: u8,
     tag: &'static str,
-    /// Always carries its `@tag` suffix (glob re-exports of foreign modules).
     forced: bool,
     pos: Pos,
     symbol: Symbol,
@@ -250,7 +246,6 @@ struct Entry {
     relations: bool,
 }
 
-/// One re-export name of an item that already has an entry.
 struct AliasCand {
     base: String,
     rank: u8,
@@ -267,7 +262,6 @@ enum Cand<'x> {
 }
 
 fn kept_aliases(aliases: &[AliasCand]) -> BTreeMap<(&str, Id), (usize, &AliasCand)> {
-    // One alias per (name, target); an explicit `pub use` beats a glob.
     let mut kept: BTreeMap<(&str, Id), (usize, &AliasCand)> = BTreeMap::new();
     for (index, alias) in aliases.iter().enumerate() {
         match kept.entry((alias.base.as_str(), alias.target)) {
@@ -292,7 +286,6 @@ fn rank_of(cand: &Cand<'_>) -> u8 {
 }
 
 fn surviving<'x>(base: &str, live: &[Cand<'x>]) -> Result<Vec<Cand<'x>>, String> {
-    // A glob name is dropped when another item has the same name in the same namespace.
     let mut survivors = Vec::new();
     for cand in live {
         if let Cand::Alias(_, alias) = cand {
@@ -659,7 +652,6 @@ impl<'a> Walker<'a> {
     }
 
     fn resolve_uses(&mut self) -> Result<(), String> {
-        // Explicit `pub use` items resolve before any glob, as in rustc.
         while let Some((use_id, path, via_glob)) =
             self.uses.pop_front().or_else(|| self.globs.pop_front())
         {
@@ -727,8 +719,6 @@ impl<'a> Walker<'a> {
         Ok(())
     }
 
-    /// A glob of a foreign or unknown module cannot be expanded, so it
-    /// becomes one symbol that always carries `@glob`.
     fn glob_symbol(
         &mut self,
         item: &'a Item,
@@ -819,9 +809,6 @@ impl<'a> Walker<'a> {
         }
     }
 
-    /// Assigns the final ids once the whole crate is collected. Only items
-    /// that share a base id get an `@tag` suffix, so ids never depend on the
-    /// order rustdoc listed the items in.
     fn finish(self) -> Result<Vec<Symbol>, String> {
         let Walker {
             entries,
@@ -939,8 +926,6 @@ fn member_kind(inner: &ItemEnum) -> Option<SymbolKind> {
     })
 }
 
-/// Rust keeps types, values and macros in separate namespaces; the rank orders
-/// colliding ids and the tag names the loser.
 fn item_namespace(inner: &ItemEnum) -> (u8, &'static str) {
     match inner {
         ItemEnum::Module(_) => (0, "mod"),

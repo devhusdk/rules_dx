@@ -243,6 +243,7 @@ android_adb_log(
 
 android_ops_tests(
     name = "ops_wiring_test",
+    size = "small",
     apk_set = "//android/tests/fixtures/rust_apk:test_bundle_set",
     launcher = ":emulator_log",
 )

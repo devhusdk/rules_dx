@@ -19,7 +19,10 @@ package(
 
 playwright_compatibility_tests(name = "playwright_compatibility_tests")
 
-windows_tool_tests(name = "windows_tool_tests")
+windows_tool_tests(
+    name = "windows_tool_tests",
+    size = "small",
+)
 
 build_test(
     name = "windows_ts_actions_build_test",

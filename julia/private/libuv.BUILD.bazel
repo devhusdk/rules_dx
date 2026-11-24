@@ -1,0 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["share/licenses/LibUV/LICENSE"])
+
+cc_library(
+    name = "headers",
+    hdrs = glob(["include/**/*.h"]),
+    includes = ["include"],
+)
+
+cc_import(
+    name = "libuv",
+    static_library = "lib/libuv.a",
+    deps = [":headers"],
+    alwayslink = True,
+)

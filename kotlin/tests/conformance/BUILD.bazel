@@ -1,7 +1,11 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load("//tools/testing/conformance:quality.bzl", "kotlin_format_subject", "kotlin_lint_subject")
+
+# gazelle:exclude FormatDirty.kt
+# gazelle:exclude LintDirty.kt
 
 package(
     default_testonly = True,
@@ -14,12 +18,14 @@ kotlin_library(
     srcs = ["Greet.kt"],
 )
 
+# keep
 kotlin_library(
     name = "lint_dirty",
     srcs = ["LintDirty.kt"],
     tags = ["manual"],
 )
 
+# keep
 kotlin_library(
     name = "format_dirty",
     srcs = ["FormatDirty.kt"],
@@ -66,9 +72,10 @@ kotlin_binary(
     deps = ["@maven//:junit_junit"],
 )
 
-filegroup(
-    name = "hello_deploy_jar",
-    srcs = [":hello_deploy.jar"],
+build_test(
+    name = "hello_deploy_jar_test",
+    size = "small",
+    targets = [":hello_deploy.jar"],
 )
 
 dx_conformance_suite(

@@ -1,5 +1,3 @@
-//! Probes the Windows user backend: network denial, loopback, explicit file denies and the MSVC
-//! denies. Like the Linux and macOS masks, the user backend hides only what `denies` lists.
 #![cfg(windows)]
 #![expect(
     clippy::disallowed_methods,
@@ -13,7 +11,6 @@ use hermetic::{AclGroup, Isolation, Net, Outcome, WINDOWS_DENIED_MARKER, capture
 
 const OUTSIDE: &str = "1.1.1.1:443";
 
-/// The MSVC deny test rewrites ACLs on host-wide trees, so it runs alone; the others share.
 static HOST_ACLS: RwLock<()> = RwLock::new(());
 
 fn shared() -> RwLockReadGuard<'static, ()> {
@@ -166,7 +163,6 @@ fn a_group_set_up_once_denies_its_members_until_teardown() {
     trail.assert_restored();
 }
 
-/// Takes the scene's denies off `dxh-host`, which keeps them after a group is dropped.
 fn remove_host_denies(isolation: &Isolation) {
     let removed =
         capture(isolation.windows_host_command("--remove-host-denies")).expect("launcher runs");
@@ -175,7 +171,6 @@ fn remove_host_denies(isolation: &Isolation) {
 
 #[test]
 fn stale_groups_are_removed_when_a_new_group_is_set_up() {
-    // Alone, so no concurrent setup removes the stale group over other paths.
     let _alone = HOST_ACLS
         .write()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -208,8 +203,6 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     assert!(!listed.status.success(), "{stale} is still a local group");
 }
 
-/// The SDDL of the scene's directories after each step, which shows the DACL control bits
-/// (`AI`, `P`) and the inherited (`ID`) entries that `icacls` leaves out.
 struct Trail {
     paths: [PathBuf; 3],
     before: Vec<String>,
@@ -241,8 +234,6 @@ impl Trail {
         now
     }
 
-    /// Fails when the SDDL now differs from the SDDL before, writing the trail to the uncaptured
-    /// stderr.
     fn assert_restored(&mut self) {
         let now = self.mark("now");
         if now != self.before {
@@ -289,7 +280,6 @@ fn directories_above_a_grant_keep_their_acls() {
     let before = icacls(&scene.root);
     let canon = scene.run(Net::Denied, &["canon", &text(&scene.granted)]);
     assert_eq!(canon.exit, 0, "{}", canon.stderr);
-    // The run user can read what `denies` leaves out, so nothing above the grant is hidden.
     assert_eq!(icacls(&scene.root), before);
 }
 

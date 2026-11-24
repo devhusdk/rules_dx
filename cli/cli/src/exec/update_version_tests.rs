@@ -3,7 +3,6 @@ use dx_exec_core::common::{CODE_FROZEN_LOCKED, CODE_UPDATE_WIDEN_FAILED};
 
 const HELLO_CARGO: &str = "rust/tests/fixtures/hello/Cargo.toml";
 
-/// A root MODULE.bazel whose `dx_crates` hub reads the given Cargo.toml labels.
 fn cargo_module(labels: &[&str]) -> String {
     let manifests = labels
         .iter()
@@ -15,7 +14,6 @@ fn cargo_module(labels: &[&str]) -> String {
     )
 }
 
-/// Writes the cargo manifests and a MODULE.bazel hub that lists all of them.
 fn seed_cargo(harness: &Harness, manifests: &[(&str, &str)]) {
     let labels: Vec<String> = manifests
         .iter()
@@ -31,7 +29,6 @@ fn seed_cargo(harness: &Harness, manifests: &[(&str, &str)]) {
     }
 }
 
-/// Writes one manifest; a Cargo.toml also gets the MODULE.bazel hub that lists it.
 fn seed(harness: &Harness, path: &str, text: &str) {
     if path.ends_with("Cargo.toml") {
         seed_cargo(harness, &[(path, text)]);
@@ -66,7 +63,6 @@ fn consumer_configured_uv_set_needs_a_package_and_widens_pyproject() {
         CONSUMER_PYPROJECT.as_bytes()
     );
     assert!(harness.seen_env.borrow().is_empty());
-    // The refresh cannot run offline, but the widen is refused before any write.
     let (code, _, err) = harness.run(&[
         "update",
         "pypi-frontend:anyio",
@@ -751,8 +747,6 @@ const GO_FILES: [(&str, &str); 4] = [
     ("tools/go.mod", GO_MOD),
 ];
 
-/// A runner that stands in for `go mod download all`: it records each launch and writes
-/// the given files into the `-C` scratch directory, as go would.
 struct GoRunner {
     code: Option<i32>,
     writes: Vec<(&'static str, String)>,
@@ -1618,7 +1612,6 @@ fn live_json_emits_planned_or_widened_and_finished() {
     );
 }
 
-/// One already-current declaration per set: selector, version, manifest, text.
 fn current_pins() -> Vec<(&'static str, &'static str, &'static str, String)> {
     vec![
         (

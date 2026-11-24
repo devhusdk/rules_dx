@@ -28,14 +28,7 @@ def write_native_launcher(ctx, descriptor_text, launcher_name = None):
     return launcher, descriptor, runfiles
 
 def subcommand_descriptor(program_key, subcommand, path_args = [], args = []):
-    """Returns the launch descriptor text that runs `program_key subcommand [ARG]... [FLAG=PATH]...`.
-
-    Args:
-      program_key: the runfiles key of the program.
-      subcommand: the first argument.
-      path_args: (flag, runfiles key) pairs, each passed as `FLAG=<absolute path>`.
-      args: literal arguments after the subcommand.
-    """
+    """Returns the launch descriptor text that runs `program_key subcommand [ARG]... [FLAG=PATH]...`."""
     lines = ["program=" + program_key, "arg=" + subcommand]
     lines.extend(["arg=" + arg for arg in args])
     lines.extend(["prefixed=" + flag + "=\t" + key for flag, key in path_args])

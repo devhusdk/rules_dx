@@ -1,33 +1,25 @@
-//! The changed-line coverage gate: added lines from a unified diff crossed with LCOV line hits.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::accounting::{count_lines, resolve_dart_uris, source_key};
 use crate::{CellAccount, Disposition, FileHits, LcovError, find_ignores, merge_lcov_reports};
 
-/// The added lines of every file a diff touches, keyed by the new path.
 pub type AddedLines = BTreeMap<String, BTreeSet<u32>>;
 
-/// One changed executable line the coverage report saw without hits.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChangedLine {
     pub path: String,
     pub line: u32,
 }
 
-/// The changed lines of the owned production sources, accounted against the merged LCOV report.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ChangedAccount {
     pub covered_lines: u64,
     pub eligible_lines: u64,
     pub uncovered: Vec<ChangedLine>,
-    /// Changed production sources an instrumented target owns that the report never saw.
     pub uninstrumented: Vec<String>,
-    /// Sources whose coverage exclusion markers could not be read or parsed.
     pub errors: Vec<String>,
 }
 
-/// The verdict of the changed-line gate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChangedResult {
     Pass,
@@ -37,7 +29,6 @@ pub enum ChangedResult {
 }
 
 impl ChangedResult {
-    /// The token the `changed_line_coverage` event carries.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -48,7 +39,6 @@ impl ChangedResult {
         }
     }
 
-    /// True when the gate lets the run pass.
     #[must_use]
     pub fn ok(self) -> bool {
         matches!(self, ChangedResult::Pass | ChangedResult::NotApplicable)
@@ -56,7 +46,6 @@ impl ChangedResult {
 }
 
 impl ChangedAccount {
-    /// Incomplete with any uninstrumented file, else not applicable without eligible lines, else the exact percent compare.
     #[must_use]
     pub fn result(&self, minimum: u32) -> ChangedResult {
         if !self.uninstrumented.is_empty() {
@@ -71,7 +60,6 @@ impl ChangedAccount {
     }
 }
 
-/// Undoes Git's C-style quoting of one diff path, or returns it as is when unquoted.
 fn unquote(raw: &str) -> String {
     let Some(inner) = raw
         .strip_prefix('"')
@@ -114,7 +102,6 @@ fn unquote(raw: &str) -> String {
     String::from_utf8_lossy(&bytes).into_owned()
 }
 
-/// The new path a `+++` header names, or `None` for a deleted file.
 fn target_path(header: &str) -> Option<String> {
     let raw = header.strip_suffix('\t').unwrap_or(header);
     if raw == "/dev/null" {
@@ -125,7 +112,6 @@ fn target_path(header: &str) -> Option<String> {
     Some(source_key(path))
 }
 
-/// The start line and line count of one side of a hunk header (`+c,d`, `+c`).
 fn hunk_range(spec: &str) -> Option<(u32, u32)> {
     let digits = spec.get(1..)?;
     match digits.split_once(',') {
@@ -134,10 +120,6 @@ fn hunk_range(spec: &str) -> Option<(u32, u32)> {
     }
 }
 
-/// Parses the added lines of a unified diff (`git diff -U0` or with context) by new path.
-///
-/// Renames count only their edited lines, deletions and binary files add nothing, and paths that
-/// differ only by a `./` prefix or backslashes share one key.
 pub fn parse_added_lines(diff: &str) -> AddedLines {
     let mut added = AddedLines::new();
     let mut current: Option<String> = None;
@@ -182,7 +164,6 @@ pub fn parse_added_lines(diff: &str) -> AddedLines {
     added
 }
 
-/// Every line of one new file, which counts as added in full.
 #[must_use]
 pub fn all_lines(text: &str) -> BTreeSet<u32> {
     text.lines()
@@ -191,9 +172,6 @@ pub fn all_lines(text: &str) -> BTreeSet<u32> {
         .collect()
 }
 
-/// Finds `key` exactly, or by lowercase when exactly one entry matches that way.
-///
-/// Git spells a path as the index does, while the build may spell it by the on-disk case.
 fn find_key<'a, V>(map: &'a BTreeMap<String, V>, key: &str) -> Option<&'a V> {
     if let Some(value) = map.get(key) {
         return Some(value);
@@ -206,10 +184,6 @@ fn find_key<'a, V>(map: &'a BTreeMap<String, V>, key: &str) -> Option<&'a V> {
     }
 }
 
-/// Accounts the added lines of every eligible owned source against the merged LCOV report.
-///
-/// Support, test, unsupported, excluded and unowned files are skipped, ignore markers still apply,
-/// and a changed production source the report never saw is uninstrumented.
 pub fn changed_account(
     account: &CellAccount,
     lcov_documents: &[String],

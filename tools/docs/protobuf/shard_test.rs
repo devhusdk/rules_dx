@@ -1,5 +1,3 @@
-//! Checks that the fixture shard carries the comments of the fixture's .proto files.
-
 use dx_testing as _;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::validate_shard;
@@ -17,7 +15,6 @@ fn the_fixture_shard_documents_every_item_with_its_comment() {
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "protobuf");
     assert_eq!(shard.package, "shop");
-    // Comments are lost when protoc reads the descriptor set.
     for symbol in &shard.symbols {
         assert!(!symbol.doc_markdown.is_empty(), "{} has no doc", symbol.id);
     }

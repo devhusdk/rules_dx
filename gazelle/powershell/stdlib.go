@@ -2,9 +2,6 @@ package powershell
 
 import "strings"
 
-// stdlibModules ships in $PSHOME/Modules of the pinned pwsh 7.6.9
-// (version in powershell/pins.json), linux_x64 and win_x64 together, plus
-// the Microsoft.PowerShell.Core snap-in. Pester is a Gallery module, not here.
 var stdlibModules = map[string]bool{
 	"cimcmdlets":                         true,
 	"microsoft.powershell.archive":       true,
@@ -23,6 +20,4 @@ var stdlibModules = map[string]bool{
 	"threadjob":                          true,
 }
 
-// IsStdLib reports whether name is a module that ships with pwsh. PowerShell
-// module names are case-insensitive, so this check is too.
 func IsStdLib(name string) bool { return stdlibModules[strings.ToLower(name)] }

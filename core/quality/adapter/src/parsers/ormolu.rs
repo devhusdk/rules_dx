@@ -4,12 +4,6 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "ormolu";
 
-/// Exit 0 is clean and 100 prints the file name and a diff on stderr. Any other exit is a
-/// failure that names `file:line:col` on stderr, and one that does not is a shape error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ormolu(
     stdout: &[u8],
     stderr: &[u8],
@@ -29,7 +23,6 @@ pub fn parse_ormolu(
     }
 }
 
-/// A diff header is a line holding only a checked path; hunk lines start with a marker.
 fn unformatted_files(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let mut findings: Vec<FileFinding> = Vec::new();
     for line in stderr.lines() {
@@ -47,7 +40,6 @@ fn unformatted_files(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, P
     Ok(findings)
 }
 
-/// A located failure: `path:line:col` or `path:(l1,c1)-(l2,c2)`, then an indented message.
 fn failure(
     stderr: &str,
     files: &[&str],

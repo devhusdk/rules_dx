@@ -66,7 +66,7 @@ dx generate [--apply] [--here] [--affected] [--diff] [scope ...] [-- bazel-optio
 | `--build-slots-wait <duration>` | Give up waiting for a build slot after this long. `0` fails at once. |
 | `--bazel-startup-option <token>` | Pass one Bazel startup option. Repeatable. |
 
-Arguments after `--` go to Bazel unchanged.
+Arguments after `--` go to Bazel unchanged, also in the Bazel runs of the lock steps.
 
 ## Scopes
 

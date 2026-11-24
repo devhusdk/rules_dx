@@ -68,18 +68,19 @@ fn link(src: &Path, dst: &Path) -> std::io::Result<()> {
 fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
     static STAGED: AtomicU64 = AtomicU64::new(0);
     let n = STAGED.fetch_add(1, Ordering::Relaxed);
-    let staging = dst.with_file_name(format!(".file.{}.{n}.tmp", std::process::id()));
-    if let Err(error) = link(src, &staging) {
+    // Sandboxed tests can share a PID across PID namespaces; the clock keeps their staging names apart.
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let staging = dst.with_file_name(format!(".file.{}.{nanos}.{n}.tmp", std::process::id()));
+    let placed = match link(src, &staging) {
+        Ok(()) => std::fs::rename(&staging, dst).inspect_err(|_| dx_atomic_fs::discard_file(&staging)),
+        Err(error) if cfg!(unix) => Err(error),
         // A hard link cannot cross volumes; the copy is staged and renamed the same way.
-        return if cfg!(unix) {
-            Err(error)
-        } else {
-            dx_atomic_fs::copy_scratch(src, dst)
-        };
-    }
-    std::fs::rename(&staging, dst).or_else(|error| {
-        dx_atomic_fs::discard_file(&staging);
-        // Windows refuses to replace an entry another test has open; that entry has the same digest.
+        Err(_) => dx_atomic_fs::copy_scratch(src, dst),
+    };
+    // Another test may have placed the same digest first, and Windows refuses to replace an entry that test has open.
+    placed.or_else(|error| {
         if std::fs::metadata(dst).is_ok() {
             Ok(())
         } else {

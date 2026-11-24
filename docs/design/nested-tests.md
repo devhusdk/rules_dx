@@ -60,7 +60,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 
 - Bazel is `//tools/testing:nested_bazel_bin`, the binary pinned by sha256 for the `.bazelversion` release, read from runfiles.
 - The harness starts it through `//tools/testing:nested_bazel_shim`.
-- No bazelisk. No `DX_NESTED_BAZEL`. No lookup on `PATH`.
+- No bazelisk, no `DX_NESTED_BAZEL`, no `PATH` lookup.
 
 ### Environment
 
@@ -69,7 +69,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - No slot root on the host. `DX_NESTED_BAZEL_ROOT`, `DX_NESTED_BAZEL_DISK_CACHE` and `DX_NESTED_BAZEL_REPOSITORY_CACHE` are deleted.
 - The nested Bazel reads one rc file that the harness writes. It reads no home, system or workspace rc of the host.
 - The nested Bazel uses no remote cache.
-- setup-bazel sets `DX_NESTED_SHARED`, a writable root outside the sandbox. Nested servers share its install base, repository cache, repo contents cache and 4 GB disk cache.
+- setup-bazel sets `DX_NESTED_SHARED`, a writable root outside the sandbox. Servers share its install base and 4 GB disk cache. Repository and repo contents caches are per cache set.
 - `nested_bazel_test(caches = "private")` opts out, for cold or fetch-failure tests. Record mode is private.
 - Nested actions run with `--spawn_strategy=local`. The test sandbox is the boundary.
 

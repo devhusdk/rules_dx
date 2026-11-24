@@ -53,6 +53,7 @@ pub const CACHES_ENV: &str = "DX_NESTED_CACHES";
 const INSTALL: &str = "install";
 const REPO_CONTENTS: &str = "repo-contents";
 const DISK_CACHE: &str = "disk-cache";
+const SETS: &str = "sets";
 const DISK_CACHE_GC_MAX_SIZE: &str = "4G";
 
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
@@ -138,6 +139,8 @@ pub struct Config {
     pub record: Option<Record>,
     /// The cache root shared with other tests; `None` keeps every cache under `root`.
     pub shared: Option<PathBuf>,
+    /// The cache set the declared downloads come from.
+    pub set: Option<String>,
 }
 
 /// The output of a record mode run.
@@ -150,6 +153,14 @@ pub struct Record {
 }
 
 impl Config {
+    /// The part of `shared` holding fetched repositories, one per cache set so an offline test never finds a download its set lacks.
+    fn fetches(&self, shared: &Path) -> PathBuf {
+        match &self.set {
+            Some(set) => shared.join(SETS).join(set),
+            None => shared.to_path_buf(),
+        }
+    }
+
     /// Reads the settings from the test environment.
     ///
     /// # Errors
@@ -210,7 +221,7 @@ impl Config {
         let set = text(CACHE_SET_ENV).filter(|set| !set.is_empty());
         let record = if offline {
             None
-        } else if let Some(set) = set {
+        } else if let Some(set) = set.clone() {
             let outputs = env_path(lookup, OUTPUTS_ENV).ok_or_else(|| {
                 format!("{OUTPUTS_ENV} is not set; record mode runs only inside a test")
             })?;
@@ -252,6 +263,7 @@ impl Config {
             cache,
             record,
             shared,
+            set,
         })
     }
 }
@@ -602,7 +614,7 @@ pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> S
             text.push_str("common --experimental_disk_cache_gc_idle_delay=1s\n");
             text.push_str(&format!(
                 "common --repo_contents_cache={}\n",
-                slashed(&shared.join(REPO_CONTENTS))
+                slashed(&config.fetches(shared).join(REPO_CONTENTS))
             ));
         }
         None => text.push_str("common --disk_cache=\n"),
@@ -1070,11 +1082,11 @@ impl Server {
     /// The repository cache built from the declared downloads, in the shared root when there is one.
     #[must_use]
     pub fn repository_cache(&self) -> PathBuf {
-        self.config
-            .shared
-            .as_deref()
-            .unwrap_or(&self.home)
-            .join(REPOSITORY_CACHE)
+        match &self.config.shared {
+            Some(shared) => self.config.fetches(shared),
+            None => self.home.clone(),
+        }
+        .join(REPOSITORY_CACHE)
     }
 
     #[must_use]
@@ -2288,6 +2300,7 @@ mod tests {
             cache: Vec::new(),
             record: None,
             shared: None,
+            set: None,
         }
     }
 
@@ -2647,6 +2660,14 @@ mod tests {
                 Path::new("/s/repository-cache")
             ),
             "common --local_resources=cpu=2\ncommon --disk_cache=/s/disk-cache\ncommon --experimental_disk_cache_gc_max_size=4G\ncommon --experimental_disk_cache_gc_idle_delay=1s\ncommon --repo_contents_cache=/s/repo-contents\ncommon --remote_cache=\ncommon --repository_cache=/s/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
+        );
+        let in_set = Config {
+            set: Some("harness".to_owned()),
+            ..config
+        };
+        assert!(
+            bazelrc(&in_set, Path::new("/b/downloader.cfg"), Path::new("/r"))
+                .contains("common --repo_contents_cache=/s/sets/harness/repo-contents\n")
         );
     }
 
@@ -3187,6 +3208,7 @@ mod portable_tests {
             cache: Vec::new(),
             record: None,
             shared: None,
+            set: None,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");

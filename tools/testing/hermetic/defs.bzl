@@ -209,8 +209,6 @@ def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None
         fail("cache and cache_locks go together")
     if caches not in ("shared", "private"):
         fail("%s: caches is %r, want \"shared\" or \"private\"" % (name, caches))
-    if caches == "private":
-        cache_env["DX_NESTED_CACHES"] = "private"
     if cache:
         repository_cache = "@nested_cache_%s//:cache" % cache
         locks = cache_locks
@@ -220,6 +218,8 @@ def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None
             "DX_NESTED_LOCKS": "$(rlocationpaths %s)" % locks,
             "DX_NESTED_REPOSITORY_CACHE": "$(rlocationpath %s)" % repository_cache,
         }
+    if caches == "private":
+        cache_env["DX_NESTED_CACHES"] = "private"
     rust_test(
         name = name,
         data = (data or []) + cache_data + NESTED_BAZEL_DATA,

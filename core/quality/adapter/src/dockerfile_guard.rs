@@ -1,5 +1,4 @@
-//! Dockerfile patterns that the strict tier fails on: an ignore with no reason, a base image
-//! with no digest, and TLS checks turned off in `RUN`.
+//! Dockerfile patterns that the strict tier fails on.
 
 use std::collections::{BTreeMap, BTreeSet};
 

@@ -389,7 +389,7 @@ fn one_run_per_ref_and_only_pull_requests_cancel() {
     assert_eq!(
         ci["concurrency"]["group"],
         json!(
-            "ci-${{ github.workflow }}-${{ github.event_name == 'schedule' && 'main-' || '' }}${{ github.ref }}"
+            "ci-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'main-' || '' }}${{ github.ref }}"
         ),
     );
     assert_eq!(
@@ -399,10 +399,11 @@ fn one_run_per_ref_and_only_pull_requests_cancel() {
 }
 
 #[test]
-fn main_runs_on_a_schedule_not_on_push() {
+fn main_runs_when_the_audit_dispatches_it_not_on_push() {
     let on = triggers(CI_WORKFLOW).unwrap();
     assert!(on.get("push").is_none(), "{on}");
-    assert_eq!(on["schedule"], json!([{"cron": "0 */4 * * *"}]));
+    let run = ci_workflow::scripts(AUDIT_WORKFLOW, "dispatch").unwrap();
+    assert!(run.contains("gh workflow run ci.yml"), "{run}");
 }
 
 #[test]
@@ -611,7 +612,7 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
     assert_eq!(
         step("Upload the failing labels")["with"]["name"],
         json!(
-            "${{ github.event_name == 'schedule' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
+            "${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
         )
     );
 }

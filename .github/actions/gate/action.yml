@@ -17,7 +17,7 @@ runs:
   steps:
     - name: Find the last main baseline
       id: previous
-      if: ${{ inputs.baseline != '' && github.event_name == 'schedule' }}
+      if: ${{ inputs.baseline != '' && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
@@ -49,7 +49,7 @@ runs:
         path: ${{ runner.temp }}/baseline-previous
     - name: Pin the affected base
       env:
-        EVENT_NAME: ${{ github.event_name == 'schedule' && 'push' || github.event_name }}
+        EVENT_NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'push' || github.event_name }}
         PUSH_BEFORE: ${{ steps.previous.outputs.sha || github.event.before }}
         MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
       shell: bash
@@ -95,7 +95,7 @@ runs:
       id: failing
       if: ${{ !cancelled() && inputs.baseline != '' }}
       env:
-        NAME: ${{ github.event_name == 'schedule' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
         OUTCOME: ${{ steps.check.outcome }}
       shell: bash
       run: |
@@ -123,12 +123,12 @@ runs:
       with:
         path: ${{ runner.temp }}/failing
     - name: Upload the failing labels
-      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'pull_request' || (github.event_name == 'schedule' && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure'))) }}
+      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'pull_request' || ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure'))) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: ${{ github.event_name == 'schedule' && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        name: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
         path: ${{ runner.temp }}/failing
-        retention-days: ${{ github.event_name == 'schedule' && 30 || 7 }}
+        retention-days: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 30 || 7 }}
         overwrite: true
     - name: Verify the base dx compared against
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}

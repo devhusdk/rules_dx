@@ -1,8 +1,6 @@
 name: ci
 
 on:
-  schedule:
-    - cron: "0 */4 * * *"
   pull_request:
   merge_group:
     types: [checks_requested]
@@ -18,7 +16,7 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name == 'schedule' && 'main-' || '' }}${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && 'main-' || '' }}${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

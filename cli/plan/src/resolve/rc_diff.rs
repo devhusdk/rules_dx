@@ -28,7 +28,6 @@ const NO_BUILD_EFFECT: &[&str] = &[
     "progress_report_interval",
     "remote_cache",
     "remote_header",
-    "remote_instance_name",
     "remote_max_connections",
     "remote_retries",
     "remote_timeout",

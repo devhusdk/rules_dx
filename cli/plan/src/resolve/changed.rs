@@ -714,14 +714,6 @@ fn module_files(
         })
 }
 
-fn registered_repo(label: &str) -> Option<&str> {
-    label
-        .strip_prefix('@')
-        .map(|rest| rest.trim_start_matches('@'))
-        .and_then(|rest| rest.split_once("//"))
-        .map(|(repo, _)| repo)
-}
-
 #[expect(
     clippy::too_many_lines,
     reason = "one linear sequence of steps read top to bottom"
@@ -803,7 +795,12 @@ fn module_change(
     scopes.extend(lock.scopes);
     let names = Names::of(&head_files, extension_scope::ROOT);
     let mut affected = BTreeSet::new();
-    if !modules.is_empty() || !lock.owned.is_empty() {
+    if !modules.is_empty()
+        || !lock.owned.is_empty()
+        || scopes
+            .iter()
+            .any(|scope| scope.owner() != extension_scope::ROOT)
+    {
         let caches = dx_process::repository_caches(
             &|name| std::env::var(name).ok(),
             workspace,
@@ -839,6 +836,29 @@ fn module_change(
                 scopes.extend(usages.get(module).into_iter().flatten().cloned());
             }
         }
+        for scope in scopes
+            .iter()
+            .filter(|scope| scope.owner() != extension_scope::ROOT)
+        {
+            let owner = scope.owner();
+            if !graph.deps.contains_key(&owner) {
+                return Err(dx_error::DxError::failure(format!(
+                    "changed {} belongs to module {owner}, which has no registry MODULE.bazel",
+                    scope.display()
+                )));
+            }
+            if let Some((module, _)) = graph
+                .registered
+                .iter()
+                .chain(&old_graph.registered)
+                .find(|(_, registered)| registered.iter().any(|known| known.overlaps(scope)))
+            {
+                return Err(dx_error::DxError::failure(format!(
+                    "module {module} registers toolchains from {}",
+                    scope.display()
+                )));
+            }
+        }
         let read_patch = |rel: &str| read_head(rel).ok();
         if let Some(reason) =
             module_inputs::overrides_that_widen(&head_files, &affected, &read_patch)
@@ -864,7 +884,7 @@ fn module_change(
         });
     }
     let owners = module_inputs::repo_owners(&head_files);
-    let imported = module_diff::imported(&head_files);
+    let imported = module_diff::imported(&head_files, extension_scope::ROOT);
     let reached = |repo: &str| {
         owners
             .get(repo)
@@ -895,7 +915,7 @@ fn module_change(
                         call.name
                     )));
                 };
-                if registered_repo(&label.value).is_some_and(|repo| {
+                if module_inputs::registered_repo(&label.value).is_some_and(|repo| {
                     reached(repo)
                         || affected
                             .iter()
@@ -2140,6 +2160,33 @@ mod tests {
         .unwrap();
         write(workspace, "py/requirements_linux.txt", "x\n").unwrap();
         widens_as_workspace_input(workspace, "py/requirements_linux.txt");
+        write(
+            workspace,
+            "deps/go.MODULE.bazel",
+            "bazel_dep(name = \"rules_go\", version = \"0.51.0\")\n",
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(
+            "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
+        )]);
+        let selection = resolve_affected(
+            &[change(
+                "deps/go.MODULE.bazel",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("included segment bump widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "workspace input MODULE.bazel.lock"
+        );
+        assert_eq!(query.calls().len(), 1);
     }
 
     #[test]
@@ -2358,6 +2405,7 @@ mod tests {
         leaf: &'static str,
         leaf_extra: &'static str,
         user_extra: &'static str,
+        other_extra: &'static str,
         root_extra: &'static str,
         lock_extra: serde_json::Value,
     }
@@ -2366,6 +2414,7 @@ mod tests {
         leaf: "leaf",
         leaf_extra: "",
         user_extra: "",
+        other_extra: "",
         root_extra: "",
         lock_extra: serde_json::Value::Null,
     };
@@ -2432,7 +2481,10 @@ mod tests {
                 update.user_extra
             ),
         );
-        let other = cache_put(workspace, "module(name = \"other\")\n");
+        let other = cache_put(
+            workspace,
+            &format!("module(name = \"other\")\n{}", update.other_extra),
+        );
         let url = |name: &str, version: &str, file: &str| {
             format!("https://bcr.bazel.build/modules/{name}/{version}/{file}")
         };
@@ -2717,6 +2769,24 @@ mod tests {
     }
 
     #[test]
+    fn lock_extension_change_widens_when_its_module_registers_its_repos() {
+        let extra = serde_json::json!({"moduleExtensions": {"@@other+//:e.bzl%e": {"x": 1}}});
+        let fixture = edit_workspace(
+            "dx-changed-update-ext-tc-",
+            Update {
+                other_extra: "e = use_extension(\"//:e.bzl\", \"e\")\nuse_repo(e, \"hub\")\nregister_toolchains(\"@hub//:all\")\n",
+                lock_extra: extra,
+                ..UPDATE
+            },
+        );
+        let query = base_reads(&fixture);
+        assert_eq!(
+            widened_reason(&fixture, &query),
+            "module other registers toolchains from @@other++e+*"
+        );
+    }
+
+    #[test]
     fn local_path_override_widens() {
         let fixture = edit_workspace(
             "dx-changed-update-local-",
@@ -2759,7 +2829,18 @@ register_toolchains(\"//tc:all\")\n";
         ])
     }
 
+    const GAZELLE: (&str, &str) = ("gazelle", "module(name = \"gazelle\")\n");
+
     fn module_edit(prefix: &str, head: &str) -> (AffectedSelection, usize) {
+        registry_edit(prefix, GO_MODULE, head, &[GAZELLE])
+    }
+
+    fn registry_edit(
+        prefix: &str,
+        before: &str,
+        head: &str,
+        registry: &[(&str, &str)],
+    ) -> (AffectedSelection, usize) {
         let scratch = dx_test_scratch::scratch(prefix).unwrap();
         let workspace = scratch.path();
         write(workspace, "MODULE.bazel", head).unwrap();
@@ -2769,7 +2850,26 @@ register_toolchains(\"//tc:all\")\n";
             "module m\n\nrequire github.com/x/y v1.0.0\n",
         )
         .unwrap();
-        let query = FakeQuery::new(vec![FakeQuery::ok(GO_MODULE), go_graph()]);
+        write(
+            workspace,
+            ".bazelrc",
+            &format!("common --repository_cache={}/cache\n", workspace.display()),
+        )
+        .unwrap();
+        let mut hashes = serde_json::Map::new();
+        for (name, text) in registry {
+            hashes.insert(
+                format!("https://bcr.bazel.build/modules/{name}/1.0/MODULE.bazel"),
+                cache_put(workspace, text).into(),
+            );
+        }
+        write(
+            workspace,
+            "MODULE.bazel.lock",
+            &serde_json::json!({"lockFileVersion": 24, "registryFileHashes": hashes}).to_string(),
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![FakeQuery::ok(before), go_graph()]);
         let selection = resolve_affected(
             &[change("MODULE.bazel", dx_adopt::ChangeKind::Modified)],
             workspace,
@@ -2787,7 +2887,6 @@ register_toolchains(\"//tc:all\")\n";
         let head = format!(
             "{GO_MODULE}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
 dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
-dev.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n\
 use_repo(dev, \"com_github_rhysd_actionlint\")\n"
         );
         let (selection, _) = module_edit("dx-changed-dev-go-deps-", &head);
@@ -2798,13 +2897,137 @@ use_repo(dev, \"com_github_rhysd_actionlint\")\n"
         assert_eq!(
             selection.widened,
             [WidenedScope {
-                scope: "rdeps(//..., @@gazelle++go_deps+com_github_fatih_color, @@gazelle++go_deps+com_github_rhysd_actionlint)".to_owned(),
+                scope: "rdeps(//..., @@gazelle++go_deps+com_github_rhysd_actionlint)".to_owned(),
                 reason: "changed modules in MODULE.bazel".to_owned(),
-                repos: strings(&[
-                    "@@gazelle++go_deps+com_github_fatih_color",
-                    "@@gazelle++go_deps+com_github_rhysd_actionlint",
-                ]),
+                repos: strings(&["@@gazelle++go_deps+com_github_rhysd_actionlint"]),
             }]
+        );
+    }
+
+    #[test]
+    fn indirect_go_deps_module_selects_every_go_deps_user() {
+        let head = format!(
+            "{GO_MODULE}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
+dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
+dev.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n\
+use_repo(dev, \"com_github_rhysd_actionlint\")\n"
+        );
+        let (selection, _) = module_edit("dx-changed-indirect-go-deps-", &head);
+        assert_eq!(
+            selection.targets,
+            strings(&[
+                "@@gazelle++go_deps+com_github_rhysd_actionlint//cmd/actionlint:actionlint",
+                "@@gazelle++go_deps+com_github_x_y//:y",
+            ])
+        );
+        assert_eq!(
+            selection.widened.last().map(|entry| entry.scope.clone()),
+            Some(
+                "rdeps(//..., @@gazelle++go_deps+*, @@gazelle++go_deps+com_github_rhysd_actionlint)"
+                    .to_owned()
+            )
+        );
+    }
+
+    const RULES_GO: (&str, &str) = (
+        "rules_go",
+        "module(name = \"rules_go\")\n\
+go_sdk = use_extension(\"//go:extensions.bzl\", \"go_sdk\")\n\
+use_repo(go_sdk, \"go_toolchains\")\n\
+register_toolchains(\"@go_toolchains//:all\")\n\
+go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n\
+use_repo(go_deps, \"org_golang_x_tools\")\n",
+    );
+
+    #[test]
+    fn go_sdk_edit_widens_because_rules_go_registers_its_toolchains() {
+        let base = format!(
+            "{GO_MODULE}bazel_dep(name = \"rules_go\", version = \"1.0\")\n\
+go_sdk = use_extension(\"@rules_go//go:extensions.bzl\", \"go_sdk\")\n\
+go_sdk.download(version = \"1.25.0\")\n"
+        );
+        let head = base.replace("1.25.0", "1.26.0");
+        let (selection, _) =
+            registry_edit("dx-changed-go-sdk-", &base, &head, &[GAZELLE, RULES_GO]);
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "module rules_go registers toolchains from @@rules_go++go_sdk+*"
+        );
+        let base = format!("{GO_MODULE}bazel_dep(name = \"rules_go\", version = \"1.0\")\n");
+        let head = format!(
+            "{base}go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n"
+        );
+        let (selection, _) = registry_edit(
+            "dx-changed-go-deps-rules-go-",
+            &base,
+            &head,
+            &[GAZELLE, RULES_GO],
+        );
+        assert_eq!(
+            selection.targets,
+            strings(&["@@gazelle++go_deps+com_github_x_y//:y"])
+        );
+    }
+
+    #[test]
+    fn python_toolchain_edit_widens_and_pip_edit_narrows() {
+        let rules_python = (
+            "rules_python",
+            "module(name = \"rules_python\")\n\
+python = use_extension(\"//python/extensions:python.bzl\", \"python\")\n\
+use_repo(python, \"pythons_hub\")\n\
+register_toolchains(\"@pythons_hub//:all\")\n\
+pyrefly = use_extension(\"//python/private:pyrefly.bzl\", \"pyrefly\", dev_dependency = True)\n\
+use_repo(pyrefly, \"pyrefly_toolchains\")\n\
+register_toolchains(\"@pyrefly_toolchains//:all\", dev_dependency = True)\n",
+        );
+        let base = format!(
+            "{GO_MODULE}bazel_dep(name = \"rules_python\", version = \"1.0\")\n\
+python = use_extension(\"@rules_python//python/extensions:python.bzl\", \"python\")\n\
+python.toolchain(python_version = \"3.13\")\n\
+pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n\
+pip.parse(hub_name = \"pypi\", python_version = \"3.13\")\n\
+use_repo(pip, \"pypi\")\n"
+        );
+        let head = base.replace(
+            "python.toolchain(python_version = \"3.13\")",
+            "python.toolchain(python_version = \"3.14\")",
+        );
+        let (selection, _) =
+            registry_edit("dx-changed-python-", &base, &head, &[GAZELLE, rules_python]);
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "module rules_python registers toolchains from @@rules_python++python+*"
+        );
+        let head = base.replace(
+            "pip.parse(hub_name = \"pypi\", python_version = \"3.13\")",
+            "pip.parse(hub_name = \"pypi\", python_version = \"3.14\")",
+        );
+        let (selection, _) =
+            registry_edit("dx-changed-pip-", &base, &head, &[GAZELLE, rules_python]);
+        assert!(selection.targets.is_empty(), "{:?}", selection.targets);
+        assert_eq!(
+            selection.widened.last().map(|entry| entry.scope.clone()),
+            Some("rdeps(//..., @@rules_python++pip+*)".to_owned())
+        );
+    }
+
+    #[test]
+    fn extension_of_a_module_outside_the_registry_widens() {
+        let (selection, _) = registry_edit(
+            "dx-changed-go-unregistered-",
+            GO_MODULE,
+            &format!(
+                "{GO_MODULE}go_deps.module(path = \"github.com/x/y\", sum = \"h1:a\", version = \"v1.1.0\")\n"
+            ),
+            &[],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "changed @@gazelle++go_deps+com_github_x_y belongs to module gazelle, which has no registry MODULE.bazel"
         );
     }
 

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{Call, ModuleFile, Value};
 
-use super::extension_scope::{Names, ROOT, Scope};
+use super::extension_scope::{Names, ROOT, Scope, module_base};
 use super::lock_inputs::go_repo_name;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -346,8 +346,10 @@ fn scan(files: &[ModuleFile]) -> Side {
                     let (binding, tag) = name.split_once('.').unwrap_or((name, ""));
                     match bindings.get(binding) {
                         Some(Binding::Extension(scope)) if !tag.is_empty() => {
-                            let path = GO_PATH_TAGS
-                                .contains(&tag)
+                            let indirect = call.arg("indirect").is_some_and(
+                                |value| !matches!(value, Value::Ident(no) if no == "False"),
+                            );
+                            let path = (GO_PATH_TAGS.contains(&tag) && !indirect)
                                 .then(|| call.str("path").map(str::to_owned))
                                 .flatten();
                             if let Some(usage) = side.usages.get_mut(scope) {
@@ -556,8 +558,8 @@ pub(crate) fn module_diff(
     Ok(diff)
 }
 
-pub(crate) fn imported(files: &[ModuleFile]) -> BTreeMap<String, Scope> {
-    let names = Names::of(files, ROOT);
+pub(crate) fn imported(files: &[ModuleFile], module: &str) -> BTreeMap<String, Scope> {
+    let names = Names::of(files, module);
     let mut repos = BTreeMap::new();
     for file in files {
         let mut bindings: BTreeMap<&str, Scope> = BTreeMap::new();
@@ -575,7 +577,7 @@ pub(crate) fn imported(files: &[ModuleFile]) -> BTreeMap<String, Scope> {
                     if let (Some(rule), Some(binding)) =
                         (literal(call, 1, "repo_rule_name"), &call.binding)
                     {
-                        bindings.insert(binding, Scope::extension(ROOT, &rule));
+                        bindings.insert(binding, Scope::extension(&module_base(module), &rule));
                     }
                 }
                 "use_repo" => {
@@ -773,7 +775,7 @@ register_toolchains(\"//tc:all\")\n";
         let head = format!(
             "{HEAD}dev = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\", dev_dependency = True)\n\
 dev.module(path = \"github.com/rhysd/actionlint\", sum = \"h1:a\", version = \"v1.7.13\")\n\
-dev.module(path = \"github.com/fatih/color\", indirect = True, sum = \"h1:b\", version = \"v1.19.0\")\n\
+dev.module(path = \"github.com/fatih/color\", indirect = False, sum = \"h1:b\", version = \"v1.19.0\")\n\
 use_repo(dev, \"com_github_rhysd_actionlint\")\n"
         );
         let found = diff(HEAD, &head).expect("narrows");
@@ -785,6 +787,21 @@ use_repo(dev, \"com_github_rhysd_actionlint\")\n"
             ])
         );
         assert!(found.deps.is_empty());
+    }
+
+    #[test]
+    fn indirect_go_deps_modules_select_the_extension() {
+        let all = BTreeSet::from([Scope::extension("gazelle+", "go_deps")]);
+        for indirect in ["True", "INDIRECT"] {
+            let head = format!(
+                "{HEAD}go_deps.module(path = \"github.com/fatih/color\", indirect = {indirect}, sum = \"h1:b\", version = \"v1.19.0\")\n"
+            );
+            assert_eq!(
+                diff(HEAD, &head).expect("narrows").scopes,
+                all,
+                "{indirect}"
+            );
+        }
     }
 
     #[test]
@@ -907,7 +924,7 @@ use_repo(dev, \"com_github_rhysd_actionlint\")\n"
     #[test]
     fn imported_repos_name_their_canonical_scope() {
         let files = vec![ModuleFile::parse(HEAD).expect("parses")];
-        let repos = imported(&files);
+        let repos = imported(&files, ROOT);
         assert_eq!(
             repos.get("com_github_x_y"),
             Some(&repo("gazelle+", "go_deps", "com_github_x_y"))

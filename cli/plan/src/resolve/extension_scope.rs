@@ -49,6 +49,32 @@ impl Scope {
         }
     }
 
+    fn parts(&self) -> (String, Option<&str>) {
+        match self {
+            Scope::Extension { base, name } => (base.clone(), Some(name)),
+            Scope::Repo {
+                base, extension, ..
+            } => (base.clone(), Some(extension)),
+            Scope::Module(module) => (module_base(module), None),
+        }
+    }
+
+    pub(crate) fn owner(&self) -> String {
+        let (base, _) = self.parts();
+        match base.strip_suffix('+') {
+            Some(module) => module.to_owned(),
+            None => base,
+        }
+    }
+
+    pub(crate) fn overlaps(&self, other: &Scope) -> bool {
+        let ((base, extension), (other_base, other_extension)) = (self.parts(), other.parts());
+        base == other_base
+            && extension
+                .zip(other_extension)
+                .is_none_or(|(one, two)| one == two)
+    }
+
     pub(crate) fn display(&self) -> String {
         match self {
             Scope::Extension { base, name } => format!("@@{base}+{name}+*"),
@@ -197,6 +223,26 @@ mod tests {
         assert!(repo.matches("+local_repository+consumer_abi"));
         assert!(!repo.matches("+local_repository+consumer_hub"));
         assert!(Scope::Module("foo".to_owned()).matches("foo+1.0++e+x"));
+    }
+
+    #[test]
+    fn scopes_know_their_owner_and_overlap_within_an_extension() {
+        let sdk = Scope::extension("rules_go+", "go_sdk");
+        let toolchains = Scope::Repo {
+            base: "rules_go+".to_owned(),
+            extension: "go_sdk".to_owned(),
+            name: "go_toolchains".to_owned(),
+        };
+        assert_eq!(sdk.owner(), "rules_go");
+        assert_eq!(Scope::extension(ROOT, "pub").owner(), ROOT);
+        assert_eq!(
+            Scope::extension(&module_base(BUILTIN_TOOLS), "e").owner(),
+            BUILTIN_TOOLS
+        );
+        assert!(sdk.overlaps(&toolchains));
+        assert!(toolchains.overlaps(&Scope::Module("rules_go".to_owned())));
+        assert!(!toolchains.overlaps(&Scope::extension("gazelle+", "go_sdk")));
+        assert!(!sdk.overlaps(&Scope::extension("rules_go+", "go_deps")));
     }
 
     #[test]

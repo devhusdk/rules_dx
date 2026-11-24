@@ -52,6 +52,7 @@ pub(crate) struct RegistryFile {
 pub(crate) struct ModuleGraph {
     pub(crate) deps: BTreeMap<String, BTreeSet<String>>,
     pub(crate) registers: BTreeSet<String>,
+    pub(crate) registered: BTreeMap<String, BTreeSet<Scope>>,
     pub(crate) usages: BTreeMap<String, BTreeSet<Scope>>,
     pub(crate) opaque: BTreeSet<String>,
 }
@@ -257,6 +258,57 @@ pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
     })
 }
 
+pub(crate) fn registered_repo(label: &str) -> Option<&str> {
+    label
+        .strip_prefix('@')
+        .map(|rest| rest.trim_start_matches('@'))
+        .and_then(|rest| rest.split_once("//"))
+        .map(|(repo, _)| repo)
+}
+
+fn registered_scopes(module: &ModuleFile, name: &str) -> BTreeSet<Scope> {
+    let files = std::slice::from_ref(module);
+    let imported = super::module_diff::imported(files, name);
+    let deps = Names::of(files, name).deps;
+    let mut scopes = BTreeSet::new();
+    for call in module.calls().iter().filter(|call| {
+        matches!(
+            call.name.as_str(),
+            "register_toolchains" | "register_execution_platforms"
+        ) && !matches!(call.arg("dev_dependency"), Some(Value::Ident(dev)) if dev == "True")
+    }) {
+        let labels: Vec<Option<&str>> = if call.unpacked {
+            vec![None]
+        } else {
+            call.positional
+                .iter()
+                .map(|value| {
+                    if let Value::Str(label) = value {
+                        Some(label.value.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+        for repo in labels
+            .into_iter()
+            .map(|label| label.and_then(registered_repo))
+        {
+            if let Some(scope) = repo.and_then(|repo| imported.get(repo)) {
+                scopes.insert(scope.clone());
+                continue;
+            }
+            if let Some(dep) = repo.and_then(|repo| deps.get(repo)) {
+                scopes.insert(Scope::Module(dep.clone()));
+            }
+            scopes.insert(Scope::Module(name.to_owned()));
+            scopes.extend(imported.values().cloned());
+        }
+    }
+    scopes
+}
+
 pub(crate) fn module_graph(
     files: &[RegistryFile],
     read: &dyn Fn(&str) -> Option<String>,
@@ -271,6 +323,10 @@ pub(crate) fn module_graph(
             .collect(),
     );
     graph.registers.insert(BUILTIN_TOOLS.to_owned());
+    graph.registered.insert(
+        BUILTIN_TOOLS.to_owned(),
+        BTreeSet::from([Scope::Module(BUILTIN_TOOLS.to_owned())]),
+    );
     for file in files {
         let id = format!("{}@{}", file.name, file.version);
         let text = read(&file.hash).ok_or_else(|| {
@@ -290,6 +346,10 @@ pub(crate) fn module_graph(
         }
         if registers_toolchains(&module) {
             graph.registers.insert(file.name.clone());
+        }
+        let registered = registered_scopes(&module, &file.name);
+        if !registered.is_empty() {
+            graph.registered.insert(file.name.clone(), registered);
         }
         let mut names = Names::of(std::slice::from_ref(&module), &file.name);
         names.multiple.clone_from(multiple);

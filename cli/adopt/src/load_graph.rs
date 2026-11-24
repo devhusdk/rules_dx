@@ -745,6 +745,7 @@ struct ImpactGraph<'a> {
     aspects: Vec<String>,
     bazelrc_repos: BTreeSet<String>,
     bazelrc_flag_labels: Vec<String>,
+    aspect_repos: BTreeSet<String>,
     extensions: Vec<ExtensionClosure>,
     aspect_inputs: BTreeSet<String>,
     toolchain_inputs: BTreeSet<String>,
@@ -807,6 +808,21 @@ fn impact_graph<'a>(
     }
     toolchain_roots.extend(implementation_roots(&mut graph, &toolchain_roots.clone())?);
     let aspect_inputs = graph.closure(&aspect_roots);
+    let mut aspect_repos = BTreeSet::new();
+    for rel in &aspect_inputs {
+        let Some(text) = read(workspace, rel)? else {
+            continue;
+        };
+        aspect_repos.extend(
+            string_literals(&text)
+                .into_iter()
+                .filter(|literal| literal.starts_with('@') && !is_starlark_file(literal))
+                .filter_map(repo_of)
+                .filter(|repo| !main_repo(repo, &graph.names))
+                .map(str::to_owned),
+        );
+    }
+    global_repos.extend(aspect_repos.iter().cloned());
     let toolchain_inputs = graph.closure(&toolchain_roots);
     let closures: Vec<BTreeSet<String>> = roots
         .extensions
@@ -849,6 +865,7 @@ fn impact_graph<'a>(
         aspects,
         bazelrc_repos: bazelrc.repos,
         bazelrc_flag_labels: bazelrc.flag_labels,
+        aspect_repos,
         extensions,
         aspect_inputs,
         toolchain_inputs,
@@ -1135,6 +1152,12 @@ pub fn repo_impact(
                 .any(|label| repo_of(label).is_some_and(|name| repo_matches(name, repo)))
         {
             BzlImpact::Global(format!("aspect loads @{repo}"))
+        } else if graph
+            .aspect_repos
+            .iter()
+            .any(|name| repo_matches(name, repo))
+        {
+            BzlImpact::Global(format!("aspect attribute names @{repo}"))
         } else if graph.loads_repo(&graph.toolchain_inputs, repo) {
             BzlImpact::Global(format!("toolchain input loads @{repo}"))
         } else if graph
@@ -1344,6 +1367,46 @@ dep = use_extension(\"//e:dep.bzl\", \"dep\")\nuse_repo(dep, \"dep_repo\")\n",
         assert_eq!(
             impact(root, &["e/plain.bzl"], &[]),
             [global("e/plain.bzl", "module extension input")]
+        );
+    }
+
+    #[test]
+    fn repos_named_by_aspect_attributes_reach_everything() {
+        let scratch = dx_test_scratch::scratch("dx-ext-aspect-attr-").unwrap();
+        let root = scratch.path();
+        write(
+            root,
+            "MODULE.bazel",
+            "module(name = \"demo\")\n\
+trim = use_extension(\"//e:trim.bzl\", \"trim\")\nuse_repo(trim, \"trim.tool\")\n\
+plain = use_extension(\"//e:plain.bzl\", \"plain\")\nuse_repo(plain, \"plain_repo\")\n",
+        )
+        .unwrap();
+        write(root, "e/trim.bzl", "X = 1\n").unwrap();
+        write(root, "e/plain.bzl", "X = 1\n").unwrap();
+        write(
+            root,
+            "q/aspect.bzl",
+            "lint = aspect(attrs = {\"_tool\": attr.label(default = \"@trim.tool//tool:files\"), \"_own\": attr.label(default = \"//q:own\")})\n",
+        )
+        .unwrap();
+        let aspects = ["//q:aspect.bzl%lint"];
+        assert_eq!(
+            impact(root, &["e/trim.bzl", "e/plain.bzl"], &aspects),
+            [
+                extension("e/plain.bzl", &["plain"], &[]),
+                global("e/trim.bzl", "module extension input"),
+            ]
+        );
+        assert_eq!(
+            repo_effects(root, &["trim.tool", "plain_repo"], &aspects),
+            [
+                (
+                    "plain_repo".to_owned(),
+                    BzlImpact::Packages(BTreeSet::new())
+                ),
+                repo_global("trim.tool", "aspect attribute names"),
+            ]
         );
     }
 

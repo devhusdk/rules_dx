@@ -1,5 +1,3 @@
-//! No Rust code or repository rule starts a host program by name outside `tools/ci/host_program_allowlist.txt`, and the allowlist holds no spare entry.
-
 use dx_guard::allowlist::{self, Counts, hit};
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
@@ -9,7 +7,6 @@ use starlark_syntax::syntax::ast::{ArgumentP, ExprP};
 use std::path::Path;
 use yaml_serde as _;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
     "env-home",
     "env-path",
@@ -18,15 +15,12 @@ const KINDS: [&str; 5] = [
     "spawn-by-name",
 ];
 
-/// The `std::env` readers of one variable.
 const READERS: [&str; 2] = ["var", "var_os"];
 
-/// Whether `program` names a program without a path.
 fn bare_name(program: &str) -> bool {
     !program.is_empty() && !program.contains(['/', '\\'])
 }
 
-/// The kind of reading the host variable `name`.
 fn env_kind(name: &str) -> Option<&'static str> {
     match name {
         "PATH" => Some("env-path"),
@@ -120,7 +114,6 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
     }
 }
 
-/// Host programs one file starts or looks up by name.
 fn scan(path: &str, source: &str, counts: &mut Counts) {
     if is_starlark(path) {
         scan_starlark(path, source, counts);

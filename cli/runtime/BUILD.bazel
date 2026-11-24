@@ -14,7 +14,7 @@ rust_binary(
         "//cli/hpc_coverage:dx_hpc_coverage",
         "//cli/lcov:dx_lcov",
         "//d/private/tools/coverage:dx_d_coverage",
-        "//dotnet/private/coverage:dx_coverlet",
+        "//dotnet/private/tools/coverage:dx_coverlet",
         "//php/private/coverage:dx_php_coverage",
         "//rego/private/launcher:dx_opa_test",
         "//rust/private/tools/bench_report:dx_bench_report",

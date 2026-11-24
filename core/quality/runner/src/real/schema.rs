@@ -3,7 +3,6 @@ use quality_adapter::{buf_preflight, parsers};
 use super::check::{ToolDef, without_scratch_root};
 use super::{Path, PathBuf, RealBackend, RunnerError, commands, execution, parsed};
 
-/// Schema and IDL compilers.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "buf",
@@ -152,12 +151,10 @@ pub(super) const TOOLS: &[ToolDef] = &[
             );
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
-                // The compiler's import root is the scratch root.
                 let invocation =
                     commands::capnp_check(&call.tool.binary, Path::new(workspace), &root);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
-                // Exit 1 is a schema error.
                 if !matches!(out.code, Some(0 | 1)) {
                     let code = out
                         .code
@@ -174,7 +171,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 )?;
                 let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
                 for mut item in found {
-                    // Typecheck is the error-only view of the same capnp run.
                     if capability == "typecheck"
                         && !matches!(item.finding.severity, quality_adapter::ToolSeverity::Error)
                     {
@@ -200,7 +196,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let out_dir = root.join(".dx-flatc-out");
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
-                // flatc prints realpaths, so check and report the canonical one.
                 let file = std::fs::canonicalize(absolute).map_err(|err| {
                     execution(call.tool_id, format!("resolve {workspace}: {err}"))
                 })?;
@@ -224,14 +219,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 )?;
                 declared_input_escape(call.tool_id, workspace, &root, &report.dependencies)?;
                 for mut item in report.findings {
-                    // Typecheck is the error-only view of the same flatc run.
                     if capability == "typecheck"
                         && !matches!(item.finding.severity, quality_adapter::ToolSeverity::Error)
                     {
                         continue;
                     }
                     item.file = absolute.to_string_lossy().into_owned();
-                    // Messages name other schemas by scratch path; keep them workspace-relative.
                     item.finding.message = without_scratch_root(&item.finding.message, &root);
                     findings.push(item);
                 }
@@ -255,7 +248,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .map_err(|err| execution(call.tool_id, format!("create output dir: {err}")))?;
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
-                // thrift prints realpaths of the staged copy, so check and report that one.
                 let file = dx_path::without_verbatim(
                     &std::fs::canonicalize(root.join(workspace)).map_err(|err| {
                         execution(call.tool_id, format!("resolve {workspace}: {err}"))
@@ -264,7 +256,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 let invocation = commands::thrift_check(&call.tool.binary, &file, &root, &out_dir);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
-                // Exit 1 is a schema error.
                 if !matches!(out.code, Some(0 | 1)) {
                     let code = out
                         .code
@@ -283,7 +274,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 declared_input_escape(call.tool_id, workspace, &root, &report.dependencies)?;
                 let scratch_prefix = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
                 for mut item in report.findings {
-                    // Typecheck is the error-only view of the same thrift run.
                     if capability == "typecheck"
                         && !matches!(item.finding.severity, quality_adapter::ToolSeverity::Error)
                     {
@@ -354,7 +344,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
 ];
 
-/// Lexically resolves `.` and `..` without touching the filesystem.
 fn lexical_normal(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for part in path.components() {
@@ -371,9 +360,6 @@ fn lexical_normal(path: &Path) -> PathBuf {
     out
 }
 
-/// Fails when a dependency a tool reports from a read-only dependency scan
-/// lies outside the canonical scratch `root`, so a lookup that escaped the
-/// declared inputs is never reported clean.
 fn declared_input_escape(
     tool_id: &str,
     source: &str,
@@ -396,7 +382,6 @@ fn declared_input_escape(
     Ok(())
 }
 
-/// The imports of an `.avdl` source that resolve outside the scratch `root`.
 fn avdl_imports_outside(source: &str, file: &Path, root: &Path) -> Vec<String> {
     let dir = file.parent().unwrap_or(root);
     parsers::avdl_imports(source)

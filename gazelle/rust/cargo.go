@@ -16,7 +16,7 @@ const (
 )
 
 type cargoTarget struct {
-	kind             string // name is the Bazel target name, disambiguated when a library shares
+	kind             string
 	name             string
 	logical          string
 	crateName        string
@@ -36,8 +36,6 @@ func (t cargoTarget) crate() string {
 	return t.name
 }
 
-// libCrateName returns the extern crate name of the manifest's library, or ""
-// when it has none. It does not mutate the manifest.
 func (m *cargoManifest) libCrateName() string {
 	for _, t := range m.targets {
 		if t.kind == libraryKind {
@@ -192,7 +190,6 @@ type cfgTarget struct {
 	triple, os, family, arch, env, vendor, pointer string
 }
 
-// cfgTargets has one row per (os, cpu) that rules_rust defines a platform for.
 var cfgTargets = []cfgTarget{
 	{"x86_64-unknown-linux-gnu", "linux", "unix", "x86_64", "gnu", "unknown", "64"},
 	{"aarch64-unknown-linux-gnu", "linux", "unix", "aarch64", "gnu", "unknown", "64"},
@@ -211,9 +208,6 @@ var cfgTargets = []cfgTarget{
 	{"wasm32-wasip1", "wasi", "wasm", "wasm32", "p1", "unknown", "32"},
 }
 
-// cargoCfgPlatform maps a target key (a cfg(...) expression or a bare triple)
-// to a comma-joined, sorted set of Bazel platform keys. It returns "" when
-// every supported target matches, and an error when none does.
 func cargoCfgPlatform(cfg string) (string, error) {
 	cfg = strings.Join(strings.Fields(cfg), "")
 	var matched []cfgTarget
@@ -348,9 +342,6 @@ func splitCfgArgs(inner string) []string {
 	return append(parts, inner[start:])
 }
 
-// platformConstraint returns the comma-joined set of platform constraints
-// covering every cfg of a local path dependency (the union across cfgs), or ""
-// when the dependency is not gated.
 func (d cargoDependency) platformConstraint() string {
 	if d.external || d.cfgs == "" {
 		return ""
@@ -377,8 +368,6 @@ func (d cargoDependency) androidOnly() bool {
 	return d.platformConstraint() == androidPlatformConstraint
 }
 
-// rulesDxEdition must match RUST_EDITION in core/modules/versions.bzl, the
-// edition the rules_dx Rust macros use when none is set.
 const rulesDxEdition = "2024"
 
 func parseCargoManifest(manifestPath string, content []byte) (*cargoManifest, error) {
@@ -866,8 +855,6 @@ func evalVersionClause(version, clause string) bool {
 	}
 }
 
-// parsePartial reads up to three numeric parts and stops at the first
-// wildcard. n is the number of numeric parts before it.
 func parsePartial(s string) (v [3]int, n int, ok bool) {
 	if idx := strings.IndexAny(s, "-+"); idx >= 0 {
 		s = s[:idx]

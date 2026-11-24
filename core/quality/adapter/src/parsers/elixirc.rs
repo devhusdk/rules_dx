@@ -14,10 +14,8 @@ const DIALECT: Dialect = Dialect {
     bracket_rule: false,
 };
 
-/// The launcher prints this when the VM runs without a UTF-8 file name encoding. It has no location.
 const LATIN1: &str = "native name encoding of latin1";
 
-/// The checked source elixirc means by `path`, which may lack the leading directories.
 fn checked_path<'a>(path: &'a str, files: &[&'a str]) -> &'a str {
     if files.contains(&path) {
         return path;
@@ -32,7 +30,6 @@ fn checked_path<'a>(path: &'a str, files: &[&'a str]) -> &'a str {
     }
 }
 
-/// Splits `lib/a.ex:3:5: Mod.fun/1` into the path, the line and the column.
 fn location(text: &str) -> Option<(&str, u64, u64)> {
     let mut parts = text.split(':');
     let path = parts.next()?;
@@ -44,7 +41,6 @@ fn location(text: &str) -> Option<(&str, u64, u64)> {
     Some((path, line, column))
 }
 
-/// Turns each `warning:` or `error:` block into one `file:line:col: severity: message` line.
 fn normalized(text: &str, files: &[&str]) -> Result<String, ParseError> {
     let mut out = String::with_capacity(text.len());
     let mut pending: Option<(&str, &str)> = None;
@@ -83,11 +79,6 @@ fn unlocated(message: &str) -> ParseError {
     ParseError::shape("elixirc", format!("error without a location: {message}"))
 }
 
-/// `elixirc` output. A nonzero exit that printed no diagnostic is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_elixirc(
     output: &[u8],
     code: Option<i32>,

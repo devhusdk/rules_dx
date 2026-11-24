@@ -14,8 +14,8 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/opa.rs",
-        "src/opa_tests.rs",
     ],
+    crate_root = "src/lib.rs",
     visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/path:dx_path",
@@ -26,8 +26,19 @@ rust_library(
 rust_test(
     name = "dx_opa_test_test",
     size = "small",
-    crate = ":dx_opa_test",
-    deps = ["//cli/test_scratch:dx_test_scratch"],
+    srcs = [
+        "src/lib.rs",
+        "src/opa.rs",
+        "src/opa_tests.rs",
+    ],
+    coverage_lib = ":dx_opa_test",
+    crate_name = "dx_opa_test",
+    crate_root = "src/lib.rs",
+    deps = [
+        "//cli/path:dx_path",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:tempfile",
+    ],
 )
 
 real_source_target(

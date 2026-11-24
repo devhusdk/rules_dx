@@ -95,7 +95,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		Extend: func(r *rule.Rule, files []string, contents map[string][]byte) error {
 			return trackFileRefs(r, files, contents, args.File)
 		},
-		Wrap:   common.WrapImportSet,
+		Wrap: common.WrapImportSet,
 		Tests: &common.TestSpec{
 			Kind: TestKind,
 			IsSource: func(file string) bool {
@@ -145,7 +145,6 @@ func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte, bui
 			}
 		}
 	}
-	// Keep existing extra_srcs that still resolve in this package.
 	for _, old := range existingExtraSrcs(build, r.Name()) {
 		if !tracked[old] && (present[old] || genOuts[old] || strings.Contains(old, ":")) {
 			extra[old] = true
@@ -163,7 +162,6 @@ func trackFileRefs(r *rule.Rule, files []string, contents map[string][]byte, bui
 	return nil
 }
 
-// genruleOutputs lists the outs of the genrules in build.
 func genruleOutputs(build *rule.File) map[string]bool {
 	outs := make(map[string]bool)
 	if build == nil {
@@ -179,7 +177,6 @@ func genruleOutputs(build *rule.File) map[string]bool {
 	return outs
 }
 
-// existingExtraSrcs returns the extra_srcs of the library named name in build.
 func existingExtraSrcs(build *rule.File, name string) []string {
 	if build == nil {
 		return nil

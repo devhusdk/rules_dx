@@ -21,11 +21,8 @@ func parseStdlib(text string) map[string]bool {
 	return out
 }
 
-// IsStdLib reports whether name is a module that ships with the pinned Elixir.
 func IsStdLib(name string) bool { return stdlibModules[name] }
 
-// Candidates returns the dotted prefixes of name, longest first, so one
-// resolve directive on a top module covers its whole package.
 func Candidates(name string) []string {
 	var out []string
 	for i := strings.LastIndexByte(name, '.'); i > 0; i = strings.LastIndexByte(name[:i], '.') {

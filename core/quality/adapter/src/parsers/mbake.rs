@@ -5,26 +5,6 @@ use crate::ColumnEncoding;
 
 const TOOL: &str = "mbake";
 
-/// Parses `mbake format --check --config <config> <files>`.
-///
-/// Measured on 1.4.6, with `NO_COLOR=1`, `TERM=dumb` and `COLUMNS=100000` (rich otherwise wraps
-/// long lines at 80 columns):
-/// - everything is written to stdout; stderr is expected to be empty;
-/// - `Would reformat: <path>` names each unformatted file, in argument order;
-/// - `<path>:<line>: Warning: ...` lines are rule advisories and never findings;
-/// - `Summary: Processed <n> files` and a `✓ ...` status line close the run;
-/// - exit 0 is clean, 1 is at least one unformatted file, 2 is a missing input file, and a
-///   missing or unreadable config is exit 1 with an `Error:` line.
-///
-/// mbake never rejects a Makefile as a syntax error (that needs `--validate`, which runs the host
-/// `make` and is never passed). The exit code and the `Would reformat:` file names carry the
-/// result, not the wording of the prose. Anything outside that shape, including any `Error:`
-/// line, is an error and never a clean run. `--diff` is not used: it exits 0 even for files that
-/// would change.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_mbake(
     stdout: &[u8],
     stderr: &[u8],
@@ -78,7 +58,6 @@ pub fn parse_mbake(
         .collect())
 }
 
-/// `<known path>:<line>: Warning: <text>`; the path may itself contain colons.
 fn is_advisory(files: &[&str], line: &str) -> bool {
     files.iter().any(|file| {
         line.strip_prefix(file)
@@ -125,21 +104,17 @@ mod tests {
 
     #[test]
     fn anything_else_is_an_error() {
-        // A missing input file exits 2 and still lists the others.
         let missing = format!("{DIRTY}Error: File not found: /w/x.mk\n");
         assert!(parse_mbake(missing.as_bytes(), b"", Some(2), &FILES).is_err());
         assert!(parse_mbake(missing.as_bytes(), b"", Some(1), &FILES).is_err());
-        // A missing config is exit 1 with an Error line and no file.
         let config =
             b"Error: Configuration file not found at /w/.bake.toml.\nHint: Run bake init\n";
         assert!(parse_mbake(config, b"", Some(1), &FILES).is_err());
         assert!(parse_mbake(b"", config, Some(0), &FILES).is_err());
-        // Exit codes that disagree with the output.
         assert!(parse_mbake(b"", b"", Some(1), &FILES).is_err());
         assert!(parse_mbake(DIRTY.as_bytes(), b"", Some(0), &FILES).is_err());
         assert!(parse_mbake(DIRTY.as_bytes(), b"", Some(2), &FILES).is_err());
         assert!(parse_mbake(b"", b"", None, &FILES).is_err());
-        // A file the run did not name, and foreign output.
         assert!(parse_mbake(b"Would reformat: /w/other.mk\n", b"", Some(1), &FILES).is_err());
         assert!(
             parse_mbake(

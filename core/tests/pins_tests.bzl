@@ -1,9 +1,9 @@
 """The checks every pins.json shares."""
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES", "DATA", "PINS")
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:repo.bzl", "ARCHIVE_TYPES")
 load("//core:toolchain.bzl", "digest_problems", "pin_checks")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 
 def _archive(pin):
     return struct(
@@ -41,7 +41,7 @@ def _checks():
     checks.append(expect_true("archives are read", len(ARCHIVES) > 0))
     for name, pin in ARCHIVES.items():
         checks += [
-            expect_true(name + " url names the version", pin["version"] in pin["urls"][0]),
+            expect_true(name + " url names the version", pin["version"].replace("+", "%2B") in pin["urls"][0] or pin["version"] in pin["urls"][0]),
             expect_true(name + " type is file, jar or an archive type", pin.get("type", "") in ["", "file", "jar"] + ARCHIVE_TYPES),
             expect_true(name + " path is only set on a file", pin.get("type", "") == "file" or "path" not in pin),
             expect_true(name + " executable is only set on a file", pin.get("type", "") == "file" or "executable" not in pin),

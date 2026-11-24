@@ -79,8 +79,6 @@ type IntendedManifest struct {
 	Errors         []IntendedError         `json:"errors,omitempty"`
 }
 
-// IntendedError is one generation failure. Package is nil when the failing
-// package is unknown; a pointer to "" is the root package.
 type IntendedError struct {
 	Language string  `json:"language"`
 	Package  *string `json:"package,omitempty"`
@@ -290,9 +288,6 @@ func (r *ManifestRecorder) Emit(ignores []IgnoredImport) error {
 	return nil
 }
 
-// EmitFailed writes a failure manifest: result "failed", every scope
-// incomplete, no files, and errs as the reason. Gazelle may already have
-// written BUILD files, so the manifest claims no changes.
 func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
 	manifest := IntendedManifest{
 		Mode:           r.Mode,

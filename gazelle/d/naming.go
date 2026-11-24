@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 
-// LibraryKind is the rule kind generated for a directory of D modules.
 const LibraryKind = "d_library"
 
-// SupportedExts are the D source extensions: implementation and interface.
 var SupportedExts = []string{".d", ".di"}
 
 var identifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
@@ -20,8 +18,6 @@ func stem(file string) string {
 	return strings.TrimSuffix(strings.TrimSuffix(file, ".di"), ".d")
 }
 
-// ModuleOf returns the module a file defines: its declaration, or the file
-// stem when it has none. package.d without a declaration is the directory.
 func ModuleOf(pkgRel, file, declared string) (string, error) {
 	if declared != "" {
 		return declared, nil
@@ -39,10 +35,6 @@ func ModuleOf(pkgRel, file, declared string) (string, error) {
 	return s, nil
 }
 
-// ImportRoot returns the package-relative import root of file: the directory
-// the compiler searches so that module resolves to the file. It is "." when
-// the package directory itself is the root. A declared module must be a
-// segment-aligned suffix of the file path.
 func ImportRoot(pkgRel, file, declared string) (string, error) {
 	module, err := ModuleOf(pkgRel, file, declared)
 	if err != nil {
@@ -81,10 +73,6 @@ func mismatch(module, pkgRel, file string) error {
 	return fmt.Errorf("module %s in %s does not match its path; move the file or fix the module declaration", module, path.Join(pkgRel, file))
 }
 
-// PackageRoot returns the one import root shared by every file of a package.
-// declared maps each file to its declared module ("" when it has none). Two
-// files defining one module are an error: a .d file and its .di interface
-// cannot both be sources of one library.
 func PackageRoot(pkgRel string, declared map[string]string) (string, error) {
 	files := make([]string, 0, len(declared))
 	for f := range declared {

@@ -5,7 +5,6 @@ load(":extension.bzl", "declare_downloads")
 load(":hub.bzl", "plan_assets", "with_native_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
-# Loaded by the rule sets' module extensions.
 visibility("public")
 
 FROM_SOURCE = tag_class(
@@ -14,12 +13,7 @@ FROM_SOURCE = tag_class(
 )
 
 def launcher_hub(name, modules, ext, pins):
-    """Returns struct(error, assets, build): the launcher downloads of hub name and its BUILD text.
-
-    modules are the module_ctx.modules of extension ext; pins is pins.bzl's PINS. The hub
-    builds from source when rules_dx is root or the root module sets from_source, and
-    serves guard_stub under guard_view only when rules_dx is root.
-    """
+    """Returns struct(error, assets, build): the launcher downloads of hub name and its BUILD text."""
     root = False
     from_source = False
     for mod in modules:

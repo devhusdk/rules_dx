@@ -5,8 +5,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The `dx lint`, `dx typecheck` and `dx format` verbs and the quality phases of `dx check`.
-
 mod breaking_base;
 pub mod check_build;
 mod generated_drift;
@@ -80,7 +78,6 @@ pub fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
     )
 }
 
-/// Runs one umbrella quality phase, from the build it shares with the other phases when given.
 pub fn execute_quality_phase(
     request: &QualityRequest,
     env: Env<'_>,
@@ -89,7 +86,6 @@ pub fn execute_quality_phase(
     execute_quality_phase_with_fs(request, env, &RealFileSystem, shared)
 }
 
-/// Runs one quality phase whose apply writes go through `fs`.
 pub fn execute_quality_phase_with_fs(
     request: &QualityRequest,
     env: Env<'_>,
@@ -210,24 +206,12 @@ pub fn guard_build_output(
     }
 }
 
-/// Why a shard probe ended the phase instead of falling back to every shard.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ProbeStop {
-    /// Bazel died by a signal.
     Signalled,
-    /// dx recorded a stop signal or Bazel exited as interrupted.
     Interrupted,
 }
 
-/// Runs the shard probe and returns the shards it named; `Ok(None)` means pass every shard.
-///
-/// Any failure (no probe for the command, a plan error, a non-zero exit, an unreadable or
-/// incomplete event file, a malformed shard file) falls back to every shard, so the probe can
-/// only make a run cheaper, never change its result. It writes nothing to stdout; Bazel's own
-/// progress goes to stderr. A stop signal or interrupted Bazel ends the run instead.
-///
-/// The probe is a real build, so its action counts go into `actions` and into `probe_counts`
-/// before its event file is removed.
 #[expect(
     clippy::too_many_arguments,
     reason = "each argument is a distinct input"
@@ -272,7 +256,6 @@ pub(crate) fn probe_shards(
     shards
 }
 
-/// Unions the shard names of every `{"shards":[...]}` file in the probe's event file.
 fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
     let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
     if account.problem.is_some() || !account.gaps.is_empty() || !account.ended {
@@ -293,7 +276,6 @@ fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
     Some(shards)
 }
 
-/// The skip notes of every target in the event file, one per tool however many targets dropped it.
 pub(crate) fn read_skip_notes(
     bep: &Path,
     foreign: &BTreeSet<String>,
@@ -318,7 +300,6 @@ pub(crate) fn read_skip_notes(
     notes
 }
 
-/// The warning for a skip note of the form `<tool>: <reason>`.
 pub(crate) fn skip_notice(command: &str, note: &str) -> NoticeEvent {
     NoticeEvent {
         related_command: Some(command.to_owned()),
@@ -334,10 +315,8 @@ struct Settled {
     failed: bool,
 }
 
-/// The build events a phase reads, and whether the phase owns them and removes them after.
 struct BepRead {
     path: PathBuf,
-    /// The aspects of other phases sharing the build, whose outputs this phase leaves out.
     foreign: BTreeSet<String>,
     owned: bool,
 }
@@ -403,7 +382,6 @@ fn run_quality_request(
             return resolve_failed(request.common.output, env.out, env.err, &error);
         }
     };
-    // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
     let deps: Vec<String> = dx_adopt::module_deps(env.workspace).into_iter().collect();
     let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(env.workspace))
         .then(|| dx_adopt::quality_marks(env.workspace));
@@ -572,10 +550,6 @@ fn run_quality_build(
     })
 }
 
-/// The build outcome of one phase that read a shared build.
-///
-/// Bazel's failures name targets but not aspects, so a phase that owns a failure reports every
-/// failure of the shared build, as its own build would have for the targets it shares.
 fn shared_build_run(
     request: &QualityRequest,
     env: &mut Env<'_>,
@@ -616,7 +590,6 @@ fn plan_quality_reports(
     Ok(planned_reports)
 }
 
-/// The request with a `--breaking-against` ref resolved to a base, or `None` when it has none.
 fn rewrite_breaking_base(
     request: &QualityRequest,
     env: &mut Env<'_>,
@@ -676,7 +649,6 @@ fn announce_quality_start(
     Ok(())
 }
 
-/// Plans the phase's own build and announces the phase; `probe` narrows the build first.
 fn plan_quality_build(
     request: &QualityRequest,
     env: &mut Env<'_>,
@@ -717,7 +689,6 @@ fn plan_quality_build(
     if !probe {
         return Ok((build, None));
     }
-    // The probe runs after the start event, so a run whose stdout already failed starts no Bazel.
     let mut probe_counts = None;
     match probe_shards(
         &[request.command],
@@ -755,7 +726,6 @@ fn plan_quality_build(
     Ok((build, probe_counts))
 }
 
-/// Reports a probe that ended the phase and returns the phase's exit.
 pub(crate) fn probe_stop_exit(
     stop: &ProbeStop,
     request: &QualityRequest,

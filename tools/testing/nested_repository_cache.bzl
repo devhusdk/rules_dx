@@ -1,5 +1,7 @@
 """Repository cache sets for nested Bazel tests."""
 
+load("//core:ghcr.bzl", "ghcr_headers", "ghcr_pull_scope")
+
 def _nested_repository_cache_impl(ctx):
     """Writes the manifest of hex digest to runfile and URLs and carries every file it names."""
     lines = []
@@ -54,6 +56,27 @@ nested_repository_cache_set = repository_rule(
         "entries": attr.string(mandatory = True, doc = "JSON object of hex digest to the repository that holds the file."),
         "urls": attr.string(mandatory = True, doc = "JSON object of hex digest to the URLs of the download."),
         "rule_bzl": attr.label(mandatory = True, doc = "The .bzl file that defines nested_repository_cache."),
+    },
+)
+
+def _nested_cache_file_impl(rctx):
+    """Downloads one cache entry; ghcr.io blobs, such as homebrew bottles, get an anonymous pull token."""
+    urls = rctx.attr.urls
+    ghcr = [url for url in urls if url.startswith("https://ghcr.io/")]
+    output = "file/blob"
+    if not ghcr or not rctx.download(url = urls, output = output, integrity = rctx.attr.integrity, allow_fail = True).success:
+        headers = ghcr_headers(rctx, ghcr_pull_scope(ghcr[0])) if ghcr else {}
+        rctx.download(url = ghcr or urls, output = output, integrity = rctx.attr.integrity, headers = headers)
+    rctx.file("REPO.bazel", "")
+    rctx.file("file/BUILD.bazel", 'filegroup(name = "file", srcs = ["blob"], visibility = ["//visibility:public"])\n')
+    return rctx.repo_metadata(reproducible = True)
+
+nested_cache_file = repository_rule(
+    implementation = _nested_cache_file_impl,
+    doc = "One downloaded file of a repository cache set, at `//file`.",
+    attrs = {
+        "integrity": attr.string(mandatory = True, doc = "Subresource Integrity of the file."),
+        "urls": attr.string_list(mandatory = True, doc = "The https URLs the file is fetched from."),
     },
 )
 

@@ -1,8 +1,5 @@
-//! Validates the evidence workflow dispatch inputs and appends them to `GITHUB_OUTPUT`.
-
 use std::io::Write;
 
-/// Validates the `DX_*` dispatch inputs and appends the accepted values to `GITHUB_OUTPUT`.
 pub fn check(args: &[String]) -> Result<(), String> {
     if !args.is_empty() {
         return Err("usage: producers_bin --evidence-inputs".into());

@@ -17,7 +17,6 @@ rust_library(
         "src/uv_tools.rs",
     ],
     aliases = {},  # keep
-    # Clippy reads clippy.toml for dx_exec_reports instead of the workspace one.
     compile_data = [
         "clippy.toml",
         "src/unsupported.json",
@@ -62,7 +61,6 @@ rust_test(
     ],
 )
 
-# Read by the dx_cli source guards, which scan every production CLI file.
 filegroup(
     name = "rust_srcs",
     srcs = glob(["src/**/*.rs"]),

@@ -17,7 +17,6 @@ func stripComments(content []byte) string {
 	return lineComment.ReplaceAllString(blockComment.ReplaceAllString(string(content), ""), "")
 }
 
-// ParseImports returns the sorted, deduplicated top-level module names content imports.
 func ParseImports(content []byte) []string {
 	set := make(map[string]struct{})
 	for _, m := range importLine.FindAllStringSubmatch(stripComments(content), -1) {
@@ -31,8 +30,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// DefinesMain reports whether content has an @main entry point.
 func DefinesMain(content []byte) bool { return mainAttr.MatchString(stripComments(content)) }
 
-// IsEntryFile reports whether name is main.swift, which holds top-level code.
 func IsEntryFile(name string) bool { return strings.EqualFold(name, "main.swift") }

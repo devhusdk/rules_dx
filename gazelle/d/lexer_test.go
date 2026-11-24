@@ -6,7 +6,6 @@ import (
 )
 
 func TestLexLiterals(t *testing.T) {
-	// Each source ends in a marker identifier that must survive the literal.
 	tests := []struct{ name, src string }{
 		{"line comment", "// \"\nend"},
 		{"block comment", "/* \" */ end"},

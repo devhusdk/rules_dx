@@ -1,11 +1,3 @@
-//! Command line of the Windows launcher:
-//! `--name N [--backend appcontainer|user] [--net] [--group G] [--grant P]... [--deny P]... -- cmd args`
-//! runs a command, and `--backend user --setup-group G|--teardown-group G [--grant P]... [--deny P]...`
-//! adds or removes a local group's entries on those paths, so runs that join it with
-//! `--group G` need no ACL changes of their own. `--backend user --ensure-host-denies [--deny P]...`
-//! puts the denies on the shared `dxh-host` group once per machine, and `--remove-host-denies`
-//! takes them off again.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
     AppContainer,
@@ -21,7 +13,6 @@ pub enum Mode {
     RemoveHostDenies,
 }
 
-/// The group every run account joins, holding the denies that stay on the host between runs.
 pub const HOST_GROUP: &str = "dxh-host";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -172,8 +163,6 @@ pub fn parse(args: &[String]) -> Result<Config, String> {
     })
 }
 
-/// Directories above the grants, from the drive root down, that are not granted themselves.
-/// The container gets list and traverse rights on these so it can resolve the granted paths.
 pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
     let mut granted = Vec::new();
     for grant in grants {
@@ -217,8 +206,6 @@ pub fn ancestors(grants: &[String]) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// Groups paths into waves that can be set at the same time. A path goes after every earlier path
-/// it is nested with, so a parent's inherited entries never race a child's own entries.
 pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
     let norm: Vec<String> = paths
         .iter()
@@ -250,8 +237,6 @@ pub fn acl_waves(paths: &[&str]) -> Vec<Vec<usize>> {
     waves
 }
 
-/// One spelling per path, so a lock name or a line of the host deny list matches however the
-/// path was written: lower case, backslashes, no `\\?\` prefix and no trailing backslash.
 pub fn path_key(path: &str) -> String {
     let path = path.replace('/', "\\");
     dx_path::without_verbatim_str(&path)
@@ -259,7 +244,6 @@ pub fn path_key(path: &str) -> String {
         .to_lowercase()
 }
 
-/// A local account name of at most 20 characters, stable for one container name.
 pub fn user_name(name: &str) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in name.bytes() {
@@ -269,7 +253,6 @@ pub fn user_name(name: &str) -> String {
     format!("dxh-{hash:016x}")
 }
 
-/// The pid in a run's group name `dxh-<pid>`, or `None` for any other name.
 pub fn group_pid(name: &str) -> Option<u32> {
     let digits = name.strip_prefix("dxh-")?;
     if digits.is_empty() || digits.len() > 10 || !digits.bytes().all(|b| b.is_ascii_digit()) {
@@ -278,7 +261,6 @@ pub fn group_pid(name: &str) -> Option<u32> {
     digits.parse().ok()
 }
 
-/// The `dxh-<pid>` groups, other than `own`, whose process is gone.
 pub fn stale_groups(names: &[String], own: &str, alive: impl Fn(u32) -> bool) -> Vec<String> {
     names
         .iter()
@@ -288,7 +270,6 @@ pub fn stale_groups(names: &[String], own: &str, alive: impl Fn(u32) -> bool) ->
         .collect()
 }
 
-/// A password built from random bytes that has upper case, lower case, digits and symbols.
 pub fn password(bytes: &[u8]) -> String {
     const CLASSES: [&str; 4] = [
         "ABCDEFGHJKLMNPQRSTUVWXYZ",
@@ -303,7 +284,6 @@ pub fn password(bytes: &[u8]) -> String {
         .collect()
 }
 
-/// Joins arguments into one Windows command line, quoted for CommandLineToArgvW.
 pub fn command_line(command: &[String]) -> String {
     command
         .iter()
@@ -312,8 +292,6 @@ pub fn command_line(command: &[String]) -> String {
         .join(" ")
 }
 
-/// The command line for CreateProcessWithLogonW, which rejects lines over 1024 characters
-/// with only "The parameter is incorrect".
 pub fn logon_command_line(command: &[String]) -> Result<String, String> {
     let line = command_line(command);
     if line.encode_utf16().count() > 1024 {
@@ -351,7 +329,6 @@ fn quote(arg: &str) -> String {
     out
 }
 
-/// Variables Windows needs to create an AppContainer process.
 pub const ESSENTIAL: [&str; 11] = [
     "SystemRoot",
     "windir",
@@ -366,8 +343,6 @@ pub const ESSENTIAL: [&str; 11] = [
     "TMP",
 ];
 
-/// The parent's variables plus any missing ESSENTIAL ones taken from `defaults`,
-/// as a sorted UTF-16 block, with the names that were added.
 pub fn environment(
     parent: &[(String, String)],
     defaults: &[(String, String)],

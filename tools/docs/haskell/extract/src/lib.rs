@@ -1,9 +1,3 @@
-//! Converts the Hoogle text of `haddock --hoogle` into one validated `DocIr` shard.
-//!
-//! Hoogle text is haddock's stable, machine-readable output: one line per module, type,
-//! constructor, field, class and function, each preceded by its `-- |` doc. It carries no
-//! positions, so each declaration is located in the module source by matching its name.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
@@ -17,7 +11,6 @@ use std::path::Path;
 const LANGUAGE: &str = "haskell";
 const KEY_CONFIG: &str = "haskell.config";
 
-/// Why one Hoogle text could not become a shard.
 #[derive(Debug)]
 pub enum HaskellExtractError {
     Read(PathIoError),
@@ -59,7 +52,6 @@ impl std::error::Error for HaskellExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub hoogle: String,
@@ -69,23 +61,16 @@ pub struct Options {
     pub config: String,
 }
 
-/// Runs `haskell_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("haskell_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: haskell_extract --hoogle DIR --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -100,11 +85,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard. Nothing is written on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), HaskellExtractError> {
     let read = |path: &Path| path_io::read_to_string(path).map_err(HaskellExtractError::Read);
     let files: Vec<_> = path_io::read_dir(Path::new(&options.hoogle))
@@ -149,7 +129,6 @@ struct Context<'a> {
     config: String,
 }
 
-/// The type or class the following constructors, fields or methods belong to.
 struct Parent {
     id: String,
     name: String,
@@ -241,11 +220,6 @@ fn signature_symbols(
     out
 }
 
-/// Converts Hoogle text into a validated IR shard. `texts` maps each exec path to its text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     hoogle: &str,
     sources: &[Source],
@@ -377,7 +351,6 @@ fn tokens(line: &str) -> impl Iterator<Item = &str> {
         .filter(|w| !w.is_empty())
 }
 
-/// The name a `data`, `newtype`, `type` or `class` line declares.
 fn declared_name(words: &[&str], is_class: bool) -> Option<String> {
     let mut rest = words;
     if (is_class || words.contains(&"=>"))
@@ -390,12 +363,10 @@ fn declared_name(words: &[&str], is_class: bool) -> Option<String> {
     (!word.is_empty()).then(|| word.to_owned())
 }
 
-/// The 1-based line of the first source line that `matches`, or 1.
 fn line_of(text: &str, matches: impl Fn(&str) -> bool) -> usize {
     text.lines().position(matches).map_or(1, |at| at + 1)
 }
 
-/// The line of a function, field or constructor `name`, searched from line `from`.
 fn locate(text: &str, name: &str, from: usize, constructor: bool) -> usize {
     let start = from.saturating_sub(1);
     let found = text.lines().enumerate().skip(start).find(|(_, line)| {

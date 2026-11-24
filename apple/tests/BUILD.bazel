@@ -337,6 +337,7 @@ failure_test(
     target = ":freeform_version_selection",
 )
 
+# keep
 apple_ios_app(
     name = "no_library",
     bundle_id = "com.example.share",
@@ -1146,6 +1147,7 @@ failure_test(
     target = ":macos_freeform_version_selection",
 )
 
+# keep
 apple_macos_app(
     name = "macos_no_entry",
     bundle_id = "com.example.ledger",

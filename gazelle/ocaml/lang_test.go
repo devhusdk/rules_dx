@@ -1,15 +1,29 @@
 package ocaml
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
+	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/devhusdk/rules_dx/gazelle/common"
 )
+
+// repoConfig returns the config Gazelle passes to GenerateRules for a
+// repository rooted at root.
+func repoConfig(root string) *config.Config {
+	c := config.New()
+	c.RepoRoot = root
+	c.ValidBuildFileNames = config.DefaultValidBuildFileNames
+	return c
+}
 
 func TestGenerateModules(t *testing.T) {
 	lang := NewLanguage()
 	res := lang.GenerateRules(language.GenerateArgs{
+		Config:       repoConfig(t.TempDir()),
 		Rel:          "pkg",
 		RegularFiles: []string{"b.ml", "a.ml", "a.mli", "orphan.mli", "notes.txt"},
 	})
@@ -29,9 +43,24 @@ func TestGenerateModules(t *testing.T) {
 }
 
 func TestNoSourcesNoRules(t *testing.T) {
-	res := NewLanguage().GenerateRules(language.GenerateArgs{Rel: "pkg", RegularFiles: []string{"x.txt"}})
+	res := NewLanguage().GenerateRules(language.GenerateArgs{Config: repoConfig(t.TempDir()), Rel: "pkg", RegularFiles: []string{"x.txt"}})
 	if len(res.Gen) != 0 {
 		t.Fatalf("got %d rules", len(res.Gen))
+	}
+}
+
+func TestGenerateSkipsPackageOwnedByAncestor(t *testing.T) {
+	root := t.TempDir()
+	build := `ocaml_module(name = "a", struct = "pkg/a.ml")`
+	if err := os.WriteFile(filepath.Join(root, "BUILD.bazel"), []byte(build), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := NewLanguage().GenerateRules(language.GenerateArgs{Config: repoConfig(root), Rel: "pkg", RegularFiles: []string{"a.ml"}})
+	if len(res.Gen) != 0 {
+		t.Fatalf("got %d rules, want none under an ancestor-owned package", len(res.Gen))
+	}
+	if got := common.TakeAncestorOwned(); len(got) != 1 || got[0].Package != "pkg" || got[0].Rule != "//:a" {
+		t.Fatalf("notices = %v, want pkg owned by //:a", got)
 	}
 }
 

@@ -11,9 +11,6 @@ struct MarkdownLine {
     message: String,
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_markdown_findings(
     stdout: &[u8],
     code: Option<i32>,

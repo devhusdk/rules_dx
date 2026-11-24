@@ -1,5 +1,3 @@
-//! Pins the runner map of release-cells.yml to the release matrix.
-
 use serde_json::Value;
 
 use ci_workflow::document;
@@ -7,7 +5,6 @@ use dx_testing::resolve_runfiles;
 
 const CELLS: &str = ".github/workflows/release-cells.yml";
 
-/// GitHub-hosted runner labels with the release matrix `(os, machine)` each one runs.
 const RUNNERS: [(&str, &str, &str); 5] = [
     ("ubuntu-latest", "linux", "x86_64"),
     ("ubuntu-24.04-arm", "linux", "aarch64"),
@@ -16,7 +13,6 @@ const RUNNERS: [(&str, &str, &str); 5] = [
     ("windows-11-arm", "windows", "aarch64"),
 ];
 
-/// Returns the release matrix cells as `(name, os, machine)` in matrix order.
 fn matrix_cells() -> Vec<(String, String, String)> {
     let rel = std::env::var("DX_RELEASE_MATRIX").expect("DX_RELEASE_MATRIX names the matrix");
     let text = std::fs::read_to_string(resolve_runfiles(&rel)).expect("release matrix");
@@ -32,7 +28,6 @@ fn matrix_cells() -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// Returns `(name, runner)` for every `matrix.include` entry of the one job that has a matrix.
 fn runner_map(workflow: &Value) -> Vec<(String, String)> {
     let jobs = workflow["jobs"].as_object().expect("jobs");
     let mut found = Vec::new();
@@ -50,7 +45,6 @@ fn runner_map(workflow: &Value) -> Vec<(String, String)> {
     found
 }
 
-/// Returns every problem between a workflow and the release matrix.
 fn problems(workflow: &Value, cells: &[(String, String, String)]) -> Vec<String> {
     let mut problems = Vec::new();
     let map = runner_map(workflow);
@@ -75,7 +69,6 @@ fn problems(workflow: &Value, cells: &[(String, String, String)]) -> Vec<String>
     problems
 }
 
-/// Returns the problems with the permissions and failure policy of release-cells.yml.
 fn policy_problems(workflow: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     let mut scopes = vec![("workflow".to_owned(), workflow["permissions"].clone())];
@@ -101,10 +94,8 @@ fn policy_problems(workflow: &Value) -> Vec<String> {
     problems
 }
 
-/// Longest job timeout a GitHub-hosted runner accepts, in minutes.
 const MAX_TIMEOUT_MINUTES: u64 = 360;
 
-/// Returns the problems with the per-cell job timeouts of the matrix job.
 fn timeout_problems(workflow: &Value) -> Vec<String> {
     let mut problems = Vec::new();
     for (id, job) in workflow["jobs"].as_object().expect("jobs") {

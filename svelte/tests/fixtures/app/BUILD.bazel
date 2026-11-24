@@ -39,5 +39,6 @@ real_source_target(
 
 framework_build_tool_tests(
     name = "build_tool_tests",
+    size = "small",
     build = "site",
 )

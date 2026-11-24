@@ -2,6 +2,7 @@
 
 -export([main/1, run/1]).
 
+-spec main([string()]) -> no_return().
 main(Args) ->
     {ok, _} = application:ensure_all_started(kv_store),
     {Lines, Code} = commands(Args),

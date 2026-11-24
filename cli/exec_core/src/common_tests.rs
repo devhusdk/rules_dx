@@ -210,7 +210,6 @@ fn run_bazel_forwards_argv_and_env_and_returns_the_exit_code() {
     assert_eq!(err, Vec::<u8>::new());
 }
 
-/// Records which runner method each call came through.
 #[derive(Default)]
 struct CallRunner {
     calls: RefCell<Vec<&'static str>>,
@@ -1052,7 +1051,6 @@ fn write_report_file_keeps_stale_content_on_failure() {
 #[cfg(unix)]
 fn write_report_file_reports_unwritable_destinations() {
     let dir = tempfile::tempdir().expect("tempdir");
-    // A name longer than NAME_MAX fails the final rename even for root, which ignores mode bits.
     let name = format!("{}.sarif", "x".repeat(300));
     let err = write_report_file(dir.path(), &name, "{}\n").expect_err("unwritable");
     assert!(err.destination.ends_with(&name), "{err}");

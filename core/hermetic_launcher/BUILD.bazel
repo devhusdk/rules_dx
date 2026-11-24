@@ -1,60 +1,11 @@
-load("@hermetic_launcher//launcher/private:stub_finalizer_toolchain.bzl", "stub_finalizer_toolchain")
-load("@hermetic_launcher//launcher/private:stub_template_toolchain.bzl", "stub_template_toolchain")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-
-# Upstream: hermeticbuild/hermetic-launcher#94
-# Once a hermetic_launcher release has it, bump hermetic_launcher in MODULE.bazel and delete this
-# package, its hermetic_launcher_stubs and register_toolchains lines in MODULE.bazel, the
-# //core/hermetic_launcher:module_srcs entry in BUILD.bazel and its GATED entry in
-# tools/testing/toolchain_gate_test.rs (#8379).
-
-_CONSTRAINTS = [
-    "@platforms//cpu:aarch64",
-    "@platforms//os:windows",
-]
-
-_TARGET_SETTINGS = [
-    "//config:toolchains_on",
-    "@hermetic_launcher//launcher/private:stub_source_prebuilt",
-]
-
-stub_template_toolchain(
-    name = "template_aarch64_windows",
-    template_exe = "@runfiles_stub_aarch64_windows//file",
-)
-
-toolchain(
-    name = "template_aarch64_windows_toolchain",
-    target_compatible_with = _CONSTRAINTS,
-    target_settings = _TARGET_SETTINGS,
-    toolchain = ":template_aarch64_windows",
-    toolchain_type = "@hermetic_launcher//launcher:template_toolchain_type",
-)
-
-toolchain(
-    name = "template_aarch64_windows_exec_toolchain",
-    exec_compatible_with = _CONSTRAINTS,
-    target_settings = _TARGET_SETTINGS,
-    toolchain = ":template_aarch64_windows",
-    toolchain_type = "@hermetic_launcher//launcher:template_exec_toolchain_type",
-)
-
-stub_finalizer_toolchain(
-    name = "finalizer_aarch64_windows",
-    finalizer = "@finalize_stub_aarch64_windows//file",
-)
-
-toolchain(
-    name = "finalizer_aarch64_windows_toolchain",
-    exec_compatible_with = _CONSTRAINTS,
-    target_settings = _TARGET_SETTINGS,
-    toolchain = ":finalizer_aarch64_windows",
-    toolchain_type = "@hermetic_launcher//launcher:finalizer_toolchain_type",
-)
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "hub.bzl",
+    ],
     tags = ["corpus"],
 )
 

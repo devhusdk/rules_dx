@@ -4,7 +4,6 @@ use serde_json::{Map, Value, json};
 use crate::config::DxConfig;
 use crate::curated_defaults_gen::{FAMILIES, OPT_IN_FAMILIES, TOOLS};
 
-/// Returns the JSON Schema for `dx.toml`.
 #[must_use]
 pub fn dx_schema() -> String {
     let generator = SchemaSettings::draft07().into_generator();
@@ -16,7 +15,6 @@ pub fn dx_schema() -> String {
     format!("{value:#}\n")
 }
 
-/// The `[families.<id>]` ids `dx.toml` accepts, sorted.
 #[must_use]
 pub fn family_ids() -> Vec<&'static str> {
     let mut ids: Vec<&str> = FAMILIES
@@ -37,7 +35,6 @@ fn add_family_ids(schema: &mut Value) {
     );
 }
 
-/// A tool id, or a `+id` or `-id` edit of the curated list.
 fn tool_id_items() -> Value {
     let edits: Vec<String> = TOOLS
         .iter()

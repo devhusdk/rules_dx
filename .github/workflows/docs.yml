@@ -1,8 +1,5 @@
 name: docs
 
-# Publishes the user docs to GitHub Pages when a push to main changes a page
-# the book renders. ci.yml still checks the docs on every merge group and
-# republishes on its daily run, which picks up API reference changes from code.
 on:
   push:
     branches: [main]
@@ -21,8 +18,6 @@ permissions:
 jobs:
   docs:
     name: docs (build and publish the user book)
-    # ci.yml and docs.yml both deploy Pages from main; a second concurrent
-    # deploy-pages run fails instead of queueing, so they take turns.
     concurrency:
       group: docs-pages-${{ github.ref }}
       cancel-in-progress: false

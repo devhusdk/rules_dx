@@ -1,18 +1,3 @@
-//! The user backend: a new local account per run, its network blocked by WFP filters. The
-//! account is also denied the DNS Client service's RPC port, so it cannot resolve names through
-//! a service that queries on its behalf.
-//!
-//! With `--group`, the account joins a local group that `setup_group` gave the grants and
-//! denies once, so a run does not rewrite the inherited ACLs of whole trees twice. Before that,
-//! `setup_group` removes the `dxh-<pid>` groups of runs that were killed before their teardown,
-//! with their entries on this run's paths.
-//!
-//! The denies go on the shared `dxh-host` group instead, which every run account joins. Its
-//! entries stay between runs: `ensure_host_denies` walks a tree only when the host deny list
-//! does not name it yet, so the big Visual Studio and SDK trees are rewritten once per machine.
-//!
-//! Inside an AppContainer the Mount Manager refuses `GetFinalPathNameByHandleW` with a DOS
-//! volume name, which Bazel's client needs. A normal user token passes.
 use dx_os_sys::job_object::{JobObject, Limit};
 use dx_os_sys::{nt, win32};
 use std::ffi::c_void;
@@ -102,7 +87,6 @@ unsafe extern "system" {
     fn CloseServiceHandle(handle: HANDLE) -> i32;
 }
 
-/// An open service manager or service handle, closed on drop.
 struct ServiceHandle(HANDLE);
 
 impl ServiceHandle {
@@ -124,7 +108,6 @@ impl Drop for ServiceHandle {
     }
 }
 
-/// An open filtering engine session. Closing it removes the session's dynamic filters.
 struct Engine(HANDLE);
 
 impl Drop for Engine {
@@ -134,7 +117,6 @@ impl Drop for Engine {
     }
 }
 
-/// A buffer the NetApi calls allocated, freed on drop.
 struct NetBuffer(*mut u8);
 
 impl Drop for NetBuffer {
@@ -146,7 +128,6 @@ impl Drop for NetBuffer {
     }
 }
 
-/// Everything a run creates. Dropping it undoes whatever exists, in a fixed order.
 struct Session {
     user: Vec<u16>,
     created: bool,
@@ -189,7 +170,6 @@ impl Drop for Session {
     }
 }
 
-/// Kills what is left in the job and waits until it is empty, so the profile is no longer in use.
 fn end_job(job: &JobObject) {
     let _: std::io::Result<()> = job.terminate(1);
     for _ in 0..100 {
@@ -201,9 +181,6 @@ fn end_job(job: &JobObject) {
     }
 }
 
-/// Deletes the account's profile. The profile service unloads it a little after the last
-/// process exits and refuses to delete it until then, so a profile left behind on every
-/// run would fill the system disk.
 fn delete_profile(sid: &str) {
     let sid = wide(sid);
     let mut err = None;
@@ -365,7 +342,6 @@ fn add_filter(
     )
 }
 
-/// Blocks every connect and accept of the account except loopback, until the engine closes.
 fn block_network(session: &mut Session) -> Result<(), String> {
     // SAFETY: FWPM_SESSION0 is plain C data for which all-zero is valid.
     let mut wfp: FWPM_SESSION0 = unsafe { std::mem::zeroed() };
@@ -436,7 +412,6 @@ fn block_network(session: &mut Session) -> Result<(), String> {
         condition
     };
     let mut result = Ok(());
-    // A local resolver must stay out of reach, so port 53 is blocked above the loopback permit.
     for layer in [
         FWPM_LAYER_ALE_AUTH_CONNECT_V4,
         FWPM_LAYER_ALE_AUTH_CONNECT_V6,
@@ -543,7 +518,6 @@ fn dns_client_pid() -> Result<u32, String> {
     }
 }
 
-/// Duplicates the Dnscache process's handle to its `\RPC Control\DNSResolver` ALPC port.
 fn find_dns_port() -> Result<OwnedHandle, String> {
     let pid = dns_client_pid()?;
     let entries =
@@ -587,8 +561,6 @@ fn find_dns_port() -> Result<OwnedHandle, String> {
     ))
 }
 
-/// Adds (or removes) the account's entries on an ALPC port, under a machine-wide lock so
-/// concurrent runs do not lose each other's entries.
 fn set_port_access(port: BorrowedHandle<'_>, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let _lock = NamedLock::acquire(DNS_PORT_LOCK)?;
     let port = port.as_raw_handle();
@@ -614,7 +586,6 @@ fn set_port_access(port: BorrowedHandle<'_>, sid: *mut c_void, mode: i32) -> Res
         "reading the ACL of the DNSResolver port",
     )
     .and_then(|()| {
-        // A deny entry on its own would turn every caller away, not just this account.
         if old.is_null() {
             Err("the DNSResolver port has no ACL to add the account's deny entry to".to_owned())
         } else {
@@ -647,9 +618,6 @@ fn set_port_access(port: BorrowedHandle<'_>, sid: *mut c_void, mode: i32) -> Res
     })
 }
 
-/// Dnscache resolves under its own account, which the network filters do not cover, so the
-/// account is turned away at the service's RPC port. dnsapi then queries in process, where
-/// the filters apply.
 fn deny_dns_client(session: &mut Session) -> Result<(), String> {
     enable_debug_privilege()?;
     let pid = dns_client_pid()?;
@@ -660,7 +628,6 @@ fn deny_dns_client(session: &mut Session) -> Result<(), String> {
     Ok(())
 }
 
-/// A restarted Dnscache recreates its port with the default ACL, which drops the deny entry.
 fn check_dns_client(session: &Session) -> Result<(), String> {
     if session.dns_pid != 0 && dns_client_pid()? != session.dns_pid {
         return Err(
@@ -711,7 +678,6 @@ fn spawn(config: &Config, session: &Session, password: &str) -> Result<i32, Stri
                 &mut info,
             )
         };
-        // The secondary logon service answers ERROR_SERVICE_ALREADY_RUNNING while another logon is in flight.
         // SAFETY: GetLastError has no preconditions.
         let busy = unsafe { GetLastError() } == 1056;
         attempts += 1;
@@ -767,7 +733,6 @@ pub fn run(config: &Config) -> Result<i32, String> {
         deny_dns_client(&mut session)?;
     }
     if let Some(group) = &config.group {
-        // Before the logon, so the groups are in the account's token.
         for group in [group.as_str(), HOST_GROUP] {
             add_member(
                 &session.user,
@@ -796,8 +761,6 @@ fn acl_entries(config: &Config) -> impl Iterator<Item = (&String, i32)> {
         .chain(config.denies.iter().map(|path| (path, DENY_ACCESS)))
 }
 
-/// Creates the local group and gives it the grants and denies, inherited by everything below.
-/// Undoes all of it if any step fails.
 pub fn setup_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to set up")?;
     remove_stale_groups(config, group);
@@ -823,7 +786,6 @@ pub fn setup_group(config: &Config) -> Result<i32, String> {
     Ok(0)
 }
 
-/// Creates the local group unless it exists, and returns its name as UTF-16.
 fn create_group(group: &str) -> Result<Vec<u16>, String> {
     let name = wide(group);
     let mut info_name = name.clone();
@@ -844,9 +806,6 @@ fn create_group(group: &str) -> Result<Vec<u16>, String> {
     Ok(name)
 }
 
-/// Gives `dxh-host` an inherited deny on every path that does not have it yet. A path counts as
-/// done only when the host deny list names it and its ACL still holds the group's own entry, and
-/// it joins the list only after its whole tree is written, so an interrupted walk is redone.
 pub fn ensure_host_denies(config: &Config) -> Result<i32, String> {
     with_acl_lock(HOST_DENIES_LOCK, || {
         let sid = account_sid(&create_group(HOST_GROUP)?)?;
@@ -881,8 +840,6 @@ pub fn ensure_host_denies(config: &Config) -> Result<i32, String> {
     })
 }
 
-/// Takes the `dxh-host` entries off the paths and the paths off the host deny list. The group
-/// stays, since runs on other trees may still use it.
 pub fn remove_host_denies(config: &Config) -> Result<i32, String> {
     with_acl_lock(HOST_DENIES_LOCK, || {
         let sid = account_sid(&wide(HOST_GROUP))?;
@@ -945,7 +902,6 @@ fn write_host_denies(list: &std::path::Path, keys: &[String]) -> Result<(), Stri
         .map_err(|err| format!("cannot write {}: {err}", list.display()))
 }
 
-/// Removes the group's entries from every path, then the group itself.
 pub fn teardown_group(config: &Config) -> Result<i32, String> {
     let group = config.group.as_deref().ok_or("no group to tear down")?;
     let name = wide(group);
@@ -969,7 +925,6 @@ pub fn teardown_group(config: &Config) -> Result<i32, String> {
     }
 }
 
-/// Removes the entries for `sid` from every grant and deny path, returning the errors.
 fn remove_group_entries(config: &Config, sid: &[u8]) -> Vec<String> {
     in_waves(config, sid, revoke)
         .into_iter()
@@ -983,8 +938,6 @@ fn revoke(path: &str, sid: *mut c_void, _mode: i32) -> Result<(), String> {
 
 type AclStep = fn(&str, *mut c_void, i32) -> Result<(), String>;
 
-/// Runs `step` on every grant and deny path for `sid`, all paths of one wave at the same time,
-/// and returns each path's mode, milliseconds and result in entry order.
 fn in_waves<'a>(
     config: &'a Config,
     sid: &[u8],
@@ -999,7 +952,6 @@ fn in_waves<'a>(
                 .iter()
                 .filter_map(|&at| {
                     let &(path, mode) = entries.get(at)?;
-                    // Each thread has its own copy, as raw pointers cannot cross threads.
                     let mut sid = sid.to_vec();
                     let thread = scope.spawn(move || {
                         let start = Instant::now();
@@ -1030,8 +982,6 @@ fn in_waves<'a>(
         .collect()
 }
 
-/// Deletes the groups of runs that were killed before their teardown. Only warns on failure, and
-/// keeps a group whose entries could not all be removed so a later run can retry.
 fn remove_stale_groups(config: &Config, own: &str) {
     let names = match local_groups() {
         Ok(names) => names,
@@ -1101,8 +1051,6 @@ fn local_groups() -> Result<Vec<String>, String> {
     }
 }
 
-/// Whether `pid` may still run. Only a pid Windows does not know counts as gone, so a process
-/// we may not open is treated as alive.
 fn process_alive(pid: u32) -> bool {
     match win32::open(pid, win32::Access::Wait) {
         Ok(process) => win32::is_running(process.as_handle()).unwrap_or(true),
@@ -1110,7 +1058,6 @@ fn process_alive(pid: u32) -> bool {
     }
 }
 
-/// Reads the DACL of one path. The ACL points into the descriptor.
 fn read_acl(path: &str) -> Result<(*mut ACL, LocalMem<c_void>), String> {
     let mut acl: *mut ACL = null_mut();
     let mut descriptor = LocalMem::null();
@@ -1133,7 +1080,6 @@ fn read_acl(path: &str) -> Result<(*mut ACL, LocalMem<c_void>), String> {
     Ok((acl, descriptor))
 }
 
-/// The index and type of every explicit allow and deny entry for `sid`, last first.
 fn own_entries(acl: *mut ACL, sid: *const c_void) -> Vec<(u32, u8)> {
     let mut found = Vec::new();
     if acl.is_null() {
@@ -1169,7 +1115,6 @@ fn has_explicit_deny(path: &str, sid: &[u8]) -> Result<bool, String> {
         .any(|(_, kind)| *kind == ACCESS_DENIED_ACE_TYPE))
 }
 
-/// Deletes every explicit allow and deny entry for `sid` on one path, under the path's lock.
 /// `REVOKE_ACCESS` keeps the deny entries, so it cannot undo a `DENY_ACCESS`.
 fn remove_access(path: &str, sid: *mut c_void) -> Result<(), String> {
     with_acl_lock(&path_lock_name(path), || remove_access_locked(path, sid))
@@ -1179,7 +1124,6 @@ fn remove_access_locked(path: &str, sid: *mut c_void) -> Result<(), String> {
     remove_entries(path, sid, true)
 }
 
-/// Deletes the explicit entries for `sid` on `path`, and with `tree` on everything below it.
 fn remove_entries(path: &str, sid: *mut c_void, tree: bool) -> Result<(), String> {
     let (acl, descriptor) = read_acl(path)?;
     let mut removed = false;

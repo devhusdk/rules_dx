@@ -1,21 +1,11 @@
-//! Offline checks dx runs on `CloudFormation` templates before cfn-lint sees them.
-//!
-//! A `cloudformation_template` target owns plain YAML and JSON files, so dx decides whether
-//! each file is a template and refuses a cfn-lint config that loads code or reads other files.
-
 use saphyr_parser::{Event, Parser};
 
-/// A file that does not parse as YAML or JSON, or is too large or not UTF-8.
 pub const RULE_SYNTAX: &str = "dx/cloudformation-syntax";
-/// A file that is not a `CloudFormation` template.
 pub const RULE_ROOT: &str = "dx/cloudformation-root";
-/// A template whose own cfn-lint metadata sets an option dx does not allow, or a path cfn-lint would glob.
 pub const RULE_CONFIG: &str = "dx/cloudformation-config";
 
-/// The largest template dx hands to cfn-lint.
 pub const MAX_TEMPLATE_BYTES: usize = 2 * 1024 * 1024;
 
-/// The only cfn-lint config keys dx accepts, in a bound config file or a template's Metadata; everything else could load code, read or write unstaged paths, or hide failures.
 const ALLOWED_CONFIG_KEYS: &[&str] = &[
     "regions",
     "ignore_checks",
@@ -25,7 +15,6 @@ const ALLOWED_CONFIG_KEYS: &[&str] = &[
     "include_experimental",
 ];
 
-/// One problem the preflight found, placed on the file it was checking.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub rule: &'static str,
@@ -69,14 +58,12 @@ fn root_problem(message: &str) -> Problem {
     }
 }
 
-/// Marks the value of the enclosing mapping as consumed.
 fn value_done(stack: &mut [Frame]) {
     if let Some(Frame::Map { expecting_key, .. }) = stack.last_mut() {
         *expecting_key = true;
     }
 }
 
-/// Records one scalar event: a root or metadata key, or a resource type value.
 fn scan_scalar(out: &mut Scanned, stack: &mut [Frame], value: &str, start: saphyr_parser::Marker) {
     let expecting = matches!(
         stack.last(),
@@ -110,7 +97,6 @@ fn scan_scalar(out: &mut Scanned, stack: &mut [Frame], value: &str, start: saphy
     }
 }
 
-/// Records one alias event, rejecting an alias used as a mapping key.
 fn scan_alias(
     out: &mut Scanned,
     stack: &mut [Frame],
@@ -140,7 +126,6 @@ fn scan_alias(
     Ok(())
 }
 
-/// The root keys of one YAML document and whether `Resources` holds an `AWS::` typed entry.
 fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
     let mut out = Scanned::default();
     let mut stack: Vec<Frame> = Vec::new();
@@ -198,7 +183,6 @@ fn scan_yaml(text: &str) -> Result<Scanned, Problem> {
     Ok(out)
 }
 
-/// Whether the keys of the first `n` open frames are a prefix of `Metadata`, `cfn-lint`, `config`.
 fn path_matches(stack: &[Frame], n: usize) -> bool {
     let names = ["Metadata", "cfn-lint", "config"];
     n <= names.len()
@@ -210,7 +194,6 @@ fn path_matches(stack: &[Frame], n: usize) -> bool {
         })
 }
 
-/// Whether the open frames are root `Metadata`, `cfn-lint`, then `config`.
 fn in_metadata_config(stack: &[Frame]) -> bool {
     let names = ["Metadata", "cfn-lint", "config"];
     stack.len() >= 3
@@ -220,7 +203,6 @@ fn in_metadata_config(stack: &[Frame]) -> bool {
             .all(|(name, frame)| matches!(frame, Frame::Map { key: Some(k), .. } if k == name))
 }
 
-/// Whether the scalar being read is the `Type` of an entry directly under root `Resources`.
 fn is_resource_type(stack: &[Frame]) -> bool {
     let key_of = |frame: &Frame| match frame {
         Frame::Map { key, .. } => key.clone(),
@@ -261,7 +243,6 @@ fn scan_json(text: &str) -> Result<Scanned, Problem> {
     Ok(out)
 }
 
-/// Whether the file is read as JSON: a `.json` file, or a `.template` that opens with `{`.
 fn has_extension(path: &str, extension: &str) -> bool {
     std::path::Path::new(path)
         .extension()
@@ -286,10 +267,6 @@ fn decode(bytes: &[u8]) -> Result<&str, Problem> {
     Ok(text.strip_prefix('\u{feff}').unwrap_or(text))
 }
 
-/// The problem that keeps one owned file from going to cfn-lint, if any.
-///
-/// A file passes when it has a root `AWSTemplateFormatVersion`, or a root `Resources` mapping
-/// with an entry whose `Type` starts with `AWS::`.
 #[must_use]
 pub fn check_template(path: &str, bytes: &[u8]) -> Option<Problem> {
     if path.contains(['*', '?', '[']) {
@@ -345,11 +322,6 @@ pub fn check_template(path: &str, bytes: &[u8]) -> Option<Problem> {
     ))
 }
 
-/// Refuses a cfn-lint config with any key outside the allowlist.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn check_config(text: &str) -> Result<(), String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let scanned = scan_yaml(text)

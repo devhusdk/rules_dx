@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-// IsPnpmWorkspaceMember reports whether rel holds a manifest and is listed as
-// a workspace package by an ancestor directory that holds the lock.
 func IsPnpmWorkspaceMember(repoRoot, rel string) bool {
 	if rel == "" || repoRoot == "" || !hasFile(repoRoot, path.Join(rel, npmManifestFile)) {
 		return false

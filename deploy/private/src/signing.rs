@@ -1,5 +1,3 @@
-//! Cosign signing of release assets: the pinned binary, its argv and the identity.
-
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -7,46 +5,52 @@ use std::path::{Path, PathBuf};
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::RunError;
 
-/// The OIDC issuer of GitHub Actions identity tokens.
 pub const GITHUB_OIDC_ISSUER: &str = "https://token.actions.githubusercontent.com";
 
 const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
-/// A failed cosign pin check, signature, verification or registry login.
 #[derive(Debug)]
 pub enum CosignError {
-    /// `sign = "required"` and no identity is available.
     NoIdentity,
-    /// An invocation has no binary.
     EmptyArgv,
-    /// `argv` could not be run.
-    Run { argv: String, source: RunError },
-    /// The pinned cosign could not be hashed.
-    Hash { path: String, source: io::Error },
-    /// The cosign binary does not have its pinned sha256.
+    Run {
+        argv: String,
+        source: RunError,
+    },
+    Hash {
+        path: String,
+        source: io::Error,
+    },
     Digest {
         path: String,
         actual: String,
         want: String,
     },
-    /// `cosign version` did not print the pinned GitVersion.
-    Version { want: String, got: String },
-    /// `cosign sign-blob` exited nonzero for `asset`.
-    SignFailed { argv: String, asset: String },
-    /// `cosign verify-blob` rejected the bundle of `asset`.
-    VerifyFailed { argv: String, asset: String },
-    /// An image sign, attest or verify step exited nonzero.
+    Version {
+        want: String,
+        got: String,
+    },
+    SignFailed {
+        argv: String,
+        asset: String,
+    },
+    VerifyFailed {
+        argv: String,
+        asset: String,
+    },
     ImageStepFailed {
         argv: String,
         reference: String,
         stderr: String,
     },
-    /// An asset path has no file name to name its bundle after.
-    NoFileName { path: PathBuf },
-    /// A directory could not be created.
+    NoFileName {
+        path: PathBuf,
+    },
     CreateDir(PathIoError),
-    /// The registry login could not be written.
-    WriteDockerConfig { path: PathBuf, source: io::Error },
+    WriteDockerConfig {
+        path: PathBuf,
+        source: io::Error,
+    },
 }
 
 impl fmt::Display for CosignError {
@@ -109,7 +113,6 @@ impl std::error::Error for CosignError {
     }
 }
 
-/// A pinned cosign binary.
 #[derive(Clone, Copy)]
 pub struct CosignPin<'a> {
     pub path: &'a str,
@@ -117,19 +120,14 @@ pub struct CosignPin<'a> {
     pub sha256: &'a str,
 }
 
-/// Whether `github_deploy` signs its assets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SignMode {
-    /// Sign when an identity is available.
     Auto,
-    /// Never sign.
     Off,
-    /// Fail without an identity.
     Required,
 }
 
 impl SignMode {
-    /// Reads `auto`, `off` or `required`.
     pub fn parse(text: &str) -> Option<SignMode> {
         match text {
             "auto" => Some(SignMode::Auto),
@@ -140,17 +138,13 @@ impl SignMode {
     }
 }
 
-/// The identity a signature is made with.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SignIdentity {
-    /// Keyless signing with the GitHub Actions OIDC token of `repository`.
     Oidc { repository: String },
-    /// Signing with the key in `COSIGN_KEY`.
     Key,
 }
 
 impl SignIdentity {
-    /// Names the identity for a dry run.
     #[must_use]
     pub fn describe(&self) -> String {
         match self {
@@ -165,7 +159,6 @@ impl SignIdentity {
     }
 }
 
-/// Picks the identity from the environment: `COSIGN_KEY` first, then the OIDC request URL.
 pub fn detect_identity(env: &dyn Fn(&str) -> String) -> Option<SignIdentity> {
     if !env("COSIGN_KEY").is_empty() {
         return Some(SignIdentity::Key);
@@ -178,7 +171,6 @@ pub fn detect_identity(env: &dyn Fn(&str) -> String) -> Option<SignIdentity> {
     None
 }
 
-/// Resolves the identity `mode` signs with; `None` means do not sign.
 pub fn plan_identity(
     mode: SignMode,
     env: &dyn Fn(&str) -> String,
@@ -191,13 +183,11 @@ pub fn plan_identity(
     }
 }
 
-/// The bundle name for the asset called `base`.
 #[must_use]
 pub fn bundle_name(base: &str) -> String {
     format!("{base}.sigstore.json")
 }
 
-/// The repository whose reusable workflows sign consumer releases.
 const REUSABLE_WORKFLOW_REPOSITORY: &str = "devhusdk/rules_dx";
 
 fn escape_regexp(text: &str) -> String {
@@ -213,8 +203,6 @@ fn escape_regexp(text: &str) -> String {
     out
 }
 
-/// The certificate identity regexp the signatures of `repository` must match: the
-/// repository's own workflows or the reusable workflows of `REUSABLE_WORKFLOW_REPOSITORY`.
 #[must_use]
 pub fn identity_regexp(repository: &str) -> String {
     let reusable = escape_regexp(REUSABLE_WORKFLOW_REPOSITORY);
@@ -227,7 +215,6 @@ pub fn identity_regexp(repository: &str) -> String {
     )
 }
 
-/// Formats `cosign sign-blob` for one asset.
 #[must_use]
 pub fn sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     vec![
@@ -240,7 +227,6 @@ pub fn sign_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     ]
 }
 
-/// Formats `cosign sign-blob` with the key in `COSIGN_KEY`.
 #[must_use]
 pub fn sign_key_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     let mut argv = sign_argv(cosign, asset, bundle);
@@ -249,7 +235,6 @@ pub fn sign_key_argv(cosign: &str, asset: &str, bundle: &str) -> Vec<String> {
     argv
 }
 
-/// Formats `cosign verify-blob` against one certificate identity.
 #[must_use]
 pub fn verify_argv(
     cosign: &str,
@@ -289,7 +274,6 @@ fn verify_flag_argv(
     ]
 }
 
-/// Formats `cosign verify-blob` against a certificate identity regexp.
 #[must_use]
 pub fn verify_regexp_argv(
     cosign: &str,
@@ -308,7 +292,6 @@ pub fn verify_regexp_argv(
     )
 }
 
-/// The `GitVersion` line of `cosign version`.
 pub fn cosign_git_version(version_output: &str) -> Option<&str> {
     version_output
         .lines()
@@ -316,13 +299,11 @@ pub fn cosign_git_version(version_output: &str) -> Option<&str> {
         .map(str::trim)
 }
 
-/// Whether `cosign version` printed exactly `want`.
 #[must_use]
 pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
     cosign_git_version(version_output) == Some(want)
 }
 
-/// Runs `argv` with the inherited environment and working directory.
 pub fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, CosignError> {
     let (binary, args) = argv.split_first().ok_or(CosignError::EmptyArgv)?;
     dx_process::capture::run_captured(inherited_command(binary).args(args), SIGN_TIMEOUT).map_err(
@@ -333,14 +314,12 @@ pub fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, Cosi
     )
 }
 
-/// A child with the inherited environment, minus this tool's own deploy config.
 fn inherited_command(binary: &str) -> std::process::Command {
     let mut command = std::process::Command::new(binary);
     command.env_remove(crate::config::DEPLOY_CONFIG_ENV);
     command
 }
 
-/// Checks the cosign binary against its pinned sha256 and version.
 pub fn check_pin(pin: &CosignPin<'_>) -> Result<(), CosignError> {
     let actual =
         dx_digest::sha256_file_hex(Path::new(pin.path)).map_err(|source| CosignError::Hash {
@@ -367,7 +346,6 @@ pub fn check_pin(pin: &CosignPin<'_>) -> Result<(), CosignError> {
     Ok(())
 }
 
-/// Signs `asset` into `bundle` and verifies the bundle against `verify`.
 pub fn sign_one(
     pin: &CosignPin<'_>,
     asset: &str,
@@ -399,7 +377,6 @@ pub fn sign_one(
     Ok(())
 }
 
-/// Signs every asset into `outdir` as `<name>.sigstore.json` and returns the bundles.
 pub fn sign_assets(
     pin: &CosignPin<'_>,
     identity: &SignIdentity,
@@ -440,15 +417,12 @@ pub fn sign_assets(
     Ok(bundles)
 }
 
-/// The cosign settings of one `oci_deploy`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ImageSigning {
-    /// `auto`, `off` or `required`.
     pub mode: String,
     pub cosign_rloc: String,
     pub cosign_version: String,
     pub cosign_sha256: String,
-    /// The SPDX SBOM attested to the pushed digest; empty for none.
     pub sbom_rloc: String,
 }
 
@@ -471,7 +445,6 @@ fn with_key(mut argv: Vec<String>, keyed: bool) -> Vec<String> {
     argv
 }
 
-/// Formats `cosign sign` for one image reference.
 #[must_use]
 pub fn image_sign_argv(cosign: &str, reference: &str, keyed: bool) -> Vec<String> {
     with_key(
@@ -485,7 +458,6 @@ pub fn image_sign_argv(cosign: &str, reference: &str, keyed: bool) -> Vec<String
     )
 }
 
-/// Formats `cosign attest` of an SPDX SBOM for one image reference.
 #[must_use]
 pub fn image_attest_argv(cosign: &str, reference: &str, sbom: &str, keyed: bool) -> Vec<String> {
     with_key(
@@ -503,8 +475,6 @@ pub fn image_attest_argv(cosign: &str, reference: &str, sbom: &str, keyed: bool)
     )
 }
 
-/// Formats `cosign verify` or, with `attestation`, `cosign verify-attestation --type spdxjson`
-/// against a certificate identity regexp.
 #[must_use]
 pub fn image_verify_argv(
     cosign: &str,
@@ -532,7 +502,6 @@ pub fn image_verify_argv(
     argv
 }
 
-/// The cosign steps for one pushed image: sign, then attest `sbom` when set.
 #[must_use]
 pub fn image_steps(
     cosign: &str,
@@ -567,7 +536,6 @@ pub fn image_steps(
     steps
 }
 
-/// The `DOCKER_CONFIG` auth key cosign looks up for `registry`.
 #[must_use]
 pub fn docker_auth_key(registry: &str) -> String {
     let host = registry
@@ -581,7 +549,6 @@ pub fn docker_auth_key(registry: &str) -> String {
     host
 }
 
-/// Writes a `DOCKER_CONFIG` directory holding one basic login for `registry`.
 pub fn write_docker_config(
     dir: &Path,
     registry: &str,
@@ -605,7 +572,6 @@ pub fn write_docker_config(
         .map_err(|source| CosignError::WriteDockerConfig { path, source })
 }
 
-/// Signs and attests one pushed image with the registry login in `docker_config`.
 pub fn sign_image(
     pin: &CosignPin<'_>,
     identity: &SignIdentity,

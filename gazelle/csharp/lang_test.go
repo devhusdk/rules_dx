@@ -87,9 +87,9 @@ func wantRefusal(t *testing.T, got, want string) {
 func TestGeneratePackageLevelLibrary(t *testing.T) {
 	regular := []string{"Demo.cs", "Helper.cs", "notes.txt"}
 	result := generateFixture(t, map[string]string{
-		"pkg/demo/Demo.cs":     "namespace Demo;\n\nusing Acme.Widget;\n\nclass Demo {}\n",
-		"pkg/demo/Helper.cs":   "namespace Demo;\n\nusing System.Collections.Generic;\n\nclass Helper {}\n",
-		"pkg/demo/notes.txt":   "not a source\n",
+		"pkg/demo/Demo.cs":   "namespace Demo;\n\nusing Acme.Widget;\n\nclass Demo {}\n",
+		"pkg/demo/Helper.cs": "namespace Demo;\n\nusing System.Collections.Generic;\n\nclass Helper {}\n",
+		"pkg/demo/notes.txt": "not a source\n",
 	}, regular)
 	if len(result.Gen) != 1 || len(result.Imports) != 1 {
 		t.Fatalf("generated %d rules and %d import sets, want 1 each", len(result.Gen), len(result.Imports))

@@ -25,9 +25,6 @@ fn position(value: &serde_json::Value, what: &str) -> Result<TextPosition, Parse
     Ok(TextPosition { line, column })
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_staticcheck(
     stdout: &[u8],
     code: Option<i32>,

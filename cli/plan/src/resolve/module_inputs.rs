@@ -5,7 +5,6 @@ use dx_module_bazel::{Call, ModuleFile, Value};
 use dx_path::label::repo_of;
 use serde_json::{Map, Value as Json};
 
-/// The modules Bazel's built-in `bazel_tools` depends on, from its `MODULE.tools`.
 pub(crate) const BUILTIN_TOOLS_DEPS: &[&str] = &[
     "abseil-cpp",
     "apple_support",
@@ -23,7 +22,6 @@ pub(crate) const BUILTIN_TOOLS_DEPS: &[&str] = &[
     "zlib",
 ];
 
-/// The module that stands for Bazel's built-in `bazel_tools` repository.
 pub(crate) const BUILTIN_TOOLS: &str = "bazel_tools";
 
 const OWNED_SECTIONS: &[&str] = &[
@@ -33,14 +31,12 @@ const OWNED_SECTIONS: &[&str] = &[
     "facts",
 ];
 
-/// The modules whose lock entries changed, and the changed lock keys each module owns.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct LockChanges {
     pub(crate) modules: BTreeSet<String>,
     pub(crate) owned: Vec<(String, String)>,
 }
 
-/// One registry file the lock pins: module, version, file name, and sha256.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct RegistryFile {
     pub(crate) name: String,
@@ -49,7 +45,6 @@ pub(crate) struct RegistryFile {
     pub(crate) hash: String,
 }
 
-/// The dependency edges of every resolved module and the modules that register toolchains.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ModuleGraph {
     pub(crate) deps: BTreeMap<String, BTreeSet<String>>,
@@ -60,7 +55,6 @@ fn module_input_error() -> dx_error::DxError {
     dx_error::DxError::failure("workspace input MODULE.bazel")
 }
 
-/// The `bazel_dep` names whose version changed, with their new versions, when nothing else in MODULE.bazel did.
 pub(crate) fn updated_deps(
     base: &str,
     head: &str,
@@ -88,7 +82,6 @@ pub(crate) fn updated_deps(
         .collect())
 }
 
-/// Fails unless the lock pins a registry `MODULE.bazel` for every updated module at its new version.
 pub(crate) fn lock_pins(
     lock: &str,
     updated: &BTreeMap<String, String>,
@@ -157,7 +150,6 @@ fn masked(text: &str, versions: &DepVersions) -> String {
     out
 }
 
-/// The registry, module, version, and file of a `registryFileHashes` key.
 pub(crate) fn registry_url_parts(url: &str) -> Option<(&str, &str, &str, &str)> {
     let (registry, rest) = url.split_once("/modules/")?;
     let parts: Vec<&str> = rest.split('/').collect();
@@ -168,7 +160,6 @@ pub(crate) fn registry_url_parts(url: &str) -> Option<(&str, &str, &str, &str)> 
     (known && !name.is_empty() && !version.is_empty()).then_some((registry, name, version, file))
 }
 
-/// The module that owns a `moduleExtensions` or `facts` key, from its `@@<m>+//` repo.
 fn extension_owner(key: &str) -> Option<&str> {
     let repo = key.strip_prefix("@@")?.split_once("//")?.0;
     let name = repo.strip_suffix('+')?;
@@ -203,10 +194,8 @@ fn section<'a>(
     }
 }
 
-/// Keys of a `moduleExtensions` evaluation that hash its `.bzl` files and its `MODULE.bazel` usages.
 const EXTENSION_INPUT_DIGESTS: &[&str] = &["bzlTransitiveDigest", "usagesDigest"];
 
-/// Whether two `moduleExtensions` entries record the same evaluations apart from the input digests.
 fn same_extension_result(before: Option<&Json>, after: Option<&Json>) -> bool {
     let (Some(Json::Object(before)), Some(Json::Object(after))) = (before, after) else {
         return false;
@@ -229,7 +218,6 @@ fn same_extension_result(before: Option<&Json>, after: Option<&Json>) -> bool {
     }
 }
 
-/// The modules and module-owned keys that differ between two lock files.
 pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_error::DxError> {
     let base = parse_lock(base)?;
     let head = parse_lock(head)?;
@@ -279,7 +267,6 @@ pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_err
     Ok(changes)
 }
 
-/// The registry files of the versions the lock selects, skipping files a registry lacks.
 pub(crate) fn registry_files(lock: &str) -> Result<Vec<RegistryFile>, dx_error::DxError> {
     let lock = parse_lock(lock)?;
     let Some(Json::Object(hashes)) = lock.get("registryFileHashes") else {
@@ -316,7 +303,6 @@ pub(crate) fn registry_files(lock: &str) -> Result<Vec<RegistryFile>, dx_error::
     Ok(kept)
 }
 
-/// The text of a repository cache entry whose sha256 matches `hash`.
 pub(crate) fn cached(caches: &[PathBuf], hash: &str) -> Option<String> {
     caches.iter().find_map(|cache| {
         let path = cache
@@ -332,7 +318,6 @@ pub(crate) fn cached(caches: &[PathBuf], hash: &str) -> Option<String> {
     })
 }
 
-/// Whether a module file registers toolchains or execution platforms.
 pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
     file.calls().iter().any(|call| {
         matches!(
@@ -342,7 +327,6 @@ pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
     })
 }
 
-/// The dependency graph of the registry module files, with the built-in `bazel_tools` node.
 pub(crate) fn module_graph(
     files: &[RegistryFile],
     read: &dyn Fn(&str) -> Option<String>,
@@ -380,7 +364,6 @@ pub(crate) fn module_graph(
     Ok(graph)
 }
 
-/// The changed modules and every module that depends on one, directly or transitively.
 pub(crate) fn closure(
     changed: &BTreeSet<String>,
     deps: &BTreeMap<String, BTreeSet<String>>,
@@ -399,7 +382,6 @@ pub(crate) fn closure(
     }
 }
 
-/// The module a label's repository belongs to, `""` for the root module.
 fn label_module(label: &str, deps: &BTreeMap<String, String>, own: &[String]) -> String {
     match repo_of(label) {
         None | Some("") => String::new(),
@@ -415,7 +397,6 @@ fn binding_label(call: &Call, key: &str) -> Option<String> {
     }
 }
 
-/// Each apparent repository the root module sees, mapped to the module that owns it.
 pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
     let mut deps: BTreeMap<String, String> = BTreeMap::new();
     let mut own: Vec<String> = Vec::new();
@@ -486,7 +467,6 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
     owners
 }
 
-/// Why the overrides in the module files keep an update from narrowing, if they do.
 pub(crate) fn overrides_that_widen(files: &[ModuleFile]) -> Option<String> {
     files.iter().flat_map(ModuleFile::calls).find_map(|call| {
         let module = call.str("module_name").unwrap_or_default();
@@ -508,7 +488,6 @@ fn root_owned(repo: &str) -> bool {
     repo.starts_with('+')
 }
 
-/// The graph labels in repositories of the modules, and in root-owned repositories.
 pub(crate) fn module_seeds<'a>(
     labels: impl Iterator<Item = &'a str>,
     modules: &BTreeSet<String>,

@@ -79,7 +79,7 @@ func TestGenerateLibraryAndTests(t *testing.T) {
 func TestGenerateKeepsAutoloadFilesOutOfSrcs(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, map[string]string{
-		"pkg/BUILD.bazel": "php_library(name = \"pkg\", srcs = [], autoload_files = [\"src/functions.php\"])\n",
+		"pkg/BUILD.bazel":       "php_library(name = \"pkg\", srcs = [], autoload_files = [\"src/functions.php\"])\n",
 		"pkg/src/A.php":         "<?php\nclass A {}\n",
 		"pkg/src/functions.php": "<?php\nnamespace N;\nfunction f() { new Dep(); }\n",
 	})
@@ -197,7 +197,7 @@ func TestGenerateAllowsMissingSourceTrees(t *testing.T) {
 func TestImportsIndexDeclaredNames(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, map[string]string{
-		"pkg/src/Thing.php":  "<?php\nnamespace Acme;\nclass Thing {}\ninterface Face {}\n",
+		"pkg/src/Thing.php": "<?php\nnamespace Acme;\nclass Thing {}\ninterface Face {}\n",
 		"pkg/functions.php": "<?php\nnamespace Acme;\nfunction helper() {}\n",
 	})
 	lib := rule.NewRule(LibraryKind, "pkg")

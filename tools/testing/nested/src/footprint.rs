@@ -1,5 +1,3 @@
-//! Measures what a consumer workspace pulls in and checks it against a committed budget.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -8,7 +6,6 @@ use serde_json::{Value, json};
 const COUNTS: [&str; 3] = ["modules", "lock_extensions", "external_repos"];
 const LOCK_HEADROOM_PERCENT: u64 = 5;
 
-/// The size of a consumer after a command ran in it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Footprint {
     pub modules: u64,
@@ -37,12 +34,6 @@ impl Footprint {
     }
 }
 
-/// Measures a consumer from its `bazel mod graph --output=json` result, its `MODULE.bazel.lock`
-/// text and the `external` directory of its output base.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn measure(
     mod_graph_json: &str,
     lock_text: &str,
@@ -56,11 +47,6 @@ pub fn measure(
     })
 }
 
-/// Measures only the lock: its size and its module extension count.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn measure_lock(lock_text: &str) -> Result<Footprint, String> {
     Ok(Footprint {
         modules: 0,
@@ -70,12 +56,6 @@ pub fn measure_lock(lock_text: &str) -> Result<Footprint, String> {
     })
 }
 
-/// Checks `lock_bytes` and `lock_extensions` of a lock measurement against the budget, with the
-/// same rules as `check_budget`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn check_lock_budget(measured: &Footprint, budget: &Value) -> Result<(), String> {
     let mut lock_only = budget.clone();
     let fields = lock_only
@@ -135,12 +115,6 @@ fn count_repos(external_dir: &Path) -> Result<u64, String> {
     Ok(repos)
 }
 
-/// Fails when a count is above the budget, or below it (so the budget gets lowered). An unset
-/// (`null`) budget always fails. `lock_bytes` is a ceiling with 5% headroom and never fails low.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn check_budget(measured: &Footprint, budget: &Value) -> Result<(), String> {
     let report = |problem: String| format!("{problem}\nmeasured: {}", measured.to_json());
     let mut problems = Vec::new();

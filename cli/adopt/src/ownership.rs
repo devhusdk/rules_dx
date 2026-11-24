@@ -1,19 +1,11 @@
-/// Who owns a file `dx init` writes, and what dx still touches after you edit it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Ownership {
-    /// dx rewrites the whole file to match the running dx.
     Whole,
-    /// The file extends a base dx owns; only the base is rewritten.
     Extends,
-    /// dx sets its own keys; other keys, comments and order stay.
     Keys,
-    /// dx rewrites only its marked block.
     Block,
-    /// dx adds its missing lines and leaves the rest.
     Lines,
-    /// dx updates only the `rules_dx` pin.
     Pin,
-    /// Written when missing, never rewritten.
     Once,
 }
 
@@ -41,9 +33,6 @@ impl Ownership {
         }
     }
 
-    /// The one-line comment that tells a reader what dx does to this file, in the file's comment
-    /// syntax. `None` for formats that cannot carry a comment or where one would be noise.
-    /// `edit_instead` names the file to edit for `whole`, or the base for `extends`.
     #[must_use]
     pub fn header(self, path: &str, edit_instead: Option<&str>) -> Option<String> {
         let prefix = comment_prefix(path)?;
@@ -68,8 +57,6 @@ impl Ownership {
 
 const OVERRIDE_MARKER: &str = "dx: override of base ";
 
-/// The base blob sha in a `dx: override of base <sha>` header, read from the leading comment
-/// lines of a root config file.
 #[must_use]
 pub fn override_base(text: &str) -> Option<&str> {
     let (header, _) = split_override_header(text);
@@ -77,8 +64,6 @@ pub fn override_base(text: &str) -> Option<&str> {
     rest.split_whitespace().next()
 }
 
-/// Splits a root config file after its `dx: override of base <sha>` line: the leading lines up
-/// to and including that line, then the rest. Without the header it is `("", text)`.
 #[must_use]
 pub fn split_override_header(text: &str) -> (&str, &str) {
     let mut cut = 0;

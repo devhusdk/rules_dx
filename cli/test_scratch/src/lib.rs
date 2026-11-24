@@ -11,7 +11,6 @@ use std::path::{Component, Path};
 use std::process::Command;
 pub use tempfile::TempDir;
 
-/// Longest prefix kept verbatim; the rest is folded into a checksum.
 const PREFIX_KEEP: usize = 24;
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -23,7 +22,6 @@ fn fnv1a(bytes: &[u8]) -> u64 {
     hash
 }
 
-/// Keeps the temp dir name short enough for the Windows 260-char path limit.
 fn bounded_prefix(prefix: &str) -> String {
     let sanitized: String = prefix
         .chars()
@@ -42,26 +40,16 @@ fn bounded_prefix(prefix: &str) -> String {
     format!("{kept}-{:x}", fnv1a(prefix.as_bytes()))
 }
 
-/// Picks where scratch dirs live: `$TEST_TMPDIR` when set and not empty, so
-/// Bazel wipes leftovers of killed tests, else the system temp dir.
 fn scratch_base(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> std::path::PathBuf {
     lookup("TEST_TMPDIR")
         .filter(|dir| !dir.is_empty())
         .map_or_else(std::env::temp_dir, std::path::PathBuf::from)
 }
 
-/// Creates a temp dir under `$TEST_TMPDIR` (or the system temp dir) that is
-/// removed when the returned guard drops. Keep the guard bound for as long as
-/// anything, including child processes, uses paths inside it.
-///
-/// # Errors
-///
-/// Fails when the directory cannot be created.
 pub fn scratch(prefix: &str) -> Result<TempDir, String> {
     scratch_in(&scratch_base(|key| std::env::var_os(key)), prefix)
 }
 
-/// Creates the scratch dir under `base`, making `base` and absolutizing it first.
 fn scratch_in(base: &Path, prefix: &str) -> Result<TempDir, String> {
     std::fs::create_dir_all(base).map_err(|err| format!("test scratch creates {base:?}: {err}"))?;
     let base = std::path::absolute(base)
@@ -72,11 +60,6 @@ fn scratch_in(base: &Path, prefix: &str) -> Result<TempDir, String> {
         .map_err(|err| format!("test scratch creates {prefix:?} in {base:?}: {err}"))
 }
 
-/// Writes `text` to `root/rel`, creating missing parent directories.
-///
-/// # Errors
-///
-/// Fails when a parent directory or the file cannot be written.
 pub fn write(root: &Path, rel: &str, text: &str) -> Result<(), String> {
     let stays_inside = Path::new(rel)
         .components()
@@ -92,14 +75,6 @@ pub fn write(root: &Path, rel: &str, text: &str) -> Result<(), String> {
     std::fs::write(&full, text).map_err(|err| format!("test scratch writes {full:?}: {err}"))
 }
 
-/// Makes a git command hermetic: it ignores system and user config, and cannot
-/// discover a repository above `sandbox`.
-///
-/// `XDG_CONFIG_HOME` is redirected too because git reads `core.excludesFile`
-/// from `$XDG_CONFIG_HOME/git/ignore` even when `GIT_CONFIG_GLOBAL` is set.
-/// `GIT_CEILING_DIRECTORIES` stops discovery from walking out of the sandbox.
-/// Repository-pointing variables are removed so tests run from a git hook do
-/// not write to the developer's real repository. Writes nothing to disk.
 pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command {
     let home = sandbox.join(".home");
     cmd.env("GIT_CONFIG_NOSYSTEM", "1")
@@ -129,15 +104,8 @@ pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command 
     cmd
 }
 
-/// The longest one `git` call may run.
 const GIT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(120);
 
-/// Runs git in `root` with a fixed test identity, signing off, and the isolation of `isolate_git`
-/// rooted at `sandbox`. Returns trimmed stdout.
-///
-/// # Errors
-///
-/// Fails with the args and stderr when git does not start, times out or fails.
 pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(root);
@@ -171,11 +139,6 @@ pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String>
     Ok(output.stdout_text().trim().to_owned())
 }
 
-/// Removes a directory link without following it into its target.
-///
-/// # Errors
-///
-/// Returns `Err` when the link cannot be removed.
 pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     #[cfg(windows)]
     let removed = std::fs::remove_dir(path);
@@ -184,11 +147,6 @@ pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     removed
 }
 
-/// Retries `probe` every 25ms until it returns `Some`.
-///
-/// # Errors
-///
-/// Fails once `deadline` has passed.
 pub fn eventually<T>(
     what: &str,
     deadline: std::time::Duration,
@@ -206,9 +164,6 @@ pub fn eventually<T>(
     }
 }
 
-/// Whether the test runs as root, as in cloud containers. Root ignores file
-/// mode bits, so a test that relies on a mode to block access asserts what root
-/// sees instead.
 #[must_use]
 pub fn running_as_root() -> bool {
     #[cfg(unix)]
@@ -222,7 +177,6 @@ pub fn running_as_root() -> bool {
 mod tests {
     use super::*;
 
-    /// A git command run in `repo`, before any isolation.
     fn git_in(repo: &Path) -> Command {
         let mut cmd = Command::new("git");
         cmd.arg("-C").arg(repo);

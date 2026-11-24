@@ -1,8 +1,3 @@
-//! Windows verbatim prefixes (`\\?\`, `\\?\UNC\`) and the plain paths they spell.
-//!
-//! This is the one place that spells the prefixes. A share keeps its two leading separators when
-//! the prefix goes, so `\\?\UNC\srv\share` reads back as `\\srv\share`, not the relative `UNC\srv\share`.
-
 use std::borrow::Cow;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -10,8 +5,6 @@ use std::path::{Path, PathBuf};
 const VERBATIM: &str = r"\\?\";
 const VERBATIM_UNC: &str = r"\\?\UNC\";
 
-/// Each prefix with the root it stands for, a share's before a drive's so the longer one wins.
-/// The forward-slash spellings are what a verbatim path turns into once its slashes are flipped.
 const PREFIXES: [(&str, &str); 4] = [
     (VERBATIM_UNC, r"\\"),
     ("//?/UNC/", "//"),
@@ -19,9 +12,6 @@ const PREFIXES: [(&str, &str); 4] = [
     ("//?/", ""),
 ];
 
-/// Returns one path without its verbatim prefix.
-///
-/// A path that is not text has no prefix to read and comes back unchanged.
 #[must_use]
 pub fn without_verbatim(path: &Path) -> PathBuf {
     match path.to_str() {
@@ -30,7 +20,6 @@ pub fn without_verbatim(path: &Path) -> PathBuf {
     }
 }
 
-/// Returns one path, as text, without the verbatim prefix it starts with.
 #[must_use]
 pub fn without_verbatim_str(text: &str) -> Cow<'_, str> {
     match strip_prefix(text) {
@@ -40,9 +29,6 @@ pub fn without_verbatim_str(text: &str) -> Cow<'_, str> {
     }
 }
 
-/// The root and the rest of a text after the verbatim prefix it starts with.
-///
-/// A prefix before a volume or device name, not a drive, has no plain spelling and stays.
 fn strip_prefix(text: &str) -> Option<(&'static str, &str)> {
     PREFIXES.iter().find_map(|(prefix, root)| {
         text.strip_prefix(prefix)
@@ -51,13 +37,11 @@ fn strip_prefix(text: &str) -> Option<(&'static str, &str)> {
     })
 }
 
-/// Returns a text that may hold several paths, such as a command line, with every verbatim prefix dropped.
 #[must_use]
 pub fn without_verbatim_in(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     loop {
-        // The earliest prefix; `strip_prefix` tries a share's longer prefix first.
         let next = PREFIXES
             .iter()
             .filter_map(|(prefix, _)| rest.find(prefix))
@@ -86,14 +70,9 @@ pub fn without_verbatim_in(text: &str) -> String {
     }
 }
 
-/// Returns one absolute path with a verbatim prefix, so Windows reads it past the 260-character path limit.
-///
-/// A share gets `\\?\UNC\`. A path already verbatim, a device path, a path with a `.` or `..`
-/// component, and a path that is not text but holds a forward slash or names a share stay as they are.
 #[must_use]
 pub fn verbatim(absolute: &Path) -> PathBuf {
     let bytes = absolute.as_os_str().as_encoded_bytes();
-    // A verbatim path reads a forward slash and a dot component literally.
     if !is_absolute_spelling(bytes)
         || bytes.starts_with(VERBATIM.as_bytes())
         || bytes.starts_with(b"//?/")
@@ -120,7 +99,6 @@ pub fn verbatim(absolute: &Path) -> PathBuf {
     }
 }
 
-/// Whether the bytes start with a drive root or two separators, on any host.
 fn is_absolute_spelling(bytes: &[u8]) -> bool {
     matches!(bytes, [letter, b':', b'\\' | b'/', ..] if letter.is_ascii_alphabetic())
         || matches!(bytes, [b'\\' | b'/', b'\\' | b'/', ..])

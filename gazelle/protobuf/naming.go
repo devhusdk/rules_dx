@@ -15,7 +15,6 @@ const (
 	wellKnown   = "google/protobuf/"
 )
 
-// DirTargetName names the proto_library of a directory.
 func DirTargetName(dir string) (string, error) {
 	name, err := common.DirTargetName(dir)
 	if err != nil {
@@ -24,7 +23,6 @@ func DirTargetName(dir string) (string, error) {
 	return name + suffix, nil
 }
 
-// WellKnownLabel maps google/protobuf/<name>.proto to @protobuf//:<name>_proto.
 func WellKnownLabel(imp string) (string, bool) {
 	rest, ok := strings.CutPrefix(imp, wellKnown)
 	if !ok || path.Dir(rest) != "." {

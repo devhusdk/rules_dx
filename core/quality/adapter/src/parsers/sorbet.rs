@@ -4,24 +4,8 @@ use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "sorbet";
 
-/// Marks the end of an error URL: `... https://srb.help/7003`.
 const URL_PREFIX: &str = " https://srb.help/";
 
-/// Findings from the stderr of `srb tc` style runs of the `sorbet` binary
-/// (`--no-error-sections --color=never`), on exit 0 (clean) or 100 (errors).
-///
-/// Each error starts with an unindented header `<path>:<line>: <message> https://srb.help/<code>`;
-/// the source excerpts and the "Got ... originating from" sections below it are indented and
-/// skipped. A run ends with `No errors! Great job.` or `Errors: <count>`; the count must equal
-/// the number of header lines, so an error Sorbet printed without a line (a missing file, a
-/// crash) fails the run instead of passing. `files` holds the paths of the owned sources as
-/// the run spells them; a header for any other file belongs to a dependency and is dropped.
-/// The rule is `sorbet/<code>`, `sorbet/error` when the URL is missing; every finding is an
-/// error, and Sorbet gives no column, so it is 1. Any other exit code fails the run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sorbet(
     output: &[u8],
     code: Option<i32>,
@@ -95,7 +79,6 @@ pub fn parse_sorbet(
     Ok(findings)
 }
 
-/// The first lines of output, enough to name why a run failed.
 fn excerpt(out: &str) -> String {
     let text = out
         .lines()
@@ -111,7 +94,6 @@ fn excerpt(out: &str) -> String {
     }
 }
 
-/// Splits `<path>:<line>: <message>`; the path ends at the first `:<digits>: `.
 fn header(line: &str) -> Option<(&str, u64, &str)> {
     for (at, _) in line.match_indices(':') {
         let Some(rest) = line.get(at + 1..) else {
@@ -191,7 +173,6 @@ mod tests {
         assert!(parse_sorbet(b"boom\n", Some(1), &[]).is_err());
         assert!(parse_sorbet(b"boom\n", None, &[]).is_err());
         assert!(parse_sorbet(b"Errors: 1\n", Some(100), &["/s/a.rb"]).is_err());
-        // An error without a line number is counted but has no header.
         assert!(
             parse_sorbet(
                 b"nonexist.rb: File Not Found https://srb.help/1004\nErrors: 1\n",
@@ -200,7 +181,6 @@ mod tests {
             )
             .is_err()
         );
-        // The summary must match the header lines.
         assert!(
             parse_sorbet(
                 b"/s/a.rb:1: m https://srb.help/1\nErrors: 2\n",

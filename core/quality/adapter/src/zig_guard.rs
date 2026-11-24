@@ -1,5 +1,3 @@
-//! Banned Zig patterns that the strict tier fails on. Comments and string contents never match.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::parsers::FileFinding;
@@ -7,20 +5,15 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "zig_ast_check";
 
-/// Casts that need a `// SAFETY:` comment in or above their statement.
 const CHECKED_CASTS: &[&str] = &["@ptrCast", "@alignCast", "@intCast"];
 
 const SAFETY: &str = "SAFETY:";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
-    /// An identifier, keyword, number or `@"quoted"` identifier.
     Word,
-    /// A builtin name such as `@intCast`.
     Builtin,
-    /// A string, `\\` line string or char literal, quotes included.
     Text,
-    /// One punctuation byte.
     Punct,
 }
 
@@ -33,16 +26,12 @@ struct Token<'a> {
 
 struct Lexed<'a> {
     tokens: Vec<Token<'a>>,
-    /// The `//` comment on each line that has one.
     comments: BTreeMap<u64, &'a str>,
-    /// Lines that hold at least one token.
     code_lines: BTreeSet<u64>,
 }
 
-/// Keywords whose `{` opens a type, which stays part of the statement that holds it, as in `fn f() error{Bad}!u8 {`.
 const TYPE_KEYWORDS: &[&str] = &["error", "struct", "enum", "union", "opaque"];
 
-/// Keywords whose `{` opens a block or a container, never an expression.
 const BLOCK_KEYWORDS: &[&str] = &[
     "if",
     "while",
@@ -62,19 +51,13 @@ const BLOCK_KEYWORDS: &[&str] = &[
     "test",
 ];
 
-/// One open `{`.
 struct Frame {
-    /// The first line of the statement that holds the `{`.
     start: u64,
-    /// Whether that statement's header holds `fn`.
     header_fn: bool,
-    /// A struct or array init or a `switch` body, which stays part of the statement that holds it.
     expression: bool,
-    /// Whether the statement goes on after the `}`.
     continues: bool,
 }
 
-/// Returns a finding for each banned pattern in one Zig source file.
 #[must_use]
 pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
     let lexed = lex(source);
@@ -165,7 +148,6 @@ pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
     out
 }
 
-/// `catch unreachable`, `catch { unreachable; }` or `catch {}`, with or without a `|err|` payload.
 fn catch_rule(rest: &[Token<'_>]) -> Option<(&'static str, String)> {
     let mut rest = rest;
     if is_punct(rest.first(), "|") {
@@ -192,7 +174,6 @@ fn catch_rule(rest: &[Token<'_>]) -> Option<(&'static str, String)> {
     None
 }
 
-/// `@panic("TODO...")`.
 fn is_todo(rest: &[Token<'_>]) -> bool {
     is_punct(rest.first(), "(")
         && rest
@@ -208,7 +189,6 @@ fn is_word(token: Option<&Token<'_>>, text: &str) -> bool {
     token.is_some_and(|t| t.kind == Kind::Word && t.text == text)
 }
 
-/// The token that tells what the `{` at `i` opens: the one before it, or before the `(` that matches a `)` before it.
 fn brace_head<'t, 'a>(
     tokens: &'t [Token<'a>],
     i: usize,
@@ -221,7 +201,6 @@ fn brace_head<'t, 'a>(
     Some(prev)
 }
 
-/// Whether a `{` in a `fn` header opens the body: its head ends a return type, as a name, a call such as `List(u8)` or a `}`.
 fn opens_fn_body(head: Option<&Token<'_>>) -> bool {
     head.is_some_and(|h| match h.kind {
         Kind::Punct => h.text == "}",
@@ -235,7 +214,6 @@ fn opens_fn_body(head: Option<&Token<'_>>) -> bool {
     })
 }
 
-/// Whether a `{` with this head opens a struct or array init or a `switch` body, not a block, type or function body.
 fn opens_expression(head: Option<&Token<'_>>, header_fn: bool) -> bool {
     head.is_some_and(|h| match h.kind {
         Kind::Punct => h.text == ".",
@@ -244,14 +222,12 @@ fn opens_expression(head: Option<&Token<'_>>, header_fn: bool) -> bool {
     })
 }
 
-/// The names that stand for `@import("std")` and for `std.debug`, so `debug_print` sees through `const` aliases.
 struct StdNames<'a> {
     std: BTreeSet<&'a str>,
     debug: BTreeSet<&'a str>,
 }
 
 impl<'a> StdNames<'a> {
-    /// Finds `const x = <std>;` first, then `const x = <std>.debug;`, so a debug alias may use a std alias.
     fn collect(tokens: &[Token<'a>]) -> Self {
         let mut names = StdNames {
             std: BTreeSet::from(["std"]),
@@ -286,7 +262,6 @@ impl<'a> StdNames<'a> {
         names
     }
 
-    /// The token count of a `std` expression at the start of `tokens`.
     fn std_len(&self, tokens: &[Token<'_>]) -> Option<usize> {
         let first = tokens.first()?;
         if first.kind == Kind::Word && self.std.contains(first.text) {
@@ -302,7 +277,6 @@ impl<'a> StdNames<'a> {
         import.then_some(4)
     }
 
-    /// The token count of a `std.debug` expression at the start of `tokens`.
     fn debug_len(&self, tokens: &[Token<'_>]) -> Option<usize> {
         let first = tokens.first()?;
         if first.kind == Kind::Word && self.debug.contains(first.text) {
@@ -312,7 +286,6 @@ impl<'a> StdNames<'a> {
         (is_punct(tokens.get(n), ".") && is_word(tokens.get(n + 1), "debug")).then_some(n + 2)
     }
 
-    /// Whether a `std.debug.print` reference starts at token `i`; a field access such as `x.std` never does.
     fn is_debug_print(&self, tokens: &[Token<'_>], i: usize) -> bool {
         if i.checked_sub(1)
             .is_some_and(|p| is_punct(tokens.get(p), "."))
@@ -325,7 +298,6 @@ impl<'a> StdNames<'a> {
     }
 }
 
-/// A `// SAFETY:` comment for the statement at `start`, or for a statement that holds it through struct inits and `switch` bodies.
 fn cast_documented(lexed: &Lexed<'_>, frames: &[Frame], start: u64, line: u64) -> bool {
     let enclosing = frames
         .iter()
@@ -337,7 +309,6 @@ fn cast_documented(lexed: &Lexed<'_>, frames: &[Frame], start: u64, line: u64) -
         .any(|s| has_safety(lexed, s, line))
 }
 
-/// A `// SAFETY:` comment on a line of the statement, or in the comment-only lines right above it.
 fn has_safety(lexed: &Lexed<'_>, start: u64, line: u64) -> bool {
     if lexed
         .comments
@@ -468,7 +439,6 @@ fn line_end(bytes: &[u8], from: usize) -> usize {
         .count()
 }
 
-/// The index after the closing quote. An unclosed literal ends before the newline, as Zig never lets one span lines.
 fn quoted_end(bytes: &[u8], open: usize, quote: u8) -> usize {
     let mut j = open + 1;
     loop {

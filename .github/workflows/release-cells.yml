@@ -73,7 +73,6 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           JOB: ${{ github.job }}
           SHA: ${{ github.sha }}
-          # Each cell accepts only the licences its platform needs: today only Windows (MSVC).
           ACCEPT_LICENSES: ${{ runner.os == 'Windows' && inputs.windows_accept_licenses || '' }}
         run: |
           bazel build --noshow_progress //tools/ci/producers:producers_bin
@@ -128,7 +127,6 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        # A cell that produced nothing is reported as "no record" by verify instead of stopping here.
         continue-on-error: true
         with:
           pattern: release-cell-*

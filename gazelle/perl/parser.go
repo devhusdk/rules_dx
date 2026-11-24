@@ -12,10 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return perl.Language() })
 
-// ParseImports returns the sorted, deduplicated module names content loads
-// with use, no, require or the parent and base pragmas. Loads guarded by eval,
-// version requirements, file requires and text inside POD, heredocs, strings
-// and the data section are skipped. Imports before a syntax error are kept.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()

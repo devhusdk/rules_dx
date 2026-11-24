@@ -2,7 +2,6 @@
 
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 DxUnavailableToolInfo = provider(

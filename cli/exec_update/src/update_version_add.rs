@@ -21,7 +21,6 @@ pub(super) struct Io<'a> {
     pub(super) err: &'a mut dyn std::io::Write,
 }
 
-/// Declares a package `dx update` could not find; `missing` is the not-found failure.
 pub(super) fn add_missing(
     invocation: &Invocation,
     io: Io<'_>,

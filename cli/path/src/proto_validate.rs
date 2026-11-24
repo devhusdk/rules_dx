@@ -1,5 +1,3 @@
-//! Order and uniqueness checks plus validated protobuf encode and decode.
-
 use prost::Message;
 use std::collections::BTreeSet;
 

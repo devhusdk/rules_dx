@@ -4,16 +4,6 @@ use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 const TOOL: &str = "tinymist";
 const RULE_ID: &str = "tinymist/lint";
 
-/// Findings from one `tinymist lint --diagnostic-format short` run over a single file.
-///
-/// Every diagnostic is a `<path>:<line>:<col>: <severity>: <message>` line on stderr, and the
-/// tool exits 1 when it printed any. Diagnostics for files outside `files` (modules the file
-/// imports) are dropped, but they still count as output. Exit 0 with output, exit 1 without
-/// output, any other exit and any line outside the format are errors, never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_tinymist(
     stdout: &[u8],
     stderr: &[u8],
@@ -74,8 +64,6 @@ struct Diagnostic<'a> {
     message: &'a str,
 }
 
-/// Splits at the first `:<line>:<col>: <severity>: ` so drive letters and colons in the message
-/// are left alone. The line is 1-based and the column a 0-based count of characters.
 fn split_diagnostic(text: &str) -> Option<Diagnostic<'_>> {
     text.match_indices(':').find_map(|(at, _)| {
         let rest = text.get(at + 1..)?;

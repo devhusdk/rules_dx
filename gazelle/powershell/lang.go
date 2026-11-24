@@ -15,14 +15,10 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
 
-// runfilesModule is the module the rules_dx PowerShell runfiles library
-// exports; it resolves to runfilesLabel in every repo, since no local rule
-// indexes it.
 const runfilesModule = "BazelRunfiles"
 
 var runfilesLabel = label.New("rules_dx", "powershell", "runfiles")
 
-// UnresolvedHint tells users how to settle an import no rule owns.
 const UnresolvedHint = "add a powershell_library that owns that module, an exact # gazelle:resolve powershell mapping; module names match case-sensitively"
 
 var pwshKinds = map[string]rule.KindInfo{
@@ -57,8 +53,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Resolve resolves like every single-rule language, with the runfiles module
-// mapped to the rules_dx runfiles library.
 func (l *pwshLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	spec := l.ResolveSpecFor(c, r, from)
 	external := spec.External
@@ -78,8 +72,6 @@ func isModuleFile(src string) bool {
 	return strings.HasSuffix(src, ModuleExt) || strings.HasSuffix(src, ManifestExt)
 }
 
-// Imports indexes a powershell_library once per module, so Greet.psd1 and
-// Greet.psm1 together export a single Greet.
 func (l *pwshLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil

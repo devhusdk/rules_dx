@@ -1,5 +1,3 @@
-//! No test goes over the size and time budget outside `tools/ci/test_budget_allowlist.txt`, and `tools/testing/nested_smoke.txt` lists every nested test.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_guard::allowlist::{self, Counts, differences};
@@ -9,13 +7,10 @@ use dx_guard::test_calls::{Callees, is_test, test_callees};
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
-/// The kind of an allowlist line that lets a nested test take more than `NESTED_SECONDS` cold.
 const NESTED_OVER: &str = "nested-cold-over-60";
 
-/// The most cold seconds a nested list line may hold outside the allowlist.
 const NESTED_SECONDS: usize = 60;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 9] = [
     "flaky",
     "nested-cold-over-60",
@@ -28,43 +23,30 @@ const KINDS: [&str; 9] = [
     "timeout-long",
 ];
 
-/// Sizes over the budget.
 const SIZES: [&str; 3] = ["enormous", "large", "medium"];
 
-/// Timeouts over the budget.
 const TIMEOUTS: [&str; 2] = ["eternal", "long"];
 
-/// The start of the tag every nested test carries.
 const NESTED_TAG: &str = "resources:nested_bazel";
 
-/// The most nested tests the list may hold.
 const NESTED_CAP: usize = 8;
 
-/// The tags that opt a nested test into a CI job.
 const CONSUMER_TAGS: [&str; 3] = ["hermetic-consumer", "network-consumer", "starter-consumer"];
 
-/// The workflow path named in failures.
 const WORKFLOW: &str = ".github/workflows/ci.yml";
 
-/// The ending of a private wrapper target.
 const UPSTREAM: &str = "_upstream";
 
-/// The rule that groups tests and takes no size.
 const SUITE: &str = "test_suite";
 
-/// What a failure tells the author of a new hit to do.
 const FIX: &str = "make the test small";
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/test_budget_allowlist.txt";
 
-/// The nested list path named in failures.
 const NESTED_LIST: &str = "tools/testing/nested_smoke.txt";
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
-/// The value of a `size` or `timeout` argument.
 #[derive(Default)]
 enum Attr {
     #[default]
@@ -86,7 +68,6 @@ impl Attr {
     }
 }
 
-/// One call that passes `name`.
 #[derive(Default)]
 struct Call {
     def: Option<String>,
@@ -102,14 +83,12 @@ struct Call {
     guards: BTreeSet<String>,
 }
 
-/// A module-level constant: whether it holds the nested tag, and the names it is built from.
 #[derive(Default, Clone)]
 struct Constant {
     strings: Vec<String>,
     names: BTreeSet<String>,
 }
 
-/// What one file contributes before names resolve across files.
 #[derive(Default)]
 struct FileScan {
     callees: Callees,
@@ -118,7 +97,6 @@ struct FileScan {
     calls: Vec<Call>,
 }
 
-/// The string literals and identifiers under one expression.
 #[derive(Default)]
 struct Leaves {
     strings: Vec<String>,
@@ -139,7 +117,6 @@ fn nested_tag(strings: &[String]) -> bool {
     strings.iter().any(|text| text.starts_with(NESTED_TAG))
 }
 
-/// Whether `stmt` holds a `return`.
 fn returns(stmt: &AstStmt) -> bool {
     match &stmt.node {
         StmtP::Return(_) => true,
@@ -218,7 +195,6 @@ impl Walker<'_> {
         }
     }
 
-    /// Walks the bodies of an `if` under its condition; a body that returns keeps the condition on what follows.
     fn branch(&mut self, condition: &AstExpr, bodies: &[&AstStmt]) {
         self.expr(condition);
         let mark = self.guards.len();
@@ -284,7 +260,6 @@ impl Walker<'_> {
     }
 }
 
-/// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
     let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
@@ -297,14 +272,12 @@ fn scan_file(path: &str, source: &str) -> FileScan {
     scan
 }
 
-/// Whether `callee` takes no size: a binary macro, which may declare a test inside, or the test build of an app.
 fn unsized_macro(callee: &str) -> bool {
     callee == "erlang_test_app"
         || callee.split('_').any(|word| word == "binary")
             && !callee.split('_').any(|word| word == "test")
 }
 
-/// Budget hits across `files`, keyed by path and kind.
 fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
     let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let mut counts = Counts::new();
@@ -338,14 +311,12 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-/// Whether `strings` hold a tag that opts a test into a CI job.
 fn consumer_tag(strings: &[String]) -> bool {
     strings
         .iter()
         .any(|text| CONSUMER_TAGS.contains(&text.as_str()))
 }
 
-/// The names of the module-level constants whose strings satisfy `hit`.
 fn nested_constants(
     files: &BTreeMap<String, FileScan>,
     hit: fn(&[String]) -> bool,
@@ -380,7 +351,6 @@ fn nested_constants(
     }
 }
 
-/// Whether the tags of `call` satisfy `hit`.
 fn tagged(
     scan: &FileScan,
     call: &Call,
@@ -394,7 +364,6 @@ fn tagged(
         })
 }
 
-/// Macros that declare a nested test, each with the names its conditions read; none means always.
 fn nested_macros(
     files: &BTreeMap<String, FileScan>,
     constants: &BTreeSet<String>,
@@ -440,7 +409,6 @@ fn build_file(path: &str) -> bool {
     name == "BUILD.bazel" || name == "BUILD"
 }
 
-/// The labels of the tests that BUILD files declare with a tag that satisfies `hit`.
 fn tests_tagged(
     files: &BTreeMap<String, FileScan>,
     hit: fn(&[String]) -> bool,
@@ -473,12 +441,10 @@ fn tests_tagged(
     labels
 }
 
-/// The labels of the nested tests that BUILD files declare.
 fn nested_tests(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
     tests_tagged(files, nested_tag)
 }
 
-/// Listed nested tests that no CI job selects: none carries a consumer tag and `workflow` does not name them.
 fn unselected(
     files: &BTreeMap<String, FileScan>,
     listed: &BTreeSet<String>,
@@ -497,7 +463,6 @@ fn unselected(
         .collect()
 }
 
-/// One nested list line: `<label> <seconds>`.
 fn parse_nested(text: &str) -> (BTreeMap<String, usize>, Vec<String>) {
     let mut labels = BTreeMap::new();
     let mut problems = Vec::new();
@@ -522,7 +487,6 @@ fn parse_nested(text: &str) -> (BTreeMap<String, usize>, Vec<String>) {
     (labels, problems)
 }
 
-/// Splits the `NESTED_OVER` lines off the allowlist, keyed by label.
 fn split_nested(allowed: Counts) -> (Counts, BTreeMap<String, usize>, Vec<String>) {
     let mut budget = Counts::new();
     let mut over = BTreeMap::new();
@@ -539,7 +503,6 @@ fn split_nested(allowed: Counts) -> (Counts, BTreeMap<String, usize>, Vec<String
     (budget, over, problems)
 }
 
-/// Nested list lines over `NESTED_SECONDS` that the allowlist does not cover, and allowlist lines that cover too much.
 fn nested_seconds(listed: &BTreeMap<String, usize>, over: &BTreeMap<String, usize>) -> Vec<String> {
     let mut out = Vec::new();
     for (label, seconds) in listed {
@@ -573,7 +536,6 @@ fn nested_seconds(listed: &BTreeMap<String, usize>, over: &BTreeMap<String, usiz
     out
 }
 
-/// Lines that differ between the nested tests of the tree and the list.
 fn nested_differences(found: &BTreeSet<String>, listed: &BTreeSet<String>) -> Vec<String> {
     let mut out = Vec::new();
     if listed.len() > NESTED_CAP {
@@ -593,7 +555,6 @@ fn nested_differences(found: &BTreeSet<String>, listed: &BTreeSet<String>) -> Ve
     out
 }
 
-/// Scans the snapshot that maps each BUILD and .bzl path to its text.
 fn scan_snapshot(text: &str) -> BTreeMap<String, FileScan> {
     let sources: BTreeMap<String, String> =
         serde_json::from_str(text).unwrap_or_else(|error| panic!("sources snapshot: {error}"));

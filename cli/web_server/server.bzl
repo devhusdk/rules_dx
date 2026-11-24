@@ -3,7 +3,6 @@
 load("//core/private/testing:defs.bzl", "display_label")
 load("//python:defs.bzl", "python_binary")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 JavascriptWebAppInfo = provider(

@@ -9,14 +9,6 @@ const WOULD_REFORMAT: &str = "Would reformat: ";
 const FAILED_TO_PARSE: &str = "warn: Failed to parse ";
 const ERRONEOUS: &str = ". The source is erroneous.";
 
-/// `--check` prints `Would reformat: <path>` on stdout for each file it would rewrite and exits 1.
-/// A file with a syntax error is reported on stderr as `warn: Failed to parse <path>. The source
-/// is erroneous.` and the exit code stays 0 (or 1 beside a dirty file), in check and in `-i` mode.
-/// Paths are spelled from the working directory. Exit 2 is an execution error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_typstyle(
     stdout: &[u8],
     stderr: &[u8],
@@ -106,8 +98,6 @@ pub fn parse_typstyle(
     Ok(findings)
 }
 
-/// The checked file a path names, accepting a path spelled from the working directory with
-/// either separator.
 fn known<'a>(files: &[&'a str], cwd: &Path, path: &str) -> Result<&'a str, ParseError> {
     match known_relative(TOOL, files, cwd, path) {
         Err(_) if path.contains('\\') => known_relative(TOOL, files, cwd, &path.replace('\\', "/")),

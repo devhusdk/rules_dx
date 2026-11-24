@@ -6,7 +6,6 @@ use super::command::Command;
 use super::grammar::{Cli, Flags, Verb};
 use super::{ArgsError, help};
 
-/// clap's error text with its own usage block dropped.
 pub(crate) fn without_usage(text: &str) -> String {
     let mut out = String::new();
     let mut skipping = false;
@@ -55,7 +54,6 @@ fn map_clap_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> ArgsError
     }
 }
 
-/// Maps a refused `--output`, `--color` or `--fail-on` value to its value error.
 fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<ArgsError> {
     use clap::error::{ContextKind, ContextValue};
     let flag = match error.get(ContextKind::InvalidArg) {
@@ -94,7 +92,6 @@ fn output_value_error<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Optio
     Some(ArgsError::BadOutput { value })
 }
 
-/// The flag name the parser reports, with visible aliases spelled canonically.
 fn reported_flag(token: &str) -> Option<String> {
     if !token.starts_with("--") {
         return None;
@@ -103,7 +100,6 @@ fn reported_flag(token: &str) -> Option<String> {
     Some(name.to_owned())
 }
 
-/// Every long flag name any command's grammar accepts.
 fn known_flags() -> Vec<String> {
     use clap::CommandFactory;
     let mut names = Vec::new();
@@ -119,8 +115,6 @@ fn known_flags() -> Vec<String> {
     names
 }
 
-/// The words after the command word, up to the `--` separator, with their
-/// flags spelled canonically and inline values kept.
 fn words_after_command<S: AsRef<OsStr>>(args: &[S], command_at: usize) -> Vec<String> {
     args.iter()
         .skip(command_at + 1)
@@ -130,7 +124,6 @@ fn words_after_command<S: AsRef<OsStr>>(args: &[S], command_at: usize) -> Vec<St
         .collect()
 }
 
-/// One word with its flag name spelled canonically, keeping any `=value`.
 fn canonical_word(word: &str) -> String {
     let Some((name, value)) = word.split_once('=') else {
         return reported_flag(word).unwrap_or_else(|| word.to_owned());
@@ -139,12 +132,10 @@ fn canonical_word(word: &str) -> String {
     format!("{flag}={value}")
 }
 
-/// The flag name without its `=value`.
 fn name_of(word: &str) -> &str {
     word.split('=').next().unwrap_or(word)
 }
 
-/// The flag as typed, with its value attached when the value is a separate word.
 fn spelled(word: &str, next: Option<&str>) -> String {
     if !super::grammar::option_at(word, next).is_some_and(|option| option.used_next) {
         return word.to_owned();
@@ -155,8 +146,6 @@ fn spelled(word: &str, next: Option<&str>) -> String {
     }
 }
 
-/// Translate clap's unknown-flag failure into the command's own refusal,
-/// naming the flag dx would have named first when several are refused.
 fn unsupported_option<S: AsRef<OsStr>>(args: &[S], error: &clap::Error) -> Option<ArgsError> {
     use clap::error::{ContextKind, ContextValue};
     let token = match error.get(ContextKind::InvalidArg) {
@@ -211,7 +200,6 @@ fn parse_tokens<S: AsRef<OsStr>>(args: &[S]) -> Result<Option<Verb>, ArgsError> 
     .map_err(|error| map_clap_error(args, &error))
 }
 
-/// The workspace and Bazel startup tokens the grammar selects, if the words parse.
 pub(crate) fn selected_identity<S: AsRef<OsStr>>(
     args: &[S],
 ) -> Option<(Option<OsString>, Vec<String>)> {
@@ -224,7 +212,6 @@ pub(crate) fn selected_identity<S: AsRef<OsStr>>(
     Some((flags.workspace, flags.bazel_startup_options))
 }
 
-/// The parsed invocation: the command, its flags, its scopes, and its `--` payload.
 pub(crate) struct Tokenized {
     pub(crate) command: Command,
     pub(crate) flags: Flags,

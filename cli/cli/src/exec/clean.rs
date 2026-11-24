@@ -24,7 +24,6 @@ struct Removed {
     bytes: u64,
 }
 
-/// The `bazel clean` argv `--bazel` or `--expunge` asks for; none for a dx-only clean.
 fn bazel_clean_argv(invocation: &Invocation) -> Option<Vec<String>> {
     if !invocation.clean_bazel && !invocation.expunge {
         return None;
@@ -47,7 +46,6 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         ..
     } = env;
     let bazel_clean = bazel_clean_argv(invocation);
-    // The real Bazel argv after the launcher, so the slot rule sees the startup options as Bazel will.
     if let Some(argv) = &bazel_clean
         && let Some(reason) = dx_worktree::primary::bazel_refusal(
             workspace,
@@ -171,12 +169,10 @@ fn remove_entry(path: &Path, display: &str, removed: &mut Vec<Removed>) -> io::R
     Ok(())
 }
 
-/// Removes a lease directory once it is empty.
 fn remove_empty_dir(path: &Path) {
     let Err(error) = fs::remove_dir(path) else {
         return;
     };
-    // A held lease keeps its directory; that is the normal case, so it is not logged.
     let kind = error.kind();
     if kind != io::ErrorKind::NotFound && kind != io::ErrorKind::DirectoryNotEmpty {
         tracing::info!(%error, path = %path.display(), "cannot remove lease directory");

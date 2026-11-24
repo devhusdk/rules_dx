@@ -5,15 +5,10 @@ pub enum WidenVersion {
     Semver(semver::Version),
     GitTag(String),
     GitCommit(String),
-    /// A gem version such as `1.5` or `7.0.8.1`, which semver cannot hold.
     Gem(String),
-    /// A CPAN version such as `2.06`, `1.002_003` or `v1.0.35`.
     Cpan(String),
-    /// An opam version such as `1.2.0`, `0.9.0~rc1` or `2.0+dev`.
     Opam(String),
-    /// A release version such as `7.5.13` that a `pins.json` holds as text.
     Release(String),
-    /// An image digest such as `sha256:` followed by 64 hex digits.
     Digest(String),
 }
 

@@ -1,9 +1,10 @@
-"""Module extension for tools/testing."""
+"""Module extensions for tools/testing."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load(":nested_repository_cache.bzl", "digest_integrity", "nested_repository_cache_set", "parse_cache_list")
+load("//python/tests:sdist_cargo_vendor.bzl", _sdist_cargo_vendor = "sdist_cargo_vendor")
+load(":nested_repository_cache.bzl", "digest_integrity", "nested_cache_file", "nested_repository_cache_set", "parse_cache_list")
 
-_PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]
+_PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-arm64", "windows-x86_64"]
 
 _RELEASE = "https://github.com/bazelbuild/bazel/releases/download/{v}/bazel-{v}-{p}{s}"
 
@@ -29,7 +30,7 @@ def _nested_bazel_impl(mctx):
     """Declares one pinned Bazel binary per platform."""
     version = mctx.read(Label("//:.bazelversion")).strip()
     shas = mctx.facts.get(version)
-    if not shas:
+    if not shas or not all([p in shas for p in _PLATFORMS]):
         shas = _fetch_shas(mctx, version)
     for platform in _PLATFORMS:
         http_file(
@@ -47,7 +48,7 @@ nested_bazel = module_extension(
 )
 
 def _nested_repository_cache_impl(mctx):
-    """Declares one http_file per list entry and one `cache` repository per set."""
+    """Declares one nested_cache_file per list entry and one `cache` repository per set."""
     declared = {}
     for module in mctx.modules:
         for cache_set in module.tags.set:
@@ -58,9 +59,8 @@ def _nested_repository_cache_impl(mctx):
                 repos[digest] = repo
                 if digest not in declared:
                     declared[digest] = urls
-                    http_file(
+                    nested_cache_file(
                         name = repo,
-                        downloaded_file_path = "blob",
                         integrity = digest_integrity(digest),
                         urls = [url for url in urls if url.startswith("https://")],
                     )
@@ -85,3 +85,5 @@ nested_repository_cache = module_extension(
         ),
     },
 )
+
+sdist_cargo_vendor = _sdist_cargo_vendor

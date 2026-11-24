@@ -14,7 +14,6 @@ const DECLARED: &[&str] = &[
     "lua/private/tools/luals.bzl",
 ];
 
-/// The `.bzl` files that nested consumers of each area load first.
 const ENTRY_POINTS: &[&str] = &[
     "//android:defs.bzl",
     "//android:extensions.bzl",

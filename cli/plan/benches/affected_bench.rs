@@ -1,5 +1,3 @@
-//! Times the test selection of `dx test --affected` and counts the Bazel queries it runs.
-
 use std::cell::Cell;
 use std::hint::black_box;
 use std::io;
@@ -11,14 +9,10 @@ use dx_adopt::{ChangeKind, GitChange};
 use dx_plan::resolve::{PersistentGraphQuery, QueryResult, QueryRunner, resolve_affected};
 use dx_testing::cli::{graph_rule, graph_rule_of_kind, graph_stdout};
 
-/// Packages in the fake workspace, each with one library and one test.
 const PACKAGES: usize = 200;
-/// Warm selections timed per run.
 const ROUNDS: u32 = 20;
-/// The package whose source file changed.
 const CHANGED: usize = 7;
 
-/// Answers every Bazel query with the workspace rule graph and counts the calls.
 struct CountingQuery {
     graph: Vec<u8>,
     calls: Cell<usize>,
@@ -59,8 +53,6 @@ fn workspace(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// One `--affected` test selection as a fresh dx process runs it: a new cache wrapper over
-/// the Bazel runner, the changed files resolved, and the tests read from the rule graph.
 fn select(root: &Path, bazel: &CountingQuery) -> Result<Vec<String>, String> {
     let changes = [GitChange {
         path: format!("pkg_{CHANGED}/lib.txt"),
@@ -78,7 +70,6 @@ fn select(root: &Path, bazel: &CountingQuery) -> Result<Vec<String>, String> {
     Ok(graph.tests_of(&graph.affected(&selection.targets)))
 }
 
-/// Runs `select` once and checks the tests it picked and the queries it ran.
 fn timed_select(root: &Path, bazel: &CountingQuery, queries: usize) -> Result<Duration, String> {
     let before = bazel.calls.get();
     let start = Instant::now();
@@ -110,7 +101,6 @@ fn run() -> Result<(), String> {
         graph: graph(),
         calls: Cell::new(0),
     };
-    // The first run fills the rule-graph cache with the only query.
     report("affected_tests_cold", timed_select(root, &bazel, 1)?);
 
     let mut warm = Duration::ZERO;
@@ -119,7 +109,6 @@ fn run() -> Result<(), String> {
     }
     report("affected_tests_warm", warm / ROUNDS);
 
-    // A BUILD edit costs exactly one query; the run after it is warm again.
     dx_test_scratch::write(root, "pkg_0/BUILD.bazel", "# edit\n")?;
     report("affected_tests_build_edit", timed_select(root, &bazel, 1)?);
     timed_select(root, &bazel, 0)?;

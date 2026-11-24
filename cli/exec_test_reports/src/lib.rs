@@ -5,9 +5,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The test and coverage reports of `dx test` and `dx coverage`: test outcomes, `JUnit`,
-//! LCOV, coverage sources and the changed-line gate.
-
 use crate::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
 use dx_bep::{
     ArtifactReader, OutputLocations, TestEvents, TestResultFile, TestResultRecord,
@@ -641,7 +638,6 @@ fn emit_exit_events(
     }
 }
 
-/// The workspace has no test targets: `dx test //...` passes with a notice.
 fn no_tests_in_workspace(
     output: OutputMode,
     out: &mut dyn Write,

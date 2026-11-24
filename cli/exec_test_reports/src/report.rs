@@ -8,7 +8,6 @@ use super::{
 };
 use dx_exec_core::common::check_stdout_write;
 
-/// Prints each outcome in the run's output mode and counts the ones that were not superseded.
 pub(super) fn emit_outcomes(
     output: OutputMode,
     out: &mut dyn Write,
@@ -72,10 +71,8 @@ pub(super) fn emit_outcomes(
     Ok(counts)
 }
 
-/// Most failing case names one text-mode failure line lists.
 pub(super) const TEXT_CASE_LIMIT: usize = 3;
 
-/// Prints `dx: failed: <target>: <cases> (log: <path>)` for one failed result.
 pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
     let failing: Vec<&str> = outcome
         .cases
@@ -104,7 +101,6 @@ pub(super) fn write_failed_line(err: &mut dyn Write, outcome: &TestOutcome) {
     dx_output::write_stderr(err, format_args!("{line}\n"));
 }
 
-/// Writes reports to their destinations and announces each one in the run's output mode.
 pub(super) struct ReportSink<'a> {
     pub(super) out: &'a mut dyn Write,
     pub(super) err: &'a mut dyn Write,
@@ -114,7 +110,6 @@ pub(super) struct ReportSink<'a> {
 }
 
 impl ReportSink<'_> {
-    /// Writes one named report and announces it; false when the write failed and was reported.
     pub(super) fn write(
         &mut self,
         name: &str,
@@ -141,13 +136,11 @@ impl ReportSink<'_> {
         Ok(true)
     }
 
-    /// Reports one report that could not be produced, with the next step for its cause.
     pub(super) fn failed(&mut self, detail: &str, next: Option<&str>) -> Result<(), i32> {
         report_failed_with_next(self.out, self.err, self.output, detail, next)
     }
 }
 
-/// The verb's report document, or why it could not be rendered.
 pub(super) fn render_report(
     verb: WorkflowVerb,
     suites: &[(String, Vec<JunitCase>)],
@@ -189,7 +182,6 @@ pub(super) fn render_report(
     }
 }
 
-/// Reports why the results are incomplete, when evidence was missing or invalid.
 pub(super) fn announce_incomplete(
     output: OutputMode,
     out: &mut dyn Write,
@@ -210,7 +202,6 @@ pub(super) fn announce_incomplete(
     Ok(())
 }
 
-/// Checks the cell's owned-source line coverage against `--min-coverage`; true when there is no minimum.
 #[expect(clippy::cast_precision_loss, reason = "display only")]
 pub(super) fn coverage_threshold(
     minimum: Option<u32>,
@@ -264,10 +255,8 @@ pub(super) fn coverage_threshold(
     Ok(threshold_ok)
 }
 
-/// How many files the text coverage table lists.
 pub(super) const WORST_FILES: usize = 10;
 
-/// Prints the total coverage line (when no minimum prints it) and the least covered files.
 #[expect(clippy::cast_precision_loss, reason = "display only")]
 pub(super) fn coverage_summary(
     account: &CellAccount,
@@ -316,7 +305,6 @@ pub(super) fn coverage_summary(
     }
 }
 
-/// Accounts every owned source of the run against the merged coverage.
 pub(super) fn account_sources(
     sources: &Sources,
     lcov_documents: &[String],
@@ -331,7 +319,6 @@ pub(super) fn account_sources(
     })
 }
 
-/// The `sources` report: the cell's owned sources with dispositions and the production sources the report never saw.
 pub(super) fn sources_report(sources: &Sources, account: &CellAccount) -> String {
     let owned: BTreeMap<&str, &str> = account
         .files
@@ -362,14 +349,11 @@ pub(super) fn sources_report(sources: &Sources, account: &CellAccount) -> String
         "orphans": account.orphans,
         "errors": errors,
     });
-    // a serde_json::Value always serializes
     let mut text = serde_json::to_string_pretty(&document).unwrap_or_default();
     text.push('\n');
     text
 }
 
-/// Prints the account's counts and every gap; true when none.
-/// With `enforce` (`--min-coverage`) each gap is a JSON `error` event instead of a warning notice.
 pub(super) fn coverage_sources(
     sources: &Sources,
     account: &CellAccount,
@@ -413,7 +397,6 @@ pub(super) fn coverage_sources(
     Ok(errors.is_empty())
 }
 
-/// Emits the cell's `coverage` event in JSON mode.
 pub(super) fn coverage_event(
     sources: &Sources,
     account: &CellAccount,
@@ -446,7 +429,6 @@ pub(super) fn coverage_event(
     emit_built(out, dx_output::coverage_event(&event))
 }
 
-/// Reads the run's test events; a stream Bazel cut short is a problem only when Bazel failed too.
 pub(super) fn read_events(
     invocation: &Invocation,
     workspace: &Path,

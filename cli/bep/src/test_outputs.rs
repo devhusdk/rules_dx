@@ -11,14 +11,12 @@ use super::{
     testlog_path, testlog_path_under,
 };
 
-/// One named artifact of one test result, resolved to its local path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestResultFile {
     pub name: String,
     pub exec_path: PathBuf,
 }
 
-/// One `testResult` event: Bazel's authoritative status for one run, shard, and attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestResultRecord {
     pub label: String,
@@ -33,7 +31,6 @@ pub struct TestResultRecord {
     pub files: Vec<TestResultFile>,
 }
 
-/// One `testSummary` event: Bazel's rolled-up status for one target.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestSummaryRecord {
     pub label: String,
@@ -44,14 +41,12 @@ pub struct TestSummaryRecord {
     pub attempt_count: Option<u64>,
 }
 
-/// One test target whose build Bazel reported as failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnbuiltTest {
     pub label: String,
     pub configuration: Option<String>,
 }
 
-/// The test result and summary events of one build event stream.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TestEvents {
     pub results: Vec<TestResultRecord>,
@@ -60,19 +55,11 @@ pub struct TestEvents {
     pub gaps: Vec<EventGap>,
     pub skipped: Vec<EventGap>,
     pub unbuilt: Vec<UnbuiltTest>,
-    /// Tests that built and completed but have no result or summary.
     pub filtered: Vec<UnbuiltTest>,
-    /// The cut-off last line that ended the stream early.
     pub problem: Option<String>,
-    /// Test labels whose configured target carries
-    /// [`NO_COVERAGE_COLLECTOR_TAG`]: their language writes empty LCOV.
-    /// The value is the language taken from the rule kind.
     pub no_coverage_collector: BTreeMap<String, String>,
 }
 
-/// The tag dx test macros put on a test whose language has no coverage
-/// collector; it mirrors `DX_NO_COVERAGE_COLLECTOR_TAG` in
-/// `core/wrapper.bzl`.
 pub const NO_COVERAGE_COLLECTOR_TAG: &str = "dx-no-coverage-collector";
 
 struct TestResultId<'a> {
@@ -184,20 +171,14 @@ struct PendingSummary {
     attempt_count: Option<u64>,
 }
 
-/// One string field of a JSON object, when it is present and a string.
 fn opt_string(object: &serde_json::Map<String, Value>, field: &str) -> Option<String> {
     object.get(field).and_then(Value::as_str).map(str::to_owned)
 }
 
-/// One boolean field of a JSON object, when it is present and a boolean.
 fn opt_bool(object: &serde_json::Map<String, Value>, field: &str) -> Option<bool> {
     object.get(field).and_then(Value::as_bool)
 }
 
-/// One count field of a JSON object, spelled as a number or a digits string.
-///
-/// Bazel renders 64-bit integers as JSON strings, so both spellings count.
-/// Anything else is unknown, not zero.
 fn opt_count(object: &serde_json::Map<String, Value>, field: &str) -> Option<u64> {
     match object.get(field) {
         Some(Value::Number(raw)) => raw.as_u64(),
@@ -206,7 +187,6 @@ fn opt_count(object: &serde_json::Map<String, Value>, field: &str) -> Option<u64
     }
 }
 
-/// The configuration id Bazel ran one result or summary under, when reported.
 fn opt_configuration(id: &serde_json::Map<String, Value>) -> Option<String> {
     id.get("configuration")
         .and_then(Value::as_object)
@@ -215,7 +195,6 @@ fn opt_configuration(id: &serde_json::Map<String, Value>) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// Reads the test events of a stream, keeping what came before a cut-off last line.
 pub fn collect_test_events(
     reader: impl BufRead,
     locations: impl FnOnce() -> Option<OutputLocations>,
@@ -225,7 +204,6 @@ pub fn collect_test_events(
     Ok(events)
 }
 
-/// The test events of a stream and the line and reason of a cut-off last line.
 fn read_test_events(
     reader: impl BufRead,
     locations: impl FnOnce() -> Option<OutputLocations>,
@@ -456,7 +434,6 @@ fn read_test_events(
     Ok((events, lines.tail))
 }
 
-/// A top-level target completion and whether Bazel reported success.
 fn target_completion(
     id: &serde_json::Map<String, Value>,
     object: &serde_json::Map<String, Value>,
@@ -477,7 +454,6 @@ fn target_completion(
     Some((target, success))
 }
 
-/// The label of a configured target Bazel will test, from its test size.
 fn test_label<'a>(
     id: &'a serde_json::Map<String, Value>,
     object: &serde_json::Map<String, Value>,
@@ -493,7 +469,6 @@ fn test_label<'a>(
     configured.get("label").and_then(Value::as_str)
 }
 
-/// Whether a `targetConfigured` body lists `tag` in its `tag` array.
 fn has_tag(object: &serde_json::Map<String, Value>, tag: &str) -> bool {
     object
         .get("configured")
@@ -502,7 +477,6 @@ fn has_tag(object: &serde_json::Map<String, Value>, tag: &str) -> bool {
         .is_some_and(|tags| tags.iter().any(|value| value.as_str() == Some(tag)))
 }
 
-/// The language a `targetConfigured` rule kind such as `_zig_forward_test rule` belongs to.
 fn rule_language(object: &serde_json::Map<String, Value>) -> String {
     let kind = object
         .get("configured")
@@ -518,7 +492,6 @@ fn rule_language(object: &serde_json::Map<String, Value>) -> String {
     }
 }
 
-/// One `testSummary` body beside its id, with unknown fields left unknown.
 fn parse_summary(
     summary_id: &serde_json::Map<String, Value>,
     object: &serde_json::Map<String, Value>,
@@ -539,7 +512,6 @@ fn parse_summary(
     }
 }
 
-/// The configuration id and output directory mnemonic of a configuration event.
 fn configuration_mnemonic<'a>(
     id: &'a serde_json::Map<String, Value>,
     object: &'a serde_json::Map<String, Value>,
@@ -721,13 +693,11 @@ mod tests {
         )
     }
 
-    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         let root = if cfg!(windows) { "C:/out" } else { "out" };
         format!("file:///{root}/{rel}")
     }
 
-    /// The host path one fixture root plus its path parts name.
     fn want_path(root: &str, parts: &[&str]) -> PathBuf {
         let mut path = PathBuf::from(root);
         for part in parts {
@@ -736,7 +706,6 @@ mod tests {
         path
     }
 
-    /// The host path one slash-separated relative name under the fixture root names.
     fn out_path(rel: &str) -> PathBuf {
         let root = if cfg!(windows) { r"C:\out" } else { "/out" };
         want_path(root, &rel.split('/').collect::<Vec<_>>())
@@ -1727,7 +1696,6 @@ mod tests {
         let elapsed = started.elapsed();
         assert_eq!(events.results.len(), count);
         assert_eq!(events.filtered.len(), count);
-        // Quadratic scans take minutes here; the linear pass takes well under this.
         assert!(elapsed < std::time::Duration::from_secs(10), "{elapsed:?}");
     }
 

@@ -1,17 +1,13 @@
-//! Resolves which functions a module exports.
-
 use crate::types::{Api, ExportKind, File, Function, Names};
 use crate::{Duplicate, PowershellExtractError as E};
 use std::collections::BTreeMap;
 
-/// One exported function and the file that defines it.
 #[derive(Clone, Copy, Debug)]
 pub struct Public<'a> {
     pub file: &'a File,
     pub function: &'a Function,
 }
 
-/// Returns the exported functions in definition order, or why the set cannot be known.
 pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, E> {
     if let Some(manifest) = &api.manifest
         && let Some(root) = &manifest.root_module
@@ -151,7 +147,6 @@ fn has_wildcard(pattern: &str) -> bool {
     pattern.contains(['*', '?'])
 }
 
-/// Matches one PowerShell wildcard (`*` and `?`) against a name, ignoring case.
 #[must_use]
 pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     let pattern: Vec<char> = pattern.to_lowercase().chars().collect();

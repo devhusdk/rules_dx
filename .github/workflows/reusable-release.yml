@@ -71,10 +71,8 @@ jobs:
             exit 1
           fi
           registry_deploys="$(bazel query --output=label "labels(registry_deploys, deps(set($(tr '\n' ' ' < "$RUNNER_TEMP/deployables.txt")), 1))")"
-          {
-            grep -Fxf <(printf '%s\n' "$registry_deploys") "$RUNNER_TEMP/deployables.txt" || true
-            grep -Fvxf <(printf '%s\n' "$registry_deploys") "$RUNNER_TEMP/deployables.txt" || true
-          } > "$RUNNER_TEMP/deployables.ordered.txt"
+          awk 'NR == FNR { registry[$0] = 1; next } $0 in registry { print; next } { rest[++n] = $0 } END { for (i = 1; i <= n; i++) print rest[i] }' \
+            <(printf '%s\n' "$registry_deploys") "$RUNNER_TEMP/deployables.txt" > "$RUNNER_TEMP/deployables.ordered.txt"
           mv "$RUNNER_TEMP/deployables.ordered.txt" "$RUNNER_TEMP/deployables.txt"
           echo "Deployables for ${GITHUB_REF_NAME}:"
           cat "$RUNNER_TEMP/deployables.txt"

@@ -8,96 +8,71 @@ pub mod pages;
 pub mod parser;
 pub mod tokenizer;
 
-/// A failure raised while reading the command line.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ArgsError {
-    /// clap rendered help or the version.
     #[error("{text}")]
     Help { text: String },
-    /// clap rendered a usage failure, suggestion included.
     #[error("{text}")]
     Usage { text: String },
-    /// No command was named.
     #[error(
         "missing command: want security|license|lint|typecheck|format|generate|build|test|coverage|bench|run|deploy|check|clean|update|sync|init|upgrade|status|watch|completion|docs|worktree|fuzz|config|fetch"
     )]
     MissingCommand,
-    /// The command does not take this flag.
     #[error("option {option:?} is not supported by dx {command}: {}", unsupported_hint(.command, .option))]
     UnsupportedOption {
         command: &'static str,
         option: String,
     },
-    /// A value flag arrived with no value.
     #[error("missing value for {option:?}")]
     MissingValue { option: String },
-    /// A scope token is not a flag or a label.
     #[error("unknown option {option:?}")]
     UnknownOption { option: String },
-    /// The resolved --output value is not one of the two modes.
     #[error("unknown --output {value:?}: want text|json")]
     BadOutput { value: String },
-    /// The resolved --fail-on value is not a severity.
     #[error("unknown --fail-on {value:?}: want info|warning|error")]
     BadFailOn { value: String },
-    /// The resolved --build-slots value is not auto, a count, or off.
     #[error("unknown --build-slots {value:?} from {origin}: want auto|<n>|off (n from 1 to 1024)")]
     BadBuildSlots { origin: &'static str, value: String },
-    /// The resolved --build-slots-wait value is not a duration.
     #[error(
         "unknown --build-slots-wait {value:?} from {origin}: want seconds, or a number ending in s, m or h"
     )]
     BadBuildSlotsWait { origin: &'static str, value: String },
-    /// The resolved --color value is not a mode.
     #[error("unknown --color {value:?}: want auto|always|never")]
     BadColor { value: String },
-    /// A --bazel-startup-option token is not a qualified startup option.
     #[error(
         "unknown --bazel-startup-option {value:?}: want --output_base=<path>|--output_user_root=<path>"
     )]
     BadStartupOption { value: String },
-    /// The completion shell is not one of the four.
     #[error("unknown shell {shell:?}: want {}", COMPLETION_SHELLS.join("|"))]
     UnknownShell { shell: String },
-    /// A JSON-only flag arrived without JSON output.
     #[error("option {option:?} requires --output=json")]
     NeedsJson { option: &'static str },
-    /// Unsafe fixes were asked for without applying or showing fixes.
     #[error("option \"--unsafe\" requires --apply or --diff")]
     UnsafeNeedsFixes,
-    /// The here tree was asked for alongside explicit scopes.
     #[error("option \"--here\" cannot be combined with explicit scopes")]
     ConflictingHere,
-    /// Affected selection was asked for alongside explicit scopes.
     #[error("option \"--affected\" cannot be combined with explicit scopes")]
     ConflictingAffected,
-    /// A base ref was given without affected selection.
     #[error("option \"--since\" requires \"--affected\"")]
     SinceNeedsAffected,
-    /// A base branch was given without affected selection.
     #[error("option \"--base\" requires \"--affected\"")]
     BaseNeedsAffected,
-    /// Affected selection was asked for alongside the here tree.
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,
-    /// No scope was given where one was required.
     #[error(
         "empty scope: pass no scope for repository-wide //... or a //, @, file, or directory scope"
     )]
     EmptyScope,
-    /// The scope is package-relative.
     #[error(
         "unsupported scope {scope:?}: package-relative labels resolve against the current directory; spell the workspace label starting with //"
     )]
     RelativeLabel { scope: String },
-    /// The scope is neither a label nor a path.
     #[error(
         "unsupported scope {scope:?}: want // or @ labels, or workspace-relative file and directory paths"
     )]
     InvalidScope { scope: String },
 }
 
-/// Build the scope error that matches the token.
 #[must_use]
 pub fn scope_error(scope: &str) -> ArgsError {
     if scope.is_empty() {
@@ -150,7 +125,6 @@ pub use parser::{
     json_output_intent, parse, parse_with, parse_with_ci,
 };
 
-/// Assert that a parse failure is clap-rendered and names every needle.
 #[cfg(test)]
 #[expect(
     clippy::needless_pass_by_value,

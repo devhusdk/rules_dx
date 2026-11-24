@@ -10,7 +10,6 @@ use super::{
     parsed,
 };
 
-/// One sqlfluff run: a config, a dialect and the files they apply to.
 struct ConfigRun {
     config: PathBuf,
     files: Vec<PathBuf>,
@@ -22,7 +21,6 @@ pub(super) struct SqlfluffRun {
     pub files: Vec<PathBuf>,
 }
 
-/// The dialect of one file: the tool's, else its `name.<dialect>.sql` suffix, else ansi.
 fn file_dialect(tool_id: &str, tool: &RealTool, file: &Path) -> Result<&'static str, RunnerError> {
     if let Some(name) = tool.dialect.as_deref() {
         return sqlfluff_preflight::DIALECTS
@@ -42,8 +40,6 @@ fn file_dialect(tool_id: &str, tool: &RealTool, file: &Path) -> Result<&'static 
     }
 }
 
-/// Preflights the bound config and every nested `.sqlfluff`, groups `files` by the chain of
-/// nested configs above them, then splits each group by dialect.
 pub(super) fn plan_sqlfluff(
     tool_id: &str,
     tool: &RealTool,
@@ -168,9 +164,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Preflights the bound and nested configs, then lints every owned file, one sqlfluff run per
-    /// distinct config chain. A format
-    /// check lints with only the rules `sqlfluff format` applies.
     pub(super) fn check_sqlfluff(
         &self,
         tool_id: &str,
@@ -192,7 +185,6 @@ impl RealBackend {
             .collect();
         let runs = plan_sqlfluff(tool_id, tool, &staged.scratch, config, &files)?;
         for file in &files {
-            // Unreadable or non-UTF-8 files are left to sqlfluff to report.
             if let Ok(text) = std::fs::read_to_string(file) {
                 sqlfluff_preflight::check_inline_config(&text)
                     .map_err(|err| execution(tool_id, format!("{err} (in {})", file.display())))?;

@@ -5,11 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::{normalize_lower, put};
 
-/// Reads `[dependencies]` and `[dev-dependencies]` of an fpm manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_fortran_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = crate::toml_util::parse_toml_file(path)?;
     let mut deps = BTreeMap::new();
@@ -42,11 +37,6 @@ pub fn parse_fortran_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
     Ok(deps)
 }
 
-/// Reads an fpm lock: the `name` and `version` of each locked package.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_fortran_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

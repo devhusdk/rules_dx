@@ -10,51 +10,33 @@ pub struct UpdateRequest {
     pub selector: String,
     pub raw_version: String,
     manifest: Option<String>,
-    /// The configured npm, uv or bazel set this request edits, if any.
     configured: Option<ConfiguredSet>,
-    /// Which of a MODULE.bazel dep's two versions a bazel update edits.
     pub dep_version: DepVersion,
     resolved_tag: Option<String>,
     resolved_pins: Option<String>,
 }
 
-/// The ecosystem of a dependency set an update edits.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ConfiguredKind {
     Npm,
     Uv,
-    /// A bazel-modules set; its lock is refreshed with `bazel mod deps`.
     Bazel,
-    /// A cargo set; every manifest that declares the crate is widened.
     Cargo,
-    /// A maven set; only its own `maven.install` is edited.
     Maven,
-    /// A nuget set; the paket manifest is edited and its lock is not re-resolved.
     Nuget,
-    /// A go set; only the `require` line of its manifest is edited, then its lock is refreshed.
     Go,
-    /// A ruby set; only the gem's line in the manifest is edited, then the ruby lock resolver runs.
     Ruby,
-    /// A cpan set; only the module's `requires` line in the manifest is edited.
     Cpan,
-    /// A pub set; only the package's constraint in the manifest is edited.
     Pub,
-    /// A cabal set; only the package's bound in the `.cabal` file is edited.
     Cabal,
-    /// A julia set; only the package's `[compat]` entry in the manifest is edited.
     Julia,
-    /// A composer set; only the constraint in the composer manifest is edited, then the lock is refreshed.
     Composer,
-    /// A swiftpm set; only the package's `from:` or `exact:` version in the manifest is edited.
     SwiftPm,
-    /// An opam set; only the package's constraint in `depends:` of the `.opam` file is edited.
     Opam,
-    /// A hex set; only the requirement in the `deps` of the manifest is edited.
     Hex,
 }
 
 impl ConfiguredKind {
-    /// The selector and version grammar of this ecosystem.
     #[must_use]
     pub fn grammar(self) -> UpdateSet {
         match self {
@@ -77,33 +59,24 @@ impl ConfiguredKind {
     }
 }
 
-/// A dependency set an update edits: its name, ecosystem, manifests and hub repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConfiguredSet {
     pub name: String,
     pub kind: ConfiguredKind,
-    /// Every manifest of the set; a configured update never reads the builtin tables.
     pub manifests: Vec<String>,
-    /// The hub repository of a maven set; it names the `maven.install` to edit.
     pub repository: Option<String>,
 }
 
-/// The version of a MODULE.bazel dependency a bazel update edits.
-///
-/// Each consumer-facing dep carries a floor in its `bazel_dep` (the oldest version
-/// consumers may resolve) and a tested-latest in a root-only `single_version_override`.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub enum DepVersion {
-    /// The tested-latest version: the `single_version_override` version when one has a
-    /// literal version, else the `bazel_dep` version.
     #[default]
     Tested,
-    /// The floor in the `bazel_dep`, with the `# floor: <reason>` comment above it.
-    Floor { reason: String },
+    Floor {
+        reason: String,
+    },
 }
 
 impl DepVersion {
-    /// The target `--floor` and `--reason` select; both or neither must be given.
     pub fn from_flags(floor: bool, reason: Option<&str>) -> Result<DepVersion, EditError> {
         match (floor, reason) {
             (false, None) => Ok(DepVersion::Tested),
@@ -199,7 +172,6 @@ pub enum EditError {
 }
 
 impl EditError {
-    /// Whether this is an argument error rather than a manifest or network failure.
     #[must_use]
     pub fn is_usage(&self) -> bool {
         matches!(
@@ -214,13 +186,11 @@ impl EditError {
     }
 }
 
-/// One declared dependency a manifest edit targets: its set, package and manifest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DepTarget {
     pub set: UpdateSet,
     pub package: String,
     pub manifest: Option<String>,
-    /// The configured npm, uv or bazel set the dependency belongs to, if any.
     pub configured: Option<ConfiguredSet>,
 }
 
@@ -239,19 +209,16 @@ impl DepTarget {
             .unwrap_or_else(|| refresh_selector(self.set, &self.package))
     }
 
-    /// Whether the dependency belongs to a configured bazel-modules set.
     #[must_use]
     pub fn is_configured_bazel(&self) -> bool {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Bazel)
     }
 
-    /// Whether the dependency belongs to a configured ruby set.
     #[must_use]
     pub fn is_configured_ruby(&self) -> bool {
         matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Ruby)
     }
 
-    /// What the user must do after the edit when nothing re-resolves the lock.
     pub fn follow_up(&self) -> Result<Option<String>, EditError> {
         let Some(set) = self.configured.as_ref() else {
             return Ok(None);
@@ -271,7 +238,6 @@ impl DepTarget {
         )))
     }
 
-    /// The command that refreshes this dependency's lock, as shown to the user.
     #[must_use]
     pub fn refresh_command(&self) -> String {
         if self.is_configured_bazel() {
@@ -380,7 +346,6 @@ impl UpdateRequest {
         Self::parse_grammar(selector, version)
     }
 
-    /// Parses a selector of any ecosystem; configured sets share these grammars.
     pub(crate) fn parse_grammar(selector: &str, version: &str) -> Result<UpdateRequest, EditError> {
         if selector.is_empty() || version.is_empty() {
             return Err(EditError::Empty);
@@ -411,7 +376,6 @@ impl UpdateRequest {
         Self::parse_configured_as(ConfiguredKind::Bazel, set_name, manifest, selector, version)
     }
 
-    /// Parses a request against a configured set of `kind`.
     pub fn parse_configured_as(
         kind: ConfiguredKind,
         set_name: &str,
@@ -429,7 +393,6 @@ impl UpdateRequest {
         )
     }
 
-    /// Parses a request against a configured set of `kind` with all its manifests.
     pub fn parse_configured_set(
         kind: ConfiguredKind,
         set_name: &str,
@@ -495,19 +458,16 @@ impl UpdateRequest {
         target_manifest(self.set, &self.package, self.manifest.as_deref())
     }
 
-    /// Every manifest of the configured set this request edits, if it has one.
     #[must_use]
     pub fn configured_manifests(&self) -> Option<&[String]> {
         self.configured.as_ref().map(|set| set.manifests.as_slice())
     }
 
-    /// The name of the configured set this request edits, if it has one.
     #[must_use]
     pub fn configured_name(&self) -> Option<&str> {
         self.configured.as_ref().map(|set| set.name.as_str())
     }
 
-    /// The set, package and manifest this request edits.
     #[must_use]
     pub fn target(&self) -> DepTarget {
         DepTarget {
@@ -518,7 +478,6 @@ impl UpdateRequest {
         }
     }
 
-    /// A request that widens `target` to `version`.
     #[must_use]
     pub fn for_target(
         target: &DepTarget,
@@ -540,7 +499,6 @@ impl UpdateRequest {
         }
     }
 
-    /// This request aimed at `dep_version`; a floor applies only to a MODULE.bazel `bazel_dep`.
     pub fn with_dep_version(mut self, dep_version: DepVersion) -> Result<UpdateRequest, EditError> {
         if dep_version != DepVersion::Tested
             && (self.set != UpdateSet::Bazel
@@ -555,7 +513,6 @@ impl UpdateRequest {
         Ok(self)
     }
 
-    /// This tag request with the tag already resolved to `sha`; the tag still rewrites the version comment.
     pub fn with_resolved_sha(&self, sha: &str) -> Result<UpdateRequest, EditError> {
         let WidenVersion::GitTag(tag) = &self.version else {
             return Err(EditError::Empty);
@@ -565,7 +522,6 @@ impl UpdateRequest {
         Ok(resolved)
     }
 
-    /// This pins request carrying the rewritten `pins.json` text.
     #[must_use]
     pub fn with_resolved_pins(&self, text: String) -> UpdateRequest {
         UpdateRequest {
@@ -617,7 +573,6 @@ impl UpdateRequest {
         self.plan_edit_in(self.target_manifest(), content)
     }
 
-    /// The widened `content` of `manifest`, a manifest of this request's set.
     pub fn plan_edit_in(&self, manifest: &str, content: &str) -> Result<String, EditError> {
         if matches!(&self.configured, Some(set) if set.kind == ConfiguredKind::Uv) {
             return plan_pyproject_toml(content, &self.package, &self.version);
@@ -685,7 +640,6 @@ impl UpdateRequest {
     }
 }
 
-/// Parses a `set:package` selector into its set and package identity.
 pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), EditError> {
     if selector.is_empty() {
         return Err(EditError::Empty);
@@ -728,7 +682,6 @@ pub fn parse_selector(selector: &str) -> Result<(UpdateSet, String), EditError> 
     Ok((set, tail.to_owned()))
 }
 
-/// Parses the `set:module` selector of a bazel dependency set into its module name.
 pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<String, EditError> {
     if selector.is_empty() {
         return Err(EditError::Empty);
@@ -758,7 +711,6 @@ pub fn parse_configured_selector(set_name: &str, selector: &str) -> Result<Strin
     Ok(tail.to_owned())
 }
 
-/// Parses a configured npm or uv `set:package` selector into its package identity.
 pub(crate) fn parse_foreign_selector(
     set_name: &str,
     kind: ConfiguredKind,

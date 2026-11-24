@@ -11,7 +11,6 @@ use std::time::Duration;
 
 const CHILD: &str = "DX_OS_SYS_TEST_CHILD";
 
-/// This test binary run again as a child that exits with `code`, or sleeps for 30 seconds on `None`.
 pub(crate) fn child(code: Option<i32>) -> Command {
     let mut command = Command::new(std::env::current_exe().expect("exe"));
     command

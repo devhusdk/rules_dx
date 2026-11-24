@@ -3,13 +3,6 @@ use std::path::Path;
 
 use crate::{DepInfo, DepcheckError};
 
-/// Reads the `.dependencies` of a manifest. A dependency's `.hash` is its lock, so it
-/// lands in `sha256`; `.lazy = true` marks it optional. Path dependencies have no hash and are
-/// skipped.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text = strip_comments(&text);
@@ -58,11 +51,6 @@ pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads the lock of a zig hub: each package's `version` is the manifest `.hash` it was locked from.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_zig_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()
@@ -90,7 +78,6 @@ fn strip_comments(text: &str) -> String {
         .join("\n")
 }
 
-/// The text between the braces of `.dependencies = .{ ... }`.
 fn dependencies_block(text: &str) -> Option<&str> {
     let re = regex::Regex::new(r"\.dependencies\s*=\s*\.\{").ok()?;
     let start = re.find(text)?.end();
@@ -98,7 +85,6 @@ fn dependencies_block(text: &str) -> Option<&str> {
     rest.get(..matching_brace(rest))
 }
 
-/// Offset of the `}` closing an already opened brace, or the text length when unclosed.
 fn matching_brace(text: &str) -> usize {
     let mut depth = 1usize;
     let mut quoted = false;

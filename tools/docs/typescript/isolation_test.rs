@@ -1,5 +1,3 @@
-//! Checks that consumer `TypeDoc` configuration cannot inject plugins into the docs rule.
-
 use documentation_ir::{decode_shard, validate_shard};
 
 const MARKERS: [&str; 3] = [

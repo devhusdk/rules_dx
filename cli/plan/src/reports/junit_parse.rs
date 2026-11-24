@@ -10,9 +10,6 @@ fn junit_error(detail: impl Into<String>) -> ReportError {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_test_xml(
     bytes: &[u8],
     shard: u32,
@@ -118,7 +115,6 @@ fn deserialize_report(text: &str) -> Result<quick_junit::Report, ReportError> {
     }
 }
 
-/// Replaces numeric character references such as `&#xA;` with their characters, which `quick_junit` rejects.
 fn decode_numeric_references(text: &str) -> Cow<'_, str> {
     if !text.contains("&#") {
         return Cow::Borrowed(text);
@@ -139,7 +135,6 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-/// Decodes the numeric references of `text`, which holds no CDATA section, onto `out`.
 fn decode_markup(out: &mut String, text: &str) {
     let mut rest = text;
     while let Some((before, tail)) = rest.split_once("&#") {
@@ -184,7 +179,6 @@ fn strip_leading_decl(text: &str) -> &str {
     text
 }
 
-/// Drops `timestamp` attributes, clamps negative `time` values and names unnamed suites, failing open on bad XML.
 fn normalize_document(text: &str) -> String {
     use quick_xml::events::Event;
     use quick_xml::reader::Reader;
@@ -254,7 +248,6 @@ fn normalize_document(text: &str) -> String {
     String::from_utf8(bytes).unwrap_or_else(|_| text.to_owned())
 }
 
-/// Rebuilds a tag without `timestamp`, with negative `time` clamped and a missing suite name set.
 fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'static>>, ()> {
     let mut kept: Vec<Attribute<'a>> = Vec::new();
     let mut changed = false;
@@ -293,7 +286,6 @@ fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'st
     Ok(Some(elem))
 }
 
-/// Attribute values keep their raw escaping, so only the quote that delimits them needs care.
 fn escape_inner_quotes(value: Cow<'_, [u8]>) -> Cow<'_, [u8]> {
     if !value.contains(&b'"') {
         return value;

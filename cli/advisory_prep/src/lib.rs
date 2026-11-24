@@ -21,7 +21,6 @@ use dx_audit::advisory_prep::{
 
 pub const DEFAULT_OUT: &str = ".dx/local/advisory";
 
-/// True when `.dx/pins` under `workspace` pins advisory snapshots.
 #[must_use]
 pub fn advisory_pinned(workspace: &Path) -> bool {
     std::fs::read_to_string(workspace.join(".dx/pins")).is_ok_and(|pins| {
@@ -30,8 +29,6 @@ pub fn advisory_pinned(workspace: &Path) -> bool {
     })
 }
 
-/// True when the workspace holds Terraform, Bicep, Dockerfile or Helm files, or an
-/// `oci_deploy` use in a Bazel file: the inputs the trivy databases serve.
 pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
     std::fs::read_dir(workspace).map_err(|error| PrepError::Usage {
         detail: format!("could not read {}: {error}", workspace.display()),
@@ -46,7 +43,6 @@ pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
                 continue;
             };
             if kind.is_symlink() {
-                // Follow links to files only; a linked directory may loop back.
                 match std::fs::metadata(entry.path()) {
                     Ok(target) if target.is_file() => kind = target.file_type(),
                     _ => continue,
@@ -83,7 +79,6 @@ pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
     Ok(false)
 }
 
-/// How one preparation run reaches and writes its snapshots.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrepareOptions {
     pub workspace: PathBuf,
@@ -91,15 +86,10 @@ pub struct PrepareOptions {
     pub retrieved_at: String,
     pub limits: FetchLimits,
     pub archives: BTreeMap<String, PathBuf>,
-    /// File holding the `cpansa_dump` output instead of running the binary.
     pub cpansa_output: Option<PathBuf>,
-    /// The `//perl/private/tools:cpansa_dump` binary that prints the `CPANSA::DB` database.
     pub cpansa_dump: Option<PathBuf>,
-    /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
     pub trivy: Option<PathBuf>,
-    /// Base URL of the cargo sparse index the yanked flags are read from.
     pub cargo_index: Option<String>,
-    /// Base URL of the `PyPI` JSON API the yanked flags are read from.
     pub pypi_index: Option<String>,
 }
 
@@ -120,7 +110,6 @@ impl Default for PrepareOptions {
     }
 }
 
-/// One snapshot one preparation run published.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Prepared {
     pub family: String,
@@ -129,7 +118,6 @@ pub struct Prepared {
     pub advisories: usize,
 }
 
-/// Outcome of one preparation run.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Summary {
     pub status: &'static str,
@@ -138,7 +126,6 @@ pub struct Summary {
 }
 
 impl Summary {
-    /// Builds the summary of the snapshots one run published.
     #[must_use]
     pub fn of(prepared: &[Prepared]) -> Self {
         let prepared: Vec<&Prepared> = prepared
@@ -156,7 +143,6 @@ impl Summary {
         }
     }
 
-    /// Renders the key=value lines a workflow step output takes.
     #[must_use]
     pub fn render(&self) -> String {
         format!(
@@ -170,11 +156,8 @@ impl Summary {
 
 use dx_audit::advisory::TRIVY_FAMILY;
 
-/// Release download base of the shared snapshot repo; one release per date tag.
 pub const PIN_URL_BASE: &str = "https://github.com/devhusdk/rules_dx-advisory/releases/download";
 
-/// Copies each prepared snapshot to `<dir>/<date>/<family>.json` and returns the
-/// `.dx/pins` line that pins it, with the asset URL under `url_base`.
 pub fn write_pins(
     options: &PrepareOptions,
     prepared: &[Prepared],
@@ -229,7 +212,6 @@ pub fn write_pins(
     Ok(lines)
 }
 
-/// The families and upstream archives one preparation run will convert.
 pub fn plan(options: &PrepareOptions) -> Result<Vec<(&'static str, String)>, PrepError> {
     let mut families = needed_families(&options.workspace)?;
     families.extend(configured_families(&options.workspace)?);
@@ -264,7 +246,6 @@ fn configured_families(workspace: &Path) -> Result<Vec<&'static str>, PrepError>
         .unwrap_or_default())
 }
 
-/// Prepares every snapshot the workspace's dependency sets need, once.
 pub fn prepare(options: &PrepareOptions) -> Result<Vec<Prepared>, PrepError> {
     let mut out = Vec::new();
     for (family, url) in plan(options)? {
@@ -303,14 +284,12 @@ fn prepare_family(
     publish(options, family, prepared)
 }
 
-/// Caps for one OSV snapshot zip.
 const SNAPSHOT_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: 1 << 21,
     max_entry_bytes: 64 << 20,
     max_total_bytes: 4 << 30,
 };
 
-/// The name and body of every `.json` file member of a snapshot zip, in archive order.
 fn json_entries(
     archive: &[u8],
     limits: dx_archive::Limits,
@@ -444,15 +423,12 @@ fn read_archive(options: &PrepareOptions, family: &str, url: &str) -> Result<Vec
     })
 }
 
-/// Runs the bounded download that fetches one snapshot archive.
 pub fn fetch(url: &str, destination: &Path, limits: FetchLimits) -> Result<(), PrepError> {
     fetch_many(&[(url.to_owned(), destination.to_path_buf())], limits)
 }
 
-/// Most transfers one parallel curl run keeps open at once.
 pub const PARALLEL_MAX: u32 = 16;
 
-/// Runs one bounded parallel curl that fetches every file.
 pub fn fetch_many(downloads: &[(String, PathBuf)], limits: FetchLimits) -> Result<(), PrepError> {
     if downloads.is_empty() {
         return Ok(());

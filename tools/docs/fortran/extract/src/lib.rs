@@ -1,5 +1,3 @@
-//! Converts the FORD driver's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
@@ -18,7 +16,6 @@ const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "fortran.config";
 const KEY_INCOMPLETE: &str = "fortran.incomplete";
 
-/// Why one FORD JSON document could not become a shard.
 #[derive(Debug)]
 pub enum FortranExtractError {
     Read(PathIoError),
@@ -90,7 +87,6 @@ impl From<JsonError> for FortranExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -98,23 +94,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `fortran_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("fortran_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: fortran_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -124,11 +113,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), FortranExtractError> {
     let json =
         path_io::read_to_string(Path::new(&options.json)).map_err(FortranExtractError::Read)?;
@@ -136,7 +120,6 @@ pub fn run(options: &Options) -> Result<(), FortranExtractError> {
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(FortranExtractError::Write)
 }
 
-/// Normalizes CRLF line endings and trims trailing whitespace.
 fn normalize(text: &str) -> String {
     text.replace("\r\n", "\n").trim_end().to_owned()
 }
@@ -148,7 +131,6 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// Returns the id of one dotted object path, with every segment escaped.
 fn symbol_id(package: &str, path: &str) -> String {
     let qualified: Vec<String> = path
         .split('.')
@@ -230,11 +212,6 @@ fn returns(
     }
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, FortranExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(FortranExtractError::InvalidPackage {

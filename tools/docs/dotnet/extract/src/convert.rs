@@ -1,5 +1,3 @@
-//! Maps the dotnet API facts onto the versioned documentation IR.
-
 use crate::DotnetExtractError as E;
 use crate::types::{Api, Item, SCHEMA, parse_api};
 use documentation_ir::escape_id_segment;
@@ -10,7 +8,6 @@ use documentation_ir::tool::Source;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
-/// The identity inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
     pub language: String,
@@ -19,11 +16,6 @@ pub struct Settings {
     pub sources: Vec<Source>,
 }
 
-/// Converts one dx.dotnet-api/1 document into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, E> {
     let api = parse_api(json)?;
     if api.language != settings.language {
@@ -131,7 +123,6 @@ fn segment_group(item: &Item, overloaded: bool) -> Result<String, E> {
     }
     let mut segment = escape_id_segment(&item.name);
     if overloaded {
-        // The first four digest bytes keep overload ids short and stable.
         let hex: String = dx_digest::sha256_hex(item.doc_id.as_bytes())
             .chars()
             .take(8)

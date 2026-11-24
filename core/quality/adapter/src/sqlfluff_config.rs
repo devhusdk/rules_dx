@@ -1,21 +1,14 @@
-//! Merges nested `.sqlfluff` files the way sqlfluff does, so dx can hand sqlfluff one config.
-
 use std::collections::BTreeMap;
 
-/// One effective config for a set of files.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Group {
-    /// The nested config rels applied over the bound config, shallowest first.
     pub layers: Vec<String>,
-    /// The merged config text; `None` when the bound config applies unchanged.
     pub merged: Option<String>,
-    /// The files that share this config, sorted.
     pub files: Vec<String>,
 }
 
 type Leaves = BTreeMap<Vec<String>, String>;
 
-/// Parses an ini config into leaf paths and raw values; mirrors sqlfluff's `load_ini_string`.
 fn parse(text: &str) -> Result<Leaves, String> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut leaves = Leaves::new();
@@ -72,7 +65,6 @@ fn parse(text: &str) -> Result<Leaves, String> {
     Ok(leaves)
 }
 
-/// Renders leaves as ini text, sections and keys in sorted order.
 fn render(leaves: &Leaves) -> String {
     let mut sections: BTreeMap<String, Vec<(String, &String)>> = BTreeMap::new();
     for (path, value) in leaves {
@@ -99,11 +91,6 @@ fn render(leaves: &Leaves) -> String {
     out
 }
 
-/// Merges config layers leaf by leaf; a later layer wins.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn merge(layers: &[&str]) -> Result<String, String> {
     let mut merged = Leaves::new();
     for text in layers {
@@ -128,12 +115,6 @@ fn depth(dir: &str) -> usize {
     }
 }
 
-/// Groups files by the chain of nested configs above them and merges each chain over the bound
-/// config. `nested` holds `(config rel, text)`; a config applies to files below its directory.
-///
-/// # Errors
-///
-/// Returns a message describing why the input was rejected.
 pub fn group(
     bound: &str,
     nested: &[(String, String)],

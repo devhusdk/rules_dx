@@ -1,5 +1,3 @@
-//! Every non-test `rule()`, `aspect()` and public attr in `rules_dx` has a one-line doc.
-
 use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
@@ -8,16 +6,12 @@ use starlark_syntax::syntax::ast::{
 };
 use starlark_syntax::syntax::{AstModule, Dialect};
 
-/// Callees whose calls must pass doc when they pass implementation.
 const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 
-/// Path segments whose .bzl files are test support, not public rules.
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
-/// Name suffixes of public wrappers whose parameters after `name` must be keyword-only.
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
-/// Packages whose :`corpus_starlark` is in the test data.
 const PACKAGES: &[&str] = &[
     "android/private/library",
     "android/private/packaging",
@@ -127,13 +121,10 @@ const PACKAGES: &[&str] = &[
     "zig/private/tools",
 ];
 
-/// Fewer non-test rules and aspects than this means the sweep lost its data.
 const MIN_CALLS: usize = 100;
 
-/// Fewer public attrs than this means the sweep lost its data.
 const MIN_ATTRS: usize = 550;
 
-/// What one file contributes: checked calls and their findings.
 #[derive(Default)]
 struct Scan {
     calls: usize,
@@ -141,7 +132,6 @@ struct Scan {
     findings: Vec<String>,
 }
 
-/// Whether `path` is test support that the check skips.
 fn skipped(path: &str) -> bool {
     path.ends_with("_tests.bzl")
         || path
@@ -149,7 +139,6 @@ fn skipped(path: &str) -> bool {
             .any(|segment| SKIPPED_SEGMENTS.contains(&segment))
 }
 
-/// The `rule()` and `aspect()` calls and public attrs in `source` that lack a usable doc, as `path:line: ...`.
 fn findings(path: &str, source: &str) -> Vec<String> {
     scan(path, source).findings
 }
@@ -179,7 +168,6 @@ fn scan(path: &str, source: &str) -> Scan {
     out
 }
 
-/// Reports every public top-level wrapper def with a positional parameter after `name`.
 fn check_wrappers(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
     let stmts = match &stmt.node {
         StmtP::Statements(stmts) => stmts.iter().collect::<Vec<_>>(),
@@ -213,7 +201,6 @@ fn check_wrappers(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
     }
 }
 
-/// Whether a parameter follows `name` before the first `*` or `**kwargs`.
 fn positional_after_name(params: &[AstParameter]) -> bool {
     let Some(at) = params.iter().position(
         |param| matches!(&param.node, ParameterP::Normal(id, _, _) if id.node.ident == "name"),
@@ -226,7 +213,6 @@ fn positional_after_name(params: &[AstParameter]) -> bool {
         .any(|param| matches!(param.node, ParameterP::Normal(..) | ParameterP::Args(..)))
 }
 
-/// Reports every def whose docstring spans more than one line.
 fn check_defs(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
     if let StmtP::Def(def) = &stmt.node {
         let first = match &def.body.node {
@@ -267,7 +253,6 @@ fn walk(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
     expr.node.visit_expr(|child| walk(ast, path, child, out));
 }
 
-/// Checks a `rule()` or `aspect()` call; false when it is a test rule whose inline attrs are exempt.
 fn check_call(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) -> bool {
     let ExprP::Call(callee, args) = &expr.node else {
         return true;
@@ -298,7 +283,6 @@ fn check_call(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) -> bo
     true
 }
 
-/// Checks each public `"key": attr.x(...)` entry of a dict literal for a doc.
 fn check_attr_dict(ast: &AstModule, path: &str, expr: &AstExpr, out: &mut Scan) {
     let ExprP::Dict(entries) = &expr.node else {
         return;
@@ -337,7 +321,6 @@ fn is_string(expr: &AstExpr, wanted: &str) -> bool {
     matches!(&expr.node, ExprP::Literal(AstLiteral::String(text)) if text.node == wanted)
 }
 
-/// The value of the named argument `key`, if passed.
 fn named_arg<'a>(args: &'a [AstArgument], key: &str) -> Option<&'a AstExpr> {
     args.iter().find_map(|arg| match &arg.node {
         ArgumentP::Named(arg_key, value) if arg_key.node == key => Some(value),
@@ -348,7 +331,6 @@ fn named_arg<'a>(args: &'a [AstArgument], key: &str) -> Option<&'a AstExpr> {
     })
 }
 
-/// Why `doc` is not a usable one-line doc, or None when it is (computed docs count).
 fn doc_problem(doc: Option<&AstExpr>) -> Option<&'static str> {
     match doc.map(|value| &value.node) {
         None => Some("has no doc"),
@@ -362,12 +344,10 @@ fn doc_problem(doc: Option<&AstExpr>) -> Option<&'static str> {
     }
 }
 
-/// The 1-based line where `expr` starts.
 fn line_of(ast: &AstModule, expr: &AstExpr) -> usize {
     ast.file_span(expr.span).resolve_span().begin.line + 1
 }
 
-/// Every .bzl file under `dir`, relative to the runfiles root.
 fn bzl_files(dir: &Path) -> Vec<String> {
     let root = runfiles_root();
     let mut out = Vec::new();
@@ -392,7 +372,6 @@ fn bzl_files(dir: &Path) -> Vec<String> {
     out
 }
 
-/// The listed package that owns `path`, the longest matching prefix.
 fn owner<'a>(packages: &'a [String], path: &str) -> Option<&'a str> {
     let dir = path.rsplit_once('/').map_or("", |(dir, _)| dir);
     packages
@@ -402,7 +381,6 @@ fn owner<'a>(packages: &'a [String], path: &str) -> Option<&'a str> {
         .max_by_key(|pkg| pkg.len())
 }
 
-/// Listed packages with no .bzl file and no BUILD file in the runfiles.
 fn missing_packages(
     packages: &[String],
     seen: &std::collections::BTreeSet<&str>,
@@ -485,10 +463,13 @@ fn an_aspect_without_doc_is_reported() {
 
 #[test]
 fn a_test_rule_is_exempt() {
-    assert_eq!(findings(
+    assert_eq!(
+        findings(
             "pkg/defs.bzl",
             "x = rule(implementation = _impl, test = True)\n"
-        ), Vec::<String>::new());
+        ),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -502,7 +483,10 @@ fn the_attr_key_is_exempt_only_in_a_tool_descriptor() {
 
 #[test]
 fn a_call_without_implementation_is_ignored() {
-    assert_eq!(findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -550,7 +534,10 @@ fn a_tests_path_is_skipped() {
     let source = "x = rule(implementation = _impl)\n";
     assert_eq!(findings("pkg/tests/defs.bzl", source), Vec::<String>::new());
     assert_eq!(findings("pkg/defs_tests.bzl", source), Vec::<String>::new());
-    assert_eq!(findings("third_party/x/defs.bzl", source), Vec::<String>::new());
+    assert_eq!(
+        findings("third_party/x/defs.bzl", source),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -631,15 +618,24 @@ fn a_keyword_only_wrapper_is_accepted() {
 
 #[test]
 fn a_wrapper_with_only_name_is_accepted() {
-    assert_eq!(findings("pkg/defs.bzl", "def x_test(name):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def x_test(name):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn a_private_wrapper_is_ignored() {
-    assert_eq!(findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn a_def_outside_defs_bzl_is_ignored() {
-    assert_eq!(findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }

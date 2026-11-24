@@ -1,11 +1,7 @@
-//! Command line front end of `quality_notebook`.
-
 use crate::{output_findings, strip_outputs};
 
 const USAGE: &str = "usage: quality_notebook outputs [--fix] FILE...";
 
-/// Runs the CLI. Exit codes: 0 clean (or fixed), 1 findings, 2 usage or
-/// input errors.
 pub fn run_cli(
     args: &[String],
     read: &dyn Fn(&str) -> std::io::Result<Vec<u8>>,

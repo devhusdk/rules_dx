@@ -1,12 +1,3 @@
-//! Aspect implementations do not flatten depsets beyond `tools/ci/aspect_to_list_allowlist.txt`.
-//!
-//! An aspect runs at every node it reaches, so a `.to_list()` there costs the size of the
-//! closure at each node and analysis turns quadratic on deep graphs. Keep depsets whole and
-//! hand them to `Args.add_all`, or flatten once in the top-level rule. The scan starts at every
-//! `aspect(implementation = ...)` and every function in a `context_hooks` value passed to
-//! `real_config`, and follows calls into defs of the same file and defs loaded from other files
-//! (`//`, `@//`, `@rules_dx//` and `:` labels). Each `.to_list()` counts once, at its own file.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_guard::allowlist::{self, Counts, hit};
@@ -17,17 +8,14 @@ use starlark_syntax::syntax::AstModule;
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
-/// The kind every allowlist line names.
 const KIND: &str = "aspect-to-list";
 
-/// One def: a name per call in its body (nested defs included) and the offsets of its `.to_list()` calls.
 struct Def<'a> {
     calls: Vec<&'a AstExpr>,
     nested: Vec<String>,
     flattens: Vec<u32>,
 }
 
-/// The names one file binds: defs, top-level assignments and loaded symbols.
 #[derive(Default)]
 struct Scope<'a> {
     defs: BTreeMap<String, Def<'a>>,
@@ -35,7 +23,6 @@ struct Scope<'a> {
     loads: BTreeMap<String, (String, String)>,
 }
 
-/// A def named by its file and its name.
 type Func = (String, String);
 
 fn statements<'a>(stmt: &'a AstStmt, out: &mut Vec<&'a AstStmt>) {
@@ -43,12 +30,10 @@ fn statements<'a>(stmt: &'a AstStmt, out: &mut Vec<&'a AstStmt>) {
     stmt.visit_stmt(|child| statements(child, out));
 }
 
-/// Whether `expr` is a call of `.to_list()`.
 fn is_to_list(expr: &AstExpr) -> bool {
     matches!(&expr.node, ExprP::Call(callee, _) if matches!(&callee.node, ExprP::Dot(_, name) if name.node == "to_list"))
 }
 
-/// The value of the named argument `key` of every call of `function` in `root`.
 fn named_args<'a>(root: &'a AstStmt, function: &str, key: &str) -> Vec<&'a AstExpr> {
     let mut found = Vec::new();
     for expr in exprs(root) {
@@ -69,7 +54,6 @@ fn named_args<'a>(root: &'a AstStmt, function: &str, key: &str) -> Vec<&'a AstEx
     found
 }
 
-/// The snapshot path a `load()` label in `from` names, if it is a file of this repository.
 fn load_path(from: &str, label: &str, files: &BTreeMap<String, String>) -> Option<String> {
     for prefix in ["@rules_dx//", "@//", "//"] {
         if let Some(rest) = label.strip_prefix(prefix) {
@@ -82,7 +66,6 @@ fn load_path(from: &str, label: &str, files: &BTreeMap<String, String>) -> Optio
         }
     }
     let name = label.strip_prefix(':')?;
-    // The package is the nearest ancestor directory that holds the loaded file.
     let mut dir = from.rsplit_once('/').map_or("", |(dir, _)| dir);
     loop {
         let path = if dir.is_empty() {
@@ -166,7 +149,6 @@ struct Index<'a> {
 }
 
 impl Index<'_> {
-    /// The defs `name` stands for in `file`: a def, a global bound to defs, or a loaded symbol.
     fn resolve(&self, file: &str, name: &str, seen: &mut BTreeSet<Func>, out: &mut Vec<Func>) {
         if !seen.insert((file.to_owned(), name.to_owned())) {
             return;
@@ -183,7 +165,6 @@ impl Index<'_> {
         }
     }
 
-    /// The defs an expression names: identifiers, dict values, `|` and `+` of those, and factory calls.
     fn values(&self, file: &str, expr: &AstExpr, seen: &mut BTreeSet<Func>, out: &mut Vec<Func>) {
         if let ExprP::Identifier(ident) = &expr.node {
             self.resolve(file, &ident.node.ident, seen, out);
@@ -199,7 +180,6 @@ impl Index<'_> {
         }
     }
 
-    /// The defs a call in `file` may enter: its callee resolved in the file scope, or a same-file def of the same last name.
     fn callee(&self, file: &str, call: &AstExpr, out: &mut Vec<Func>) {
         let ExprP::Call(callee, _) = &call.node else {
             return;

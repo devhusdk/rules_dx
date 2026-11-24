@@ -20,11 +20,9 @@ This page fixes how languages lock, fetch and resolve third-party packages. Tool
 
 `dx security` and `dx license` read one version of each foreign format; any other fails and names the supported one.
 
-Format | Supported version
---- | ---
-`pnpm-lock.yaml` | `lockfileVersion` 9.0
-`package-lock.json` | `lockfileVersion` 3
-`.gitleaks.toml` | `[[allowlists]]`; `[allowlist]` is rejected
+- `pnpm-lock.yaml`: `lockfileVersion` 9.0.
+- `package-lock.json`: `lockfileVersion` 3.
+- `.gitleaks.toml`: `[[allowlists]]`; `[allowlist]` is rejected.
 
 ## Classes
 
@@ -50,7 +48,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `ruby` (ruby): `Gemfile`; `Gemfile.lock`; `gems`.
 - `composer` (php): `composer.json`; `composer.lock`; `composer`.
 - `luarocks` (lua): `*.rockspec`; none; `rocks`.
-- `dub` (d): `dub.json`; `dub.lock.json`, state `dub.selections.json`; resolver `@rules_dx//d/private/tools/lock`; imports `provides`; `dub`.
+- `dub` (d): `dub.json`; `dub.lock.json`, state `dub.selections.json`; resolver `@rules_dx//d/private/tools/lock`; `dub`.
 - `zig` (zig): `build.zig.zon`; none; `zig`.
 - `hex` (elixir, erlang): `mix.exs`, else `rebar.config`; `mix.lock`, else `rebar.lock`; `hex`.
 - `cpan` (perl): `cpanfile`; `cpanfile.snapshot`; `cpan`.
@@ -61,7 +59,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - `powershell` (powershell): `PSGallery.requirements.psd1`; none; `psgallery`.
 - `ansible` (ansible): `requirements.yml`; none; `ansible`.
 - `bicep` (bicep): `*.bicep`; none; `bicep`.
-- `terraform` (terraform): `*.tf`; `terraform.lock.json`, state `.terraform.lock.hcl`; resolver `@rules_dx//terraform/private/tools/lock`; imports `provides`; `dx_terraform_providers`.
+- `terraform` (terraform): `*.tf`; `terraform.lock.json`, state `.terraform.lock.hcl`; resolver `@rules_dx//terraform/private/tools/lock`; `dx_terraform_providers`.
 
 ## Manifest
 
@@ -72,23 +70,19 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 - A dependency set has one lock, next to its root manifest.
 - A resolver writes its own state file; no hub or Gazelle code reads it.
 - Only the lock step writes a lock or state file. The tree holds no `*.digests.json`.
-- A dx class lock names every closure package with one exact version and every archive with URLs and sha256.
+- A dx class lock names every closure package with one exact version.
 
 ## dx lock schema
 
 - `core/modules/lock.schema.json` is the schema of each `<ecosystem>.lock.json`.
-- The top keys are `schema`, `ecosystem`, `inputs` (the manifest and state file mapped to their sha256) and `packages`.
-- `packages` is sorted by `name`. A package holds `name`, `version`, `archives`, `deps`, `provides`, and `dev` when development-only.
-- An archive holds `urls`, `sha256`, and `strip_prefix` and `platform` when they apply.
-- `provides` lists the package's import names.
-- Other ecosystem data is under `extra`; the schema lists its keys per ecosystem.
-- Keys are sorted, so the same inputs and registry state give the same bytes.
+- `inputs` maps the manifest and state file to their sha256.
+- `provides` lists a package's import names. `dev` marks a development-only package. `extra` holds other ecosystem data.
+- `packages` is sorted by `name` and keys are sorted: the same inputs and registry state give the same bytes.
 
 ## Groups
 
-- A `nuget.lock.json` holds one exact-version closure per Paket group under `groups`, which maps group name to packages; its `packages` is empty.
+- In a `nuget.lock.json`, `groups` maps each Paket group to its exact-version closure; `packages` is empty.
 - Each group is its own hub: the `main` group is the set's hub name, another group is `<hub>.<group>`.
-- A package of a group is `@<group hub>//<name>`.
 
 ## Extension
 
@@ -116,15 +110,15 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 ## Lock step
 
 - `resolver` labels one runnable rules_dx target. dx runs `bazel run <resolver> -- --dir <set directory>`, plus `--check` to compare only.
-- A `dx_subcommand` resolver target runs `dx <lang>_lock` from the prebuilt dx, each `path_args` entry as `<flag>=<absolute path>`, so the step compiles nothing in a consumer.
+- A `dx_subcommand` resolver target runs `dx <lang>_lock` from the prebuilt dx, each `path_args` entry as `<flag>=<absolute path>`.
 - No user BUILD file declares a lock, pin, resolve or digest target.
 - `dx generate --apply` runs the step for a set with a missing or stale lock, `dx update` to move versions, `dx check` with `--check`.
 - A dx class lock is stale when an `inputs` file has another sha256. For upstream class the resolver's frozen mode decides.
-- The `pub` and `maven` steps record the manifest's sha256 in the lock: `pubspec.lock` gets a `# dx inputs sha256: <hex>` line after pub's header comments, `maven_install.json` a top-level `"__DX_INPUTS_SHA256"` key. A matching marker is fresh without starting `dart` or `java`; a missing or different one is stale. Existing locks need one `dx generate --apply`.
-- `dx check` and `dx generate` skip a `maven_install.json` with `__INPUT_ARTIFACTS_HASH`; rules_jvm_external pins it.
-- The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
-- The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml`, writes `maven_install.json`.
-- The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock`, with only the pinned coreutils `chmod` on `PATH`, and writes `pubspec.lock`.
+- The `pub` and `maven` locks carry the manifest's sha256: a `# dx inputs sha256: <hex>` line after the `pubspec.lock` header comments, a top-level `"__DX_INPUTS_SHA256"` key in `maven_install.json`. A matching marker is fresh without starting `dart` or `java`; any other is stale.
+- `dx check` and `dx generate` skip a `maven_install.json` with `__INPUT_ARTIFACTS_HASH`.
+- The step runs the resolver rules_dx pins by sha256, starts no host program and keeps the resolver's home, cache and config in a scratch directory.
+- The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK.
+- The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock`, with only the pinned coreutils `chmod` on `PATH`.
 - A step whose `inputs` match makes no network request, and a package with unchanged name, version and URLs keeps its entry.
 
 ## Imports
@@ -137,7 +131,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 
 ## Checks
 
-- `//tools/ci:lock_registry_test` fails on an ecosystem without a registry entry, a banned tag attribute, a `*.digests.json` file, a Starlark lock parser, a manifest or lock name outside the registry, a doc line pairing `gazelle:resolve` with a hub label, and a `setup.hubs` resolver that is not a `dx_subcommand` target.
+- `//tools/ci:lock_registry_test` fails on an ecosystem, manifest or lock name outside the registry, a banned tag attribute, a `*.digests.json` file, a Starlark lock parser, a doc line pairing `gazelle:resolve` with a hub label, and a `setup.hubs` resolver that is not a `dx_subcommand` target.
 - Each ecosystem has one fixture set under `<lang>/tests/fixtures/`. One test runs its resolver with an empty `PATH` against a registry fixture in runfiles and compares the lock bytes.
 - One table test in `cli/adopt` plans the stanza for every registry entry.
 - One table test in `gazelle/common` resolves an import from each ecosystem's fixture to its hub label with no directive.

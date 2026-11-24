@@ -254,8 +254,6 @@ fn parse_file(text: &str) -> Result<LicensesFile, PolicyProblem> {
     })
 }
 
-/// The policy for `tier`: its embedded base with `text`, the workspace's
-/// license.toml, merged over it. Missing or blank text means the base alone.
 pub fn load_licenses(
     text: Option<&str>,
     tier: dx_config::Tier,

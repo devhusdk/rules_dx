@@ -49,8 +49,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes each library source under the module name lua_library gives
-// it, reading the rule's own strip_import_prefix and import_prefix.
 func (l *luaLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil
@@ -68,14 +66,10 @@ func (l *luaLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolv
 	return specs
 }
 
-// benchKind is the handwritten bench macro, which generation never emits.
 const benchKind = "lua_bench"
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// claimedByBinary lists the sources handwritten lua_binary and lua_bench rules
-// own through main or srcs, or through their name for a lua_bench without
-// either; generation leaves them out of the library.
 func claimedByBinary(f *rule.File) map[string]bool {
 	claimed := make(map[string]bool)
 	if f == nil {
@@ -100,8 +94,6 @@ func claimedByBinary(f *rule.File) map[string]bool {
 	return claimed
 }
 
-// generateRules emits one lua_library for the directory's modules and one
-// lua_test per *_test.lua. lua_binary stays handwritten.
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
 	binary := claimedByBinary(args.File)
 	var srcs, tests []string
@@ -174,8 +166,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return common.MergeStaleOwned(args.File, result, kinds, ownsStale(args, libName))
 }
 
-// ownsStale limits stale removal to the generated library name and rules whose
-// sources are all gone, so handwritten rules over existing files survive.
 func ownsStale(args language.GenerateArgs, libName string) func(*rule.Rule) bool {
 	return func(r *rule.Rule) bool {
 		if libName != "" && r.Name() == libName {

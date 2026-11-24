@@ -19,7 +19,6 @@ struct Diagnostic<'a> {
     message: &'a str,
 }
 
-/// Splits `file(12)` or `file(12,5)` into the file and its position.
 fn location(head: &str) -> Option<(&str, Option<(u64, u64)>)> {
     let head = head.trim_end();
     let Some(inner) = head.strip_suffix(')') else {
@@ -32,7 +31,6 @@ fn location(head: &str) -> Option<(&str, Option<(u64, u64)>)> {
     Some((file, Some((line.parse().ok()?, column.parse().ok()?))))
 }
 
-/// Reads `error C2065: text`, `warning LNK4098: text` or clang-cl's `error: text`.
 fn severity_and_code(tail: &str) -> Option<(Option<ToolSeverity>, &str, &str)> {
     let (rest, severity) = SEVERITIES.iter().find_map(|(word, severity)| {
         tail.strip_prefix(word)
@@ -82,14 +80,6 @@ fn checked<'a>(file: &str, files: &[&'a str]) -> Option<&'a str> {
         .find(|f| file == *f || file.ends_with(&format!("/{f}")))
 }
 
-/// Parses `cl.exe` and `clang-cl` text diagnostics. Notes and continuation lines carry no
-/// finding. A located diagnostic in a file outside `files` is dropped. A linker or driver
-/// diagnostic with no source location is reported at the first checked file. A failing
-/// exit with no finding is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_msvc_syntax(
     stdout: &[u8],
     code: Option<i32>,

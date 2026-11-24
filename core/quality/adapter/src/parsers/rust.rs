@@ -51,9 +51,6 @@ fn clippy_level(tool: &'static str, level: &str) -> Result<ToolSeverity, ParseEr
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clippy(
     stderr: &[u8],
     code: Option<i32>,
@@ -63,9 +60,6 @@ pub fn parse_clippy(
     parse_rust_diagnostics("clippy", stderr, code, files)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rustc(
     stderr: &[u8],
     code: Option<i32>,
@@ -243,7 +237,6 @@ fn push_children(children: &[ClippyMessage], out: &mut Vec<Related>) {
     }
 }
 
-/// `MachineApplicable` is safe, `MaybeIncorrect` is unsafe; placeholders and unspecified edits are never applied.
 fn fix_applicability(rustc: &str) -> Option<FixApplicability> {
     match rustc {
         "MachineApplicable" => Some(FixApplicability::Safe),

@@ -1,8 +1,3 @@
-//! Runs one sancov-instrumented test, symbolizes the PCs it wrote and writes its LCOV report into COVERAGE_DIR.
-//!
-//! Reads runfiles keys from DX_SANCOV_UPSTREAM, DX_SANCOV_SOURCES and DX_LLVM_SYMBOLIZER, plus
-//! DX_DSYMUTIL for a Mach-O test. Without COVERAGE_DIR it only runs the test.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -35,7 +30,6 @@ fn checked(command: &mut Command, what: &str) -> Result<Vec<u8>, String> {
     Ok(out.stdout)
 }
 
-/// Symbolizes every PC in `pcs` against `test`, through a dSYM when `dsymutil` is given.
 fn symbolize(
     symbolizer: &Path,
     dsymutil: Option<&Path>,
@@ -46,7 +40,6 @@ fn symbolize(
     let mut command = Command::new(symbolizer);
     command.arg("--obj").arg(test).arg("--addresses");
     if let Some(dsymutil) = dsymutil {
-        // A Mach-O test keeps its DWARF in the object files its debug map names; llvm-symbolizer reads only a dSYM.
         let dsym = scratch.join("test.dSYM");
         checked(
             Command::new(dsymutil).arg(test).arg("-o").arg(&dsym),
@@ -61,7 +54,6 @@ fn symbolize(
         .filter_map(|line| line.split_whitespace().next())
         .map(|address| format!("{address}\n"))
         .collect();
-    // Feeding stdin from a file means no writer can stall on a full stdout pipe.
     let input = scratch.join("addresses.txt");
     fs::write(&input, addresses).map_err(|e| format!("cannot write {}: {e}", input.display()))?;
     let stdin =
@@ -113,7 +105,6 @@ fn run(args: &[OsString]) -> Result<u8, String> {
     let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
     let lcov = dx_lcov::keep_sources(&lcov, &sources);
     if lcov.is_empty() && !sources.is_empty() {
-        // On macOS this means dsymutil could not open the object files the test's debug map names.
         dx_error::stdio::eprint_line(format_args!(
             "dx: no sancov line maps to a listed source of {}",
             test.display()
@@ -125,7 +116,6 @@ fn run(args: &[OsString]) -> Result<u8, String> {
     Ok(code)
 }
 
-/// Runs the test named in DX_SANCOV_UPSTREAM with the process arguments and writes its LCOV report.
 pub fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     match run(&args) {

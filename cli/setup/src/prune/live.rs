@@ -185,12 +185,6 @@ fn observe_process(
     }
 }
 
-/// Scans `proc_root` for processes whose cwd, executable, open files or
-/// mapped files sit in `dx_dir`.
-///
-/// Reading stops at the first file the kernel refuses to show (another uid,
-/// or non-dumpable): such a process cannot be using this user's `.dx/local`.
-/// A root-owned process working in someone's `.dx/local` is therefore not seen.
 #[must_use]
 pub fn scan_live_observation(proc_root: &Path, dx_dir: &Path) -> LiveObservation {
     scan_with(&RealProcFs, proc_root, dx_dir)
@@ -205,8 +199,6 @@ fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservat
             };
         }
     };
-    // The kernel reports /proc link targets canonical, so a symlinked
-    // `.dx/local` or workspace parent must match by its resolved path too.
     let mut dx_dirs = vec![dx_dir.to_path_buf()];
     let canonical = dx_process::canonicalize_or_keep(dx_dir);
     if canonical != dx_dir {
@@ -282,11 +274,6 @@ fn leased_generation_hexes(
     Ok(leased)
 }
 
-/// Collects the inventory with live processes from `proc_root`.
-///
-/// `previous` is the setup the caller just replaced, if any. When processes
-/// cannot be listed at all, only it and the current setup are kept. When some
-/// process could not be read, everything is kept.
 pub fn collect_inventory_with_scan_from(
     workspace_root: &Path,
     proc_root: &Path,

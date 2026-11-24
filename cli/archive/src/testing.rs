@@ -1,10 +1,5 @@
-//! Writers for malformed archive fixtures.
-//!
-//! Members are written exactly as given, without name, link-target or duplicate checks.
-
 use std::io::{self, Write};
 
-/// Builds a ustar image whose header name bytes are copied verbatim.
 pub struct RawTar {
     builder: tar::Builder<Vec<u8>>,
 }
@@ -53,28 +48,23 @@ impl RawTar {
         self.builder.append(&header, data)
     }
 
-    /// Adds a regular file named `name` verbatim.
     pub fn add_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
         self.append(name, tar::EntryType::Regular, None, data)
     }
 
-    /// Adds a directory named `name` verbatim.
     pub fn add_dir(&mut self, name: &str) -> io::Result<()> {
         self.append(name, tar::EntryType::Directory, None, &[])
     }
 
-    /// Adds a symlink with `target` verbatim.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         self.append(name, tar::EntryType::Symlink, Some(target), &[])
     }
 
-    /// Returns the tar image.
     pub fn finish(self) -> io::Result<Vec<u8>> {
         self.builder.into_inner()
     }
 }
 
-/// Builds a zip image of stored members whose names and link targets are written verbatim.
 pub struct RawZip {
     writer: zip::ZipWriter<io::Cursor<Vec<u8>>>,
 }
@@ -99,7 +89,6 @@ impl RawZip {
         }
     }
 
-    /// Adds a stored regular file.
     pub fn add_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
         self.writer
             .start_file(name, stored())
@@ -107,7 +96,6 @@ impl RawZip {
         self.writer.write_all(data)
     }
 
-    /// Adds a stored regular file made on DOS, so it carries no unix mode.
     pub fn add_dos_file(&mut self, name: &str, data: &[u8]) -> io::Result<()> {
         self.writer
             .start_file(name, stored().system(zip::System::Dos))
@@ -115,21 +103,18 @@ impl RawZip {
         self.writer.write_all(data)
     }
 
-    /// Adds a directory; `name` has no trailing '/'.
     pub fn add_dir(&mut self, name: &str) -> io::Result<()> {
         self.writer
             .add_directory(name, stored())
             .map_err(io::Error::other)
     }
 
-    /// Adds a symlink with `target` verbatim.
     pub fn add_symlink(&mut self, name: &str, target: &str) -> io::Result<()> {
         self.writer
             .add_symlink(name, target, stored())
             .map_err(io::Error::other)
     }
 
-    /// Returns the zip image.
     pub fn finish(self) -> io::Result<Vec<u8>> {
         Ok(self.writer.finish().map_err(io::Error::other)?.into_inner())
     }

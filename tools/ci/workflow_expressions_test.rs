@@ -1,6 +1,5 @@
 use serde_json::Value;
 
-/// Returns the offending line of every `${{` in the code of one workflow document.
 fn findings(name: &str, document: &Value) -> (usize, Vec<String>) {
     let mut scanned = 0;
     let mut found = Vec::new();
@@ -79,7 +78,6 @@ jobs:
     assert!(found.is_empty(), "{found:?}");
 }
 
-/// Names every job that runs steps but sets no `timeout-minutes`.
 fn jobs_without_timeout(name: &str, document: &Value) -> Vec<String> {
     ci_workflow::jobs_of(document)
         .into_iter()
@@ -101,7 +99,6 @@ fn every_job_sets_a_timeout() {
     );
 }
 
-/// Names every `matrix.<name>` a job reads that its own `strategy.matrix` does not define.
 fn undefined_matrix_refs(name: &str, document: &Value) -> Vec<String> {
     let mut missing = Vec::new();
     for (job_id, job) in ci_workflow::jobs_of(document) {

@@ -1,4 +1,3 @@
-//! One reader for the Go manifest and sum file, shared by every Go dependency tool.
 #![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 use std::cmp::Ordering;
@@ -20,7 +19,6 @@ const DIRECTIVES: [&str; 10] = [
     "toolchain",
 ];
 
-/// One `require` entry with the trailing comment its line carries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GoRequirement {
     pub module: String,
@@ -29,14 +27,12 @@ pub struct GoRequirement {
     pub marker: Option<String>,
 }
 
-/// What a `replace` directive redirects a module to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GoReplacementTarget {
     FilePath(String),
     Module { module: String, version: String },
 }
 
-/// One `replace` directive, keyed by the module path it replaces.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GoReplacement {
     pub module: String,
@@ -44,14 +40,12 @@ pub struct GoReplacement {
     pub target: GoReplacementTarget,
 }
 
-/// The manifest file name of the `go` registry entry.
 fn manifest() -> Result<&'static str, String> {
     dx_families::hub("go")
         .map(|hub| hub.manifest.as_str())
         .ok_or_else(|| "setup.hubs has no go entry".to_owned())
 }
 
-/// The manifest directives a dependency reader needs.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct GoModFile {
     pub module: String,
@@ -61,7 +55,6 @@ pub struct GoModFile {
 }
 
 impl GoModFile {
-    /// Finds the replacement that applies to one required module version.
     #[must_use]
     pub fn replacement_for(&self, module: &str, version: &str) -> Option<&GoReplacement> {
         let mut wildcard = None;
@@ -76,7 +69,6 @@ impl GoModFile {
     }
 }
 
-/// Reads a Go manifest, failing on syntax the Go toolchain rejects.
 pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
     let manifest = manifest()?;
     let parsed = GoMod::from_str(text).map_err(|detail| format!("invalid {manifest}: {detail}"))?;
@@ -122,8 +114,6 @@ pub fn parse_mod(text: &str) -> Result<GoModFile, String> {
     })
 }
 
-/// Reads a Go sum file into module paths and their highest hashed version.
-// The sum file is a line grammar (`module version[/manifest] hash`), so it is split by line, not parsed.
 pub fn parse_sum(text: &str) -> Result<BTreeMap<String, String>, String> {
     let manifest = manifest()?;
     let mut hashed: BTreeMap<String, String> = BTreeMap::new();
@@ -158,7 +148,6 @@ pub fn parse_sum(text: &str) -> Result<BTreeMap<String, String>, String> {
     Ok(hashed)
 }
 
-/// Parsed `vMAJOR.MINOR.PATCH[-pre][+build]`.
 struct GoVersion<'a> {
     numbers: [u64; 3],
     pre: Vec<&'a str>,
@@ -195,7 +184,6 @@ fn compare_pre_part(a: &str, b: &str) -> Ordering {
     }
 }
 
-/// Orders Go module versions by semver; a version that does not parse sorts lowest.
 fn compare_go_versions(a: &str, b: &str) -> Ordering {
     match (parse_go_version(a), parse_go_version(b)) {
         (None, None) => a.cmp(b),
@@ -222,7 +210,6 @@ fn compare_go_versions(a: &str, b: &str) -> Ordering {
     }
 }
 
-/// Why a manifest requirement could not be edited.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GoEditError {
     Invalid(String),
@@ -230,7 +217,6 @@ pub enum GoEditError {
     Ambiguous(usize),
 }
 
-/// Sets the version of the one `require` entry for `module`, leaving every other byte alone.
 pub fn set_require_version(text: &str, module: &str, version: &str) -> Result<String, GoEditError> {
     let before = parse_mod(text).map_err(GoEditError::Invalid)?;
     let count = before
@@ -270,11 +256,6 @@ pub fn set_require_version(text: &str, module: &str, version: &str) -> Result<St
     Ok(out)
 }
 
-/// Adds a direct `require` entry for `module`, leaving every other byte alone.
-/// A module that is already required fails with `Ambiguous(count)`.
-///
-/// The entry goes into the first `require ( ... )` block that holds a direct
-/// requirement, in sorted position; without one, a new block is appended.
 pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String, GoEditError> {
     let before = parse_mod(text).map_err(GoEditError::Invalid)?;
     let count = before
@@ -341,14 +322,11 @@ pub fn insert_require(text: &str, module: &str, version: &str) -> Result<String,
 }
 
 struct RequireBlock {
-    /// Start offset and module path of every entry line.
     entries: Vec<(usize, String)>,
-    /// Start offset of the closing `)` line.
     close: usize,
     indent: String,
 }
 
-/// The first `require ( ... )` block holding at least one direct requirement.
 fn direct_require_block(text: &str) -> Option<RequireBlock> {
     let mut base = 0;
     let mut current: Option<(RequireBlock, bool)> = None;
@@ -437,7 +415,6 @@ struct VersionSpan {
     quote: Quote,
 }
 
-// Framing only: locates byte spans in lines `gomod-parser` already read; it does not decide entries.
 fn tokenize(line: &str, base: usize) -> Vec<Token> {
     let bytes = line.as_bytes();
     let mut tokens = Vec::new();
@@ -507,8 +484,6 @@ fn tokenize(line: &str, base: usize) -> Vec<Token> {
     tokens
 }
 
-/// Name and version tokens of every `require` entry.
-// Framing only: spans for editing; `gomod-parser` is the reader of record.
 fn require_entries(text: &str) -> Vec<(Token, Token)> {
     let mut block: Option<String> = None;
     let mut found = Vec::new();
@@ -588,8 +563,6 @@ fn replacement(entry: ModuleReplacement) -> GoReplacement {
     }
 }
 
-/// Pairs every `require` line with the comment that line carries.
-// Framing only: `gomod-parser` does not expose comment text, so markers are read here.
 fn requirement_markers(text: &str) -> BTreeMap<String, VecDeque<String>> {
     let mut markers: BTreeMap<String, VecDeque<String>> = BTreeMap::new();
     let mut block: Option<&str> = None;

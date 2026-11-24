@@ -8,7 +8,6 @@ use super::{QueryRunner, ResolveError};
 
 const EXPRESSION: &str = "kind('rule', //...)";
 
-/// The workspace rule graph as Bazel reports it, without loading any external repo.
 #[derive(Debug)]
 pub struct RuleGraph {
     inputs: BTreeMap<String, Vec<String>>,
@@ -16,8 +15,6 @@ pub struct RuleGraph {
     manual: HashSet<String>,
     release: HashSet<String>,
     kinds: HashMap<String, String>,
-    /// Tags of test and `test_suite` rules, with a test's size counted as a tag, as
-    /// `test_suite` filtering sees them.
     filter_tags: HashMap<String, Vec<String>>,
 }
 
@@ -40,7 +37,6 @@ pub(crate) fn query_argv(startup_options: &[String]) -> Vec<String> {
     argv
 }
 
-/// Whether `argv` is the workspace rule-graph query built by `RuleGraph::load`.
 pub(crate) fn is_graph_query(argv: &[String]) -> bool {
     argv.len() >= QUERY_FLAGS.len()
         && argv
@@ -50,7 +46,6 @@ pub(crate) fn is_graph_query(argv: &[String]) -> bool {
             .all(|(have, want)| have == want)
 }
 
-/// Whether Bazel treats a rule of this class as a test: test rule classes must end in `_test`.
 fn is_test_kind(kind: &str) -> bool {
     kind.ends_with("_test")
 }
@@ -73,8 +68,6 @@ fn tags_of(rule: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Whether a test with `tags` passes the filter a `test_suite` with `suite_tags` applies:
-/// none of its negative tags and all of its positive ones, `manual` aside.
 fn suite_admits(suite_tags: &[String], tags: &[String]) -> bool {
     suite_tags
         .iter()
@@ -109,7 +102,6 @@ fn is_pattern(scope: &str) -> bool {
     scope.ends_with("/...") || scope.ends_with(":all") || scope.ends_with(":*")
 }
 
-/// Whether `label` is `scope` or falls under the pattern `scope` (`//p/...`, `//p:all`, `//p:*`).
 fn matches_scope(scope: &str, label: &str) -> bool {
     if scope == label {
         return true;
@@ -136,9 +128,6 @@ fn matches_scope(scope: &str, label: &str) -> bool {
 }
 
 impl RuleGraph {
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn load(
         workspace: &Path,
         runner: &dyn QueryRunner,
@@ -219,7 +208,6 @@ impl RuleGraph {
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
                 if is_test_kind(kind) {
                     let mut tags = tags_of(rule);
-                    // Size is a filter tag too; `--noproto:default_values` leaves out the default.
                     let size = attribute(rule, "size")
                         .and_then(|size| size.get("stringValue"))
                         .and_then(Value::as_str)
@@ -268,7 +256,6 @@ impl RuleGraph {
             .collect()
     }
 
-    /// External labels that rules in the graph use.
     pub(crate) fn external_inputs(&self) -> impl Iterator<Item = &str> {
         self.users
             .keys()
@@ -276,9 +263,6 @@ impl RuleGraph {
             .filter(|label| label.starts_with("@@"))
     }
 
-    /// The workspace-relative paths of every main-repo label some rule uses as an input.
-    ///
-    /// The query is unconfigured, so every `select()` branch and every manual rule counts.
     #[must_use]
     pub fn main_repo_input_paths(&self) -> HashSet<String> {
         self.users
@@ -289,7 +273,6 @@ impl RuleGraph {
             .collect()
     }
 
-    /// Rules the scopes name or match, without their users and without manual rules.
     #[must_use]
     pub fn selected(&self, scopes: &[String]) -> Vec<String> {
         let mut rules: Vec<String> = self
@@ -307,13 +290,11 @@ impl RuleGraph {
         rules
     }
 
-    /// Rules affected by the scopes, without manual rules.
     #[must_use]
     pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
-    /// The `deployment` rules tagged `release` that the scopes reach, keeping manual rules.
     #[must_use]
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
         let mut rules = self.reached_of_kind(scopes, |kind| kind == "deployment");
@@ -321,8 +302,6 @@ impl RuleGraph {
         rules
     }
 
-    /// Rules the scopes select that no other selected rule uses through its inputs.
-    /// Manual rules count only when a scope names them exactly.
     pub fn top_level(&self, scopes: &[String]) -> Vec<String> {
         let selected: HashSet<&str> = self
             .inputs
@@ -357,18 +336,12 @@ impl RuleGraph {
         top
     }
 
-    /// Rules that may hold tests for the owners, keeping manual owners.
     pub(crate) fn test_candidates(&self, owners: &[String]) -> Vec<String> {
         self.keep(self.reach(owners), |label| {
             !self.manual.contains(label) || owners.iter().any(|owner| owner == label)
         })
     }
 
-    /// The tests `tests(set(rules))` would return, read from the rule kinds alone.
-    ///
-    /// Test rules stand for themselves, manual or not. A `test_suite` stands for the tests and
-    /// suites among its inputs, which are its `tests` or, when that is empty, the non-manual
-    /// tests of its package, filtered by the suite's tags. Rules of other kinds add nothing.
     #[must_use]
     pub fn tests_of(&self, rules: &[String]) -> Vec<String> {
         let mut tests: Vec<String> = rules
@@ -381,8 +354,6 @@ impl RuleGraph {
         tests
     }
 
-    /// The tests `rule` stands for. `stack` holds the suites being expanded, so a suite cycle
-    /// ends instead of recursing forever.
     fn expand_tests<'a>(&'a self, rule: &'a str, stack: &mut Vec<&'a str>) -> Vec<&'a str> {
         let Some(kind) = self.kinds.get(rule) else {
             return Vec::new();
@@ -408,12 +379,10 @@ impl RuleGraph {
         tests
     }
 
-    /// The owners and every rule that uses them, manual or not.
     pub(crate) fn users_of<'a>(&'a self, owners: &'a [String]) -> HashSet<&'a str> {
         self.reach(owners)
     }
 
-    /// Rules of the kind that use the label, keeping manual rules.
     pub(crate) fn dependents_of_kind(
         &self,
         label: &str,
@@ -424,7 +393,6 @@ impl RuleGraph {
         })
     }
 
-    /// Rules of the kind reached from the seed labels, keeping manual rules.
     pub(crate) fn reached_of_kind(
         &self,
         seeds: &[String],
@@ -435,12 +403,10 @@ impl RuleGraph {
         })
     }
 
-    /// Rules the seeds reach, the seeds included.
     pub(crate) fn reached_rules(&self, seeds: &[String]) -> Vec<String> {
         self.keep(self.reach(seeds), |_| true)
     }
 
-    /// Graph labels that stand for the label, with apparent repos resolved.
     fn seeds_for(&self, label: &str) -> Vec<String> {
         if let Some(rest) = label
             .strip_prefix("@@//")
@@ -474,7 +440,6 @@ impl RuleGraph {
         seeds
     }
 
-    /// Rules in the graph that pass the filter, sorted.
     fn keep(&self, reached: HashSet<&str>, wanted: impl Fn(&str) -> bool) -> Vec<String> {
         let mut rules: Vec<String> = reached
             .into_iter()
@@ -485,7 +450,6 @@ impl RuleGraph {
         rules
     }
 
-    /// Labels the scopes seed plus every rule that uses them.
     fn reach<'a>(&'a self, scopes: &'a [String]) -> HashSet<&'a str> {
         let mut seen: HashSet<&str> = HashSet::new();
         let mut pending: Vec<&str> = Vec::new();
@@ -521,7 +485,6 @@ impl RuleGraph {
     }
 }
 
-/// Whether canonical repo `repo` is apparent repo `name` or a generated form of it.
 pub(crate) fn apparent_repo_matches(repo: &str, name: &str) -> bool {
     repo == name || repo.strip_suffix('+') == Some(name) || repo.ends_with(&format!("+{name}"))
 }

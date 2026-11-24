@@ -18,8 +18,7 @@ import (
 
 const (
 	languageName = "ocaml"
-	// ModuleKind is the only kind this generator emits.
-	ModuleKind = "ocaml_module"
+	ModuleKind   = "ocaml_module"
 )
 
 var ocamlKinds = map[string]rule.KindInfo{
@@ -34,11 +33,6 @@ type ocamlLang struct {
 	*common.SingleLang
 }
 
-// NewLanguage returns a narrow OCaml generator. It emits one ocaml_module per
-// .ml file (with its sibling .mli as sig) and states only facts readable from
-// file names. It does not infer module dependencies: OCaml module references
-// are not resolvable without ocamldep and the dune/opam layout, so deps stay
-// handwritten.
 func NewLanguage() language.Language {
 	return &ocamlLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
@@ -57,7 +51,6 @@ func (l *ocamlLang) Imports(*config.Config, *rule.Rule, *rule.File) []resolve.Im
 func (l *ocamlLang) Resolve(*config.Config, *resolve.RuleIndex, *repo.RemoteCache, *rule.Rule, interface{}, label.Label) {
 }
 
-// moduleName maps foo_bar.ml to the target name foo_bar.
 func moduleName(file string) string { return strings.TrimSuffix(file, ".ml") }
 
 func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep common.Reporter) language.GenerateResult {
@@ -96,8 +89,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return common.MergeStaleOwned(args.File, result, kinds, owns)
 }
 
-// sourceClaimed reports whether a rule of another kind already names file in
-// main, srcs or struct.
 func sourceClaimed(args language.GenerateArgs, file string) bool {
 	for _, r := range existingRules(args) {
 		if r.Kind() == ModuleKind {
@@ -112,7 +103,6 @@ func sourceClaimed(args language.GenerateArgs, file string) bool {
 	return false
 }
 
-// producedFiles collects the out and outs of every rule in the directory.
 func producedFiles(args language.GenerateArgs) map[string]bool {
 	outs := make(map[string]bool)
 	for _, r := range existingRules(args) {

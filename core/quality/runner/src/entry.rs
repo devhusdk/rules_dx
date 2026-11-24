@@ -48,8 +48,6 @@ fn unreadable_source(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableSource { workspace, detail }
 }
 
-/// Stages every file under a tool directory (a tree artifact) as `rel/<path inside>`, in sorted
-/// order. An empty directory stages nothing.
 fn read_tool_directory(
     rel: &str,
     dir: &Path,
@@ -69,7 +67,6 @@ fn read_tool_directory(
     Ok(())
 }
 
-/// Reads one tool file, or every file under a tool directory, into `out` at `rel`.
 fn stage_tool_file(
     tool_id: &str,
     rel: &str,
@@ -89,7 +86,6 @@ fn stage_tool_file(
     }
 }
 
-/// The workspace paths and exec paths of the request's checked sources.
 #[derive(Debug, Default)]
 struct SourcePaths<'a> {
     rels: BTreeSet<&'a str>,
@@ -105,7 +101,6 @@ impl<'a> SourcePaths<'a> {
     }
 }
 
-/// Reads the `rel<TAB>exec` lines of one tool file list.
 fn read_tool_list(tool_id: &str, list: &Path) -> Result<Vec<(String, String)>, RunnerError> {
     let unreadable = |detail: String| RunnerError::UnreadableToolFile {
         rel: list.display().to_string(),
@@ -123,9 +118,6 @@ fn read_tool_list(tool_id: &str, list: &Path) -> Result<Vec<(String, String)>, R
         .collect()
 }
 
-/// Builds the backend tool for one validated request entry. List entries whose rel is a
-/// checked source or already staged are skipped. Dependency-list entries are also skipped when
-/// their exec path is a checked source or an earlier dependency line already staged it.
 fn real_tool(
     tool_id: &str,
     entry: &RequestTool,
@@ -194,11 +186,6 @@ fn real_tool(
     })
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn run_request(
     request_path: &str,
     output: &str,
@@ -263,8 +250,6 @@ fn unreadable_resolve(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableResolve { workspace, detail }
 }
 
-/// Reads one strip-roots file, each root with a trailing `/` and longest first, so a nested
-/// root wins over its parent.
 fn read_strip_roots(path: &Path) -> Result<Vec<String>, RunnerError> {
     let text = std::fs::read_to_string(path).map_err(|error| RunnerError::UnreadableResolve {
         workspace: path.display().to_string(),
@@ -279,9 +264,6 @@ fn read_strip_roots(path: &Path) -> Result<Vec<String>, RunnerError> {
     Ok(roots)
 }
 
-/// Returns the request resolves plus the resolve-list lines whose path no mapping holds yet.
-/// The lists come from depsets, so a path a source, sibling or earlier line holds is skipped.
-/// A list with strip roots drops the longest root that prefixes each line's path first.
 fn listed_resolves(
     request: &crate::request::RealRequest,
 ) -> Result<Vec<(String, String)>, RunnerError> {
@@ -385,7 +367,6 @@ struct Cli {
     shard: Option<String>,
 }
 
-/// Runs `quality_runner` with its arguments (without the program name) and returns the exit code.
 pub fn run_cli(args: &[String]) -> i32 {
     dx_output::init_diagnostics(false);
     match parse_args(args)

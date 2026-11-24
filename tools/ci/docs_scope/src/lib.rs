@@ -28,11 +28,6 @@ fn is_pattern(pattern: &str) -> bool {
         && name.is_none_or(|n| !n.is_empty() && n.chars().all(is_package_char))
 }
 
-/// Returns the ordered scope patterns, or the diagnostic.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn parse_scope(text: &str) -> Result<Vec<String>, String> {
     if text.trim_matches(' ').is_empty() {
         return Err(format!(
@@ -52,11 +47,6 @@ pub fn parse_scope(text: &str) -> Result<Vec<String>, String> {
     Ok(patterns)
 }
 
-/// Returns the bazel arguments that run dx lint over the scope.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn lint_argv(scope: &str, config: &[String]) -> Result<Vec<String>, String> {
     let patterns = parse_scope(scope)?;
     let mut argv: Vec<String> = vec!["run".to_string()];

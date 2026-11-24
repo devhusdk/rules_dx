@@ -1,8 +1,6 @@
-//! PyPI publisher: wheelhouse staging and the twine upload.
-
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch,
-    fetch_to, highest_below, previous_git_tag, workspace_dir,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to,
+    highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -16,7 +14,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// A wheel and sdist filename pair that name different projects or versions.
 #[derive(Debug)]
 pub struct PairMismatch {
     pub wheel: String,
@@ -27,7 +24,6 @@ pub struct PairMismatch {
     pub sdist_version: String,
 }
 
-/// Why a PyPI artifact check, credential step or API check failed.
 #[derive(Debug)]
 pub enum PypiError {
     InvalidWheelName(String),
@@ -82,7 +78,6 @@ pub enum PypiError {
         path: String,
         built: String,
     },
-    /// The wheel and sdist name different projects or versions.
     PairMismatch(Box<PairMismatch>),
     Wheelhouse(PathIoError),
     Copy {
@@ -93,13 +88,11 @@ pub enum PypiError {
     HttpClient(dx_http::Error),
     IdentityRequest(dx_http::Error),
     IdentityNoValue,
-    /// A trusted-publishing token from a reusable workflow in another repository.
     CrossRepo {
         workflow_ref: String,
         repository: String,
     },
     Exchange(dx_http::Error),
-    /// The token exchange answered without a token; `detail` has the token redacted.
     ExchangeRefused {
         status: u16,
         detail: String,
@@ -111,7 +104,7 @@ pub enum PypiError {
     InvalidBaseline(String),
     TempDir(io::Error),
     Griffe(RunError),
-    ApiCompat(ApiCompatError),
+    ApiCheck(ApiCheckError),
 }
 
 impl fmt::Display for PypiError {
@@ -227,7 +220,7 @@ impl fmt::Display for PypiError {
             Self::InvalidBaseline(baseline) => write!(f, "invalid api_baseline '{baseline}'"),
             Self::TempDir(source) => write!(f, "{source}"),
             Self::Griffe(source) => write!(f, "griffe: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -247,7 +240,7 @@ impl std::error::Error for PypiError {
                 Some(source)
             }
             Self::SignRun(source) | Self::Griffe(source) => Some(source),
-            Self::ApiCompat(source) => Some(source),
+            Self::ApiCheck(source) => Some(source),
             Self::InvalidWheelName(_)
             | Self::InvalidSdistName(_)
             | Self::UnsupportedArtifact(_)
@@ -283,7 +276,6 @@ fn pypi_valid_name(name: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
 }
 
-/// Reads the distribution name and version from one wheel or sdist filename.
 pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), PypiError> {
     let (name, version) = if let Some(stem) = base.strip_suffix(".whl") {
         let parts: Vec<&str> = stem.split('-').collect();
@@ -306,7 +298,6 @@ pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), PypiError>
 const NATIVE_SUFFIXES: &[&str] = &[".so", ".pyd", ".dylib"];
 const BUILD_ONLY_SUFFIXES: &[&str] = &[".h", ".a", ".lib", ".obj", ".o", ".pdb"];
 
-/// Reads the RECORD of one wheel and rejects native code in a none-any wheel and build-only files.
 fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), PypiError> {
     let name = basename(wheel).map_err(PypiError::Basename)?;
     let file = std::fs::File::open(wheel).map_err(|source| PypiError::OpenWheel {
@@ -359,7 +350,6 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), PypiError> {
     Ok(())
 }
 
-/// Reads one UTF-8 member of a wheel.
 fn read_wheel_text(wheel: &Path, name: &str, member: &str) -> Result<String, PypiError> {
     let bytes = dx_archive::read_zip_member(wheel, member, 64 << 20)
         .map_err(|source| PypiError::ReadMember {
@@ -378,7 +368,6 @@ fn read_wheel_text(wheel: &Path, name: &str, member: &str) -> Result<String, Pyp
     })
 }
 
-/// The python, abi and platform tags from a wheel filename, with dotted forms expanded.
 struct FilenameTags {
     pythons: Vec<String>,
     abis: Vec<String>,
@@ -469,7 +458,6 @@ impl FilenameTags {
     }
 }
 
-/// The `cp3NN` tag in an extension module name like `_core.cpython-312-x86_64-linux-gnu.so`.
 fn path_python_tag(lower: &str) -> Option<String> {
     let file = lower.rsplit('/').next()?;
     for marker in [".cpython-3", ".cp3"] {
@@ -487,7 +475,6 @@ fn path_python_tag(lower: &str) -> Option<String> {
     None
 }
 
-/// Checks the wheel and sdist name the same project and version.
 fn pypi_check_pair(
     wheel_src: &Path,
     sdist_src: Option<&Path>,
@@ -512,7 +499,6 @@ fn pypi_check_pair(
     Ok((project, version))
 }
 
-/// Builds one PyPI wheelhouse.
 pub fn pypi_build_wheelhouse(
     wheel_src: &Path,
     sdist_src: Option<&Path>,
@@ -551,7 +537,6 @@ pub fn pypi_build_wheelhouse(
     Ok(house)
 }
 
-/// Owner approval gate for pypi_deploy.
 pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     tool: "pypi_deploy",
     action: "upload",
@@ -559,7 +544,6 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     approved: "PYPI_PUBLISH_APPROVED",
 };
 
-/// Env names the signing child keeps for the CI identity.
 const PYPI_OIDC_ENV: &[&str] = &[
     "ACTIONS_ID_TOKEN_REQUEST_URL",
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
@@ -568,13 +552,11 @@ const PYPI_OIDC_ENV: &[&str] = &[
     "SSL_CERT_FILE",
 ];
 
-/// True when a trusted-publisher identity is available.
 fn pypi_oidc_present(var: impl Fn(&str) -> String) -> bool {
     !var("ACTIONS_ID_TOKEN_REQUEST_URL").is_empty()
         && !var("ACTIONS_ID_TOKEN_REQUEST_TOKEN").is_empty()
 }
 
-/// How a run authenticates: the token variable wins, then trusted publishing.
 #[derive(Debug, PartialEq)]
 enum PypiAuth {
     Token(String),
@@ -593,7 +575,6 @@ fn pypi_auth(var: impl Fn(&str) -> String) -> PypiAuth {
     }
 }
 
-/// Returns the token-exchange audience and mint URL for an upload URL.
 fn pypi_mint_endpoint(registry_url: &str) -> Option<(&'static str, String)> {
     let rest = registry_url.strip_prefix("https://")?;
     let host = rest.split('/').next()?;
@@ -607,8 +588,6 @@ fn pypi_mint_endpoint(registry_url: &str) -> Option<(&'static str, String)> {
     }
 }
 
-/// Reads the unverified claims of a CI identity token and returns the refusal for a
-/// `job_workflow_ref` outside the `repository` claim.
 fn pypi_cross_repo_refusal(jwt: &str) -> Option<PypiError> {
     use base64::Engine as _;
     let payload = jwt.split('.').nth(1)?.trim_end_matches('=');
@@ -627,7 +606,6 @@ fn pypi_cross_repo_refusal(jwt: &str) -> Option<PypiError> {
     })
 }
 
-/// Names the `errors[].code: description` pairs of a refused token exchange.
 fn pypi_mint_errors(body: &[u8]) -> String {
     let Ok(value) = serde_json::from_slice::<serde_json::Value>(body) else {
         return String::from_utf8_lossy(body).trim().to_owned();
@@ -652,7 +630,6 @@ fn pypi_mint_errors(body: &[u8]) -> String {
         .unwrap_or_default()
 }
 
-/// Exchanges the CI identity token for a short-lived PyPI upload token.
 fn pypi_mint_token(
     client: &dx_http::Client,
     registry_url: &str,
@@ -698,7 +675,6 @@ fn pypi_mint_token(
     })
 }
 
-/// Picks the upload token and whether to sign: only trusted-publishing uploads carry attestations.
 fn pypi_credentials(
     auth: PypiAuth,
     mint: impl FnOnce() -> Result<String, PypiError>,
@@ -710,7 +686,6 @@ fn pypi_credentials(
     }
 }
 
-/// Signs the staged files with the pinned pypi-attestations; returns the attestation file for each.
 fn pypi_sign(signer: &Path, files: &[std::path::PathBuf]) -> Result<Vec<PathBuf>, PypiError> {
     let mut cmd = scrubbed_command(signer, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
     cmd.arg("sign").args(files);
@@ -733,7 +708,6 @@ fn pypi_sign(signer: &Path, files: &[std::path::PathBuf]) -> Result<Vec<PathBuf>
     }
 }
 
-/// Extra env names twine keeps beyond the publish base list.
 const TWINE_CHILD_ENV_EXTRA: &[&str] = &["REQUESTS_CA_BUNDLE"];
 
 fn pypi_scrub(text: &[u8], token: &str) -> String {
@@ -751,7 +725,6 @@ fn pypi_duplicate_note(output: &str, base: &str, version: &str, url: &str) -> Op
         })
 }
 
-/// Checks and uploads verified copies of the wheel and sdist with twine.
 fn pypi_upload(
     twine: &Path,
     wheel: &Path,
@@ -868,7 +841,6 @@ fn pypi_upload_staged(
     1
 }
 
-/// Public API check and attestation signer settings of one PyPI deployment.
 pub struct PypiApiCheck<'a> {
     pub mode: &'a str,
     pub baseline: &'a str,
@@ -878,7 +850,6 @@ pub struct PypiApiCheck<'a> {
     pub attestations_rloc: &'a str,
 }
 
-/// Returns the breaking changes in `griffe check` output: one `path.py:line: ...` line each.
 fn griffe_changes(output: &str) -> Vec<String> {
     output
         .lines()
@@ -890,7 +861,6 @@ fn griffe_changes(output: &str) -> Vec<String> {
         .collect()
 }
 
-/// Returns the release below `next` in a PyPI JSON body and the URL of its first wheel.
 fn pypi_previous_wheel(body: &str, next: &str) -> Option<(String, Option<String>)> {
     let json: serde_json::Value = serde_json::from_str(body).ok()?;
     let releases = json.get("releases")?.as_object()?;
@@ -904,8 +874,6 @@ fn pypi_previous_wheel(body: &str, next: &str) -> Option<(String, Option<String>
     Some((previous, wheel))
 }
 
-/// Downloads the previous wheel of `project` and extracts both wheels under `work`.
-/// Returns the release and the griffe arguments, or the outcome when there is nothing to compare.
 fn pypi_registry_baseline(
     project: &str,
     version: &str,
@@ -950,7 +918,6 @@ fn pypi_registry_baseline(
     Ok((previous, args))
 }
 
-/// Compares the public API with the release `api_baseline` picks below `version`.
 fn pypi_api_check(
     griffe: &Path,
     (project, version): (&str, &str),
@@ -1010,7 +977,6 @@ fn pypi_api_check(
     outcome
 }
 
-/// Runs the PyPI deploy tool without an API compatibility check.
 pub fn pypi_main(
     wheel_rloc: &str,
     sdist_rloc: &str,
@@ -1029,7 +995,6 @@ pub fn pypi_main(
     pypi_main_checked(wheel_rloc, sdist_rloc, dist_name, registry_url, &off, argv)
 }
 
-/// Runs the PyPI deploy tool.
 pub fn pypi_main_checked(
     wheel_rloc: &str,
     sdist_rloc: &str,
@@ -1052,12 +1017,12 @@ pub fn pypi_main_checked(
     let Some(sdist) = run.resolve_optional(sdist_rloc) else {
         return 1;
     };
-    let Some(mode) = ApiCompatMode::parse(api.mode) else {
+    let Some(mode) = ApiCheckMode::parse(api.mode) else {
         eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };
     let checked = pypi_check_pair(&wheel, sdist.as_deref()).and_then(|(project, version)| {
-        if mode == ApiCompatMode::Off {
+        if mode == ApiCheckMode::Off {
             return Ok(());
         }
         let griffe = if api.griffe_rloc.is_empty() {
@@ -1071,11 +1036,11 @@ pub fn pypi_main_checked(
             }
             None => Outcome::Skipped("griffe is not available".to_owned()),
         };
-        conclude("pypi_deploy", mode, &version, outcome).map_err(PypiError::ApiCompat)
+        conclude("pypi_deploy", mode, &version, outcome).map_err(PypiError::ApiCheck)
     });
     match checked {
         Ok(()) => {}
-        Err(PypiError::ApiCompat(error)) => {
+        Err(PypiError::ApiCheck(error)) => {
             eprintln!("{error}");
             return 1;
         }

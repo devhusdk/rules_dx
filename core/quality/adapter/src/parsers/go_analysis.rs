@@ -20,7 +20,6 @@ struct Diagnostic {
 
 type Report = BTreeMap<String, BTreeMap<String, Analyzer>>;
 
-/// Splits a unitchecker `file:line:col` position, keeping drive colons in the file.
 fn split_posn(posn: &str) -> Option<(&str, u64, u64)> {
     let mut parts = posn.rsplitn(3, ':');
     let column = parts.next()?.parse().ok()?;
@@ -29,13 +28,6 @@ fn split_posn(posn: &str) -> Option<(&str, u64, u64)> {
     (line > 0 && column > 0 && !file.is_empty()).then_some((file, line, column))
 }
 
-/// Parses the `-json` output of a stock unitchecker driver (govet, staticcheck, errcheck).
-///
-/// The rule id is the analyzer name. An analyzer `{error}` entry is a parse error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_go_analysis(
     tool: &'static str,
     stdout: &[u8],
@@ -45,11 +37,6 @@ pub fn parse_go_analysis(
     parse_report(tool, stdout, code, files, ToolSeverity::Warning)
 }
 
-/// Parses the `dx_gotype` driver report, whose `syntax` and `typecheck` entries are errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_gotype(
     tool: &'static str,
     stdout: &[u8],

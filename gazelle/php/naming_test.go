@@ -4,10 +4,10 @@ import "testing"
 
 func TestTestTargetName(t *testing.T) {
 	for src, want := range map[string]string{
-		"tests/GreeterTest.php":     "greeter_test",
-		"test/FooBarTest.php":       "foo_bar_test",
+		"tests/GreeterTest.php":        "greeter_test",
+		"test/FooBarTest.php":          "foo_bar_test",
 		"tests/Sub/HTTPClientTest.php": "http_client_test",
-		"tests/V2ParserTest.php":    "v2_parser_test",
+		"tests/V2ParserTest.php":       "v2_parser_test",
 	} {
 		got, err := TestTargetName(src)
 		if err != nil || got != want {

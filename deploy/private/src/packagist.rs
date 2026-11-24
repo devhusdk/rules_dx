@@ -1,17 +1,13 @@
-//! Packagist publisher: Composer manifest identity check and the update-package API call.
-
 use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_ecosystems::Ecosystem;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// The file name of a Composer manifest.
 fn manifest_name() -> &'static str {
     Ecosystem::Composer.manifest_name()
 }
 
-/// Owner approval gate for packagist_deploy.
 pub(crate) const PACKAGIST_GATE: OwnerGate = OwnerGate {
     tool: "packagist_deploy",
     action: "update",
@@ -19,10 +15,8 @@ pub(crate) const PACKAGIST_GATE: OwnerGate = OwnerGate {
     approved: "PACKAGIST_PUBLISH_APPROVED",
 };
 
-/// Packagist update-package endpoint.
 const PACKAGIST_UPDATE_URL: &str = "https://packagist.org/api/update-package";
 
-/// Why the Composer manifest does not name the declared package.
 #[derive(Debug)]
 pub enum PackagistError {
     Read(PathIoError),
@@ -66,7 +60,6 @@ impl std::error::Error for PackagistError {
     }
 }
 
-/// Reads the package name the Composer manifest declares.
 pub fn packagist_read_name(composer_json: &Path) -> Result<String, PackagistError> {
     let text = path_io::read_to_string(composer_json).map_err(PackagistError::Read)?;
     let value: serde_json::Value =
@@ -84,7 +77,6 @@ pub fn packagist_read_name(composer_json: &Path) -> Result<String, PackagistErro
         })
 }
 
-/// Checks the Composer manifest name against the declared package.
 pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), PackagistError> {
     if actual != expected {
         return Err(PackagistError::Mismatch {
@@ -95,7 +87,6 @@ pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), Packagis
     Ok(())
 }
 
-/// Triggers the Packagist update of the repository registered for the package.
 fn packagist_live_update(package: &str, repository_url: &str, username: &str, token: &str) -> i32 {
     let body = serde_json::json!({"repository": {"url": repository_url}}).to_string();
     let authorization = format!("Bearer {username}:{token}");
@@ -135,7 +126,6 @@ fn packagist_live_update(package: &str, repository_url: &str, username: &str, to
     }
 }
 
-/// Runs the Packagist deploy tool.
 pub fn packagist_main(
     composer_rloc: &str,
     target_name: &str,

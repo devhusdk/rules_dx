@@ -30,17 +30,16 @@ lua_library(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
+        "bench/dx_bench.lua",
         "ldoc.BUILD.bazel",
+        "lua_LICENSE.txt",
         "luacov.BUILD.bazel",
         "luacov_reporter_lcov.BUILD.bazel",
         "luafilesystem.BUILD.bazel",
         "luals.BUILD.bazel",
         "penlight.BUILD.bazel",
-    ]) + [
-        "bench/dx_bench.lua",
     ],
     visibility = ["//:__subpackages__"],
 )

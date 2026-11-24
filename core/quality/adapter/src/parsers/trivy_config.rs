@@ -11,12 +11,6 @@ fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseErr
         .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
-/// Parses `trivy config --format json --exit-code 0`: one report whose `Results[].Misconfigurations[]`
-/// are the findings. CRITICAL and HIGH are errors, MEDIUM warnings, LOW and UNKNOWN info.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_trivy_config(
     stdout: &[u8],
     stderr: &[u8],

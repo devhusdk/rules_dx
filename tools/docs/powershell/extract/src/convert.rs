@@ -1,5 +1,3 @@
-//! Maps the exported functions onto the versioned documentation IR.
-
 use crate::PowershellExtractError;
 use crate::exports::{Public, public_functions, wildcard_match};
 use crate::types::{Api, Function, Names, Parameter, ParameterSet, SCHEMA, parse_api};
@@ -15,18 +13,12 @@ const KEY_INCOMPLETE: &str = "powershell.incomplete";
 const ALL_SETS: &str = "__AllParameterSets";
 const DEFAULT_TYPE: &str = "Object";
 
-/// The identity inputs of one extraction.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Settings {
     pub package: String,
     pub config: String,
 }
 
-/// Converts one dx.powershell.api/1 document into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, PowershellExtractError> {
     let api = parse_api(json)?;
     let public = public_functions(&api)?;
@@ -147,7 +139,6 @@ fn symbol(api: &Api, public: &Public<'_>, settings: &Settings, config: &str) -> 
     }
 }
 
-/// Normalizes help text: LF line ends and no surrounding blank space.
 #[must_use]
 pub fn clean(text: &str) -> String {
     text.replace("\r\n", "\n")
@@ -295,7 +286,6 @@ fn implicit_positions(function: &Function) -> Vec<Option<u32>> {
         .collect()
 }
 
-/// Renders one Get-Help style syntax line per parameter set, default set first.
 #[must_use]
 pub fn signature(function: &Function) -> String {
     let implicit = implicit_positions(function);

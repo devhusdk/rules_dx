@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use dx_error::stdio::write_line;
 
 use crate::fetch::{self, ChecksumSource};
-use crate::protocol::{self, Platform, Route, ShimError, VersionSource};
+use crate::protocol::{self, LaunchError, Platform, Route, VersionSource};
 
 pub struct Resolved {
     pub version: String,
@@ -15,8 +15,7 @@ pub struct Resolved {
     pub checksum: Option<ChecksumSource>,
 }
 
-/// `None` means the call goes through `bazel run @rules_dx//:dx`.
-pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Option<Resolved>, ShimError> {
+pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Option<Resolved>, LaunchError> {
     resolve_on(env_get, cwd, protocol::host_platform())
 }
 
@@ -24,7 +23,7 @@ pub fn resolve_on(
     env_get: protocol::EnvGet,
     cwd: &Path,
     (os, arch): (&str, &str),
-) -> Result<Option<Resolved>, ShimError> {
+) -> Result<Option<Resolved>, LaunchError> {
     let (version, source, pins) = match protocol::resolve_version(env_get, cwd)? {
         Route::Bazel => return Ok(None),
         Route::Env(version) => (version, VersionSource::Env, None),
@@ -38,7 +37,7 @@ pub fn resolve_on(
     };
     let windows = platform.os == "windows";
     let root = protocol::cache_root(env_get, windows)?.ok_or_else(|| {
-        ShimError::failure(if windows {
+        LaunchError::failure(if windows {
             "USERPROFILE is not set; set DX_CACHE_DIR"
         } else {
             "HOME is not set; set DX_CACHE_DIR"
@@ -66,12 +65,12 @@ pub fn resolve_on(
     }))
 }
 
-pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, ShimError> {
+pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, LaunchError> {
     if fetch::cached(&resolved.bin, resolved.checksum.as_ref()) {
         return Ok(resolved.bin.clone());
     }
     let Some(checksum) = &resolved.checksum else {
-        return Err(ShimError::failure("no pinned checksum for the download"));
+        return Err(LaunchError::failure("no pinned checksum for the download"));
     };
     let base = protocol::release_base(env_get)?;
     let asset = protocol::asset_name(resolved.platform);
@@ -100,14 +99,14 @@ pub fn main(args: Vec<OsString>) -> i32 {
     }
 }
 
-fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
+fn run(args: Vec<OsString>) -> Result<i32, LaunchError> {
     if let Some((first, rest)) = args.split_first()
         && first == "shim"
     {
         return shim_command(rest);
     }
     let cwd = std::env::current_dir()
-        .map_err(|e| ShimError::failure(format!("cannot read the current directory: {e}")))?;
+        .map_err(|e| LaunchError::failure(format!("cannot read the current directory: {e}")))?;
     let Some(resolved) = resolve(&env_get, &cwd)? else {
         return via_bazel(args);
     };
@@ -115,28 +114,27 @@ fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
     exec(&bin, args)
 }
 
-fn emit(out: &mut dyn Write, text: std::fmt::Arguments<'_>) -> Result<(), ShimError> {
-    write_line(out, text).map_err(|e| ShimError::failure(format!("cannot write to stdout: {e}")))
+fn emit(out: &mut dyn Write, text: std::fmt::Arguments<'_>) -> Result<(), LaunchError> {
+    write_line(out, text).map_err(|e| LaunchError::failure(format!("cannot write to stdout: {e}")))
 }
 
-/// Writes `label` and the path's own bytes, so a non-UTF-8 path survives a copy from the output.
-fn emit_path(out: &mut dyn Write, label: &str, path: &Path) -> Result<(), ShimError> {
+fn emit_path(out: &mut dyn Write, label: &str, path: &Path) -> Result<(), LaunchError> {
     let mut bytes = label.as_bytes().to_vec();
     bytes.extend_from_slice(path.as_os_str().as_encoded_bytes());
     bytes.push(b'\n');
     match out.write_all(&bytes) {
         Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => {
-            Err(ShimError::failure(format!("cannot write to stdout: {e}")))
+            Err(LaunchError::failure(format!("cannot write to stdout: {e}")))
         }
         Ok(()) | Err(_) => Ok(()),
     }
 }
 
-fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
+fn shim_command(args: &[OsString]) -> Result<i32, LaunchError> {
     shim_command_to(args, &mut std::io::stdout().lock())
 }
 
-fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimError> {
+fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, LaunchError> {
     let sub = args.first().map(|arg| arg.to_string_lossy().into_owned());
     match sub.as_deref() {
         Some("version") if args.len() == 1 => {
@@ -145,7 +143,7 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimEr
         }
         Some("where") if args.len() == 1 => {
             let cwd = std::env::current_dir().map_err(|e| {
-                ShimError::failure(format!("cannot read the current directory: {e}"))
+                LaunchError::failure(format!("cannot read the current directory: {e}"))
             })?;
             let Some(resolved) = resolve(&env_get, &cwd)? else {
                 emit(out, format_args!("source: {}", VersionSource::Bazel))?;
@@ -163,48 +161,46 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimEr
             )?;
             Ok(0)
         }
-        Some(sub @ ("version" | "where")) => Err(ShimError::usage(format!(
+        Some(sub @ ("version" | "where")) => Err(LaunchError::usage(format!(
             "dx shim {sub} takes no arguments"
         ))),
-        Some(sub @ ("self-update" | "prune")) => Err(ShimError::usage(format!(
+        Some(sub @ ("self-update" | "prune")) => Err(LaunchError::usage(format!(
             "dx shim {sub} is not available yet"
         ))),
-        Some(sub) => Err(ShimError::usage(format!(
+        Some(sub) => Err(LaunchError::usage(format!(
             "unknown dx shim command '{sub}'; use dx shim version or dx shim where"
         ))),
-        None => Err(ShimError::usage(
+        None => Err(LaunchError::usage(
             "dx shim needs a command: dx shim version or dx shim where",
         )),
     }
 }
 
-/// `dx_families::DX`; the shim does not link `dx_families`.
 const DX: &str = "@rules_dx//:dx";
 
-fn via_bazel(args: Vec<OsString>) -> Result<i32, ShimError> {
+fn via_bazel(args: Vec<OsString>) -> Result<i32, LaunchError> {
     let mut full: Vec<OsString> = vec!["run".into(), DX.into(), "--".into()];
     full.extend(args);
     exec(Path::new("bazel"), full)
 }
 
 #[cfg(unix)]
-fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
+fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, LaunchError> {
     use std::os::unix::process::CommandExt;
     let error = std::process::Command::new(bin)
         .args(args)
         .env("DX_SHIM", "1")
         .exec();
-    Err(ShimError::failure(format!(
+    Err(LaunchError::failure(format!(
         "cannot run {}: {error}",
         bin.display()
     )))
 }
 
 #[cfg(windows)]
-fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
+fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, LaunchError> {
     use dx_os_sys::console::{CtrlEvent, CtrlHandler, add_handler};
 
-    /// Swallows every console event for the shim only; the child gets its own copy.
     struct Swallow;
 
     impl CtrlHandler for Swallow {
@@ -222,7 +218,7 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
         .args(args)
         .env("DX_SHIM", "1")
         .status()
-        .map_err(|e| ShimError::failure(format!("cannot run {}: {e}", bin.display())))?;
+        .map_err(|e| LaunchError::failure(format!("cannot run {}: {e}", bin.display())))?;
     Ok(status.code().unwrap_or(1))
 }
 

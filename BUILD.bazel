@@ -121,7 +121,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude ocaml/tests/fixtures/native
 # gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
-# gazelle:exclude haskell/tests/runtime/src
+# gazelle:exclude haskell/tests/fixtures/runtime/src
 # gazelle:exclude dotnet/private/quality/tools/fsharplint
 # gazelle:exclude dotnet/private/quality/tools/roslyn_worker
 # gazelle:exclude gazelle/astro
@@ -486,6 +486,7 @@ filegroup(
         "//cli/exec_audit:module_srcs",
         "//cli/exec_bench:module_srcs",
         "//cli/exec_core:module_srcs",
+        "//cli/exec_deploy:module_srcs",
         "//cli/exec_docs:module_srcs",
         "//cli/exec_os:module_srcs",
         "//cli/exec_quality:module_srcs",
@@ -649,7 +650,6 @@ filegroup(
         "//csharp/private/tools/lock:module_srcs",
         "//csharp/tests/fixtures/roslyn:module_srcs",
         "//cuda:module_srcs",
-        "//cuda/private/toolchain/hub:module_srcs",
         "//cuda/tests:module_srcs",
         "//d:module_srcs",
         "//d/private:module_srcs",
@@ -684,6 +684,7 @@ filegroup(
         "//dotnet/private:module_srcs",
         "//dotnet/private/coverage:module_srcs",
         "//dotnet/private/quality:module_srcs",
+        "//dotnet/private/tools/coverage:module_srcs",
         "//dx:module_srcs",
         "//dx/advisory_prep:module_srcs",
         "//elixir:module_srcs",

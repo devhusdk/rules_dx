@@ -1,5 +1,3 @@
-//! Lists `LuaRocks` pins whose newest version in the luarocks.org manifest is newer than the locked one.
-
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use dx_error::DxError;
 use std::cmp::Ordering;
@@ -8,7 +6,6 @@ pub const DEFAULT_BASE: &str = "https://luarocks.org";
 
 const MANIFEST: &str = "manifest-5.5.json";
 
-/// Compares `(rock, version)` pins against the manifest at `base`.
 pub fn outdated(
     set: &str,
     pins: &[(String, String)],
@@ -105,7 +102,6 @@ fn is_prerelease(version: &str) -> bool {
         .any(|part| matches!(part, Part::Delta(_)))
 }
 
-/// Splits `1.2beta3-1` into its components and the revision, as `LuaRocks` does.
 fn parts(version: &str) -> (Vec<Part>, u64) {
     let (core, revision) = match version.rsplit_once('-') {
         Some((core, revision)) if revision.chars().all(|c| c.is_ascii_digit()) => {
@@ -137,7 +133,6 @@ fn parts(version: &str) -> (Vec<Part>, u64) {
     (out, revision)
 }
 
-/// `LuaRocks` version ordering: components first, then the rockspec revision.
 #[must_use]
 pub fn version_cmp(a: &str, b: &str) -> Ordering {
     let ((parts_a, rev_a), (parts_b, rev_b)) = (parts(a), parts(b));

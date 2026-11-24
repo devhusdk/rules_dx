@@ -1,6 +1,3 @@
-//! Places the prebuilt dx binary the `tools/dx` launcher runs into the dx cache, so the
-//! launcher starts without a download once `dx fetch` has run.
-
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -10,44 +7,21 @@ use dx_shim::protocol;
 use dx_exec_core::common::emit_built;
 use dx_exec_core::notice_codes::{CODE_DX_CACHED, CODE_DX_NOT_CACHED};
 
-/// Where the launcher's binary stands after `dx fetch`.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Cached {
-    /// No `rules_dx` version or no pin for this host, so the launcher runs dx through Bazel.
-    NotPinned {
-        asset: String,
-    },
-    /// The host has no prebuilt dx, so the launcher runs dx through Bazel.
-    Unsupported {
-        os: String,
-        arch: String,
-    },
-    /// No cache directory can be named because HOME or USERPROFILE is unset.
-    NoCacheDir {
-        home: &'static str,
-    },
-    Present {
-        version: String,
-        path: PathBuf,
-    },
-    Placed {
-        version: String,
-        path: PathBuf,
-    },
-    /// The running dx is not the pinned binary, so it was not copied.
-    Mismatch {
-        version: String,
-        asset: String,
-    },
+    NotPinned { asset: String },
+    Unsupported { os: String, arch: String },
+    NoCacheDir { home: &'static str },
+    Present { version: String, path: PathBuf },
+    Placed { version: String, path: PathBuf },
+    Mismatch { version: String, asset: String },
 }
 
-/// What [`ensure`] reads from the host.
 pub(crate) struct Host<'a> {
     pub workspace: &'a Path,
     pub env_get: protocol::EnvGet<'a>,
     pub os: &'a str,
     pub arch: &'a str,
-    /// The running dx binary.
     pub exe: &'a Path,
 }
 
@@ -63,8 +37,6 @@ fn annotate(path: &Path, error: &io::Error) -> String {
     format!("{}: {error}", path.display())
 }
 
-/// Makes sure the launcher's cache holds the pinned dx for the host, copying the running
-/// binary only when its sha256 equals the pin.
 pub(crate) fn ensure(host: &Host<'_>) -> Result<Cached, String> {
     let module = host.workspace.join("MODULE.bazel");
     let version = read_optional(&module)
@@ -107,8 +79,6 @@ pub(crate) fn ensure(host: &Host<'_>) -> Result<Cached, String> {
         std::fs::create_dir_all(dir).map_err(|error| annotate(dir, &error))?;
     }
     dx_atomic_fs::copy_atomic(host.exe, &path).map_err(|error| annotate(&path, &error))?;
-    // The running binary can be replaced while it is copied; never leave a file the
-    // launcher would trust without checking.
     let copied = dx_digest::sha256_file_hex(&path).map_err(|error| annotate(&path, &error))?;
     if !copied.eq_ignore_ascii_case(&pin) {
         dx_atomic_fs::discard_file(&path);
@@ -121,7 +91,6 @@ pub(crate) fn ensure(host: &Host<'_>) -> Result<Cached, String> {
     Ok(Cached::Placed { version, path })
 }
 
-/// The notice for `cached`: info when the launcher is ready, warning when it is not.
 pub(crate) fn notice(cached: &Cached) -> NoticeEvent {
     match cached {
         Cached::NotPinned { asset } => NoticeEvent::info(
@@ -157,8 +126,6 @@ pub(crate) fn notice(cached: &Cached) -> NoticeEvent {
     }
 }
 
-/// Runs [`ensure`] for this process and reports the outcome on stderr, and as a JSON notice.
-/// `Ok(false)` means the cache could not be written; the error is already reported.
 pub(crate) fn cache_running_dx(
     workspace: &Path,
     output: OutputMode,

@@ -1,5 +1,3 @@
-//! Validates the evidence workflow dispatch inputs.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use serde_json::{Value, json};
@@ -71,7 +69,6 @@ fn quoted(items: &[String]) -> String {
     format!("[{}]", items.join(", "))
 }
 
-/// Returns the platform names in `text`, a JSON array of distinct known platforms.
 fn parse_platforms(text: &str) -> Result<Vec<String>, String> {
     let Ok(parsed) = serde_json::from_str::<Value>(text) else {
         return Err("platforms must be a JSON array".into());
@@ -120,11 +117,6 @@ fn parse_platforms(text: &str) -> Result<Vec<String>, String> {
     Ok(platforms)
 }
 
-/// Returns the workflow outputs for valid inputs, or the reason one input is rejected.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, String> {
     let scope_text = get("DX_SCOPE");
     let patterns: Vec<&str> = scope_text.split_whitespace().collect();

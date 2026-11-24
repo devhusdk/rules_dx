@@ -202,8 +202,6 @@ func TestNestedBlockCommentInert(t *testing.T) {
 	}
 }
 
-// Intended behavior change from the regex parser: clauses sharing one line
-// (package a; package b) are chained.
 func TestParsePackageSameLine(t *testing.T) {
 	if got, err := ParsePackage([]byte("package a; package b\nclass X\n")); err != nil || got != "a.b" {
 		t.Errorf("ParsePackage = %q, %v; want a.b", got, err)

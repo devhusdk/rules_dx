@@ -3,7 +3,6 @@ use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "hadolint";
 
-/// What hadolint 2.15.1 prints to stderr before it falls back to its defaults on a bad config.
 const CONFIG_ERROR: &str = "Error parsing your config file";
 
 fn text<'a>(value: &'a serde_json::Value, key: &str) -> Result<&'a str, ParseError> {
@@ -21,11 +20,6 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
         .ok_or_else(|| ParseError::shape(TOOL, format!("missing {key}")))
 }
 
-/// Parses `hadolint -f json`: stdout is one JSON array of findings, whatever the exit code says.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_hadolint(
     stdout: &[u8],
     stderr: &[u8],

@@ -1,5 +1,3 @@
-//! Lists direct Julia packages whose newest General registry release is newer than the one locked.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, release_cmp};
@@ -7,7 +5,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://raw.githubusercontent.com/JuliaRegistries/General/master";
 
-/// Checks each `[deps]` package of the manifest files, as locked in the lock files.
 pub fn outdated(
     set: &str,
     projects: &[String],
@@ -50,7 +47,6 @@ fn direct_deps(projects: &[String]) -> Vec<String> {
     names
 }
 
-/// Reads `(name, version)` of every versioned `[[deps.Name]]` entry, without build metadata.
 fn locked_versions(manifest: &str) -> Vec<(String, String)> {
     let Ok(doc) = manifest.parse::<toml_edit::DocumentMut>() else {
         return Vec::new();
@@ -72,7 +68,6 @@ fn locked_versions(manifest: &str) -> Vec<(String, String)> {
     out
 }
 
-/// The newest version of a registry `Versions.toml`, skipping yanked ones.
 fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
     let doc: toml_edit::DocumentMut = body
         .parse()

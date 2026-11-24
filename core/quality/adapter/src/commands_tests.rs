@@ -1717,29 +1717,15 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part8() {
     let perl = Path::new("/scratch/sample.pl");
     let perl_format = PERLCRITIC_FORMAT.replace('\\', "/");
     assert_eq!(
-        argv_strings(&perlcritic_check(Path::new(BIN), &[perl], None)),
-        vec![
-            BIN,
-            "--noprofile",
-            "--severity=5",
-            "--include=Variables::ProhibitUnusedVariables",
-            "--nocolor",
-            "--quiet",
-            "--verbose",
-            perl_format.as_str(),
-            "/scratch/sample.pl"
-        ]
-    );
-    assert_eq!(
         argv_strings(&perlcritic_check(
             Path::new(BIN),
             &[perl],
-            Some(Path::new("/scratch/.perlcriticrc"))
+            Path::new("/scratch/strict.perlcriticrc")
         )),
         vec![
             BIN,
             "--profile",
-            "/scratch/.perlcriticrc",
+            "/scratch/strict.perlcriticrc",
             "--nocolor",
             "--quiet",
             "--verbose",
@@ -3361,6 +3347,11 @@ fn dialyzer_check_orders_plts_before_options_and_reads_beams_from_the_input_list
             "--error_location",
             "column",
             "--fullpath",
+            "-Wunmatched_returns",
+            "-Wmissing_return",
+            "-Wextra_return",
+            "-Werror_handling",
+            "-Wunderspecs",
             "--input_list_file",
             "/s/beams.txt"
         ]
@@ -3586,11 +3577,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         r#"{"$schema":"x","runtime.version":"LuaJIT","workspace.library":["/elsewhere"],"diagnostics.globals":["vim"]}"#,
     )
     .unwrap();
-    let text = luals_luarc(
-        &consumer,
-        Some(Path::new("/s/dx-luals/mod")),
-        &["dx-luals"],
-    );
+    let text = luals_luarc(&consumer, Some(Path::new("/s/dx-luals/mod")), &["dx-luals"]);
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(parsed["runtime.version"], "Lua 5.4");
     assert_eq!(
@@ -3605,7 +3592,8 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         serde_json::json!(["dx-luals"])
     );
     assert!(parsed.get("$schema").is_none());
-    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
+    let bare: serde_json::Value =
+        serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
     assert_eq!(bare["workspace.library"], serde_json::json!([]));
 }
 

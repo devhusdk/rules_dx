@@ -1,5 +1,3 @@
-//! Insert planners for the manifests a missing `dx update` package is written to. Each one keeps every other byte.
-
 use dx_error::DxError;
 
 use crate::edit::request::plans::{JsonScan, NPM_SECTIONS, paket_tokens};
@@ -12,8 +10,6 @@ fn line_ending(content: &str) -> &'static str {
     }
 }
 
-/// Adds `package = "version"` to `[dependencies]`, creating the table when missing and
-/// keeping it sorted when it already is.
 pub(super) fn insert_cargo_dependency(
     content: &str,
     package: &str,
@@ -52,7 +48,6 @@ pub(super) fn insert_cargo_dependency(
     Ok(out)
 }
 
-/// Adds `"package": "version"` to `dependencies`, creating the section when missing.
 pub(super) fn insert_npm_dependency(
     content: &str,
     package: &str,
@@ -170,7 +165,6 @@ pub(super) fn insert_npm_dependency(
     Ok(out)
 }
 
-/// The leading whitespace of the line holding byte `at`.
 fn line_indent(content: &str, at: usize) -> Result<&str, DxError> {
     let before = part(content, ..at)?;
     let line = before.rsplit_once('\n').map_or(before, |(_, line)| line);
@@ -199,7 +193,6 @@ fn splice(content: &str, at: usize, text: &str) -> Result<String, DxError> {
     Ok(out)
 }
 
-/// Adds `nuget package version` after the last `nuget` line of the main group.
 pub(super) fn insert_paket_dependency(
     content: &str,
     package: &str,
@@ -242,7 +235,6 @@ pub(super) fn insert_paket_dependency(
     splice(content, end, &entry)
 }
 
-/// Adds `package>=version` to `[project].dependencies`, creating the array when missing.
 pub(super) fn insert_pyproject_dependency(
     content: &str,
     package: &str,
@@ -304,7 +296,6 @@ pub(super) fn insert_pyproject_dependency(
     Ok(out)
 }
 
-/// Adds `gem "package", "~> major.minor"` after the last top-level `gem` line, or at the end.
 pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<String, DxError> {
     let mut parts = version.split('.');
     let requirement = match (parts.next(), parts.next()) {

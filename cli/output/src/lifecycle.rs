@@ -87,7 +87,6 @@ pub fn command_started(command: &str, mode: &str) -> Result<Value, OutputError> 
     Ok(Value::Object(map))
 }
 
-/// A quality `command_started` that records `unsafe_fixes: true` only when `--unsafe` was given.
 pub fn quality_started(
     command: &str,
     mode: &str,
@@ -100,7 +99,6 @@ pub fn quality_started(
     Ok(event)
 }
 
-/// Rewrites one child command event into its parent's stream under `phase`.
 pub fn nest_phase_event(
     event: Value,
     command: &str,
@@ -130,7 +128,6 @@ pub fn nest_phase_event(
     with_correlation(Value::Object(map), correlation)
 }
 
-/// Parses one NDJSON line and rejects any schema major this dx does not write.
 pub fn read_event(line: &str) -> Result<Value, OutputError> {
     let value: Value = serde_json::from_str(line).map_err(|error| {
         tracing::debug!(%error, "NDJSON line is not JSON");
@@ -208,7 +205,6 @@ pub fn selection_event(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEvent {
     pub name: String,
-    /// `info`, `warning` or `error`.
     pub severity: String,
     pub detail: String,
     pub hint: String,
@@ -227,7 +223,6 @@ pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// One file `dx init` writes, who owns it, and whether it is in step with the running dx.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnedFileEvent {
     pub path: String,
@@ -246,10 +241,8 @@ pub fn owned_file_event(file: &OwnedFileEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// The tier in force and where it was set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TierEvent {
-    /// The family the tier is set for, or `None` for the workspace tier.
     pub family: Option<String>,
     pub tier: String,
     pub source: String,
@@ -268,11 +261,9 @@ pub fn tier_event(tier: &TierEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// The tools a family runs for one capability after `dx.toml` edits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FamilyToolsEvent {
     pub family: String,
-    /// `lint`, `format`, `typecheck` or `audit`.
     pub capability: String,
     pub tools: Vec<String>,
 }
@@ -293,17 +284,13 @@ pub fn family_tools_event(entry: &FamilyToolsEvent) -> Result<Value, OutputError
     Ok(Value::Object(map))
 }
 
-/// One file a tool reads, from `dx config`. `base` and `edited` are set on the root file; `edited` is left out when unknown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigFileEvent {
     pub tool: String,
     pub file: String,
-    /// `root` or `base`.
     pub role: String,
-    /// The base the root file extends, or `tier base` when the tool runs on the base itself.
     pub base: Option<String>,
     pub edited: Option<bool>,
-    /// The unified diff from the base to the root file, from `dx config diff`.
     pub patch: Option<String>,
 }
 
@@ -328,7 +315,6 @@ pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// One finding of the read-only `dx init` plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlanFindingEvent {
     pub kind: String,
@@ -336,10 +322,8 @@ pub struct PlanFindingEvent {
     pub before: String,
     pub after: String,
     pub file: String,
-    /// 1-based line in `file`; 0 leaves the field out.
     pub line: usize,
     pub hint: String,
-    /// `hard` fails `dx init`'s check; `advisory` is only reported.
     pub strength: String,
 }
 
@@ -374,7 +358,6 @@ pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError>
     Ok(Value::Object(map))
 }
 
-/// One worktree slot and its state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlotEvent {
     pub action: String,
@@ -419,7 +402,6 @@ pub fn slot_event(slot: &SlotEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// One cell's coverage account from `dx coverage`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoverageEvent {
     pub cell: String,
@@ -435,11 +417,8 @@ pub struct CoverageEvent {
     pub passed: bool,
     pub errors: u64,
     pub dx_version: String,
-    /// The `HEAD` commit measured; left out when the workspace is not a Git work tree.
     pub sha: Option<String>,
-    /// True when tracked files differ from `sha`.
     pub dirty: bool,
-    /// The tool that collected the coverage, `bazel <version>`; left out when unknown.
     pub collector: Option<String>,
 }
 
@@ -482,7 +461,6 @@ pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// The changed-line coverage gate from `dx coverage --min-changed-line-coverage`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChangedLineCoverageEvent {
     pub base: String,
@@ -554,7 +532,6 @@ pub fn changed_line_coverage_event(gate: &ChangedLineCoverageEvent) -> Result<Va
     Ok(Value::Object(map))
 }
 
-/// The machine totals a worktree listing ends with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SummaryEvent {
     pub slots: u64,
@@ -582,7 +559,6 @@ pub fn summary_event(summary: &SummaryEvent) -> Value {
     Value::Object(map)
 }
 
-/// One declared capability and where its availability was observed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapabilityEvent {
     pub name: String,
@@ -597,7 +573,6 @@ pub struct CapabilityEvent {
     pub passthrough: bool,
 }
 
-/// Builds the event for a capability whose producer already validated it.
 #[must_use]
 pub fn capability_value(capability: &CapabilityEvent) -> Value {
     let mut map = base("capability");
@@ -659,7 +634,6 @@ pub fn capability_value(capability: &CapabilityEvent) -> Value {
     Value::Object(map)
 }
 
-/// Builds the event for one declared capability.
 pub fn capability_event(capability: &CapabilityEvent) -> Result<Value, OutputError> {
     nonempty("name", &capability.name)?;
     match capability.source.as_str() {
@@ -694,17 +668,14 @@ pub fn error_event(
     error_map(code, message, path, flag, phase).map(Value::Object)
 }
 
-/// Import failure details a language extension attaches to a `generation_failed` error.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GenerationDetail<'a> {
     pub language: &'a str,
     pub kind: Option<&'a str>,
     pub import: Option<&'a str>,
-    /// The BUILD file and the directive to add to it.
     pub fix: Option<(&'a str, &'a str)>,
 }
 
-/// An `error` event that also names the language, failure kind, import and fix of a generation failure.
 pub fn generation_error_event(
     code: &str,
     message: &str,
@@ -767,7 +738,6 @@ fn error_map(
     Ok(map)
 }
 
-/// The class, child status and diagnostic tail of one failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FailureFacts<'a> {
     pub cause: &'a str,
@@ -776,7 +746,6 @@ pub struct FailureFacts<'a> {
     pub next: Option<&'a str>,
 }
 
-/// An `error` event that also names the failure's cause, child status and bounded excerpt.
 pub fn failure_event(
     code: &str,
     message: &str,
@@ -827,7 +796,6 @@ pub struct TestOutcome {
     pub outputs_path: Option<String>,
 }
 
-/// One test case read from a native test report.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestCase {
     pub classname: Option<String>,
@@ -838,10 +806,8 @@ pub struct TestCase {
     pub line: Option<u64>,
 }
 
-/// Failing cases one `test_outcome` event carries before it counts the rest.
 pub const FAILING_CASE_LIMIT: usize = 10;
 
-/// Longest case message a `test_outcome` event carries, in bytes.
 pub const EVENT_MESSAGE_LIMIT: usize = 1024;
 
 impl TestCase {
@@ -938,7 +904,6 @@ fn outcome_fields(
     Ok(())
 }
 
-/// One `test_outcome` event for a test result that did not plainly pass, with its failing cases and log tail.
 pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
     let mut map = base("test_outcome");
     outcome_fields(&mut map, outcome)?;
@@ -967,7 +932,6 @@ pub fn test_outcome_event(outcome: &TestOutcome) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// One entry of the `results` report: the outcome and every case read for it.
 pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
     let mut map = serde_json::Map::new();
     outcome_fields(&mut map, outcome)?;
@@ -988,7 +952,6 @@ pub fn test_result_record(outcome: &TestOutcome) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// A label, note or help attached to a failure diagnostic.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailureRelated {
     pub role: String,
@@ -1000,7 +963,6 @@ pub struct FailureRelated {
     pub applicability: Option<String>,
 }
 
-/// One rustc diagnostic that Bazel's failed action produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FailureDiagnostic {
     pub severity: String,
@@ -1012,7 +974,6 @@ pub struct FailureDiagnostic {
     pub related: Vec<FailureRelated>,
 }
 
-/// One failure Bazel reported while building. `None` identity fields are unknown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuildFailureEvent {
     pub target: Option<String>,
@@ -1137,20 +1098,15 @@ fn opt_i64(map: &mut serde_json::Map<String, Value>, field: &str, value: Option<
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FinishedCounts {
     pub results_complete: Option<bool>,
-    /// Ties `.dx/local/results.json` to the run that wrote it.
     pub run_id: Option<String>,
     pub diagnostics: Option<[u64; 3]>,
-    /// Finding totals when the run printed findings, whether or not it capped them.
     pub findings: Option<FindingCounts>,
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
-    /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
-    /// Bazel action counts summed over the command's builds.
     pub actions: Option<ActionCounts>,
 }
 
-/// Exact finding counts per tool and per rule, and how many findings the event stream left out.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FindingCounts {
     pub omitted: u64,
@@ -1158,7 +1114,6 @@ pub struct FindingCounts {
     pub by_rule: std::collections::BTreeMap<String, u64>,
 }
 
-/// Bazel action counts; `executed` excludes disk and remote cache hits.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ActionCounts {
     pub created: u64,
@@ -1191,11 +1146,6 @@ impl ActionCounts {
     }
 }
 
-/// Test result counts; `no_cases` is the part of `passed` whose report had no cases.
-///
-/// The unit is one result: one per target, configuration, run and shard, counted at its final
-/// attempt. A target with 4 shards counts 4. `skipped` counts once per skipped or filtered target
-/// and configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TestCounts {
     pub passed: u64,

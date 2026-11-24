@@ -24,9 +24,9 @@ def cmt_entries(srcs, cmts, cmtis):
 
 STANDARD_WARNING_OPTS = ["-w", "+a-4-40-42-44-70"]
 
-STRICT_WARNING_OPTS = ["-w", "+a-4-70", "-alert", "-deprecated"]
+STRICT_WARNING_OPTS = ["-w", "+a-4-70"]
 
-WARNINGS_AS_ERRORS_OPTS = ["-warn-error", "+a-3"]
+WARNINGS_AS_ERRORS_OPTS = ["-warn-error", "+a"]
 
 PROFILE_WARNING_OPTS = select({
     Label("//config:config_tier_strict"): STRICT_WARNING_OPTS,

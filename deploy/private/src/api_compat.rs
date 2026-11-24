@@ -1,21 +1,17 @@
-//! Public API compatibility rule shared by the registry adapters.
-
 use std::fmt;
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::RunError;
 use dx_semver::Version;
 
-/// What `api_compat` does with a breaking report.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ApiCompatMode {
+pub enum ApiCheckMode {
     Off,
     Warn,
     Fail,
 }
 
-impl ApiCompatMode {
-    /// Parses the `api_compat` attribute value.
+impl ApiCheckMode {
     #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         match value {
@@ -27,7 +23,6 @@ impl ApiCompatMode {
     }
 }
 
-/// How large a version bump is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Bump {
     Major,
@@ -35,8 +30,6 @@ pub enum Bump {
     Patch,
 }
 
-/// Returns the bump from `previous` to `next`; None when either is not a version.
-/// Below 1.0.0 a minor change counts as major, as cargo treats it.
 #[must_use]
 pub fn required_bump(previous: &str, next: &str) -> Option<Bump> {
     let old = Version::parse(previous).ok()?;
@@ -51,14 +44,9 @@ pub fn required_bump(previous: &str, next: &str) -> Option<Bump> {
     Some(bump)
 }
 
-/// Returns an error when a breaking report is not allowed by the version bump.
 #[must_use]
-pub fn breaking_refusal(
-    mode: ApiCompatMode,
-    bump: Option<Bump>,
-    breaking: usize,
-) -> Option<String> {
-    if mode != ApiCompatMode::Fail || breaking == 0 || bump == Some(Bump::Major) {
+pub fn breaking_refusal(mode: ApiCheckMode, bump: Option<Bump>, breaking: usize) -> Option<String> {
+    if mode != ApiCheckMode::Fail || breaking == 0 || bump == Some(Bump::Major) {
         return None;
     }
     Some(format!(
@@ -66,17 +54,13 @@ pub fn breaking_refusal(
     ))
 }
 
-/// Where the earlier version an `api_compat` check compares against comes from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Baseline {
-    /// The highest published release below the new version.
     Registry,
-    /// The highest `v*` git tag below the new version.
     Git,
 }
 
 impl Baseline {
-    /// Parses the `api_baseline` attribute value; empty means `registry`.
     #[must_use]
     pub fn parse(value: &str) -> Option<Self> {
         match value {
@@ -87,7 +71,6 @@ impl Baseline {
     }
 }
 
-/// Returns the highest non-prerelease version below `next`.
 pub fn highest_below<'a>(
     versions: impl IntoIterator<Item = &'a str>,
     next: &str,
@@ -104,7 +87,6 @@ pub fn highest_below<'a>(
         .map(|(_, version)| version)
 }
 
-/// Returns the highest non-yanked release below `next` in a sparse index body.
 pub fn latest_published(index_body: &str, next: &str) -> Option<String> {
     let versions: Vec<String> = index_body
         .lines()
@@ -120,7 +102,6 @@ pub fn latest_published(index_body: &str, next: &str) -> Option<String> {
     highest_below(versions.iter().map(String::as_str), next)
 }
 
-/// Returns the highest `v<version>` tag below `next` from `git tag` output.
 #[must_use]
 pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
     highest_below(
@@ -130,7 +111,6 @@ pub fn previous_tag(tags: &str, next: &str) -> Option<String> {
     .map(|version| format!("v{version}"))
 }
 
-/// Returns the highest release below `next` listed in a `maven-metadata.xml` body.
 #[must_use]
 pub fn previous_release(metadata: &str, next: &str) -> Option<String> {
     let versions = metadata
@@ -140,41 +120,40 @@ pub fn previous_release(metadata: &str, next: &str) -> Option<String> {
     highest_below(versions, next)
 }
 
-/// What an adapter found when it compared the new API with the baseline.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// There is no earlier version to compare with.
     FirstRelease,
-    /// The check could not run; the reason is printed and the deploy goes on.
     Skipped(String),
-    /// The tool ran against `previous`; `changes` lists each breaking change.
     Compared {
         previous: String,
         changes: Vec<String>,
     },
 }
 
-/// Why an `api_compat` check refused a deploy or could not fetch its baseline.
 #[derive(Debug)]
-pub enum ApiCompatError {
-    /// The change is breaking and the version bump is not major.
+pub enum ApiCheckError {
     Breaking {
         rule: String,
         reason: String,
         previous: String,
         next: String,
     },
-    /// The HTTP client could not be built.
-    Client { source: dx_http::Error },
-    /// A baseline download failed.
-    Query { url: String, source: dx_http::Error },
-    /// A git invocation failed.
-    Git { source: RunError },
-    /// An exported file could not be written.
-    Export { source: PathIoError },
+    Client {
+        source: dx_http::Error,
+    },
+    Query {
+        url: String,
+        source: dx_http::Error,
+    },
+    Git {
+        source: RunError,
+    },
+    Export {
+        source: PathIoError,
+    },
 }
 
-impl fmt::Display for ApiCompatError {
+impl fmt::Display for ApiCheckError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Breaking {
@@ -191,7 +170,7 @@ impl fmt::Display for ApiCompatError {
     }
 }
 
-impl std::error::Error for ApiCompatError {
+impl std::error::Error for ApiCheckError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Breaking { .. } => None,
@@ -202,21 +181,15 @@ impl std::error::Error for ApiCompatError {
     }
 }
 
-/// How many breaking changes the report prints.
 const REPORT_LINES: usize = 40;
 
-/// Prints the report of an `api_compat` check and refuses a breaking change without a major bump.
-///
-/// # Errors
-///
-/// Returns [`ApiCompatError::Breaking`] when the mode is `fail` and the change is breaking without a major bump.
 pub fn conclude(
     rule: &str,
-    mode: ApiCompatMode,
+    mode: ApiCheckMode,
     next: &str,
     outcome: Outcome,
-) -> Result<(), ApiCompatError> {
-    if mode == ApiCompatMode::Off {
+) -> Result<(), ApiCheckError> {
+    if mode == ApiCheckMode::Off {
         return Ok(());
     }
     let (previous, changes) = match outcome {
@@ -243,7 +216,7 @@ pub fn conclude(
         next.trim_start_matches('v'),
     );
     match breaking_refusal(mode, bump, count) {
-        Some(reason) => Err(ApiCompatError::Breaking {
+        Some(reason) => Err(ApiCheckError::Breaking {
             rule: rule.to_owned(),
             reason,
             previous,
@@ -253,7 +226,6 @@ pub fn conclude(
     }
 }
 
-/// Returns `changes`, or the last lines of `output` when a failed tool listed none.
 pub fn changes_or_failure(
     changes: Vec<String>,
     success: bool,
@@ -277,7 +249,6 @@ pub fn changes_or_failure(
     vec![format!("{tool} failed: {tail}")]
 }
 
-/// The repository a deploy runs from.
 #[must_use]
 pub fn workspace_dir() -> std::path::PathBuf {
     std::env::var("BUILD_WORKSPACE_DIRECTORY")
@@ -285,109 +256,77 @@ pub fn workspace_dir() -> std::path::PathBuf {
         .into()
 }
 
-/// Returns the highest `v<version>` tag below `next` in the repository at `workspace`.
-///
-/// # Errors
-///
-/// Returns [`ApiCompatError::Git`] when the git invocation fails.
 pub fn previous_git_tag(
     workspace: &std::path::Path,
     next: &str,
-) -> Result<Option<String>, ApiCompatError> {
+) -> Result<Option<String>, ApiCheckError> {
     let output = dx_process::capture::run_checked(
         dx_process::capture::git(workspace).args(["tag", "--list", "v*"]),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
-    .map_err(|source| ApiCompatError::Git { source })?;
+    .map_err(|source| ApiCheckError::Git { source })?;
     Ok(previous_tag(&output.stdout_text(), next))
 }
 
-/// Downloads `url` up to `limit` bytes; None when the server answers 404 or 410.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, ApiCompatError> {
-    let client = crate::http::client().map_err(|source| ApiCompatError::Client { source })?;
+pub fn fetch(url: &str, limit: u64) -> Result<Option<Vec<u8>>, ApiCheckError> {
+    let client = crate::http::client().map_err(|source| ApiCheckError::Client { source })?;
     fetch_with(&client, url, limit)
 }
 
-/// Downloads `url` with `client` up to `limit` bytes; None when the server answers 404 or 410.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn fetch_with(
     client: &dx_http::Client,
     url: &str,
     limit: u64,
-) -> Result<Option<Vec<u8>>, ApiCompatError> {
+) -> Result<Option<Vec<u8>>, ApiCheckError> {
     match client.bytes(url, &[], limit) {
         Ok(body) => Ok(Some(body)),
         Err(dx_http::Error::Status {
             code: 404 | 410, ..
         }) => Ok(None),
-        Err(source) => Err(ApiCompatError::Query {
+        Err(source) => Err(ApiCheckError::Query {
             url: url.to_owned(),
             source,
         }),
     }
 }
 
-/// Downloads `url` up to `limit` bytes into `dest`; false when the server answers 404 or 410.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn fetch_to(url: &str, dest: &std::path::Path, limit: u64) -> Result<bool, ApiCompatError> {
-    let client = crate::http::client().map_err(|source| ApiCompatError::Client { source })?;
+pub fn fetch_to(url: &str, dest: &std::path::Path, limit: u64) -> Result<bool, ApiCheckError> {
+    let client = crate::http::client().map_err(|source| ApiCheckError::Client { source })?;
     fetch_to_with(&client, url, dest, limit)
 }
 
-/// Downloads `url` with `client` up to `limit` bytes into `dest`; false when the server
-/// answers 404 or 410. `dest` is replaced only once the whole body has arrived.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn fetch_to_with(
     client: &dx_http::Client,
     url: &str,
     dest: &std::path::Path,
     limit: u64,
-) -> Result<bool, ApiCompatError> {
+) -> Result<bool, ApiCheckError> {
     match client.download_to(url, &[], dest, limit) {
         Ok(_) => Ok(true),
         Err(dx_http::Error::Status {
             code: 404 | 410, ..
         }) => Ok(false),
-        Err(source) => Err(ApiCompatError::Query {
+        Err(source) => Err(ApiCheckError::Query {
             url: url.to_owned(),
             source,
         }),
     }
 }
 
-/// Writes the files under `rel_dir` at `rev` into `dest`; false when that directory has no `marker` file.
-/// Symlinks and submodules are skipped. The index and working tree are not touched.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn export_git_dir(
     workspace: &std::path::Path,
     rel_dir: &str,
     rev: &str,
     dest: &std::path::Path,
     marker: &str,
-) -> Result<bool, ApiCompatError> {
-    let git = |args: &[&str]| -> Result<Vec<u8>, ApiCompatError> {
+) -> Result<bool, ApiCheckError> {
+    let git = |args: &[&str]| -> Result<Vec<u8>, ApiCheckError> {
         dx_process::capture::run_checked(
             dx_process::capture::git(workspace).args(args),
             dx_process::capture::DEFAULT_TIMEOUT,
         )
         .map(|output| output.stdout)
-        .map_err(|source| ApiCompatError::Git { source })
+        .map_err(|source| ApiCheckError::Git { source })
     };
     let dir = rel_dir.trim_matches('/');
     let spec = if dir.is_empty() { "." } else { dir };
@@ -417,10 +356,10 @@ pub fn export_git_dir(
         let blob = git(&["cat-file", "blob", oid])?;
         let target = dest.join(rel);
         if let Some(parent) = target.parent() {
-            path_io::create_dir_all(parent).map_err(|source| ApiCompatError::Export { source })?;
+            path_io::create_dir_all(parent).map_err(|source| ApiCheckError::Export { source })?;
         }
         path_io::write_scratch(&target, &blob)
-            .map_err(|source| ApiCompatError::Export { source })?;
+            .map_err(|source| ApiCheckError::Export { source })?;
         found |= rel == marker;
     }
     Ok(found)
@@ -445,18 +384,18 @@ mod tests {
 
     #[test]
     fn breaking_fails_unless_major() {
-        let fail = ApiCompatMode::Fail;
+        let fail = ApiCheckMode::Fail;
         assert!(breaking_refusal(fail, Some(Bump::Patch), 1).is_some());
         assert!(breaking_refusal(fail, Some(Bump::Minor), 2).is_some());
         assert!(breaking_refusal(fail, None, 1).is_some());
         assert_eq!(breaking_refusal(fail, Some(Bump::Major), 3), None);
         assert_eq!(breaking_refusal(fail, Some(Bump::Patch), 0), None);
         assert_eq!(
-            breaking_refusal(ApiCompatMode::Warn, Some(Bump::Patch), 1),
+            breaking_refusal(ApiCheckMode::Warn, Some(Bump::Patch), 1),
             None
         );
         assert_eq!(
-            breaking_refusal(ApiCompatMode::Off, Some(Bump::Patch), 1),
+            breaking_refusal(ApiCheckMode::Off, Some(Bump::Patch), 1),
             None
         );
     }
@@ -503,7 +442,6 @@ mod tests {
         let short = ["1.4", "1.5.0rc1", "1.5.0"];
         assert_eq!(highest_below(short, "1.5.0").as_deref(), Some("1.4"));
         assert_eq!(highest_below(short, "1.5.1").as_deref(), Some("1.5.0"));
-        // A PEP 440 post-release sorts above its release, so it must not read as a prerelease.
         assert_eq!(highest_below(["1.4.0", "1.5.0"], "1.5.0.post1"), None);
         assert_eq!(
             highest_below(["1.4.0", "1.5.0.post1", "1.5.0"], "1.6.0").as_deref(),
@@ -520,7 +458,7 @@ mod tests {
 
     #[test]
     fn conclude_passes_a_first_release_and_a_skip() {
-        let fail = ApiCompatMode::Fail;
+        let fail = ApiCheckMode::Fail;
         assert!(matches!(
             conclude("x_deploy", fail, "1.0.0", Outcome::FirstRelease),
             Ok(())
@@ -536,18 +474,18 @@ mod tests {
     fn conclude_refuses_breaking_changes_without_a_major_bump() {
         let refused = conclude(
             "x_deploy",
-            ApiCompatMode::Fail,
+            ApiCheckMode::Fail,
             "1.3.0",
             compared("1.2.0", &["gone"]),
         );
-        assert!(matches!(refused, Err(ApiCompatError::Breaking { .. })));
+        assert!(matches!(refused, Err(ApiCheckError::Breaking { .. })));
         assert_eq!(
             refused.expect_err("refused").to_string(),
             "x_deploy: api compat: 1 breaking API change(s) need a major version bump (1.2.0 -> 1.3.0)"
         );
         let tags = conclude(
             "x_deploy",
-            ApiCompatMode::Fail,
+            ApiCheckMode::Fail,
             "v1.3.0",
             compared("v1.2.0", &["a", "b"]),
         );
@@ -559,21 +497,21 @@ mod tests {
     fn conclude_allows_a_major_bump_warn_off_and_no_changes() {
         let gone = || compared("1.2.0", &["gone"]);
         assert!(matches!(
-            conclude("x_deploy", ApiCompatMode::Fail, "2.0.0", gone()),
+            conclude("x_deploy", ApiCheckMode::Fail, "2.0.0", gone()),
             Ok(())
         ));
         assert!(matches!(
-            conclude("x_deploy", ApiCompatMode::Warn, "1.3.0", gone()),
+            conclude("x_deploy", ApiCheckMode::Warn, "1.3.0", gone()),
             Ok(())
         ));
         assert!(matches!(
-            conclude("x_deploy", ApiCompatMode::Off, "1.3.0", gone()),
+            conclude("x_deploy", ApiCheckMode::Off, "1.3.0", gone()),
             Ok(())
         ));
         assert!(matches!(
             conclude(
                 "x_deploy",
-                ApiCompatMode::Fail,
+                ApiCheckMode::Fail,
                 "1.2.1",
                 compared("1.2.0", &[])
             ),
@@ -697,7 +635,7 @@ mod tests {
             Ecosystem::Cargo.manifest_name(),
         )
         .expect_err("dest under a file");
-        assert!(matches!(error, ApiCompatError::Export { .. }), "{error:?}");
+        assert!(matches!(error, ApiCheckError::Export { .. }), "{error:?}");
         assert!(error.to_string().starts_with("cannot create "), "{error}");
         dx_atomic_fs::discard_dir(&root);
     }

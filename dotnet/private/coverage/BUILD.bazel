@@ -1,7 +1,4 @@
-load("@crates//:crates.bzl", "aliases")
-load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -21,53 +18,8 @@ alias(
     visibility = ["//:__subpackages__"],
 )
 
-rust_library(
-    name = "dx_coverlet",
-    srcs = [
-        "src/lcov.rs",
-        "src/lib.rs",
-        "src/plan.rs",
-    ],
-    aliases = aliases(
-        package_name = "dotnet/private/coverlet_launcher",
-        normal = True,
-    ),
-    crate_name = "dx_coverlet",
-    crate_root = "src/lib.rs",
-    visibility = [
-        "//cli/runtime:__pkg__",
-        "//dotnet/tests:__pkg__",
-    ],
-    deps = [],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
-)
-
-exports_files(
-    [
-        "src/lib.rs",
-    ],
-    visibility = ["//core/quality:__pkg__"],
-)
-
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
-)
-
-rust_test(
-    name = "dx_coverlet_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "dotnet/private/coverlet_launcher",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":dx_coverlet",
-    deps = [],
 )

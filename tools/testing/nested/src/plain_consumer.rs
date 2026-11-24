@@ -1,15 +1,3 @@
-//! Checks that a rule-set fixture is a plain Bazel consumer of one `rules_<lang>` module.
-//!
-//! A rule-set module keeps its fixture in `<lang>/tests/fixtures/plain/` and its budget in
-//! `<lang>/<lang>_fixture_budget.json`. The budget is a JSON object with the keys
-//! `modules`, `lock_bytes`, `lock_extensions` and `external_repos`, each a number, as read by
-//! `footprint::check_budget`.
-
-/// Returns `Ok` when `module_bazel` depends only on `rules_<lang>` and `files` has no `.dx/` path.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn check_plain_consumer(lang: &str, module_bazel: &str, files: &[&str]) -> Result<(), String> {
     let wanted = format!("rules_{lang}");
     let mut problems = Vec::new();

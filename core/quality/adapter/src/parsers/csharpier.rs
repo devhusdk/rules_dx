@@ -6,9 +6,6 @@ const TOOL: &str = "csharpier";
 const UNFORMATTED: &str = " - Was not formatted.";
 const SYNTAX: &str = " - Was not formatted due to syntax errors.";
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_csharpier(
     stderr: &[u8],
     code: Option<i32>,

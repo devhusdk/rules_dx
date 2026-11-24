@@ -1,8 +1,5 @@
 use super::{FileFinding, ParseError, Spelling, listed_paths};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_modfmt(
     stdout: &[u8],
     code: Option<i32>,
@@ -15,7 +12,6 @@ pub fn parse_modfmt(
 mod tests {
     use super::*;
 
-    /// `modfmt -c -l` names each file it would rewrite, on stdout, and exits 1.
     const DIRTY: &str = "app.mod\n";
 
     #[test]

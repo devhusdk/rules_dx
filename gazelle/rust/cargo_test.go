@@ -732,7 +732,7 @@ func TestCargoDependencyForms(t *testing.T) {
 			for _, w := range tc.want {
 				got, ok := tables[w.table][w.key]
 				expected := cargoDependency{external: w.external, label: w.label, version: w.version, depPath: w.depPath, workspace: w.workspace}
-				got.renamed = false // covered by TestCargoRenamedFlag
+				got.renamed = false
 				if !ok || got != expected {
 					t.Errorf("%s[%s] = %+v (present %v), want %+v", w.table, w.key, got, ok, expected)
 				}

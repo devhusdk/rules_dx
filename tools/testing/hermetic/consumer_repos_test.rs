@@ -1,5 +1,3 @@
-//! Every repository a hermetic consumer's BUILD files reference is declared in its module fragment.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -7,16 +5,12 @@ use dx_module_bazel::{ModuleFile, Value};
 use dx_path::label::repo_of;
 use dx_testing::{read_text, runfiles_root};
 
-/// Repositories every consumer has: the `rules_dx` repo name from `defs.bzl`, the
-/// `rules_dx` module itself, and the ones Bazel provides.
 const DEFAULT_REPOS: &[&str] = &["my_dx", "rules_dx", "platforms", "bazel_tools"];
 
-/// The external repository a label string names, if it names one (`@//p` is the main repo).
 fn label_repo(label: &str) -> Option<&str> {
     repo_of(label).filter(|name| !name.is_empty())
 }
 
-/// Repository names after `@` in the label-like strings of a BUILD file.
 fn referenced(build: &str) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     for line in build.lines() {
@@ -30,8 +24,6 @@ fn referenced(build: &str) -> BTreeSet<String> {
     found
 }
 
-/// Repositories a fragment declares with `bazel_dep`, `use_repo` or a repository rule, or
-/// loads an extension or repository rule from.
 fn declared(fragment: &str) -> BTreeSet<String> {
     let module = ModuleFile::parse(fragment).expect("fragment parses");
     let mut names = BTreeSet::new();
@@ -81,7 +73,6 @@ fn build_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-/// The undeclared repositories of one consumer, as `file: @repo` lines.
 fn undeclared(consumer: &Path) -> Vec<String> {
     let declared = declared(&read_text(&consumer.join("module_fragment.bazel")));
     let mut files = Vec::new();

@@ -3,7 +3,7 @@
 use std::fmt;
 use std::num::ParseIntError;
 
-pub use shared_tasks_model::{format_board, parse_board, ParseError, Task, TitleError};
+pub use shared_tasks_model::{ParseError, Task, TitleError, format_board, parse_board};
 
 pub const CORE_VERSION: &str = "2.0.0";
 

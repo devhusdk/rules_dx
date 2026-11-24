@@ -34,14 +34,12 @@ struct PendingTarget {
     set_ids: Vec<String>,
 }
 
-/// The requested outputs of one build event stream, with what Bazel announced but never delivered.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OutputAccount {
     pub targets: Vec<TargetOutput>,
     pub no_work: Vec<TargetOutput>,
     pub ended: bool,
     pub gaps: Vec<EventGap>,
-    /// The cut-off last line that ended the stream early.
     pub problem: Option<String>,
 }
 
@@ -59,7 +57,6 @@ fn named_set_id(id: &serde_json::Map<String, Value>) -> Option<&str> {
     None
 }
 
-/// Collects the requested outputs plus the stream facts that say whether every producer reported.
 pub fn collect_account(
     reader: impl BufRead,
     config: &CollectorConfig,
@@ -71,7 +68,6 @@ pub fn collect_account(
     Ok(account)
 }
 
-/// The output account of a stream and the line and reason of a cut-off last line.
 fn read_account(
     reader: impl BufRead,
     config: &CollectorConfig,
@@ -422,13 +418,11 @@ mod tests {
         format!(r#"{{"name": "{name}", "fileSets": [{}]}}"#, refs.join(","))
     }
 
-    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         let root = if cfg!(windows) { "C:/out" } else { "out" };
         format!("file:///{root}/{rel}")
     }
 
-    /// The host path one slash-separated relative name under the fixture root names.
     fn out_path(rel: &str) -> PathBuf {
         let root = if cfg!(windows) { r"C:\out" } else { "/out" };
         let mut path = PathBuf::from(root);

@@ -30,17 +30,12 @@ struct QmlLintRecord {
     severity: String,
 }
 
-/// Which slice of one qmllint run a capability keeps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QmllintView {
-    /// Style, unqualified access and every id not listed as a type error.
     Lint,
-    /// Import, type resolution and property type errors.
     Typecheck,
 }
 
-/// Category ids that report unresolved or mismatched types. Everything else,
-/// including ids this list does not know, stays in the lint view.
 const TYPECHECK_IDS: &[&str] = &[
     "alias-cycle",
     "bad-signal-handler-parameters",
@@ -60,8 +55,6 @@ const TYPECHECK_IDS: &[&str] = &[
     "unresolved-type",
 ];
 
-/// Records that mean the file was not analysed at all; both views keep them
-/// so an unreadable or unparseable file is never clean.
 fn is_fatal(record: &QmlLintRecord) -> bool {
     record.id == "syntax"
         || (record.id == "import" && record.message.starts_with("Failed to open file"))
@@ -104,7 +97,6 @@ fn read_report(stdout: &[u8]) -> Result<QmlLintReport, ParseError> {
     Ok(report)
 }
 
-/// The exit code a report implies: 255 when any file failed, else 0.
 fn implied_code(report: &QmlLintReport) -> i32 {
     if report.files.iter().any(|file| !file.success) {
         FAILED
@@ -183,9 +175,6 @@ fn convert(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmllint(
     stdout: &[u8],
     code: Option<i32>,
@@ -216,11 +205,6 @@ pub fn parse_qmllint(
     Ok(findings)
 }
 
-/// Parses one saved report; it may cover only some of the files.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmllint_report(
     stdout: &[u8],
     files: &[&str],

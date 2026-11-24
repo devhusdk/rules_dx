@@ -1,5 +1,3 @@
-//! Stages the sources of one Dart library as pub packages and runs `dart doc` over them.
-
 use std::fmt;
 use std::fs;
 use std::io;
@@ -8,12 +6,11 @@ use std::process::Command;
 use std::time::Duration;
 
 use documentation_ir::tool::{FlagError, PathIoError, path_io};
+use dx_ecosystems::Ecosystem;
 use dx_process::capture::{RunError, run_captured};
 
-const PUBSPEC: &str = "pubspec.yaml";
 const DART_DOC_TIMEOUT: Duration = Duration::from_secs(3600);
 
-/// Why one `dart doc` run failed.
 #[derive(Debug)]
 pub enum DartDocError {
     Io(PathIoError),
@@ -91,7 +88,6 @@ impl std::error::Error for DartDocError {
     }
 }
 
-/// The inputs of one `dart doc` run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DocOptions {
     pub dart: String,
@@ -103,32 +99,22 @@ pub struct DocOptions {
     pub html: String,
 }
 
-/// The staging tree of one run, with paths relative to the stage directory.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Plan {
-    /// Staged path and the exec path of the source it points at.
     pub links: Vec<(String, String)>,
-    /// Staged path and the text written there.
     pub files: Vec<(String, String)>,
 }
 
-/// Runs `dart_doc` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("dart_doc", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: dart_doc --dart FILE --packages FILE --srcs FILE --own NAME --label LABEL --scratch DIR --html DIR"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when a flag is unknown, missing or repeated.
 pub fn parse(args: &[String]) -> Result<DocOptions, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -153,13 +139,6 @@ pub fn parse(args: &[String]) -> Result<DocOptions, FlagError> {
     })
 }
 
-/// Stages the packages under the scratch directory, runs `dart doc` with the
-/// scratch directory as its home and empties it on every path.
-///
-/// # Errors
-///
-/// Returns an error when an input cannot be read, two sources stage as one path,
-/// staging fails, `dart doc` fails or the scratch directory cannot be emptied.
 pub fn run(options: &DocOptions) -> Result<(), DartDocError> {
     let packages = rows(&options.packages)?;
     let srcs = rows(&options.srcs)?;
@@ -170,7 +149,6 @@ pub fn run(options: &DocOptions) -> Result<(), DartDocError> {
     result.and(empty_dir(scratch))
 }
 
-/// Removes every entry of `dir` and keeps `dir`, a declared output of the action.
 fn empty_dir(dir: &Path) -> Result<(), DartDocError> {
     let unread = |source| {
         DartDocError::Io(PathIoError::Read {
@@ -205,7 +183,6 @@ fn rows(path: &str) -> Result<Vec<(String, String)>, DartDocError> {
         .collect()
 }
 
-/// Returns a `File.short_path` relative to the root of its own repository.
 fn repo_relative(short_path: &str) -> &str {
     match short_path.strip_prefix("../") {
         Some(rest) => rest.split_once('/').map_or("", |(_, inner)| inner),
@@ -213,7 +190,6 @@ fn repo_relative(short_path: &str) -> &str {
     }
 }
 
-/// Returns `path` relative to the package root `root`, or None when outside it.
 fn within<'a>(path: &'a str, root: &str) -> Option<&'a str> {
     if root.is_empty() {
         return Some(path);
@@ -221,14 +197,6 @@ fn within<'a>(path: &'a str, root: &str) -> Option<&'a str> {
     path.strip_prefix(root)?.strip_prefix('/')
 }
 
-/// Maps the sources onto `<package>/<path>` below the stage and adds each pubspec and the package config.
-///
-/// `packages` are `(name, lib_root)` rows where a later row of one name replaces
-/// the root but keeps the first position; `srcs` are `(exec path, short path)` rows.
-///
-/// # Errors
-///
-/// Returns an error when two sources stage as the same path.
 pub fn plan(
     packages: &[(String, String)],
     srcs: &[(String, String)],
@@ -275,7 +243,7 @@ pub fn plan(
         .iter()
         .map(|name| {
             (
-                format!("{name}/{PUBSPEC}"),
+                format!("{name}/{}", Ecosystem::Pub.manifest_name()),
                 format!("name: {name}\nenvironment:\n  sdk: ^3.0.0\n"),
             )
         })

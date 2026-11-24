@@ -1,5 +1,3 @@
-//! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -91,7 +89,6 @@ impl Context {
         Ok(objects)
     }
 
-    /// Finds a file nvcc kept under `--keep-dir`, in the execroot or in runfiles.
     fn kept_file(&self, source: &str) -> Option<PathBuf> {
         let in_execroot = collect::resolve(&self.execroot, source);
         if in_execroot.exists() {
@@ -121,7 +118,6 @@ fn read_text(path: &Path) -> Result<String, String> {
     fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))
 }
 
-/// Removes a scratch file or directory tree, ignoring a missing path and reporting other failures on stderr.
 pub fn remove_scratch(path: &Path) {
     let removed = if path.is_dir() {
         fs::remove_dir_all(path)
@@ -251,7 +247,6 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
         let dir = gcda.parent().unwrap_or(&ctx.coverage_dir);
         let copied = gcda.with_extension("gcno");
         fs::copy(&note, &copied).map_err(|e| format!("cannot copy {}: {e}", note.display()))?;
-        // The toolchain gcov wrapper drops stdout while COVERAGE_DIR is set.
         let out = Command::new(&tool)
             .args(gcov::gcov_args(dir, &gcda))
             .current_dir(&ctx.execroot)
@@ -275,7 +270,6 @@ fn collect_gcov(ctx: &Context, gcov: &str) -> Result<String, String> {
 // LCOV_EXCL_STOP
 
 // LCOV_EXCL_START - reason: process orchestration over env and external llvm tools, covered by native_coverage_test, issue: 3460, policy: docs/cli/commands/build-test-coverage.md
-/// Collects coverage for the test that just ran and returns the exit code.
 #[must_use]
 pub fn run_process(_args: Vec<String>) -> i32 {
     match collect_all() {

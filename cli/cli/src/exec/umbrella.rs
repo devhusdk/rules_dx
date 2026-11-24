@@ -38,7 +38,6 @@ const RERUN_GENERATE: &str = "rerun/generate";
 const SARIF_SCHEMA: &str = "https://json.schemastore.org/sarif-2.1.0.json";
 const SARIF_VERSION: &str = "2.1.0";
 
-/// Where one umbrella phase ended up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PhaseState {
     Planned,
@@ -47,7 +46,6 @@ enum PhaseState {
     Skipped,
 }
 
-/// What the capture one umbrella phase owed turned out to be.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum CaptureState {
     Absent,
@@ -56,14 +54,12 @@ enum CaptureState {
     Collected(Value),
 }
 
-/// One capture the umbrella asked a phase to write.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PhaseCapture {
     path: PathBuf,
     state: CaptureState,
 }
 
-/// One umbrella phase, how it ended and the capture it owed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct PhaseOutcome {
     phase: Command,
@@ -73,7 +69,6 @@ struct PhaseOutcome {
     capture: Option<PhaseCapture>,
 }
 
-/// Names why one executed phase's capture is unusable.
 fn capture_reason(capture: &PhaseCapture) -> Option<&'static str> {
     match capture.state {
         CaptureState::Absent => Some("wrote no sarif capture"),
@@ -83,7 +78,6 @@ fn capture_reason(capture: &PhaseCapture) -> Option<&'static str> {
     }
 }
 
-/// Parses one phase capture with the shared SARIF model.
 fn parse_capture(bytes: &[u8]) -> Result<Value, CaptureState> {
     let document: Value = serde_json::from_slice(bytes).map_err(malformed)?;
     if !matches!(document.get("runs"), Some(Value::Array(_))) {
@@ -98,7 +92,6 @@ fn malformed(error: serde_json::Error) -> CaptureState {
     CaptureState::Malformed
 }
 
-/// The typed outcome and the artifacts of every planned umbrella phase.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct PhaseCollector {
     phases: Vec<PhaseOutcome>,
@@ -106,7 +99,6 @@ struct PhaseCollector {
 }
 
 impl PhaseCollector {
-    /// Records one phase as planned and waiting to run under `label`.
     fn plan(&mut self, phase: Command, label: &'static str) {
         self.phases.push(PhaseOutcome {
             phase,
@@ -117,7 +109,6 @@ impl PhaseCollector {
         });
     }
 
-    /// Records the capture the phase at `index` owes.
     fn require_capture(&mut self, index: usize, path: PathBuf) {
         if let Some(running) = self.phases.get_mut(index) {
             running.capture = Some(PhaseCapture {
@@ -127,7 +118,6 @@ impl PhaseCollector {
         }
     }
 
-    /// Records the exit code of the phase at `index`.
     fn record_exit(&mut self, index: usize, code: i32, kind: PhaseKind) {
         if let Some(running) = self.phases.get_mut(index) {
             running.kind = Some(kind);
@@ -139,7 +129,6 @@ impl PhaseCollector {
         }
     }
 
-    /// Records every phase that never started as skipped.
     fn skip_remaining(&mut self, cause: String) {
         self.skip_cause = cause;
         for phase in &mut self.phases {
@@ -149,7 +138,6 @@ impl PhaseCollector {
         }
     }
 
-    /// Reads and validates every capture a phase that ran owed, failed or not.
     fn collect(&mut self) {
         for phase in &mut self.phases {
             if !matches!(phase.state, PhaseState::Executed | PhaseState::Failed) {
@@ -172,12 +160,10 @@ impl PhaseCollector {
         }
     }
 
-    /// Reports whether a phase finished with ordinary findings.
     fn is_findings(phase: &PhaseOutcome) -> bool {
         phase.kind == Some(PhaseKind::Findings)
     }
 
-    /// Names every phase that finished with ordinary findings.
     fn with_findings(&self) -> Vec<&'static str> {
         self.phases
             .iter()
@@ -186,7 +172,6 @@ impl PhaseCollector {
             .collect()
     }
 
-    /// Describes how every planned phase ended.
     fn summary(&self) -> String {
         let parts: Vec<String> = self
             .phases
@@ -204,7 +189,6 @@ impl PhaseCollector {
         parts.join(", ")
     }
 
-    /// Names every phase that never started.
     fn skipped(&self) -> Vec<&'static str> {
         self.phases
             .iter()
@@ -213,8 +197,6 @@ impl PhaseCollector {
             .collect()
     }
 
-    /// Names every phase whose capture could not be collected.
-    /// A failed phase that wrote nothing is a tool failure, not a collection failure.
     fn collection_failures(&self) -> Vec<(&'static str, &'static str)> {
         self.phases
             .iter()
@@ -234,7 +216,6 @@ impl PhaseCollector {
             .collect()
     }
 
-    /// Names every phase and capture that leaves the merged report incomplete.
     fn reasons(&self) -> Vec<String> {
         let mut reasons = Vec::new();
         for phase in &self.phases {
@@ -265,12 +246,10 @@ impl PhaseCollector {
         reasons
     }
 
-    /// Reports whether every phase ran and every capture it owed was collected.
     fn complete(&self) -> bool {
         self.reasons().is_empty()
     }
 
-    /// Merges every collected capture into one SARIF document in phase order.
     fn document(&self) -> String {
         let mut runs: Vec<Value> = Vec::new();
         let mut schema = json!(SARIF_SCHEMA);
@@ -305,7 +284,6 @@ impl PhaseCollector {
         .to_string()
     }
 
-    /// Deletes every capture a phase wrote.
     fn cleanup(&self) {
         for phase in &self.phases {
             if let Some(capture) = &phase.capture {
@@ -315,14 +293,10 @@ impl PhaseCollector {
     }
 }
 
-/// Names the JSON correlation of one umbrella phase.
 fn phase_correlation(command: &str, phase: &str) -> String {
     format!("{command}/{phase}")
 }
 
-/// Forwards one finished phase's streams, nesting its JSON lifecycle under the parent command.
-/// Returns whether every child line was a readable event.
-/// Names the last stderr line of a phase, or says it wrote none.
 fn last_stderr_line(phase_err: &[u8]) -> String {
     String::from_utf8_lossy(phase_err)
         .lines()
@@ -332,11 +306,6 @@ fn last_stderr_line(phase_err: &[u8]) -> String {
         .map_or_else(|| "no stderr output".to_owned(), str::to_owned)
 }
 
-/// Makes a phase that stopped the run as a selection failure say why.
-///
-/// A phase that ends as `Selection` with a failing exit and no `error` event would otherwise
-/// leave only `umbrella_phase_skipped` notices behind. JSON streams gain an `invalid_scope`
-/// error before the phase's closing event; text runs gain a stderr line.
 fn explain_selection_stop(
     output: OutputMode,
     phase: &str,
@@ -344,7 +313,6 @@ fn explain_selection_stop(
     streams: (&mut Vec<u8>, &mut Vec<u8>),
 ) {
     let (phase_out, phase_err) = streams;
-    // A line that is not a JSON event has no event name.
     let name_of = |line: &[u8]| {
         serde_json::from_slice::<Value>(line)
             .ok()
@@ -489,7 +457,6 @@ fn forward_phase(
     Ok(readable)
 }
 
-/// Adds the phase correlation, or keeps the event without it.
 fn correlated(
     built: Result<Value, dx_output::OutputError>,
     command: &str,
@@ -500,7 +467,6 @@ fn correlated(
     })
 }
 
-/// Announces the phases with findings, the skipped phases, and the failed collections.
 fn announce_outcome(
     out: &mut dyn Write,
     output: OutputMode,
@@ -520,7 +486,6 @@ fn announce_outcome(
     Ok(())
 }
 
-/// Emits the JSON notice for one phase that never started.
 fn announce_skip(
     out: &mut dyn Write,
     output: OutputMode,
@@ -541,7 +506,6 @@ fn announce_skip(
     emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
-/// Emits the JSON notice for one phase that finished with ordinary findings.
 fn announce_findings(
     out: &mut dyn Write,
     output: OutputMode,
@@ -561,7 +525,6 @@ fn announce_findings(
     emit_built(out, correlated(notice_event(&notice), command, phase))
 }
 
-/// Reports one phase capture the umbrella could not collect.
 fn announce_collection_failure(
     out: &mut dyn Write,
     output: OutputMode,
@@ -582,22 +545,17 @@ fn announce_collection_failure(
     )
 }
 
-/// What re-checking the composed tree after a fix apply found.
 struct Verification {
     failed_phase: Option<&'static str>,
     skipped: Vec<&'static str>,
-    /// Phases that failed during apply and so were not re-checked.
     apply_failed: Vec<&'static str>,
-    /// Phases that were re-checked.
     verified: Vec<&'static str>,
     out: Vec<u8>,
     err: Vec<u8>,
     readable: bool,
-    /// The exit code once the buffered stream already ended with `command_finished`.
     ended: Option<i32>,
 }
 
-/// Runs the affected tests as the last `dx check --affected` phase.
 fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
     let Env {
         workspace,
@@ -639,7 +597,6 @@ fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
     }
 }
 
-/// Classifies the test phase from the dx test exit code, result completeness and whether Bazel failed on the host.
 fn test_phase_kind(code: i32, complete: bool, host: bool) -> PhaseKind {
     if host && code != 0 {
         return PhaseKind::Host;
@@ -647,7 +604,6 @@ fn test_phase_kind(code: i32, complete: bool, host: bool) -> PhaseKind {
     PhaseKind::from_bazel_exit(code, code == BAZEL_TESTS_FAILED && complete)
 }
 
-/// Where a `check --apply` verification pass runs, minus its buffered streams.
 struct VerifyContext<'a> {
     workspace: &'a Path,
     runner: &'a dyn Runner,
@@ -662,7 +618,6 @@ struct VerifyContext<'a> {
     edit_commit_json: Option<&'a str>,
 }
 
-/// Re-runs umbrella phases read-only through `through` after `check --apply` touched them.
 fn verify_fix(
     request: &UmbrellaRequest,
     context: &VerifyContext<'_>,
@@ -762,7 +717,6 @@ fn verify_fix(
     outcome
 }
 
-/// Delivers the buffered verification output when verification fails the run.
 fn deliver_verification(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -794,7 +748,6 @@ fn deliver_verification(
     Ok(())
 }
 
-/// Announces one fix apply whose read-only verification found drift.
 fn announce_verification_failure(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -828,7 +781,6 @@ fn announce_verification_failure(
     )
 }
 
-/// Announces one written report and names why it is incomplete.
 fn announce_report(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -985,7 +937,6 @@ struct Run {
     quality_applied: bool,
     generate_clean: bool,
     rerun_planned: bool,
-    /// In check mode, the one build the format, lint and typecheck phases read.
     shared: Option<SharedChecks>,
 }
 
@@ -1448,8 +1399,6 @@ fn finish_umbrella(
     code
 }
 
-/// Warns about each commit subject since the merge base that is not a conventional commit.
-/// Runs only when `dx check --affected` found a merge base and `dx.toml` sets `[check] commits`.
 fn lint_commit_subjects(
     request: &UmbrellaRequest,
     workspace: &Path,
@@ -1469,7 +1418,6 @@ fn lint_commit_subjects(
     )
 }
 
-/// Lints the commit subjects in `base..HEAD` when `dx.toml` sets `[check] commits`.
 pub(super) fn lint_commits(
     base: &str,
     command: Command,

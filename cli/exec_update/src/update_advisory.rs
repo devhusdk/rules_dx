@@ -1,5 +1,3 @@
-//! `dx update advisory`: moves the advisory pins in `.dx/pins` to the newest published release.
-
 use super::update_outdated::registry_fetch;
 use super::update_pr::{
     ACTIONS_PR_REFUSAL, BOT_EMAIL, BOT_NAME, Tools, WORKFLOW_SKIP, open_update_prs, program, push,
@@ -20,7 +18,6 @@ pub(crate) const CODE_UPDATE_ADVISORY_FAILED: &str = "update_advisory_failed";
 
 const PINS: &str = ".dx/pins";
 
-/// Whether the invocation is `dx update advisory`.
 pub(super) fn selected(invocation: &Invocation) -> bool {
     invocation.command == Command::Update
         && !invocation.outdated
@@ -230,7 +227,6 @@ fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {
         .map_err(|error| DxError::from_io(format!("cannot write {PINS}: {error}"), &error))
 }
 
-/// The vulnerability messages of a `dx security --output=json` stream.
 fn vulnerabilities(stream: &str) -> Vec<String> {
     stream
         .lines()

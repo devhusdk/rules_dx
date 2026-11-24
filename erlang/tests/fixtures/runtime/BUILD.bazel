@@ -55,6 +55,12 @@ erlang_ct_suite_test(
     test_env = {"DX_OTP_VERSION": OTP_VERSION},
 )
 
+erlang_ct_suite_test(
+    name = "export_all_SUITE",
+    size = "small",
+    app_name = "dx_runtime_probe",
+)
+
 [
     dx_coverage_test(
         name = target + "_coverage_test",

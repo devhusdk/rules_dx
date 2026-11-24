@@ -9,8 +9,6 @@ enum Token {
     Close(char),
 }
 
-/// Reads the `depends:` list of an opam.locked file, keeping each package's `= "version"` pin.
-/// The OCaml compiler packages and `base-*` packages are skipped.
 pub fn parse_opam_locked(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let tokens = tokenize(text)?;
@@ -74,7 +72,6 @@ fn is_toolchain(name: &str) -> bool {
         .any(|prefix| name.starts_with(prefix))
 }
 
-/// The index of the first token after the top-level `depends: [`.
 fn depends_start(tokens: &[Token]) -> Option<usize> {
     let mut depth = 0;
     for (index, token) in tokens.iter().enumerate() {

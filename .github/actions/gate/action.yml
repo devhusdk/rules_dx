@@ -1,5 +1,13 @@
 name: gate
-description: Run dx check --affected against the pinned base.
+description: Run dx check or dx coverage with --affected against the pinned base.
+inputs:
+  command:
+    description: The dx command, check or coverage.
+    required: true
+  lcov:
+    description: Where dx coverage writes its lcov report.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -13,13 +21,25 @@ runs:
         # shellcheck disable=SC2086
         set -- $BAZEL_CONFIG $BB_ARGS
         bazel run "$@" @rules_dx//tools/ci/gate_base:gate_base_bin
-    - name: Check the affected targets
+    - name: dx ${{ inputs.command }} --affected
       id: check
+      env:
+        COMMAND: ${{ inputs.command }}
+        LCOV: ${{ inputs.lcov }}
       shell: bash
       run: |
         # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run "$@" @rules_dx//:dx -- check --affected --output=json | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        tags=-manual,-resources:nested_bazel:1,-starter-consumer,-network-consumer
+        if [ "$COMMAND" = coverage ]; then
+          tags=-no-coverage,-dx-no-coverage-collector,$tags
+        fi
+        report=()
+        if [ -n "$LCOV" ]; then
+          mkdir -p "$(dirname "$LCOV")"
+          report=(--report "lcov=$LCOV")
+        fi
+        bazel run "$@" @rules_dx//:dx -- "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash
@@ -28,6 +48,7 @@ runs:
         set -- $BAZEL_CONFIG $BB_ARGS
         bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Verify the base dx compared against
+      if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
       shell: bash
       run: |
         seen="$(jq -Rr 'fromjson? | objects | .affected? | objects | .base? // empty | strings' "${RUNNER_TEMP:-/tmp}/gate.json")"

@@ -21,19 +21,14 @@ struct Staged {
     build_deps: BTreeMap<BuildDepKey, Option<Insert>>,
 }
 
-/// Path, start, end, tool, rule and message of a dependency finding placed in a BUILD file.
 type BuildDepKey = (String, u64, u64, String, Option<String>, String);
 
-/// A missing dependency to add: the target name and the label as written in its package.
-/// A canonical external label stays as is until its apparent repo name is known.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Insert {
     target: String,
     label: String,
 }
 
-/// The fix for a dependency finding: None removes the entry, Some adds a label.
-/// A missing dependency that cannot be written in a BUILD file has no fix.
 #[expect(
     clippy::option_option,
     reason = "None skips the finding, Some(None) removes the entry"
@@ -91,7 +86,6 @@ impl Staged {
     }
 }
 
-/// One valid result whose pipeline stopped before it converged.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Unstable {
     pub(crate) label: String,
@@ -103,7 +97,6 @@ pub(crate) struct Unstable {
 }
 
 impl Unstable {
-    /// Names the producer, its cause and the tools it ran.
     pub(crate) fn describe(&self) -> String {
         let mut text = self.label.clone();
         if self.producer.trim_start_matches("@@") != self.label {
@@ -122,12 +115,10 @@ impl Unstable {
     }
 }
 
-/// Decodes one result artifact into the collected shape, or None when it is not one.
 fn stage_artifact(bytes: &[u8], workspace: &Path) -> Option<Staged> {
     stage_result(&decode_validated(bytes).ok()?, workspace)
 }
 
-/// Maps one decoded result, or None when a field is outside what the report can carry.
 fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Staged> {
     let mut staged = Staged::default();
     for stage in &result.stages {
@@ -182,7 +173,6 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
-    /// Distinct labels that built successfully and reported at least one result file.
     pub(crate) targets: usize,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
@@ -196,7 +186,6 @@ pub(crate) struct Collected {
 }
 
 impl Collected {
-    /// Drops findings, changes and conflicts for paths outside `filter`; pathless findings stay.
     pub(crate) fn keep_paths(&mut self, filter: &[String]) {
         let wanted = |path: &str| path_in_filter(path, filter);
         let wanted_event = |event: &DiagnosticEvent| event.path.as_deref().is_none_or(wanted);
@@ -208,7 +197,6 @@ impl Collected {
         self.terminal_digests.retain(|path, _| wanted(path));
     }
 
-    /// Adds the findings of one host-run result artifact, attributed to `label`.
     pub(crate) fn absorb_host_result(&mut self, bytes: &[u8], label: &str, workspace: &Path) {
         let Some(mut staged) = stage_artifact(bytes, workspace) else {
             self.problems
@@ -238,7 +226,6 @@ impl Collected {
         }
     }
 
-    /// Names the first missing or invalid result, with how many there were.
     pub(crate) fn problem_detail(&self) -> Option<String> {
         let first = self.problems.first()?;
         Some(match self.problems.len() {
@@ -257,7 +244,6 @@ fn map_severity(value: i32) -> Option<Severity> {
     }
 }
 
-/// Finds the `deps` entry of an unused dependency, or the `deps` list a missing one belongs in.
 fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (u64, u64))> {
     for name in ["BUILD.bazel", "BUILD"] {
         let relative = if dep.package.is_empty() {
@@ -278,8 +264,6 @@ fn place_build_dep(dep: &proto::BuildDep, workspace: &Path) -> Option<(String, (
     None
 }
 
-/// Digests every BUILD file a finding was placed in that no edit touched, so its range can
-/// be resolved against a snapshot.
 fn record_placed_build_files<'a>(
     workspace: &Path,
     events: impl Iterator<Item = &'a DiagnosticEvent>,
@@ -304,7 +288,6 @@ fn record_placed_build_files<'a>(
     }
 }
 
-/// Whether the finding is about a BUILD target tagged `dx-keep`.
 fn kept_by_tag(diagnostic: &proto::Diagnostic, workspace: &Path) -> bool {
     let Some(dep) = &diagnostic.build_dep else {
         return false;
@@ -389,8 +372,6 @@ fn map_change(change: &proto::FileEdits) -> Option<FileChange> {
     })
 }
 
-/// One producer that removes every unused `deps` entry and adds every missing one, with one
-/// change per BUILD file. Also returns the findings the change fixes.
 fn build_dep_producer(
     workspace: &Path,
     keys: &BTreeMap<BuildDepKey, Option<Insert>>,
@@ -482,7 +463,6 @@ fn build_dep_producer(
     ((!producer.changes.is_empty()).then_some(producer), fixed)
 }
 
-/// The one edit that turns `before` into `after`, or None when they are equal.
 fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
     if before == after {
         return None;
@@ -499,10 +479,8 @@ fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
     Some((prefix as u64, (before.len() - suffix) as u64, middle))
 }
 
-/// Reads canonical to apparent repo names, or None when they cannot be read.
 pub(crate) type RepoMapping<'a> = &'a dyn Fn() -> Option<BTreeMap<String, String>>;
 
-/// Inverts the JSON object of apparent to canonical names `bazel mod dump_repo_mapping` prints.
 pub(crate) fn invert_repo_mapping(json: &[u8]) -> Option<BTreeMap<String, String>> {
     let map: BTreeMap<String, String> = serde_json::from_slice(json).ok()?;
     let mut inverted = BTreeMap::new();
@@ -514,7 +492,6 @@ pub(crate) fn invert_repo_mapping(json: &[u8]) -> Option<BTreeMap<String, String
     Some(inverted)
 }
 
-/// Writes external missing deps by their apparent repo name; those without one stay unfixed.
 fn name_external_repos(
     keys: &mut BTreeMap<BuildDepKey, Option<Insert>>,
     repo_mapping: RepoMapping<'_>,
@@ -533,7 +510,6 @@ fn name_external_repos(
     });
 }
 
-/// Collects the results in `bep`, leaving out those of the `foreign` aspects.
 pub(crate) fn collect_results(
     bep: &Path,
     foreign: &BTreeSet<String>,

@@ -1,5 +1,3 @@
-//! Widening one PEP 508 requirement in a uv manifest.
-
 use super::EditError;
 use crate::edit::version::WidenVersion;
 use dx_adopt::lock_hubs::manifest_of;
@@ -10,7 +8,6 @@ fn unsupported(reason: impl Into<String>) -> EditError {
     EditError::unsupported_manifest("uv", reason)
 }
 
-/// The requirement widened to `>=version`, or `None` when it names another package.
 fn widen_requirement(
     requirement: &str,
     package: &str,
@@ -57,7 +54,6 @@ fn widen_requirement(
     Ok(Some(format!("{lead}{name}{extras}>={version}{marker}")))
 }
 
-/// Widens every requirement array in `array`, collecting `(index, widened)` hits.
 fn scan_array(
     array: &Array,
     package: &str,
@@ -76,7 +72,6 @@ fn scan_array(
     Ok(found)
 }
 
-/// A requirement array path and the widened entries to write into it.
 type ArrayEdit = (Vec<String>, Vec<(usize, String)>);
 
 pub(crate) fn plan_pyproject_toml(
@@ -91,7 +86,6 @@ pub(crate) fn plan_pyproject_toml(
     let mut doc: DocumentMut = content
         .parse()
         .map_err(|error| unsupported(format!("manifest is not valid TOML: {error}")))?;
-    // Each entry is the path of a requirement array.
     let mut paths: Vec<Vec<String>> = vec![
         vec!["project".into(), "dependencies".into()],
         vec!["tool".into(), "uv".into(), "dev-dependencies".into()],

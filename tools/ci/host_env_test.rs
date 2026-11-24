@@ -1,5 +1,3 @@
-//! No action or test reaches the host environment outside `tools/ci/host_env_allowlist.txt`, and the allowlist holds no spare entry.
-
 use dx_guard::allowlist::{self, Counts, hit};
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
@@ -9,7 +7,6 @@ use starlark_syntax::syntax::ast::{ArgumentP, AstExpr, ExprP};
 use std::path::Path;
 use yaml_serde as _;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 9] = [
     "default-shell-env",
     "env-inherit",
@@ -22,16 +19,12 @@ const KINDS: [&str; 9] = [
     "shebang",
 ];
 
-/// Host directories that count only where a path starts.
 const ROOTED_DIRS: [&str; 2] = ["/usr/bin", "/usr/local/bin"];
 
-/// Text that names the search path wherever it stands.
 const PATH_VARS: [&str; 2] = ["$PATH", "${PATH}"];
 
-/// Characters that may stand right before the start of a path.
 const PATH_STARTS: [char; 6] = [' ', '"', '\'', ':', '=', ';'];
 
-/// Lowercase text that names the Windows system directory wherever it stands.
 const WINDOWS_DIRS: [&str; 8] = [
     ":/windows",
     ":\\windows",
@@ -43,13 +36,10 @@ const WINDOWS_DIRS: [&str; 8] = [
     "$env:windir",
 ];
 
-/// Rust string tokens that name the Windows system directory.
 const WINDOWS_TOKENS: [&str; 3] = ["SystemRoot", "windir", "System32"];
 
-/// The one file that names the Xcode tools by absolute path.
 const XCODE_FILE: &str = "apple/private/tools/ops/src/xcode.rs";
 
-/// The strings that file may hold, whole.
 const XCODE_TOOLS: [&str; 6] = [
     "/usr/bin/xcrun",
     "/usr/bin/codesign",
@@ -59,10 +49,8 @@ const XCODE_TOOLS: [&str; 6] = [
     "/usr/bin/openssl",
 ];
 
-/// Shells a `#!` line may name.
 const SHELLS: [&str; 5] = ["sh", "bash", "zsh", "dash", "ksh"];
 
-/// Rule calls found in text that is not Starlark, with their kinds.
 const CALLS: [(&str, &str); 4] = [
     ("run_shell(", "run-shell"),
     ("genrule(", "genrule"),
@@ -70,10 +58,8 @@ const CALLS: [(&str, &str); 4] = [
     ("sh_binary(", "sh-rule"),
 ];
 
-/// Flags that pass a host variable through when they carry no value.
 const PASSTHROUGH: [&str; 3] = ["--action_env=", "--host_action_env=", "--test_env="];
 
-/// Whether `text` puts a host directory on a path.
 fn host_path(text: &str) -> bool {
     PATH_VARS.iter().any(|var| text.contains(var))
         || ROOTED_DIRS.iter().any(|dir| {
@@ -90,18 +76,15 @@ fn host_path(text: &str) -> bool {
             .any(|part| part == "/bin")
 }
 
-/// Whether `text` names the Windows system directory.
 fn windows_dir(text: &str) -> bool {
     let text = text.to_ascii_lowercase();
     WINDOWS_DIRS.iter().any(|dir| text.contains(dir))
 }
 
-/// Whether `text` reads the host home directory.
 fn home(text: &str) -> bool {
     text.contains("$HOME") || text.contains("${HOME}")
 }
 
-/// Whether `text` opens with a `#!` line that names a shell.
 fn shebang(text: &str) -> bool {
     let Some(rest) = text.lines().next().and_then(|line| line.strip_prefix("#!")) else {
         return false;
@@ -115,7 +98,6 @@ fn is_false(expr: &AstExpr) -> bool {
     matches!(&expr.node, ExprP::Identifier(ident) if ident.node.ident == "False")
 }
 
-/// Kinds one piece of generated or shell text holds.
 fn text_kinds(text: &str, mut add: impl FnMut(&str)) {
     if host_path(text) {
         add("host-path");
@@ -222,7 +204,6 @@ fn scan_lines(path: &str, source: &str, counts: &mut Counts) {
     }
 }
 
-/// Host environment uses in one file.
 fn scan(path: &str, source: &str, counts: &mut Counts) {
     if shebang(source) {
         hit(counts, path, "shebang");

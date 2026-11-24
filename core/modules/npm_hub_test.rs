@@ -1,5 +1,3 @@
-//! One non-dev npm hub, `dx_npm_tools`, and one `dx-node-tools` package.json.
-
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value};

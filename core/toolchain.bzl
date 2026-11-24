@@ -1,10 +1,11 @@
 """Pinned-toolchain factory: one repository per host cell, plus the checks every pin table shares."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
+load(":ghcr.bzl", "ghcr_headers")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
-visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
+visibility(["//cc/...", "//core/...", "//cuda/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
 
 _HEX = "0123456789abcdef"
 
@@ -36,11 +37,7 @@ def _fetch(rctx, tool, pin, build):
         archive_type = pin.get("type", "")
         strip_prefix = pin.get("strip_prefix", "")
         if not pin.get("ghcr_scope") or not rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, allow_fail = True).success:
-            headers = {}
-            if pin.get("ghcr_scope"):
-                rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
-                headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
-                rctx.delete("token.json")
+            headers = ghcr_headers(rctx, pin["ghcr_scope"]) if pin.get("ghcr_scope") else {}
             rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, headers = headers)
         if not rctx.path(binary).exists:
             fail("{} archive {} has no {}".format(tool, pin["urls"][0], binary))
@@ -59,7 +56,6 @@ _UNPINNED_GENRULE = """genrule(
 )"""
 
 def _unpinned(rctx, tool, cell, cells, build):
-    # A genquery loads every select branch, so the repo must load on every host; only building the binary fails.
     if _EXPORT_LINE not in build:
         fail("{}: the BUILD file has no {} line".format(tool, _EXPORT_LINE))
     binary = cells[sorted(cells)[0]]["binary"]
@@ -116,10 +112,7 @@ def is_sha256(value):
     return type(value) == "string" and len(value) == 64 and all([c in _HEX for c in value.elems()])
 
 def digest_problems(name, value):
-    """Returns the sorted "<path>: <problem>" strings for every sha256 and urls nested in value.
-
-    A sha256 is one digest or a dict of digests; urls is a non-empty list of https urls.
-    """
+    """Returns the sorted "<path>: <problem>" strings for every sha256 and urls nested in value."""
     problems = []
     stack = [(name, value)]
     for _ in range(_WALK_LIMIT):
@@ -229,13 +222,17 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec", exec_aliases
             for cell in sorted(cells)
         ])
         aliases = exec_aliases if type(exec_aliases) == "dict" else {target: "//:" + target for target in exec_aliases}
+
+        # An alias without a default is incompatible off the cells, so Bazel skips its dependents there.
+        incompatible = repr({":{}_exec".format(cell): [] for cell in sorted(cells)} | {"//conditions:default": ["@platforms//:incompatible"]})
         parts.extend([
-            'alias(\n    name = "{}",\n    actual = select({}),\n    visibility = ["//visibility:public"],\n)\n'.format(
+            'alias(\n    name = "{}",\n    actual = select({}),\n{}    visibility = ["//visibility:public"],\n)\n'.format(
                 alias,
                 repr(
                     {":{}_exec".format(cell): "@{}{}".format(repository or cell_repo(name, cell), aliases[alias]) for cell in sorted(cells)} |
                     ({"//conditions:default": alias_defaults[alias]} if alias in alias_defaults else {}),
                 ),
+                "" if alias in alias_defaults else "    target_compatible_with = select({}),\n".format(incompatible),
             )
             for alias in aliases
         ])

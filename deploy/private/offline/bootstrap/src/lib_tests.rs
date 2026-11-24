@@ -1,5 +1,3 @@
-//! Tests for the offline bootstrap helpers.
-
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -98,7 +96,6 @@ fn today_is_a_plain_utc_date() {
     );
 }
 
-/// Runs a bootstrap that must be refused and returns its error.
 fn refusal(options: &Options, os: &str, arch: &str, today: &str) -> BootstrapError {
     run(options, os, arch, today).expect_err("bootstrap must be refused")
 }
@@ -191,7 +188,6 @@ fn the_usage_line_names_the_required_bundle() {
     assert!(usage().contains("--bundle DIR"));
 }
 
-/// Writes the `advisory_prep` identity next to one snapshot.
 fn write_identity(advisory: &Path, set: &str, date: &str) {
     let sum = dx_digest::sha256_file_hex(&advisory.join(format!("{set}.json"))).expect("digest");
     let body = format!(
@@ -202,7 +198,6 @@ fn write_identity(advisory: &Path, set: &str, date: &str) {
     std::fs::write(advisory.join(format!("{set}.meta.json")), body).expect("identity");
 }
 
-/// Pins every json file in the advisory dir.
 fn pin_advisory(advisory: &Path) {
     let mut names: Vec<String> = std::fs::read_dir(advisory)
         .expect("advisory dir")
@@ -426,17 +421,14 @@ fn a_recorded_field_reads_pretty_and_compact_json() {
         Some("2026-02-03")
     );
     assert_eq!(recorded_field(compact, "sha256"), None);
-    // A key name inside another value is not a key.
     let inside = "{\"note\": \"retrieved_at\", \"url\": \"x\\\"retrieved_at\\\": \\\"1\"}";
     assert_eq!(recorded_field(inside, "retrieved_at"), None);
     let value = "{\"a\": \"\\\"retrieved_at\\\"\", \"b\": 1}";
     assert_eq!(recorded_field(value, "retrieved_at"), None);
-    // A backslash in the value, a non-string value and a missing colon are refused.
     assert_eq!(recorded_field("{\"k\": \"a\\nb\"}", "k"), None);
     assert_eq!(recorded_field("{\"k\": 5}", "k"), None);
     assert_eq!(recorded_field("{\"k\" \"v\"}", "k"), None);
     assert_eq!(recorded_field("{\"k\": \"open", "k"), None);
-    // The first key wins.
     assert_eq!(
         recorded_field("{\"k\": \"one\", \"k\": \"two\"}", "k").as_deref(),
         Some("one")

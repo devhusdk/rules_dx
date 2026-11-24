@@ -36,13 +36,10 @@ pub struct PublishDryRunInputs {
 pub struct PublishDryRunOutcome {
     pub report: String,
     pub sbom_digest: String,
-    /// True only when every matrix cell qualified and nothing was stray.
     pub qualified: bool,
-    /// Per-cell verification text, one block per cell in matrix order.
     pub verification: String,
 }
 
-/// A failed publish dry-run check.
 #[derive(Debug)]
 pub enum PublishError {
     Read {
@@ -57,9 +54,7 @@ pub enum PublishError {
     SpdxNoDigest,
     SpdxEmptyDigest,
     Matrix(CellError),
-    // #13874 retypes this
     Sbom(SbomError),
-    // #13874 retypes this
     Notice(NoticeError),
     NoBcrLog,
     Render(dx_fingerprint::FingerprintError),
@@ -149,7 +144,6 @@ fn sbom_subject_digest(spdx_path: &Path) -> Result<String, PublishError> {
     Ok(digest.to_owned())
 }
 
-/// Checks that the `<archive>.sha256` sidecar lists exactly the digest the record measured.
 fn sidecar_error(outcome: &CellOutcome, archives: &Path) -> Option<String> {
     let record = outcome.record.as_ref()?;
     let want = sha256sum_line(&record.archive.sha256, &record.archive.name);
@@ -197,9 +191,6 @@ fn cell_entry(outcome: &CellOutcome) -> serde_json::Value {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn publish_dry_run_check(
     inputs: &PublishDryRunInputs,
 ) -> Result<PublishDryRunOutcome, PublishError> {
@@ -463,7 +454,6 @@ mod tests {
 
     use crate::cell::tests::{Release, matrix_json, release};
 
-    /// Two qualified synthetic cells with their records, archives and sidecars.
     fn valid_inputs(dir: &Path, release: &Release) -> PublishDryRunInputs {
         let matrix = write_text(dir, "release_matrix.json", &matrix_json(&release.matrix));
         let sbom_artifact = write_bytes(dir, "demo.tar.gz", b"demo artifact\n");

@@ -6,23 +6,15 @@ use crate::Ownership;
 
 use super::{AdoptError, DX_VERSION, release_pins};
 
-/// How a scaffold file is treated when it already exists.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FileKind {
     WriteOnce,
     VscodeKeys,
-    /// Adds missing ids to `recommendations`, never removing or reordering, skipping unwanted ones.
     VscodeRecommendations,
-    /// Repins the `uses:` ref of the reusable workflow at this path.
     CiPin(&'static str),
-    /// Repins the commit in the `remote:` URL of the GitLab template include.
     GitlabPin,
-    /// Refreshes the devcontainer `image` digest and bazel feature version while they still name
-    /// what dx wrote; any other image or feature is left alone.
     DevcontainerPins,
-    /// Rewritten whenever it differs from the planned content.
     Generated,
-    /// Left as the user has it.
     Bazelignore,
 }
 
@@ -61,23 +53,12 @@ pub const ENVRC_CONTENT: &str = concat!(
     "watch_file .dx/local/current\n",
 );
 
-/// Bazel output base that rust-analyzer discovery runs on.
 pub const IDE_OUTPUT_BASE: &str = ".dx/local/ide/rust";
 
-/// Bazel output base that rust-analyzer flycheck builds in.
 pub const IDE_CHECK_OUTPUT_BASE: &str = ".dx/local/ide/rust_check";
 
-/// The `.dx` subdirectories Bazel must skip, one per line in a new `.bazelignore`.
-///
-/// `.dx/local` holds the Bazel output bases (`IDE_OUTPUT_BASE`, `IDE_CHECK_OUTPUT_BASE`), the
-/// managed setups, environments and generated trees, symlinks into setup artifacts that can ship
-/// BUILD files. Everything else
-/// under `.dx` holds only dx files, and `.dx/config` is checked-in source Bazel stages.
-/// A new `.dx` writer that can hold BUILD files or an output base must be added here.
 pub const BAZELIGNORE_LINES: [&str; 2] = [".dx/local", ".dx/bazelrc"];
 
-/// `body` under the one-line header that says what dx does to `path`; `body` alone when the
-/// format has no comments.
 pub(crate) fn with_header(ownership: Ownership, path: &str, body: &str) -> String {
     match ownership.header(path, None) {
         Some(header) => format!("{header}\n{body}"),
@@ -85,13 +66,11 @@ pub(crate) fn with_header(ownership: Ownership, path: &str, body: &str) -> Strin
     }
 }
 
-/// The `.bazelignore` lines `dx init` writes, without the header.
 #[must_use]
 pub fn bazelignore_content() -> String {
     format!("{}\n", BAZELIGNORE_LINES.join("\n"))
 }
 
-/// Content `dx init` writes to a new `.editorconfig`.
 const EDITORCONFIG_CONTENT: &str = concat!(
     "root = true\n",
     "\n",
@@ -114,7 +93,6 @@ const EDITORCONFIG_CONTENT: &str = concat!(
     "indent_style = tab\n",
 );
 
-/// Content `dx init` writes to a new `.gitattributes`.
 const GITATTRIBUTES_CONTENT: &str = concat!(
     "* text=auto eol=lf\n",
     "*.bat text eol=crlf\n",
@@ -122,10 +100,8 @@ const GITATTRIBUTES_CONTENT: &str = concat!(
     "*.ps1 text eol=crlf\n",
 );
 
-/// VS Code extension that every workspace gets.
 const BAZEL_EDITOR_EXTENSION: &str = "bazelbuild.vscode-bazel";
 
-/// Language editor extensions, each with the file extensions that bring it in.
 const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 17] = [
     ("rust-lang.rust-analyzer", &[".rs"]),
     ("ms-python.python", &[".py", ".pyi"]),
@@ -157,7 +133,6 @@ const SHELL_FILES: &[&str] = &[".sh", ".bash"];
 const LOCAL_BIN: &str = ".dx/local/bin";
 const CSS_FILES: &[&str] = &[".css", ".scss", ".less"];
 
-/// Lint and format extensions, each with the dx tool it follows and the files that bring it in.
 const TOOL_EDITOR_EXTENSIONS: [(&str, &str, &[&str]); 4] = [
     ("ruff", "charliermarsh.ruff", &[".py", ".pyi"]),
     ("eslint", "dbaeumer.vscode-eslint", JS_FILES),
@@ -169,14 +144,12 @@ const TOML_EDITOR_EXTENSION: &str = "tamasfe.even-better-toml";
 const TOML_ASSOCIATIONS_KEY: &str = "evenBetterToml.schema.associations";
 const DX_TOML_PATTERN: &str = "/dx\\.toml$";
 
-/// The dx.toml schema as published with this release's tag.
 fn dx_toml_schema_url() -> String {
     format!(
         "https://raw.githubusercontent.com/devhusdk/rules_dx/v{DX_VERSION}/cli/dx_config/schema/dx.schema.json"
     )
 }
 
-/// The `.vscode/extensions.json` text: Bazel, TOML, then each language whose files are in `extensions`.
 fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
     let mut ids = vec![BAZEL_EDITOR_EXTENSION, TOML_EDITOR_EXTENSION];
     ids.extend(
@@ -196,8 +169,6 @@ fn render_editor_recommendations(extensions: &BTreeSet<String>, tools: &EditorTo
     format!("{}\n", serde_json::json!({ "recommendations": ids }))
 }
 
-// Not this repo's .github/workflows/dx-update.yml: that one runs on BuildBuddy
-// remote execution through ./.github/actions, which a consumer repo does not have.
 const DX_UPDATE_WORKFLOW: &str = include_str!("../templates/dx-update.yml");
 
 #[must_use]
@@ -242,7 +213,6 @@ const GITLAB_TEMPLATE_URL: &str = "https://raw.githubusercontent.com/devhusdk/ru
 
 const GITLAB_TEMPLATE_PATH: &str = "/ci/gitlab/dx.gitlab-ci.yml";
 
-/// Which CI files `dx init` writes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CiProvider {
     Github,
@@ -251,7 +221,6 @@ pub enum CiProvider {
 }
 
 impl CiProvider {
-    /// The provider for a repo that did not pick one: the CI file it already has, else its remote.
     #[must_use]
     pub fn detect(root: &Path) -> Self {
         if root.join(GITLAB_CI_PATH).exists() {
@@ -273,7 +242,6 @@ impl CiProvider {
     }
 }
 
-/// Whether a git remote URL, in URL or scp form, points at a GitLab host.
 fn remote_is_gitlab(url: &str) -> bool {
     let (after_scheme, scp) = match url.split_once("://") {
         Some((_, rest)) => (rest, false),
@@ -294,7 +262,6 @@ fn remote_is_gitlab(url: &str) -> bool {
 
 pub const DEFAULT_BRANCH_FALLBACK: &str = "main";
 
-/// The repo's default branch: `origin/HEAD`, then `init.defaultBranch`, then `main`.
 #[must_use]
 pub fn detect_default_branch(root: &Path) -> String {
     let git = |args: &[&str]| -> Option<String> {
@@ -342,7 +309,6 @@ pub fn render_consumer_caller_for(branch: &str) -> String {
     with_header(Ownership::Pin, ".github/workflows/ci.yml", &body)
 }
 
-/// The `.gitlab-ci.yml` that includes the GitLab template at the pinned `rules_dx` commit.
 #[must_use]
 pub fn render_gitlab_caller() -> String {
     let body = format!(
@@ -359,20 +325,13 @@ pub fn render_release_caller() -> String {
     with_header(Ownership::Pin, ".github/workflows/release.yml", &body)
 }
 
-/// What the editor settings depend on besides the languages in the tree.
 #[derive(Clone, Debug, Default)]
 pub struct EditorTools {
-    /// The strict tier is selected in `dx.toml`.
     pub strict: bool,
-    /// The ruff config the editor reads; `.dx/config/ruff/base.toml` when empty.
     pub ruff_config: String,
-    /// The root `ESLint` flat config; `.dx/config/eslint/base.mjs` when empty.
     pub eslint_config: String,
-    /// The root stylelint config; `.dx/config/stylelint/base.json` when empty.
     pub stylelint_config: String,
-    /// The root Biome config; no key is written when empty.
     pub biome_config: String,
-    /// The tool ids `dx.toml` selects for the families in the tree; every tool when `None`.
     pub selected: Option<BTreeSet<String>>,
 }
 
@@ -384,7 +343,6 @@ impl EditorTools {
         self.selected.as_ref().is_none_or(|ids| ids.contains(tool))
     }
 
-    /// Reads the tier and tool selection from `dx.toml` and the ruff config from the root of `root`.
     pub fn detect(root: &Path) -> Result<Self, AdoptError> {
         let config = dx_config::load(root).map_err(|error| AdoptError::DxConfig {
             detail: error.to_string(),
@@ -525,7 +483,6 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
             serde_json::json!({"shellcheck.executablePath": bin("shellcheck")}),
         );
     }
-    // gopls ignores staticcheck.conf (golang/go#36373), so the tier goes in as settings.
     let mut go = serde_json::json!({"go.toolsManagement.checkForUpdates": "off"});
     let gopls = if tools.strict {
         GOPLS_STRICT
@@ -570,7 +527,6 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
     settings
 }
 
-/// The `.vscode/settings.json` text for the languages in `extensions`, pretty-printed.
 #[must_use]
 pub fn render_editor_settings(extensions: &BTreeSet<String>, tools: &EditorTools) -> String {
     let mut text =
@@ -587,7 +543,6 @@ const NESTED_SETTINGS: [&str; 5] = [
     "eslint.options",
 ];
 
-/// Settings dx writes only for a selected tool; they go when the tool is no longer selected.
 const TOOL_SETTINGS: [&[&str]; 9] = [
     &["ruff.configuration"],
     &["ruff.path"],
@@ -600,7 +555,6 @@ const TOOL_SETTINGS: [&[&str]; 9] = [
     &["ui.diagnostic.staticcheck"],
 ];
 
-/// The existing text with only the dx-owned values brought up to date.
 fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String, dx_merge::Error> {
     match kind {
         FileKind::Generated => Ok(generated.to_owned()),
@@ -741,7 +695,6 @@ fn feature_base(feature: &str) -> &str {
     }
 }
 
-/// Whether a `.bazelignore` already keeps Bazel out of `.dx`.
 pub fn bazelignore_covers_dx(text: &str) -> bool {
     text.lines()
         .map(str::trim)
@@ -761,8 +714,6 @@ pub fn plan_init_files(module_name: &str) -> Result<Vec<ScaffoldFile>, AdoptErro
     )
 }
 
-/// Plans the init files for `root`, with the repo's default branch in the caller workflow and
-/// editor recommendations for the languages in the tree.
 pub fn plan_init_files_at(
     root: &Path,
     module_name: &str,
@@ -919,12 +870,10 @@ fn ensure_physically_within(root: &Path, relative: &str) -> Result<(), AdoptErro
                 path: relative.to_owned(),
             })
         }
-        // A missing root, or a file where a directory belongs, is reported by the write itself.
         _ => Ok(()),
     }
 }
 
-/// Fails when a destination escapes the root or has a parent that is not a directory.
 pub fn preflight_destinations(root: &Path, relatives: &[&str]) -> Result<(), AdoptError> {
     for relative in relatives {
         scaffold_dest_within_root(root, relative)?;
@@ -948,14 +897,12 @@ pub fn preflight_destinations(root: &Path, relatives: &[&str]) -> Result<(), Ado
     Ok(())
 }
 
-/// Files a run wrote and files it left alone, recorded as each lands.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Applied {
     pub wrote: Vec<String>,
     pub refused: Vec<String>,
 }
 
-/// Checks every destination, then writes each absent file and merges dx-owned values into existing ones.
 pub fn apply_scaffold(
     root: &Path,
     files: &[ScaffoldFile],
@@ -964,7 +911,6 @@ pub fn apply_scaffold(
     apply_files(root, files, applied, true)
 }
 
-/// Brings dx-owned values in existing editor and CI files up to date; creates nothing.
 pub fn refresh_scaffold(
     root: &Path,
     files: &[ScaffoldFile],
@@ -973,7 +919,6 @@ pub fn refresh_scaffold(
     apply_files(root, files, applied, false)
 }
 
-/// Whether an existing owned file lacks dx-owned values; `Err` when it cannot be read or parsed.
 pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, DxError> {
     if file.kind == FileKind::WriteOnce {
         return Ok(false);
@@ -1054,7 +999,6 @@ fn write_file(dest: &Path, content: &str) -> Result<(), AdoptError> {
     })
 }
 
-/// Test view of a run: written paths, then `refused:` paths.
 #[cfg(test)]
 pub(crate) fn entries(
     run: impl FnOnce(&mut Applied) -> Result<(), AdoptError>,
@@ -1908,8 +1852,8 @@ mod tests {
         let strict: serde_json::Value =
             serde_json::from_str(&render_editor_settings(&go, &strict_tools)).expect("json");
         assert_eq!(standard["ui.diagnostic.staticcheck"], true);
-        assert_eq!(standard["ui.diagnostic.analyses"]["ST1000"], false);
-        assert_eq!(strict["ui.diagnostic.analyses"]["ST1000"], true);
+        assert_eq!(standard["ui.diagnostic.analyses"]["shadow"], false);
+        assert_eq!(strict["ui.diagnostic.analyses"]["shadow"], true);
         assert!(standard.get("go.vetFlags").is_none());
         let none = render_editor_settings(&std::collections::BTreeSet::new(), &strict_tools);
         assert!(!none.contains("ui.diagnostic"), "{none}");

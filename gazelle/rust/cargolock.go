@@ -9,9 +9,6 @@ import (
 
 const cargoHubLockName = "cargo-bazel-lock.json"
 
-// hubLibNames reads the nearest cargo-bazel-lock.json at or above rel and
-// returns each package's library target name. A package locked at several
-// versions with different names is omitted.
 func hubLibNames(repoRoot, rel string) map[string]string {
 	for dir := rel; ; dir = path.Dir(dir) {
 		if dir == "." {
@@ -54,8 +51,6 @@ func parseHubLibNames(content []byte) map[string]string {
 	return names
 }
 
-// applyHubLibNames re-keys unrenamed external dependencies by the library
-// name the hub lock records for their package.
 func (m *cargoManifest) applyHubLibNames(libNames map[string]string) {
 	if len(libNames) == 0 {
 		return

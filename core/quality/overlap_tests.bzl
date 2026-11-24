@@ -9,7 +9,6 @@ load(":tools.bzl", "TOOLS")
 
 visibility("private")
 
-# Alternatives in the catalog: the same concern and class, never selected together in a family.
 EXPECTED_ALTERNATIVES = {
     "format/helm": ["helmfmt", "prettier"],
     "lint/javascript": ["biome", "eslint"],

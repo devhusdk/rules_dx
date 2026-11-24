@@ -13,13 +13,10 @@ pub const OUTPUT_GROUP: &str = "dx_codegen_plans";
 
 pub const SHARD_SUFFIX: &str = ".dxcodegen.pb";
 
-/// Sidecar listing the workspace-relative sources and BUILD files behind a shard, one per line.
 pub const SOURCES_SUFFIX: &str = ".dxcodegen.src";
 
-/// Repo-relative label; qualify it with [`aspect_label`].
 pub const CODEGEN_ASPECT: &str = "core/codegen:codegen.bzl%dx_codegen_plan_aspect";
 
-/// Library rules that return their own codegen plan.
 pub const LIBRARY_KINDS: &[&str] = &[
     "api_spec_go_client",
     "api_spec_python_client",
@@ -39,7 +36,6 @@ pub const LIBRARY_KINDS: &[&str] = &[
     "rust_prost_library",
 ];
 
-/// Reports whether a rule class contributes a codegen plan.
 #[must_use]
 pub fn is_library_kind(rule_class: &str) -> bool {
     LIBRARY_KINDS.contains(&rule_class)
@@ -98,13 +94,11 @@ pub fn resolve_scope(targets: &[String]) -> Result<CodegenScope, ScopeError> {
     }
 }
 
-/// Returns the aspect label in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn aspect_label(repo: &str) -> String {
     format!("@{repo}//{CODEGEN_ASPECT}")
 }
 
-/// Returns the repository target in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn repository_target(repo: &str) -> String {
     format!(
@@ -211,7 +205,6 @@ fn generated_artifact_paths(outputs: &[TargetOutput]) -> Result<Vec<String>, Col
     Ok(paths)
 }
 
-/// The workspace-relative sources and BUILD files the shards were derived from, sorted and unique.
 pub fn decode_sources(outputs: &[TargetOutput]) -> Vec<String> {
     let mut sources = std::collections::BTreeSet::new();
     for output in outputs {

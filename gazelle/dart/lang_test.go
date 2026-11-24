@@ -128,8 +128,8 @@ func TestGenerateErrors(t *testing.T) {
 		build string
 		want  string
 	}{
-		"undeclared": {map[string]string{"pubspec.yaml": "name: greet\n", "lib/a.dart": "import 'package:collection/x.dart';\n"}, "", "does not declare"},
-		"dev in lib": {map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "import 'package:test/test.dart';\n"}, "", "does not declare"},
+		"undeclared":   {map[string]string{"pubspec.yaml": "name: greet\n", "lib/a.dart": "import 'package:collection/x.dart';\n"}, "", "does not declare"},
+		"dev in lib":   {map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "import 'package:test/test.dart';\n"}, "", "does not declare"},
 		"missing part": {map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "part 'a.g.dart';\n"}, "", "hand-write the generator rule"},
 		"nested build": {map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "", "lib/sub/BUILD.bazel": "", "lib/sub/b.dart": ""}, "", "own BUILD file"},
 		"bad scheme":   {map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "import 'https://x/y.dart';\n"}, "", "unsupported URI"},
@@ -211,8 +211,6 @@ func TestStaleSweep(t *testing.T) {
 	}
 }
 
-// linkTree writes files and symlinks (name -> target, relative to the link's
-// directory) under a new directory and returns it.
 func linkTree(t *testing.T, files []string, links map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()

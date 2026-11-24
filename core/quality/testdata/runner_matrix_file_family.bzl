@@ -614,6 +614,17 @@ FILE_FAMILY_CASES = [
         config = "//core/quality/tiers/hlint:strict.yaml",
     ),
     matrix_case(
+        name = "matrix_haskell_lint_banned_strict",
+        capability = "lint",
+        tool = "hlint",
+        binary = "//haskell/private/tools/hlint/bin",
+        source_class = "haskell",
+        generated = {
+            "matrix/hlint_banned_strict.hs": "{-# OPTIONS_GHC -w #-}\nmodule Banned (first, unwrap, noisy) where\n\nimport Data.Maybe (fromJust)\nimport Debug.Trace (trace)\n\nfirst :: [Int] -> Int\nfirst = head\n\nunwrap :: Maybe Int -> Int\nunwrap = fromJust\n\nnoisy :: Int -> Int\nnoisy = trace \"noisy\"\n",
+        },
+        config = "//core/quality/tiers/hlint:strict.yaml",
+    ),
+    matrix_case(
         name = "matrix_rego_format_pass",
         capability = "format",
         tool = "opa",
@@ -1679,7 +1690,7 @@ FILE_FAMILY_CASES = [
         binary = "//javascript/private/quality/bin:stylelint",
         source_class = "css",
         generated = {
-            "matrix/stylelint_strict_rule.css": ".sample {\n  color: #fff;\n  color: #000;\n  margin: 0px;\n}\n",
+            "matrix/stylelint_strict_rule.css": ".sample {\n  color: #fff;\n  color: #000;\n  margin: 0px;\n}\n.a {\n  .b {\n    .c {\n      .d {\n        color: #000;\n      }\n    }\n  }\n}\n",
         },
         platforms = ["linux_x86_64"],
         toolfile_tools = ["stylelint", "stylelint", "stylelint"],
@@ -1833,7 +1844,26 @@ FILE_FAMILY_CASES = [
         binary = "@gems//bin:rubocop",
         source_class = "ruby",
         generated = {
-            "matrix/rubocop_clean_strict.rb": "# frozen_string_literal: true\n\n# Greeter says hello.\nclass Greeter\n  # Returns the greeting.\n  def greeting\n    'hello'\n  end\nend\n",
+            "matrix/rubocop_clean_strict.rb": "# frozen_string_literal: true\n# typed: strict\n\n# Greeter says hello.\nclass Greeter\n  # Returns the greeting.\n  def greeting\n    'hello'\n  end\nend\n",
+        },
+        platforms = ["linux_x86_64", "macos_arm64"],
+        config = ":rubocop_strict_root.yml",
+        tool_env = ["rubocop=RUNFILES_DIR=$TEST_SRCDIR"],
+        staged_siblings = {"//core/quality/tiers:all": "core/quality/tiers/:.dx/config/"},
+    ),
+    matrix_case(
+        name = "matrix_ruby_lint_strict_guards",
+        capability = "lint",
+        tool = "rubocop",
+        binary = "@gems//bin:rubocop",
+        source_class = "ruby",
+        generated = {
+            "matrix/rubocop_guard_debugger.rb": "# frozen_string_literal: true\n# typed: strict\n\nbinding.pry\n",
+            "matrix/rubocop_guard_disable.rb": "# frozen_string_literal: true\n# typed: strict\n\nx = 1 # rubocop:disable Lint/UselessAssignment\n",
+            "matrix/rubocop_guard_rescue.rb": "# frozen_string_literal: true\n# typed: strict\n\nbegin\n  Kernel.exit(1)\nrescue ::Exception\n  nil\nend\n",
+            "matrix/rubocop_guard_sigil.rb": "# frozen_string_literal: true\n# typed: false\n",
+            "matrix/rubocop_guard_unsafe.rb": "# frozen_string_literal: true\n# typed: strict\n\nT.unsafe(1)\n",
+            "matrix/spec/rubocop_guard_focus_spec.rb": "# frozen_string_literal: true\n# typed: strict\n\n::RSpec.describe(::Integer) do\n  it('adds', :focus) { expect(1 + 1).to(eq(2)) }\nend\n",
         },
         platforms = ["linux_x86_64", "macos_arm64"],
         config = ":rubocop_strict_root.yml",
@@ -2697,7 +2727,7 @@ FILE_FAMILY_CASES = [
         binary = "//core/quality/tools/python:yamllint",
         source_class = "yaml",
         generated = {
-            "matrix/yamllint_profile_strict.yaml": "---\non: push\nkey: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+            "matrix/yamllint_profile_strict.yaml": "---\non: push\nkey: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n#nospace\nzone: x  \n",
         },
         tool_env = ["yamllint=RUNFILES_DIR=$TEST_SRCDIR"],
         toolfile_tools = ["yamllint", "yamllint"],

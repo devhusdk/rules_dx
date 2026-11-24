@@ -925,8 +925,6 @@ mod tests {
         assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 
-    /// Pins the crate-root entry points the generated launchers call, so the
-    /// module (and later crate) split cannot silently change the facade.
     #[test]
     fn crate_root_keeps_launcher_entry_points() {
         type Main4 = fn(&str, &str, &str, &str, &[String]) -> i32;

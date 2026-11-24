@@ -4,7 +4,6 @@ load("//core/quality:family_hooks.bzl", "default_files_hook")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 load("//core/quality:sources.bzl", "QualityToolsInfo")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 TOOLS = {
@@ -32,7 +31,7 @@ TOOLS = {
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,
-        "shard": "core",
+        "shard": "docstrfmt",
     },
     "lychee": {
         "attr": attr.label(default = "@dx_tools//:lychee", allow_single_file = True, cfg = "exec"),
@@ -87,6 +86,11 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Biome real lint aspect.",
         "shard": "biome",
+    },
+    "real_docstrfmt_format": {
+        "capability": "format",
+        "doc": "docstrfmt real format aspect.",
+        "shard": "docstrfmt",
     },
     "real_format": {
         "capability": "format",
@@ -177,5 +181,7 @@ real_typecheck_aspect = real_make_aspect(_CFG, "real_typecheck")
 real_biome_format_aspect = real_make_aspect(_CFG, "real_biome_format")
 
 real_biome_lint_aspect = real_make_aspect(_CFG, "real_biome_lint")
+
+real_docstrfmt_format_aspect = real_make_aspect(_CFG, "real_docstrfmt_format")
 
 real_vale_lint_aspect = real_make_aspect(_CFG, "real_vale_lint")

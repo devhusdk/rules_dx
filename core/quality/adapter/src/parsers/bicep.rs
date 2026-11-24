@@ -4,18 +4,6 @@ use crate::{ColumnEncoding, ToolSeverity};
 
 const TOOL: &str = "bicep";
 
-/// `bicep lint --diagnostics-format sarif` prints one SARIF run on stdout and exits 0 when it
-/// holds no errors. Warnings carry no `level`, errors carry `error`, and `charOffset` counts
-/// UTF-16 code units from 1 (`columnKind` says so). A run with no results and a nonzero exit
-/// is an error, never clean.
-///
-/// Bicep writes the 1-based column as the region's `charOffset`, which SARIF defines as an
-/// offset from the start of the file, and never writes `startColumn`; it is moved to
-/// `startColumn` before the shared SARIF parser reads it.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_bicep_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -55,9 +43,6 @@ pub fn parse_bicep_lint(
     parse_sarif(TOOL, &rewritten, code, files, ColumnEncoding::Utf16)
 }
 
-/// The BCP codes that Bicep's Lexer.cs, BaseParser.cs, Parser.cs and ParamsParser.cs (under
-/// src/Bicep.Core/Parsing) raise at v0.48.1. Re-derive the list on each Bicep bump. It goes
-/// away once `bicep format` itself fails on a file that does not parse.
 const BICEP_SYNTAX_CODES: &[&str] = &[
     "BCP001", "BCP002", "BCP003", "BCP004", "BCP005", "BCP006", "BCP007", "BCP008", "BCP009",
     "BCP010", "BCP011", "BCP012", "BCP013", "BCP015", "BCP016", "BCP017", "BCP018", "BCP019",
@@ -68,7 +53,6 @@ const BICEP_SYNTAX_CODES: &[&str] = &[
     "BCP404", "BCP436",
 ];
 
-/// The first error-level lint finding in `file` that is a lexer or parser diagnostic.
 #[must_use]
 pub fn bicep_syntax_error<'a>(findings: &'a [FileFinding], file: &str) -> Option<&'a FileFinding> {
     findings.iter().find(|found| {
@@ -78,15 +62,6 @@ pub fn bicep_syntax_error<'a>(findings: &'a [FileFinding], file: &str) -> Option
     })
 }
 
-/// `bicep format --stdout FILE` prints the formatted source and exits 0, also for a file that
-/// does not parse (v0.48.1), so the runner finds syntax errors with `bicep lint`. Should Bicep
-/// report them on stderr with a nonzero exit, that is an error here too. The first differing
-/// line is reported. A nonzero exit, a signal, or empty output for a non-empty file is an
-/// error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_bicep_format(
     stdout: &[u8],
     stderr: &[u8],

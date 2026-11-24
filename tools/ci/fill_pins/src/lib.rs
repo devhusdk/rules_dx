@@ -1,6 +1,3 @@
-//! Writes the `PINS` of `cli/prebuilt/pins.bzl` from verified release manifests:
-//! one sha256 per tool and platform that the registry (`cli/prebuilt/tools.bzl`) names.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -14,7 +11,6 @@ pub const HASKELL_MANIFEST: &str = "dx-haskell-sha256sums.txt";
 pub const TOOL_MANIFEST: &str = "dx-tool-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
-/// The manifests a release check downloads and verifies.
 pub const MANIFESTS: [&str; 5] = [
     MANIFEST,
     GAZELLE_MANIFEST,
@@ -23,14 +19,10 @@ pub const MANIFESTS: [&str; 5] = [
     TOOL_MANIFEST,
 ];
 
-/// `<tool> <platform key> <asset>` lines rendered from `tools.bzl` by `//cli/prebuilt:registry`.
 pub const REGISTRY: &str = include_str!(env!("DX_PREBUILT_REGISTRY"));
 
-/// Files a release publishes once per tool beside its `<tool>-<platform>` assets.
 const TOOL_COMPANIONS: [&str; 3] = ["-LICENSE", "-source.crate", "-source.tar.gz"];
 
-/// Licences and sources of the libraries linked into a family of tools, published
-/// once per release beside that family's assets.
 const LIBRARY_COMPANIONS: [&str; 4] = [
     "dx-haskell-gmp-LICENSE",
     "dx-haskell-gmp-source.tar.xz",
@@ -38,11 +30,8 @@ const LIBRARY_COMPANIONS: [&str; 4] = [
     "dx-haskell-gmp-ghc-source.tar.xz",
 ];
 
-/// Files a release publishes beside a registry asset and lists in the same
-/// manifest: the launcher archives, the Windows symbols and their SBOMs.
 const COMPANION_SUFFIXES: [&str; 3] = [".tar.gz", ".zip", "-pdb.zip"];
 
-/// One release asset the registry expects a manifest line for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub tool: String,
@@ -50,11 +39,6 @@ pub struct Entry {
     pub asset: String,
 }
 
-/// Parses the registry text.
-///
-/// # Errors
-///
-/// Returns `Err` when a line does not have exactly three fields.
 pub fn parse_registry(text: &str) -> Result<Vec<Entry>, String> {
     text.lines()
         .filter(|line| !line.is_empty())
@@ -71,11 +55,6 @@ pub fn parse_registry(text: &str) -> Result<Vec<Entry>, String> {
         .collect()
 }
 
-/// Reads every manifest from `dir`, checks each with `verify`, and returns the new `pins.bzl` text.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn fill(
     tag: &str,
     dir: &Path,
@@ -99,21 +78,10 @@ pub fn fill(
     fill_from_manifests(tag, &texts, pins_bzl, repo)
 }
 
-/// Reads a manifest file.
-///
-/// # Errors
-///
-/// Returns `Err` naming the file when it cannot be read.
 pub fn read(path: &Path) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))
 }
 
-/// Fills `pins_bzl` from `(name, text)` manifests that the caller has already trusted.
-/// The release URL points at `repo`, written `OWNER/NAME`.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn fill_from_manifests(
     tag: &str,
     manifests: &[(String, String)],
@@ -123,12 +91,6 @@ pub fn fill_from_manifests(
     fill_with_registry(&parse_registry(REGISTRY)?, tag, manifests, pins_bzl, repo)
 }
 
-/// [`fill_from_manifests`] against an explicit registry.
-///
-/// # Errors
-///
-/// Returns `Err` on a malformed line, an asset the registry does not know, an
-/// asset listed twice, or a registry entry no manifest lists.
 pub fn fill_with_registry(
     registry: &[Entry],
     tag: &str,
@@ -208,7 +170,6 @@ fn render_pins(pins: &BTreeMap<&str, BTreeMap<&str, &str>>) -> String {
     out
 }
 
-/// Replaces everything from the `PINS = ` line on; fill_pins owns the end of the file.
 fn replace_pins(pins_bzl: &str, rendered: &str) -> Result<String, String> {
     let start = pins_bzl
         .find("\nPINS = ")
@@ -260,13 +221,6 @@ fn rewrite_repo(pins_bzl: &str, repo: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Passes when `pins_bzl` has empty `PINS`, or when it equals the fill from the verified manifests in `dir`.
-/// With `filled`, empty pins fail.
-/// `fetch` runs only when there are pins to compare.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when a manifest or the pins are invalid.
 pub fn check(
     tag: &str,
     dir: &Path,

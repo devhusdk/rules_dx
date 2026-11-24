@@ -104,7 +104,6 @@ fn umbrella_phases_and_test_share_the_bazel_settings() {
     assert!(setting_args(&query).is_empty(), "{query:?}");
 }
 
-/// Names the capture one umbrella phase writes into the harness temp dir.
 fn capture_path(harness: &Harness, phase: &str, index: u64) -> PathBuf {
     harness.temp.join(format!(
         "umbrella-{phase}-{}-{index}.sarif",
@@ -112,13 +111,11 @@ fn capture_path(harness: &Harness, phase: &str, index: u64) -> PathBuf {
     ))
 }
 
-/// Parses one umbrella invocation against a harness workspace.
 fn umbrella_invocation(harness: &Harness, words: &[&str]) -> Invocation {
     let parsed = invocation(words);
     dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("resolve workspace")
 }
 
-/// How one phase capture is rewritten once its phase has finished.
 #[derive(Clone, Copy)]
 enum Rewrite {
     Remove,
@@ -143,7 +140,6 @@ impl Rewrite {
     }
 }
 
-/// Serves the inner runner but exits nonzero from one launch up to an optional end.
 struct FailFrom<R> {
     inner: R,
     from: usize,
@@ -171,7 +167,6 @@ impl<R: Runner> Runner for FailFrom<R> {
     }
 }
 
-/// Serves the inner runner but makes one launch fail with `code`, its events led by `bep_line`.
 struct FailAt<R> {
     inner: R,
     at: usize,
@@ -206,7 +201,6 @@ impl<R: Runner> Runner for FailAt<R> {
     }
 }
 
-/// Fails the lint build of `check --apply` with a compile error.
 fn compile_fail_at_lint(harness: &Harness) -> FailAt<FakeRunner> {
     let uri = stderr_file(harness, "lint-clippy", RENDERED_E0308);
     FailAt {
@@ -218,7 +212,6 @@ fn compile_fail_at_lint(harness: &Harness) -> FailAt<FakeRunner> {
     }
 }
 
-/// Fails the one quality build of check mode, the launch after generate, under `aspect` alone.
 fn fail_shared_build_under(harness: &Harness, aspect: &str, code: i32) -> FailAt<FakeRunner> {
     FailAt {
         inner: harness.runner(),
@@ -229,7 +222,6 @@ fn fail_shared_build_under(harness: &Harness, aspect: &str, code: i32) -> FailAt
     }
 }
 
-/// Rewrites one phase capture once the phase that wrote it has finished.
 struct RewriteCapture<R> {
     inner: R,
     capture: PathBuf,
@@ -248,9 +240,6 @@ impl<R: Runner> Runner for RewriteCapture<R> {
     }
 }
 
-/// Rewrites one phase capture on the first stdout write after the phase wrote it.
-///
-/// Check mode launches nothing after lint, so the next phase's start line marks lint's end.
 struct RewriteOnWrite {
     out: Vec<u8>,
     capture: PathBuf,
@@ -272,7 +261,6 @@ impl Write for RewriteOnWrite {
     }
 }
 
-/// Runs one umbrella command whose lint capture is rewritten mid-run.
 fn umbrella_with_broken_capture(
     harness: Harness,
     rewrite: Rewrite,
@@ -295,12 +283,6 @@ fn umbrella_with_broken_capture(
     )
 }
 
-/// Serves apply content for the first `verify_from` launches, then
-/// verification content, so `check --apply` tests can stage what the
-/// read-only re-check observes after the apply pass wrote sources.
-/// Quality launches from the `clean_from`th quality launch on serve
-/// `clean_files` instead, so a later phase does not re-offer an edit an
-/// earlier phase already wrote. Generate launches never count toward it.
 struct StagedRunner {
     code: Option<i32>,
     bep_lines: Vec<String>,
@@ -367,8 +349,6 @@ impl Runner for StagedRunner {
     }
 }
 
-/// Builds one runner serving `harness` content for the apply pass and
-/// `verify_files`/`verify_intended` from launch `verify_from` on.
 fn staged_runner(
     harness: &Harness,
     verify_files: Vec<(PathBuf, Vec<u8>)>,
@@ -413,8 +393,6 @@ fn staged_runner(
     }
 }
 
-/// Runs one `check --apply` whose launches from `verify_from` observe
-/// `verify_files` and `verify_intended` instead of the apply content.
 fn fix_apply_with_staged_verify(
     harness: &Harness,
     verify_files: Vec<(PathBuf, Vec<u8>)>,
@@ -427,9 +405,6 @@ fn fix_apply_with_staged_verify(
     harness.execute_with(&inv, &runner)
 }
 
-/// Like `fix_apply_with_staged_verify`, but only format (the first
-/// quality launch) sees the harness edit; lint and typecheck see a clean
-/// result, as real tools would once format wrote the file.
 fn fix_apply_format_edit_then_verify(
     harness: &Harness,
     verify_files: Vec<(PathBuf, Vec<u8>)>,
@@ -449,7 +424,6 @@ fn fix_apply_format_edit_then_verify(
     harness.execute_with(&inv, &runner)
 }
 
-/// Reads one merged SARIF document out of a harness workspace.
 fn merged_runs(harness: &Harness) -> Vec<Value> {
     let document: Value =
         serde_json::from_slice(&std::fs::read(harness.workspace.join("out.sarif")).expect("sarif"))
@@ -599,7 +573,6 @@ fn check_json_counts_the_shared_quality_build_once() {
         .iter()
         .filter(|event| event["event"] == "phase_finished" && event.get("actions").is_some())
         .collect();
-    // format, lint and typecheck share one build, and the phase that ran it carries its counts.
     assert_eq!(phases.len(), 1, "{out}");
     assert_eq!(phases[0]["phase"], "format", "{out}");
     let counts = serde_json::json!({"created": 10, "executed": 4, "cache_hits": {"disk": 2, "remote": 3, "local": 5}});
@@ -1205,7 +1178,6 @@ const NOT_CONVERGED: &str = "dx: not_converged: //test:corpus did not converge: 
 
 #[test]
 fn check_and_fix_keep_going_after_a_diagnostic_free_unstable_phase() {
-    // Check mode shares one build for its quality phases; apply mode builds once per phase.
     for (words, launches) in [(["check", "--output=text"], 2), (["check", "--apply"], 4)] {
         let mut harness = Harness::new("umbrella-unstable");
         harness.write_source("src/a.py", "x = 1\n");
@@ -1322,7 +1294,6 @@ fn fix_keeps_going_when_a_later_phase_goes_stale() {
     );
 }
 
-/// A `check --apply` whose format edit goes stale before the apply pass.
 fn refused_format(name: &str) -> Harness {
     let mut harness = Harness::new(name);
     harness.write_source("src/a.py", "x = 1\n");
@@ -1420,8 +1391,6 @@ fn fix_runs_every_phase_after_a_tool_failure() {
     assert_eq!(finished["results_complete"], serde_json::json!(false));
 }
 
-/// Runs `fix --apply --output=<output>` where lint (launch 2) exits 7 and
-/// the verification launches see `verify_result`; only format edits.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "the value is built for this one call"
@@ -1611,7 +1580,6 @@ fn check_runs_every_phase_after_a_tool_failure() {
 fn check_runs_every_phase_after_a_lint_compile_error() {
     let harness = umbrella_clean("umbrella-check-compile");
     let mut runner = compile_fail_at_lint(&harness);
-    // Check mode runs lint in the one quality build after generate, where the lint aspect fails.
     runner.at = 1;
     runner.bep_line = format!(
         "{}\n{}",
@@ -2036,7 +2004,6 @@ fn check_reports_a_full_disk_once_and_skips_the_later_phases() {
     assert_eq!(errors.len(), 1, "{out}");
     assert_eq!(errors[0]["code"], serde_json::json!("disk_full"));
     assert_eq!(errors[0]["cause"], serde_json::json!("host"));
-    // Format runs the build lint and typecheck share, so the full disk stops the run there.
     assert_eq!(errors[0]["correlation"], serde_json::json!("check/format"));
     let skipped: Vec<&str> = events_of_kind(&events, "notice")
         .iter()
@@ -2543,7 +2510,6 @@ fn test_phase_results_complete_follows_kind() {
     }
 }
 
-/// Runs the umbrella test phase against a harness and returns its outcome.
 fn run_test_phase(harness: &Harness) -> (i32, PhaseKind) {
     let inv = umbrella_invocation(harness, &["test", "--output=text"]);
     let runner = harness.runner();
@@ -2626,7 +2592,6 @@ fn test_phase_reports_full_disk_as_host() {
     assert_eq!(run_test_phase(&harness), (36, PhaseKind::Host));
 }
 
-/// Runs `check` where format passes and lint reports findings.
 fn check_with_failing_lint(name: &str, words: &[&str]) -> (Harness, i32, String, String) {
     let harness = umbrella_clean(name);
     let (artifact, _) = harness
@@ -2886,8 +2851,6 @@ fn collector_ignores_a_capture_a_failed_phase_never_owed() {
     collector.cleanup();
 }
 
-// A full disk stops a check-mode run in the shared build, before any phase reports findings, so
-// the later failure here is the typecheck aspect's own.
 #[test]
 fn check_failure_after_findings_keeps_both_facts() {
     let harness = umbrella_findings("umbrella-failure-after-findings");
@@ -3054,10 +3017,6 @@ fn check_reports_generate_drift_first_and_runs_every_phase() {
     assert_eq!(last["results_complete"], true, "{out}");
 }
 
-/// Plays Gazelle for `check --apply`: the first generate launch writes
-/// `fixed` to `build` and its apply witness, later generate launches
-/// report a clean check, and quality launches fail to compile until
-/// `build` lists `source`.
 struct StaleBuild<R> {
     inner: R,
     build: PathBuf,
@@ -3106,7 +3065,6 @@ impl<R: Runner> Runner for StaleBuild<R> {
     }
 }
 
-/// The phase names a JSON umbrella run started, in order.
 fn started_phases(events: &[Value]) -> Vec<String> {
     events_of_kind(events, "phase_started")
         .iter()
@@ -3114,7 +3072,6 @@ fn started_phases(events: &[Value]) -> Vec<String> {
         .collect()
 }
 
-/// Every generate witness path the runner saw, in launch order.
 fn intended_paths(harness: &Harness) -> Vec<String> {
     harness
         .seen_env

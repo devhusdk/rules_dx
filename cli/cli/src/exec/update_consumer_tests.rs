@@ -134,7 +134,6 @@ fn consumer_without_pinned_uv_is_unavailable_and_never_clean() {
     assert!(runner.calls.borrow().is_empty());
 }
 
-/// Scripts one Bazel resolution of `rel` under a fresh output base.
 fn script_resolution(harness: &Harness, base: &std::path::Path, rel: &str) {
     let file = base.join(rel);
     std::fs::create_dir_all(file.parent().expect("parent")).expect("dir");
@@ -854,7 +853,6 @@ fn resolver_tail(argv: &[String]) -> Vec<String> {
         .unwrap_or_else(|| panic!("no ruby resolver in {argv:?}"));
     argv[at + 1..]
         .iter()
-        // The scratch dirs are host paths: `D:/...` on Windows, not `/...`.
         .filter(|arg| !std::path::Path::new(arg).is_absolute())
         .cloned()
         .collect()
@@ -1560,7 +1558,6 @@ fn go_bytes(harness: &Harness) -> Vec<Vec<u8>> {
         .collect()
 }
 
-/// The `-C` directory the single recorded launch ran in.
 fn go_scratch_out(runner: &ScriptRunner) -> std::path::PathBuf {
     let launches = runner.launches.borrow();
     let argv = &launches[0].argv;
@@ -1714,7 +1711,6 @@ fn consumer_go_offline_and_frozen_apply_never_launch() {
         assert!(text.contains(want), "{argv:?}: {text}");
         assert!(!text.contains("lockfile current"), "{argv:?}");
     }
-    // A frozen check only compares, so it still runs.
     let runner = ScriptRunner::new(&[]);
     stage(&runner, &[("go.sum", "old\n"), ("go.mod", GO_MOD)]);
     let (code, out, err) = run_with(&["update", "--frozen", "go"], &runner, &harness);

@@ -41,7 +41,7 @@ def capnp_library_tests(name):
     capnproto_library(name = name + "_leaf", srcs = ["fixtures/closure/leaf.capnp"], deps = [":" + name + "_top"], tags = ["manual"])
     _chain_test(name = name + "_chain_test", target_under_test = ":" + name + "_leaf", size = "small")
     capnproto_cc_library(name = name + "_leaf_cc", deps = [":" + name + "_leaf"])
-    build_test(name = name + "_leaf_cc_test", targets = [":" + name + "_leaf_cc"])
+    build_test(name = name + "_leaf_cc_test", size = "small", targets = [":" + name + "_leaf_cc"])
     capnproto_library(name = name + "_external", srcs = ["//capnproto:std"], tags = ["manual"])
     failure_test(name = name + "_external_test", size = "small", target = ":" + name + "_external", expected_failure_substring = "cross-repo capnp schemas are unsupported")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_chain_test", ":" + name + "_leaf_cc_test", ":" + name + "_external_test"])

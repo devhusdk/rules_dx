@@ -1,10 +1,6 @@
-//! The `bazel_dep` and `module` names of a workspace's `MODULE.bazel`, includes followed.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed, plus its own
-/// module name. Empty when it cannot be read.
 #[must_use]
 pub fn module_deps(root: &Path) -> BTreeSet<String> {
     let mut deps = load_calls(root, "bazel_dep");
@@ -12,7 +8,6 @@ pub fn module_deps(root: &Path) -> BTreeSet<String> {
     deps
 }
 
-/// Whether the workspace at `root` is the `rules_dx` module itself, which carries every family.
 #[must_use]
 pub fn is_rules_dx_root(root: &Path) -> bool {
     load_calls(root, "module").contains("rules_dx")

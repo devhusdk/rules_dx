@@ -3,13 +3,9 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "thrift";
 
-/// What one `thrift -strict -v --gen json` run reported about one schema.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThriftReport {
-    /// Errors and warnings the compiler printed for the checked files.
     pub findings: Vec<FileFinding>,
-    /// Every file the compiler scanned for includes, in order, including the
-    /// checked file itself.
     pub dependencies: Vec<String>,
 }
 
@@ -26,7 +22,6 @@ fn number(text: &str) -> Option<u64> {
     text.parse().ok()
 }
 
-/// Reads `[KIND:path:line] rest` for the given `KIND`.
 fn tagged<'a>(line: &'a str, kind: &str) -> Option<Tagged<'a>> {
     let body = line
         .strip_prefix('[')?
@@ -66,7 +61,6 @@ fn finding(file: &str, severity: ToolSeverity, line: u64, message: &str) -> File
     }
 }
 
-/// The `Type "X" not defined` line the compiler prints on stdout (exit 1).
 fn undefined_type(line: &str) -> bool {
     line.strip_prefix("Type \"")
         .and_then(|rest| rest.strip_suffix("\" not defined"))
@@ -124,7 +118,6 @@ fn scan_stdout(out: &str, files: &[&str], first: &str, scan: &mut Scan) -> Resul
         else {
             continue;
         };
-        // The include pass and the type pass print the same warning.
         let duplicate = scan.findings.iter().any(|known| {
             known.file == **file
                 && known.finding.severity == ToolSeverity::Warning
@@ -205,19 +198,6 @@ fn scan_stderr(err: &str, files: &[&str], scan: &mut Scan) -> Result<(), ParseEr
     flush_pending(&mut pending, files, scan)
 }
 
-/// Parses stdout and stderr of one `thrift -strict -v --gen json` run over one
-/// schema.
-///
-/// Warnings go to stdout, errors to stderr. Findings in included schemas
-/// belong to their own targets, so only the checked files report here; an
-/// error in an include still fails the run through a finding on the first
-/// checked file. Output the grammar cannot read is never clean: exit 0 allows
-/// warnings only, exit 1 needs an error line (a usage error also exits 1 and
-/// has none), and anything else, including a signal, is a shape error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_thrift(
     stdout: &[u8],
     stderr: &[u8],

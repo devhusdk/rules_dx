@@ -34,7 +34,6 @@ _TARGET_DART = {DxNativeConfigInfo: struct(tool_id = "dart", name = "dart")}
 def _names(targets):
     return {tool: t[DxNativeConfigInfo].name for tool, t in targets.items()}
 
-# Tools whose runner refuses to run without a config; tools/ci/config_consistency_test.rs pins each to its refusal.
 _RUNNER_CONFIG_REQUIRED_TOOLS = []
 
 def native_config_unit_tests(name):

@@ -3,7 +3,6 @@ use dx_error::DxError;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-/// Deletes the one-line declarations of unused dependencies and returns the entries removed.
 pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, DxError> {
     let mut by_manifest: BTreeMap<&str, Vec<&Unused>> = BTreeMap::new();
     for item in unused {
@@ -50,7 +49,6 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
     Ok(removed)
 }
 
-/// A single-line entry that names the dependency and opens no table or block.
 fn removable(line: &str, name: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.starts_with('[') && trimmed.ends_with(']') && !trimmed.starts_with("[\"") {

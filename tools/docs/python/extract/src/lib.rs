@@ -1,5 +1,3 @@
-//! Converts the griffe driver's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -17,7 +15,6 @@ const KEY_CONFIG: &str = "python.config";
 const KEY_INCOMPLETE: &str = "python.incomplete";
 const ROOT_SEGMENT: &str = "__init__";
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -27,23 +24,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `python_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("python_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: python_extract --json FILE --package NAME --root DIR --srcs FILE --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, String> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--json", "--package", "--root", "--srcs", "--out"])?;
@@ -56,11 +46,6 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.json)
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
@@ -78,16 +63,10 @@ pub fn run(options: &Options) -> Result<(), String> {
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
-/// Joins the staged root and a griffe file path, which uses backslashes on Windows.
 fn staged_path(root: &str, file: &str) -> String {
     format!("{root}/{}", file.replace('\\', "/"))
 }
 
-/// Parses a srcs manifest into staged path -> (repo-relative path, generated).
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>, String> {
     let mut sources = BTreeMap::new();
     for line in manifest.lines().filter(|line| !line.is_empty()) {
@@ -110,7 +89,6 @@ pub fn parse_sources(manifest: &str) -> Result<BTreeMap<String, (String, bool)>,
     Ok(sources)
 }
 
-/// Escapes one id segment: every byte outside `[A-Za-z0-9_]` becomes `~` plus two hex digits.
 #[must_use]
 pub fn escape_segment(segment: &str) -> String {
     let mut out = String::with_capacity(segment.len());
@@ -157,13 +135,11 @@ fn has_label(object: &Value, label: &str) -> bool {
         .any(|value| value.as_str() == Some(label))
 }
 
-/// Returns the `__all__` names of a module, or `None` when it defines none.
 fn exports(object: &Value) -> Option<BTreeSet<&str>> {
     let entries = object.get("exports")?.as_array()?;
     Some(entries.iter().filter_map(Value::as_str).collect())
 }
 
-/// Applies the public rule to one member of a container.
 fn is_public(container: &Value, name: &str, member: &Value) -> bool {
     let alias = kind_of(member) == "alias";
     if kind_of(member) == "module" && !alias {
@@ -177,7 +153,6 @@ fn is_public(container: &Value, name: &str, member: &Value) -> bool {
     if alias || name.starts_with('_') {
         return false;
     }
-    // Attributes only assigned on instances without a docstring are noise.
     let instance_only = has_label(member, "instance-attribute")
         && !has_label(member, "class-attribute")
         && !has_label(member, "module-attribute")
@@ -193,11 +168,9 @@ fn is_enum(object: &Value) -> bool {
     })
 }
 
-/// One definition reached through the public API.
 #[derive(Default)]
 struct Reach<'a> {
     def: Option<&'a Value>,
-    /// Public dotted path to the public path of the container it was found in.
     paths: BTreeMap<String, String>,
 }
 
@@ -216,7 +189,6 @@ impl<'a> Walker<'a> {
         reach.paths.insert(path, parent.to_owned());
     }
 
-    /// Walks the public members of one container reached at one public path.
     fn walk(&mut self, container: &'a Value, container_path: &str) {
         for (name, member) in members(container) {
             if !is_public(container, name, member) {
@@ -254,7 +226,6 @@ fn index<'a>(object: &'a Value, defs: &mut BTreeMap<String, &'a Value>) {
     }
 }
 
-/// Renders one parameter list into signature text, the self parameter dropped.
 fn render_parameters(parameters: &[Value], in_class: bool) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut keyword_marker_needed = true;
@@ -304,7 +275,6 @@ fn render_parameters(parameters: &[Value], in_class: bool) -> String {
     out.join(", ")
 }
 
-/// Normalizes CRLF line endings and trims trailing whitespace.
 fn normalize(value: &str) -> String {
     value.replace("\r\n", "\n").trim_end().to_owned()
 }
@@ -368,7 +338,6 @@ fn join_id(package: &str, path: &str) -> String {
     format!("{LANGUAGE}:{package}:{qualified}")
 }
 
-/// The IR shape of one definition before ids are resolved.
 struct Draft {
     kind: SymbolKind,
     signature: String,
@@ -573,16 +542,10 @@ fn draft(def: &Value, parent: Option<&Value>) -> Draft {
     }
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     convert_mapped(json, package, &|file| Ok((file.to_owned(), false)))
 }
 
-/// Source mapper: griffe's package-relative file to (repo-relative file, generated).
 pub type SourceMap<'a> = &'a dyn Fn(&str) -> Result<(String, bool), String>;
 
 fn shard_config(root: &Value, package: &str) -> Result<String, String> {
@@ -617,7 +580,6 @@ fn walk_module<'a>(module: &'a Value, package: &str) -> Walker<'a> {
     walker.record(module, package.to_owned(), "");
     walker.walked.insert(package.to_owned());
     walker.walk(module, package);
-    // Containers only reachable through a re-export are walked at their first sorted path.
     loop {
         let next = walker
             .pending
@@ -713,11 +675,6 @@ fn reached_symbol(
     }))
 }
 
-/// Like [`convert`], with every source path mapped through `map`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<DocIr, String> {
     if package.is_empty()
         || package.contains([':', '.'])
@@ -758,7 +715,6 @@ pub fn convert_mapped(json: &str, package: &str, map: SourceMap<'_>) -> Result<D
             symbols.push(symbol);
         }
     }
-    // The root module symbol alone is not an API.
     if symbols.len() < 2 {
         return Err(format!(
             "griffe JSON lists no public Python API of package '{package}'"

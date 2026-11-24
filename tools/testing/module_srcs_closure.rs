@@ -1,14 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-/// A loaded `.bzl` file named by its package and its path from the module root.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Bzl {
     pub package: String,
     pub path: String,
 }
 
-/// Resolves one `load` label against the package of the loading file; `None` leaves the module.
 pub fn resolve(label: &str, package: &str) -> Option<Bzl> {
     let local = if let Some(rest) = label.strip_prefix("@rules_dx//") {
         format!("//{rest}")
@@ -39,7 +37,6 @@ pub fn resolve(label: &str, package: &str) -> Option<Bzl> {
     Some(Bzl { package, path })
 }
 
-/// Returns the first string argument of every `load(` call in `text`, single- or multi-line.
 pub fn loads(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     for (start, _) in text.match_indices("load(") {
@@ -79,12 +76,10 @@ pub fn in_runfiles(rel: &str) -> Option<PathBuf> {
         .filter(|path| path.is_file())
 }
 
-/// Loads that name files a repository rule generates rather than files of the module.
 fn generated(label: &str) -> bool {
     label.contains('{') || label == "//:tool_paths.bzl"
 }
 
-/// Follows `load` statements from `entries`; returns one line per missing file and its loader.
 pub fn missing_from_runfiles(entries: Vec<(Bzl, String)>) -> Vec<String> {
     let mut queue = entries;
     let mut seen = BTreeSet::new();

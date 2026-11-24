@@ -1,11 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! Safe extraction of tar, tar.gz and zip archives into a fresh directory, plus read-only
-//! member visits with name, kind and mode ([`visit_entries`], [`visit`], [`visit_tar`],
-//! [`visit_tar_entries`]), zip member reads ([`read_zip_member`]), listings ([`zip_names`]),
-//! integrity checks ([`check_zip`]), and deterministic writers ([`TarWriter`], [`TarStream`],
-//! [`ZipWriter`]).
-
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
@@ -14,7 +8,6 @@ use std::path::Path;
 mod write;
 pub use write::{TarStream, TarWriter, ZipWriter, fits_ustar, gzip};
 
-/// The archive container, named by suffix and confirmed by magic bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {
     Tar,
@@ -27,7 +20,6 @@ const ZIP_MAGIC: &[u8] = b"PK\x03\x04";
 const ZIP_EMPTY_MAGIC: &[u8] = b"PK\x05\x06";
 
 impl Format {
-    /// Names the format from a file name suffix.
     #[must_use]
     pub fn from_name(name: &str) -> Option<Format> {
         let name = name.to_ascii_lowercase();
@@ -42,7 +34,6 @@ impl Format {
         }
     }
 
-    /// The suffix release assets of this format carry.
     #[must_use]
     pub fn suffix(self) -> &'static str {
         match self {
@@ -61,7 +52,6 @@ impl Format {
     }
 }
 
-/// Caps applied while extracting, measured on the bytes actually written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
     pub max_entries: usize,
@@ -79,7 +69,6 @@ impl Default for Limits {
     }
 }
 
-/// One extracted regular file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Member {
     pub name: String,
@@ -99,7 +88,6 @@ fn context(what: impl std::fmt::Display) -> impl FnOnce(io::Error) -> io::Error 
     move |e| io::Error::new(e.kind(), format!("{what}: {e}"))
 }
 
-/// Returns why an archive member name is unsafe to extract, if it is.
 #[must_use]
 pub fn member_name_error(name: &str) -> Option<String> {
     if name.is_empty() {
@@ -144,10 +132,6 @@ pub fn member_name_error(name: &str) -> Option<String> {
     None
 }
 
-/// Returns why the symlink `name -> target` could resolve outside the extraction target, if it could.
-///
-/// Leading `..` segments may climb at most to the target root; once the path descends it may not climb again,
-/// because a descended segment can itself be a symlink.
 #[must_use]
 pub fn link_target_error(name: &str, target: &str) -> Option<String> {
     let outside = || {
@@ -174,7 +158,6 @@ pub fn link_target_error(name: &str, target: &str) -> Option<String> {
     None
 }
 
-/// Windows maps these stems to devices, whatever the extension.
 fn is_device_name(segment: &str) -> bool {
     let stem = segment
         .split('.')
@@ -191,7 +174,6 @@ fn is_device_name(segment: &str) -> bool {
     ) || matches!(numbered, Some(n) if n.len() == 1 && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// What an archive entry holds.
 enum Kind {
     File { mode: Option<u32> },
     Dir,
@@ -199,13 +181,11 @@ enum Kind {
     Other,
 }
 
-/// An archive symlink waiting to be created.
 struct Link {
     name: String,
     target: String,
 }
 
-/// Most links followed while resolving one link target, like Linux's `ELOOP` limit.
 const MAX_LINK_HOPS: usize = 40;
 
 struct Extraction<'a> {
@@ -214,7 +194,6 @@ struct Extraction<'a> {
     limits: Limits,
     entries: usize,
     seen: HashSet<String>,
-    /// Lowercased link name to its index in `pending`.
     links: HashMap<String, usize>,
     pending: Vec<Link>,
     total: u64,
@@ -284,7 +263,6 @@ impl<'a> Extraction<'a> {
         }
     }
 
-    /// Whether a parent of the lowercased member `key` is an extracted symlink.
     fn below_link(&self, key: &str) -> bool {
         key.match_indices('/').any(|(at, _)| {
             key.get(..at)
@@ -292,7 +270,6 @@ impl<'a> Extraction<'a> {
         })
     }
 
-    /// Creates the archive symlinks in archive order, once every other member exists.
     fn create_links(&self) -> io::Result<()> {
         for link in &self.pending {
             let what = format!("create {:?}", link.name);
@@ -306,9 +283,6 @@ impl<'a> Extraction<'a> {
         Ok(())
     }
 
-    /// Follows the link `name -> target` through the archive's own links to a link-free member path.
-    ///
-    /// Returns `None` for a loop or a chain over [`MAX_LINK_HOPS`] links.
     fn resolve(&self, name: &str, target: &str) -> Option<String> {
         let mut parts: Vec<&str> = name.split('/').collect();
         parts.pop();
@@ -396,11 +370,9 @@ fn symlink(target: &str, path: &Path, _dir: bool) -> io::Result<()> {
     std::os::unix::fs::symlink(target, path)
 }
 
-/// `CreateSymbolicLinkW` fails with this without Developer Mode or an elevated shell.
 #[cfg(windows)]
 const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
 
-/// Windows needs the target kind up front: a file link to a directory does not open as one.
 #[cfg(windows)]
 fn symlink(target: &str, path: &Path, dir: bool) -> io::Result<()> {
     let target = target.replace('/', "\\");
@@ -464,10 +436,6 @@ fn prepare_dest(dest: &Path) -> io::Result<()> {
     }
 }
 
-/// Extracts `archive` into the new or empty directory `dest` and returns its regular files.
-///
-/// Directories and symlinks that stay inside `dest` are created too; callers discard `dest` on error.
-/// On Windows, symlinks need Developer Mode or an elevated shell.
 pub fn extract(
     archive: &Path,
     format: Format,
@@ -477,9 +445,6 @@ pub fn extract(
     extract_matching(archive, format, dest, limits, |_| true)
 }
 
-/// Extracts only the members whose archive name satisfies `keep`, like [`extract`].
-///
-/// `keep` sees the raw member name, with the trailing `/` of a directory; caps count kept members only.
 pub fn extract_matching(
     archive: &Path,
     format: Format,
@@ -498,7 +463,6 @@ pub fn extract_matching(
     )
 }
 
-/// Extracts an archive held in memory, like [`extract`].
 pub fn extract_bytes(
     bytes: &[u8],
     format: Format,
@@ -542,7 +506,6 @@ fn unpack(
     Ok(run.members)
 }
 
-/// Confirms the magic bytes of `source` and rewinds it.
 fn check_magic(source: &mut (impl Read + Seek), label: &str, format: Format) -> io::Result<()> {
     let mut head = [0u8; 4];
     let read = read_head(source, &mut head)?;
@@ -556,7 +519,6 @@ fn check_magic(source: &mut (impl Read + Seek), label: &str, format: Format) -> 
     Ok(())
 }
 
-/// What an archive entry holds, as [`visit`] reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {
     File,
@@ -566,11 +528,6 @@ pub enum EntryKind {
     Other,
 }
 
-/// One archive entry as [`visit_entries`] reports it.
-///
-/// `mode` holds the permission bits (`& 0o7777`); it is `None` for a zip entry not made on Unix and
-/// for a tar header whose mode field is not a number. `link_target` is the raw, unchecked target of a tar
-/// symlink or hard link; it is `None` for every other entry and for zip entries.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Entry<'a> {
@@ -580,9 +537,6 @@ pub struct Entry<'a> {
     pub link_target: Option<&'a str>,
 }
 
-/// Calls `f` with the name, kind and body of every entry of an archive, in archive order, without extracting.
-///
-/// Like [`visit_entries`] without the mode.
 pub fn visit(
     source: impl Read + Seek,
     format: Format,
@@ -594,12 +548,6 @@ pub fn visit(
     })
 }
 
-/// Calls `f` with every [`Entry`] of an archive and its body, in archive order, without extracting.
-///
-/// Names lose a leading `./`, a bare `.` directory is skipped, directory names lose their trailing `/`, the
-/// result passes [`member_name_error`], and repeated names are allowed.
-/// Tar pax global headers are skipped. `limits` caps the entries and the body bytes `f` reads; a body read
-/// past a cap fails. A tar.gz is read to its gzip trailer, so a cut or corrupt trailer fails.
 pub fn visit_entries(
     mut source: impl Read + Seek,
     format: Format,
@@ -628,7 +576,6 @@ pub fn visit_entries(
     }
 }
 
-/// Visits a plain tar stream like [`visit`]; for streams that cannot seek or that the caller decompressed.
 pub fn visit_tar(
     source: impl Read,
     limits: Limits,
@@ -639,7 +586,6 @@ pub fn visit_tar(
     })
 }
 
-/// Visits a plain tar stream like [`visit_entries`]; for streams that cannot seek or that the caller decompressed.
 pub fn visit_tar_entries(
     source: impl Read,
     limits: Limits,
@@ -654,7 +600,6 @@ pub fn visit_tar_entries(
     walk_tar(source, &mut run)
 }
 
-/// Decompresses a gzip stream of at most `max_bytes` bytes.
 pub fn gunzip(source: impl Read, max_bytes: u64) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
     flate2::read::GzDecoder::new(source)
@@ -689,7 +634,6 @@ impl<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>> Visit<F> {
             )));
         }
         self.entries += 1;
-        // `tar -C dir .` names every member `./…` and adds a `./` entry for the root itself.
         let name = name.strip_prefix("./").unwrap_or(&name);
         let name = match (kind, name.strip_suffix('/')) {
             (EntryKind::Dir, Some(dir)) => dir,
@@ -723,7 +667,6 @@ impl<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>> Visit<F> {
     }
 }
 
-/// A member body that fails once a read would pass `left` bytes.
 struct Capped<'a> {
     inner: &'a mut dyn Read,
     left: u64,
@@ -817,7 +760,6 @@ fn walk_zip<F: FnMut(&Entry, &mut dyn Read) -> io::Result<()>>(
     Ok(())
 }
 
-/// Reads one named member of a zip without extracting the rest; `None` when it is absent.
 pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result<Option<Vec<u8>>> {
     let file = File::open(archive).map_err(context(archive.display()))?;
     let mut zip = zip::ZipArchive::new(file).map_err(|e| invalid(format!("zip: {e}")))?;
@@ -838,9 +780,6 @@ pub fn read_zip_member(archive: &Path, name: &str, max_bytes: u64) -> io::Result
     Ok(Some(bytes))
 }
 
-/// Lists the central-directory names of a zip in index order, unmodified.
-///
-/// Directory names keep their trailing `/`; a name that is not UTF-8 is an error.
 pub fn zip_names(source: impl Read + Seek) -> io::Result<Vec<String>> {
     let mut zip = zip::ZipArchive::new(source).map_err(|e| invalid(format!("zip: {e}")))?;
     (0..zip.len())
@@ -854,9 +793,6 @@ pub fn zip_names(source: impl Read + Seek) -> io::Result<Vec<String>> {
         .collect()
 }
 
-/// Reads every member of a zip through its checksum via [`visit`] without writing anything.
-///
-/// Fails on an unsafe member name, a CRC mismatch, or a member or archive over the caps.
 pub fn check_zip(source: impl Read + Seek, limits: Limits) -> io::Result<()> {
     visit(source, Format::Zip, limits, |_, _, body| {
         io::copy(body, &mut io::sink()).map(drop)
@@ -875,7 +811,6 @@ fn read_head(file: &mut impl Read, head: &mut [u8]) -> io::Result<usize> {
     Ok(filled)
 }
 
-/// Longest symlink target read from a zip entry body.
 const MAX_LINK_TARGET: u64 = 4096;
 
 fn utf8(bytes: Vec<u8>, what: &str) -> io::Result<String> {

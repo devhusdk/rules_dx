@@ -1,5 +1,3 @@
-//! Generates the matrix from the real facts. A label the reader does not understand fails here, and so does a committed page that is out of date.
-
 use runfiles as _;
 use serde as _;
 use support_matrix::runfiles_source::RunfilesSource;

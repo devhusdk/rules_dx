@@ -2,7 +2,6 @@ package lua
 
 import "testing"
 
-// The vectors mirror lua/tests/defs_tests.bzl; keep the two in sync.
 func TestModuleName(t *testing.T) {
 	cases := []struct {
 		name                     string

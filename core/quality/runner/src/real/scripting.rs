@@ -1,5 +1,5 @@
 use quality_adapter::parsers::FileFinding;
-use quality_adapter::{commands, parsers};
+use quality_adapter::{commands, dockerfile_guard, parsers};
 
 use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
@@ -94,7 +94,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         id: "hadolint",
-        run: lint_family,
+        run: hadolint,
     },
     ToolDef {
         id: "checkmake",
@@ -385,11 +385,7 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let luarc = work.join("luarc.json");
     std::fs::write(
         &luarc,
-        commands::luals_luarc(
-            &consumer,
-            library.as_deref(),
-            &["dx-luals", ".dx-luals"],
-        ),
+        commands::luals_luarc(&consumer, library.as_deref(), &["dx-luals", ".dx-luals"]),
     )
     .map_err(|err| execution(tool_id, format!("write luals config: {err}")))?;
     let report = work.join("check.json");
@@ -734,6 +730,22 @@ fn rubocop(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
         tool_id,
         parsers::parse_rubocop(&out.stdout, &out.stderr, out.code, &strs, scratch.root()),
     )
+}
+
+/// hadolint, plus the Dockerfile guard when the family passes `strict`.
+fn hadolint(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>, RunnerError> {
+    let mut findings = lint_family(backend, call)?;
+    if !call.tool.args.iter().any(|arg| arg == "strict") {
+        return Ok(findings);
+    }
+    let (refs, names) = paths(call);
+    for (name, path) in names.iter().zip(refs) {
+        let bytes = std::fs::read(path)
+            .map_err(|err| execution(call.tool_id, format!("read {name}: {err}")))?;
+        let source = String::from_utf8_lossy(&bytes);
+        findings.extend(dockerfile_guard::dockerfile_guard(name, &source));
+    }
+    Ok(findings)
 }
 
 fn lint_family(

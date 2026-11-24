@@ -1,6 +1,3 @@
-//! The root MODULE.bazel.lock stays within the committed size and extension budget. This is a
-//! whole-repo number; the external repo count needs a fetched consumer.
-
 use dx_nested::footprint::{check_lock_budget, measure_lock};
 use dx_testing::{read_runfiles, read_text, resolve_runfiles};
 

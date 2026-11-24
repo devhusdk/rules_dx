@@ -5,21 +5,6 @@ use crate::ColumnEncoding;
 
 const TOOL: &str = "ffmt";
 
-/// Parses `ffmt --check --no-cache --no-ignore --color never <files>`.
-///
-/// Measured on 0.4.5:
-/// - exit 0 is clean and prints nothing;
-/// - exit 1 prints the path of each unformatted file on stdout, one per line, as it was given;
-/// - exit 2 is any failure to run: an invalid config, an unsupported extension, or no Fortran
-///   file at all;
-/// - a file with a syntax error is listed as unformatted, so it is a finding here.
-///
-/// Anything other than exit 0 with no output, or exit 1 with at least one path that this run
-/// named, is an error and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ffmt(
     stdout: &[u8],
     code: Option<i32>,
@@ -84,10 +69,8 @@ mod tests {
 
     #[test]
     fn exit_codes_that_disagree_with_the_output_are_errors() {
-        // Exit 2 is a config or usage failure, including "no Fortran files found".
         assert!(parse_ffmt(b"", Some(2), &FILES).is_err());
         assert!(parse_ffmt(b"/w/a.f90\n", Some(2), &FILES).is_err());
-        // Exit 1 with nothing to name, and findings under exit 0.
         assert!(parse_ffmt(b"", Some(1), &FILES).is_err());
         assert!(parse_ffmt(b"/w/a.f90\n", Some(0), &FILES).is_err());
         assert!(parse_ffmt(b"", None, &FILES).is_err());

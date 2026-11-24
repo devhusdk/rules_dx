@@ -82,7 +82,6 @@ fn write(path: &Path, text: &str) {
         .unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
-/// Returns the advisory sets the bootstrap accepts, read from its own constant.
 fn accepted_sets() -> Vec<String> {
     read(&env_file("DX_BOOTSTRAP_SRC"))
         .lines()
@@ -113,14 +112,12 @@ fn meta_names() -> Vec<String> {
         .collect()
 }
 
-/// The date every fixture bundle records for its snapshots.
 const BUNDLE_DATE: &str = "2026-01-01";
 
 fn launcher_names() -> Vec<String> {
     LAUNCHERS.iter().map(|name| (*name).to_owned()).collect()
 }
 
-/// Writes the sha256sum-style manifest of one bundle subdir, one line per named file.
 fn manifest(dir: &Path, names: &[String], trailing_newline: bool) {
     let mut text = String::new();
     for name in names {
@@ -134,7 +131,6 @@ fn manifest(dir: &Path, names: &[String], trailing_newline: bool) {
     std::fs::write(dir.join("SHA256SUMS"), text.as_bytes()).expect("write manifest");
 }
 
-/// Every advisory file the manifest pins: snapshots, then their identities.
 fn pinned_names() -> Vec<String> {
     let mut names = snapshot_names();
     names.extend(meta_names());
@@ -207,7 +203,6 @@ fn run(bundle: &Bundle, home: &Path) -> Run {
     bootstrap(&bundle.path().to_string_lossy(), bundle.path(), home)
 }
 
-/// Returns the one advisory identity line the bootstrap writes for one set.
 fn identity(home: &Path, set: &str) -> String {
     read(
         &home
@@ -218,7 +213,6 @@ fn identity(home: &Path, set: &str) -> String {
     .to_owned()
 }
 
-/// Returns the `url` field of one identity line.
 fn recorded_url(meta: &str) -> String {
     meta.split("\"url\": \"")
         .nth(1)

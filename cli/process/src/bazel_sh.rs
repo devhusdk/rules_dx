@@ -1,5 +1,3 @@
-//! Picks the shell Bazel runs genrules with on Windows.
-
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -14,7 +12,6 @@ const UNIX_ROOT_ARG: &str = "-Dbazel.windows_unix_root=";
 )]
 pub struct WslBash(pub PathBuf);
 
-/// What to do with `BAZEL_SH` before running Bazel.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BazelSh {
     Keep,
@@ -22,7 +19,6 @@ pub enum BazelSh {
     Unset,
 }
 
-/// Decides `BAZEL_SH` so a nested Bazel starts with the same bash as a manual `bazel` call.
 pub fn resolve_bazel_sh(
     get: &dyn Fn(&str) -> Option<OsString>,
     exists: &dyn Fn(&Path) -> bool,

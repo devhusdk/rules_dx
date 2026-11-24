@@ -36,12 +36,12 @@ rust_test(
     crate_name = "wrapper_test",
     crate_root = "wrapper_test.rs",
     data = [
-        "wrapper/bazel.ps1",
         ":fake_bazel",
+        "//tools:bazel.ps1",
     ],
     env = {
         "DX_FAKE_BAZEL": "$(rlocationpath :fake_bazel)",
-        "DX_BAZEL_WRAPPER": "$(rlocationpath wrapper/bazel.ps1)",
+        "DX_BAZEL_WRAPPER": "$(rlocationpath //tools:bazel.ps1)",
     },
     target_compatible_with = ["@platforms//os:windows"],
     deps = [

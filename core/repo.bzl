@@ -1,6 +1,6 @@
 """Shared repository rules that write rendered files and fetch pinned archives."""
 
-visibility(["//android/...", "//apple/...", "//cc/...", "//cli/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//gazelle/...", "//haskell/...", "//julia/...", "//msix/...", "//ocaml/...", "//ruby/...", "//terraform/...", "//tools/...", "//typescript/..."])
+visibility(["//android/...", "//apple/...", "//cc/...", "//cli/...", "//core/...", "//cuda/...", "//d/...", "//elixir/...", "//erlang/...", "//gazelle/...", "//haskell/...", "//julia/...", "//msix/...", "//ocaml/...", "//ruby/...", "//terraform/...", "//tools/...", "//typescript/..."])
 
 ARCHIVE_TYPES = ["zip", "war", "aar", "tar", "tar.gz", "tgz", "tar.xz", "txz", "tar.zst", "tzst", "tar.bz2", "tbz", "ar", "deb", "7z"]
 
@@ -24,15 +24,11 @@ def _build_file(dir):
     return None
 
 def _write_bzl_srcs(rctx):
-    # Gives starlark_doc_extract a dep that covers every loadable .bzl file: each package that holds one gets a
-    # dx_bzl_srcs filegroup, and the root one also gathers the others. Packages without .bzl files are left alone,
-    # since some upstream packages do not load.
     root = rctx.path(".")
     prefix = str(root) + "/"
     with_bzl = {}
     pending = [(root, "")]
 
-    # Starlark has no while loop; every iteration visits one directory and the tree is finite.
     for _ in range(1000000):
         if not pending:
             break

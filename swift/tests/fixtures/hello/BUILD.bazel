@@ -62,6 +62,7 @@ swift_warnings_as_errors_tests(
 
 swift_index_store_tests(
     name = "greet_index_store_test",
+    size = "small",
     target_under_test = ":greet_upstream",
 )
 

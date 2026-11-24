@@ -14,6 +14,10 @@ const PREFIX: &str = "apple/tests/consumer/";
 /// The name the fixture stores `MODULE.bazel` under.
 const STORED_MODULE: &str = "consumer.MODULE.bazel";
 
+const SHARE_BUILD: &str = "load(\"@rules_dx//apple:defs.bzl\", \"apple_ios_lib\")\n\napple_ios_lib(\n    name = \"share\",\n    srcs = [\"share.rs\"],\n    platform = \"@rules_dx//apple:ios_sim_arm64\",\n)\n";
+
+const SHARE_RS: &str = "/// Returns the number of items the phone app shares.\n#[unsafe(no_mangle)]\npub extern \"C\" fn share_count() -> u32 {\n    1\n}\n";
+
 /// The files of the fixture, keyed by their path under it.
 fn fixture() -> BTreeMap<String, String> {
     let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
@@ -98,13 +102,15 @@ fn one_macro_call_builds_each_app_with_no_flag() {
             case.write(rel, text);
         }
     }
+    case.write("share/BUILD.bazel", SHARE_BUILD);
+    case.write("share/share.rs", SHARE_RS);
     case.use_lock("apple");
     let built = case.bazel(&[
         "build",
         "--color=no",
         "--curses=no",
         "//phone:phone_app",
-        "//phone:share",
+        "//share",
         "//desk:desk_app",
     ]);
     if !built.status.success() {

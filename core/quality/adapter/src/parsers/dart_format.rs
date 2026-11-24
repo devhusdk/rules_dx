@@ -8,17 +8,6 @@ const TOOL: &str = "dart";
 const CHANGED: &str = "Changed ";
 const PARSE_FAILURE: &str = "Could not format because the source could not be parsed:";
 
-/// Findings from `dart format --output=none --set-exit-if-changed`.
-///
-/// stdout lists each unformatted file as `Changed <path>` and ends in a `Formatted N files
-/// (M changed)` summary; stderr holds one `line L, column C of <path>: <message>` entry per syntax
-/// error. The exit code must agree with the output: 0 is clean, 1 lists changed files, and 65 is a
-/// parse failure with a located error. The summary must account for every checked file, so a file
-/// the tool never reached cannot pass.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dart_format(
     stdout: &[u8],
     stderr: &[u8],
@@ -92,7 +81,6 @@ fn shape(detail: &str) -> ParseError {
     ParseError::shape(TOOL, detail.to_owned())
 }
 
-/// `(files formatted, files changed)` from `Formatted N file(s) (M changed) in ...`.
 fn summary_counts(line: &str) -> Option<(usize, usize)> {
     let rest = line.strip_prefix("Formatted ")?;
     if rest.starts_with("no files") {
@@ -143,10 +131,6 @@ fn syntax_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
     Ok(out)
 }
 
-/// The longest checked file the text starts with, followed by `: `.
-/// Splits `<path>: <message>`. Dart spells a path relative to its working directory, climbing
-/// with `../` when the file sits outside it, so a spelling also matches a checked file that ends
-/// with the spelled path once the leading `../` components are dropped.
 fn split_path<'a>(text: &'a str, files: &[&'a str]) -> Option<(&'a str, &'a str)> {
     let (spelled, message) = text.split_once(": ")?;
     let tail = {

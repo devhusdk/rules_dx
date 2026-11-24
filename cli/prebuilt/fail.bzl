@@ -1,6 +1,5 @@
 """A dx target that fails analysis with a message, for platforms with no usable prebuilt dx."""
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 def _dx_unavailable_impl(ctx):

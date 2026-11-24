@@ -1,17 +1,13 @@
-//! Files a root config names, such as vale `StylesPath` or ruff `extend`, as labels `//.dx` can bind.
-
 use std::collections::BTreeSet;
 
 use crate::GenerateError;
 use crate::tools_gen::ToolConfig;
 
-/// A referenced file: the label to bind, and the root file to export when it sits in the root package.
 pub struct Reference {
     pub label: String,
     pub export: Option<String>,
 }
 
-/// The workspace paths `text` names that `resolve` would look up.
 pub fn targets(config: &ToolConfig, text: &str) -> Vec<String> {
     config
         .references
@@ -23,7 +19,6 @@ pub fn targets(config: &ToolConfig, text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Every `.dx/` path `text` names, without a leading `./`.
 #[must_use]
 pub fn dx_paths(text: &str) -> Vec<String> {
     let is_path = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '-');
@@ -106,7 +101,6 @@ fn is_build(path: &str) -> bool {
     matches!(path.rsplit('/').next(), Some("BUILD" | "BUILD.bazel"))
 }
 
-/// The nearest enclosing package of `path`, or `None` for the root package.
 fn package<'a>(path: &'a str, files: &BTreeSet<String>) -> Option<&'a str> {
     let mut dir = path;
     while let Some((parent, _)) = dir.rsplit_once('/') {
@@ -120,7 +114,6 @@ fn package<'a>(path: &'a str, files: &BTreeSet<String>) -> Option<&'a str> {
     None
 }
 
-/// A workspace-relative path without `.` and `..` parts, or `None` when it leaves the workspace.
 fn normalize(value: &str) -> Option<String> {
     let value = value.replace('\\', "/");
     if value.starts_with('/') || value.contains(':') {

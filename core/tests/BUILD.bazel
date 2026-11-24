@@ -13,6 +13,7 @@ load(":config_tests.bzl", "config_subject_tests")
 load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":fuzz_tests.bzl", "fuzz_binary_tests")
+load(":ghcr_tests.bzl", "ghcr_unit_tests")
 load(":harness_link_tests.bzl", "harness_link_tests")
 load(":hermetic_launcher_tests.bzl", "hermetic_launcher_tests")
 load(":jammy_runtime_tests.bzl", "jammy_runtime_tests")
@@ -94,6 +95,11 @@ arithmetic_unit_tests(name = "arithmetic_unit")
 
 repo_unit_tests(name = "repo_unit")
 
+ghcr_unit_tests(
+    name = "ghcr_unit",
+    size = "small",
+)
+
 arithmetic_load_tests(name = "arithmetic_load")
 
 cells_tests(name = "cells")
@@ -151,7 +157,10 @@ packaging_unit_tests(name = "packaging_unit")
 
 harness_link_tests(name = "harness_link")
 
-hermetic_launcher_tests(name = "hermetic_launcher")
+hermetic_launcher_tests(
+    name = "hermetic_launcher",
+    size = "small",
+)
 
 warnings_tests(name = "warnings")
 
@@ -172,6 +181,7 @@ starlark_test(
         "//julia/private:defs.bzl": "dx_warnings_flags(",
         "//kotlin/private:defs.bzl": "dx_warnings_as_errors(",
         "//ocaml/private:defs.bzl": "dx_warnings_as_errors(",
+        "//python/private:defs.bzl": "dx_warnings_flags(",
         "//rust/private:defs.bzl": "dx_warnings_flags(",
         "//scala/private:validate.bzl": "dx_warnings_as_errors(",
         "//swift/private:defs.bzl": "dx_warnings_flags(",
@@ -309,6 +319,7 @@ real_source_target(
         "entry_tests.bzl",
         "execution_tests.bzl",
         "fuzz_tests.bzl",
+        "ghcr_tests.bzl",
         "jammy_runtime_tests.bzl",
         "license_tests.bzl",
         "lock_hub_tests.bzl",

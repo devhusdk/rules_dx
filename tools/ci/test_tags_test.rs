@@ -1,5 +1,3 @@
-//! No test carries a banned tag outside `tools/ci/test_tags_allowlist.txt`, and the allowlist holds no spare entry.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_guard::allowlist::{self, Counts, differences};
@@ -11,7 +9,6 @@ use starlark_syntax::syntax::ast::{
 };
 use yaml_serde as _;
 
-/// Tags no test may carry.
 const BANNED: [&str; 8] = [
     "exclusive",
     "external",
@@ -23,19 +20,14 @@ const BANNED: [&str; 8] = [
     "requires-network",
 ];
 
-/// The constant in `core/wrapper.bzl` that holds `manual` for private upstream targets.
 const UPSTREAM_TAG: &str = "DX_UPSTREAM_TAG";
 
-/// What a failure tells the author of a new tag to do.
 const FIX: &str = "remove the tag";
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/test_tags_allowlist.txt";
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
-/// Where an expression sits relative to a tags value.
 #[derive(Clone, Copy, PartialEq)]
 enum Position {
     Outside,
@@ -43,7 +35,6 @@ enum Position {
     CallTags,
 }
 
-/// What one file contributes before names resolve across files.
 #[derive(Default)]
 struct FileScan {
     literals: BTreeMap<String, usize>,
@@ -53,14 +44,12 @@ struct FileScan {
     calls: Vec<TaggedCall>,
 }
 
-/// A module-level tags constant: its banned tags and the names it is built from.
 #[derive(Default, Clone)]
 struct Carrier {
     tags: BTreeSet<String>,
     names: BTreeSet<String>,
 }
 
-/// One call that passes `tags`: its callee, the banned literals and the names in the value.
 struct TaggedCall {
     callee: String,
     literals: Vec<String>,
@@ -79,7 +68,6 @@ fn is_string(expr: &AstExpr, wanted: &str) -> bool {
     string(expr) == Some(wanted)
 }
 
-/// Whether an assignment target holds tags: a tags-named variable or a `["tags"]` slot.
 fn tags_target(target: &AstAssignTarget) -> bool {
     match &target.node {
         AssignTargetP::Identifier(ident) => names_tags(&ident.node.ident),
@@ -88,7 +76,6 @@ fn tags_target(target: &AstAssignTarget) -> bool {
     }
 }
 
-/// Collects banned literals and identifiers of one tags value.
 #[derive(Default)]
 struct Value {
     literals: Vec<String>,
@@ -254,7 +241,6 @@ impl Walker<'_> {
         }
     }
 
-    /// Walks the value of a `tags` argument and records the call for later classification.
     fn tags_argument(&mut self, callee: &str, tags: &AstExpr) {
         let mut value = Value::default();
         self.expr(tags, Position::CallTags, Some(&mut value));
@@ -266,7 +252,6 @@ impl Walker<'_> {
     }
 }
 
-/// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
     let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
@@ -278,7 +263,6 @@ fn scan_file(path: &str, source: &str) -> FileScan {
     scan
 }
 
-/// Banned tags each module-level tags constant carries, by constant name.
 fn carriers(files: &BTreeMap<String, FileScan>) -> BTreeMap<String, BTreeSet<String>> {
     let mut merged: BTreeMap<String, Carrier> = BTreeMap::new();
     for scan in files.values() {
@@ -312,7 +296,6 @@ fn carriers(files: &BTreeMap<String, FileScan>) -> BTreeMap<String, BTreeSet<Str
     }
 }
 
-/// Banned tag occurrences across `files`, keyed by path and tag.
 fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
     let tests = test_callees(&files.values().map(|scan| &scan.callees).collect::<Vec<_>>());
     let carried = carriers(files);
@@ -350,7 +333,6 @@ fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-/// Scans the snapshot that maps each BUILD and .bzl path to its text.
 fn scan_snapshot(text: &str) -> BTreeMap<String, FileScan> {
     let sources: BTreeMap<String, String> =
         serde_json::from_str(text).unwrap_or_else(|error| panic!("sources snapshot: {error}"));

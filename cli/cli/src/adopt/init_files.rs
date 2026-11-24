@@ -173,6 +173,16 @@ pub(super) fn plan_for(
         dx_adopt::render_launcher_cmd(),
         Kind::Launcher,
     ));
+    entries.push((
+        dx_adopt::BAZEL_WRAPPER_SH_REL.to_owned(),
+        dx_adopt::render_bazel_wrapper_sh(),
+        Kind::Launcher,
+    ));
+    entries.push((
+        dx_adopt::BAZEL_WRAPPER_BAT_REL.to_owned(),
+        dx_adopt::render_bazel_wrapper_bat(),
+        Kind::Launcher,
+    ));
     entries.extend(
         dx_adopt::preset_files()
             .into_iter()

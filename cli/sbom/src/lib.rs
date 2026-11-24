@@ -1,18 +1,11 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-//! The one SPDX 2.3 JSON data model shared by every dx SBOM writer and reader.
-//!
-//! Writers build documents through [`Document::new`] so the version, data license, document id
-//! and creation info come from one place. [`reference_errors`] checks the graph rules the JSON
-//! schema cannot express: element ids, dangling relationship ends, and the DESCRIBES root.
-
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
 pub mod cyclonedx;
 
-/// Counts the packages of one SPDX document, None when it is not readable JSON with a packages array.
 pub fn spdx_package_count(path: &std::path::Path) -> Option<usize> {
     let bytes = std::fs::read(path).ok()?;
     let doc = serde_json::from_slice::<serde_json::Value>(&bytes).ok()?;
@@ -35,7 +28,6 @@ pub const DESCRIBES: &str = "DESCRIBES";
 
 pub const CONTAINS: &str = "CONTAINS";
 
-/// Fixed creation time, so the same inputs render the same bytes.
 pub const CREATED: &str = "1970-01-01T00:00:00Z";
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -179,11 +171,9 @@ pub struct SpdxDocument {
     pub relationships: Vec<SpdxRelationship>,
 }
 
-/// The document type every dx writer builds through [`SpdxDocument::new`].
 pub type Document = SpdxDocument;
 
 impl SpdxDocument {
-    /// Returns an empty SPDX 2.3 document with version, data license, id and creation info set.
     #[must_use]
     pub fn new(name: &str, namespace: &str, creators: &[&str]) -> Self {
         Self {
@@ -204,7 +194,6 @@ impl SpdxDocument {
     }
 }
 
-/// `SPDXRef-DOCUMENT DESCRIBES <id>`: the document names `id` as one of its roots.
 #[must_use]
 pub fn describes(id: &str) -> SpdxRelationship {
     SpdxRelationship {
@@ -214,7 +203,6 @@ pub fn describes(id: &str) -> SpdxRelationship {
     }
 }
 
-/// `<from> CONTAINS <to>`.
 #[must_use]
 pub fn contains(from: &str, to: &str) -> SpdxRelationship {
     SpdxRelationship {
@@ -232,14 +220,12 @@ pub fn sha256_of(checksums: &[SpdxChecksum]) -> Option<&str> {
         .map(|checksum| checksum.value.as_str())
 }
 
-/// The `pkg:` path part of a purl, without its `#subpath` and `?qualifiers`.
 fn purl_path(locator: &str) -> Option<&str> {
     let rest = locator.strip_prefix("pkg:")?;
     let end = rest.find(['?', '#']).unwrap_or(rest.len());
     rest.get(..end)
 }
 
-/// The name and optional version of a purl, None when it has no `type/name`.
 fn purl_parts(locator: &str) -> Option<(&str, Option<&str>)> {
     let path = purl_path(locator)?.trim_start_matches('/');
     let (kind, rest) = path.split_once('/')?;
@@ -264,7 +250,6 @@ pub fn purl_version(locator: &str) -> Option<&str> {
     purl_parts(locator)?.1
 }
 
-/// Returns why `value` is not an SPDX license expression, or `None` when it is (or is a sentinel).
 #[must_use]
 pub fn license_error(field: &str, value: &str) -> Option<String> {
     if value.is_empty() || value == NOASSERTION || value == NONE {
@@ -275,7 +260,6 @@ pub fn license_error(field: &str, value: &str) -> Option<String> {
         .map(|_| format!("sbom SPDX {field} '{value}' is not an SPDX license expression"))
 }
 
-/// True when `id` has the `SPDXRef-[A-Za-z0-9.-]+` shape SPDX 2.3 requires of element ids.
 #[must_use]
 pub fn is_element_id(id: &str) -> bool {
     id.strip_prefix("SPDXRef-").is_some_and(|rest| {
@@ -286,9 +270,6 @@ pub fn is_element_id(id: &str) -> bool {
     })
 }
 
-/// Graph rules the SPDX 2.3 JSON schema does not check: every element id is well formed and
-/// unique, every relationship end is the document or a declared element (a target may also be
-/// NONE or NOASSERTION), and the document DESCRIBES at least one element.
 #[must_use]
 pub fn reference_errors(document: &SpdxDocument) -> Vec<String> {
     let mut errors = Vec::new();

@@ -3,7 +3,6 @@ use quality_adapter::{commands, parsers};
 use super::check::ToolDef;
 use super::{Path, PathBuf, RealBackend, execution, missing_tier_base, parsed, reanchor};
 
-/// JVM and .NET formatters and linters.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "scalafmt",

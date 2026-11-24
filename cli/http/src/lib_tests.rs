@@ -5,19 +5,14 @@ use std::time::{Duration, Instant};
 
 use super::*;
 
-/// One canned answer per accepted connection; the last one repeats.
 #[derive(Clone)]
 enum Reply {
     Full(u16, &'static [u8]),
-    /// Promises `length` bytes, sends `body`, then closes.
     Cut(usize, &'static [u8]),
-    /// Promises `length` bytes, sends `body`, then goes silent with the socket open.
     Stall(usize, &'static [u8]),
-    /// A 302 that points at `Location`.
     Redirect(&'static str),
 }
 
-/// The headers (lowercased names) and body of one request.
 #[derive(Clone, Debug, Default)]
 struct Seen {
     headers: Vec<(String, String)>,
@@ -33,7 +28,6 @@ impl Seen {
     }
 }
 
-/// A loopback server that records the first line of every request it gets.
 struct Server {
     url: String,
     seen: Arc<Mutex<Vec<String>>>,
@@ -277,7 +271,6 @@ fn https_only_refuses_plain_http() {
     assert!(error.to_string().contains("https"), "{error}");
 }
 
-/// An address nothing listens on, so a direct connection is refused at once.
 fn closed_address() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let address = listener.local_addr().expect("address").to_string();
@@ -285,7 +278,6 @@ fn closed_address() -> String {
     address
 }
 
-/// Settings for a proxy test: one try, so the proxy sees one request per call.
 fn once() -> Settings {
     Settings {
         attempts: 1,

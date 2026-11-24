@@ -10,15 +10,15 @@ This page fixes the repository layout.
 - dx loads a language's quality aspects only when the workspace has that language's files.
 - `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends back as a normal `bazel_dep`.
 - A rule-set module holds the build rules: toolchain, `<lang>_library`, `<lang>_binary`, `<lang>_test`, `<lang>_bench`, providers, runtime pins and the dependency hub. Its public API is `@rules_<lang>//<lang>:defs.bzl` and `@rules_<lang>//<lang>:extensions.bzl`.
-- `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code; `<lang>/private/defs.bzl` wraps the rule-set macros, as `zig/private/defs.bzl` wraps `@rules_zig`.
+- `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code; `<lang>/private/defs.bzl` wraps the rule-set macros.
 - A rule-set module loads from rules_dx only `@rules_dx//rust:defs.bzl` and the files in `RULES_DX_ALLOW` of `tools/ci/rule_set_loads_test.rs`.
-- `NativeRuntimeInfo`, `native_runtime` and every `consumer_archive` wrapper stay in rules_dx `deploy/`. A rule-set module ships no runtime metadata; `deploy/` wraps its outputs as `qt_bundle_runtime` and `qt_consumer_archive` wrap `qt_bundle`.
+- `NativeRuntimeInfo`, `native_runtime` and every `consumer_archive` wrapper stay in rules_dx `deploy/`. A rule-set module ships no runtime metadata; `deploy/` wraps its outputs.
 - rules_dx's floor on each rule-set module is `equals tested` and moves with each rules_dx release.
 - There are no family modules. A family is a grouping label in the language manifest, used for CI sharding and docs.
 
 ## Language directory
 
-Each language owns one top-level directory.
+Each language owns one top-level directory. `language-skeleton.md` fixes its shape.
 
 ```text
 <lang>/defs.bzl          public rules and macros
@@ -33,16 +33,13 @@ Each language owns one top-level directory.
 
 - A module extension is named after its language (`qt`, `ocaml`), or after its sub-feature if it serves one (`cuda_license`, `zig_deps`).
 - `defs.bzl` is the only file users load. `private/` holds everything else.
-- Toolchain code lives in `private/toolchain/`, coverage packages in `private/coverage/`.
 - `cc`, `go`, `haskell` and `zig` each keep their own `private/bench_run.sh` with the shared prologue, `dx-bench/v1` envelope and its own awk rule.
-- `tests/` holds the language tests, fixtures, Starlark suites and `testdata/`, instantiated from `tests/BUILD.bazel`, not in `private/`.
-- Starlark suites are `tests/defs_tests.bzl` (rule and macro analysis tests), `tests/failure_tests.bzl` (expected analysis failures) and `tests/toolchain_tests.bzl` (pin and hub checks).
+- `tests/` holds the language tests, fixtures, Starlark suites and `testdata/`.
 
 ## Labels
 
 - Rules and macros: `@rules_dx//<lang>:defs.bzl`.
 - Toolchain type: `@rules_dx//<lang>:toolchain_type`.
-- Public config flags are targets in `<lang>/BUILD.bazel`.
 - No label points into `private/`.
 
 ## Executable macro signatures
@@ -92,7 +89,7 @@ examples/   tested examples
 
 - `core/quality/` holds the framework: runner, adapters, tiers, the tool table and the aspect factory.
 - A language's aspects, tool rows and tool packages live in `<lang>/private/quality/`.
-- A file family with no rules, such as Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell or plain text, gets no root directory.
+- A file family with no rules, such as Markdown, CSS or YAML, gets no root directory.
 - Such a family's aspects and non-Node tool rows stay in `core/quality/families/`. Its Node tools follow the section below.
 - `core/quality/core_aspects.json` lists those families' aspects and probes, and the core docs aspect, in the shape of the `lang.json` `quality` and `docs` entries.
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.

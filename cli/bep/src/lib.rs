@@ -55,24 +55,18 @@ impl CollectorConfig {
         &self.output_group
     }
 
-    /// Leaves out the outputs and gaps of these aspects, each named without its repository
-    /// (`pkg:file.bzl%name`), so one build can serve several readers.
     #[must_use]
     pub fn without_aspects(mut self, foreign: BTreeSet<String>) -> Self {
         self.foreign_aspects = foreign;
         self
     }
 
-    /// Whether `aspect`, as a build event names it, is one the reader leaves out.
     #[must_use]
     pub fn is_foreign(&self, aspect: Option<&str>) -> bool {
         aspect.is_some_and(|aspect| self.foreign_aspects.contains(aspect_key(aspect)))
     }
 }
 
-/// An aspect name without its repository or parameters: Bazel spells the repository as the main
-/// repo (`//pkg:f.bzl%a`), an apparent name or a canonical one (`@@rules_dx+//pkg:f.bzl%a`), and
-/// appends the aspect's parameter values (`%a[unsafe_fixes="false"]`).
 #[must_use]
 pub fn aspect_key(aspect: &str) -> &str {
     let named = aspect.split_once("//").map_or(aspect, |(_, rest)| rest);
@@ -132,7 +126,6 @@ pub(crate) fn malformed(line: u64, path: &str, detail: &str) -> BepError {
     }
 }
 
-/// Reads stream lines as JSON events, skipping garbled lines and keeping the first as the tail.
 pub(crate) struct EventLines<R: BufRead> {
     lines: std::iter::Enumerate<std::io::Lines<R>>,
     pub(crate) tail: Option<(u64, String)>,
@@ -157,7 +150,6 @@ impl<R: BufRead> Iterator for EventLines<R> {
             let parsed = match line {
                 Ok(text) => serde_json::from_str::<serde_json::Value>(&text)
                     .map_err(|e| (text.trim().is_empty(), format!("invalid JSON: {e}"))),
-                // Invalid UTF-8 spans one line; any other read error would repeat forever.
                 Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {
                     Err((false, format!("unreadable stream line: {e}")))
                 }
@@ -170,7 +162,6 @@ impl<R: BufRead> Iterator for EventLines<R> {
             };
             match parsed {
                 Ok(event) => return Some(Ok((line_no, event))),
-                // A garbled line is skipped, not fatal.
                 Err((blank, reason)) => {
                     if !blank && self.tail.is_none() {
                         self.tail = Some((line_no, reason));
@@ -181,7 +172,6 @@ impl<R: BufRead> Iterator for EventLines<R> {
     }
 }
 
-/// Stream lines, skipping a line that is not UTF-8 and stopping at any other read error.
 pub(crate) fn readable_lines(reader: impl BufRead) -> impl Iterator<Item = String> {
     reader
         .lines()
@@ -192,7 +182,6 @@ pub(crate) fn readable_lines(reader: impl BufRead) -> impl Iterator<Item = Strin
         .flatten()
 }
 
-/// Feeds each parsed event of the stream at `path` to `visit` until it returns true.
 fn visit_events(
     path: &Path,
     mut visit: impl FnMut(&serde_json::Value) -> bool,
@@ -214,9 +203,6 @@ fn visit_events(
     Ok(())
 }
 
-/// Reports whether the stream at `path` holds a real `started` event; a synthetic aborted one does not count.
-///
-/// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
 pub fn stream_started(path: &Path) -> std::io::Result<bool> {
     let mut started = false;
     visit_events(path, |event| {
@@ -231,9 +217,6 @@ pub fn stream_started(path: &Path) -> std::io::Result<bool> {
     Ok(started)
 }
 
-/// The `buildToolVersion` of the real `started` event in the stream at `path`, if it names one.
-///
-/// A missing file is an `io::ErrorKind::NotFound` error. Unparseable lines are skipped.
 pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>> {
     let mut found = None;
     visit_events(path, |event| {
@@ -252,7 +235,6 @@ pub fn stream_build_tool_version(path: &Path) -> std::io::Result<Option<String>>
     Ok(found)
 }
 
-/// Whether `value` is a relative path with no `..`, root, or drive part.
 pub(crate) fn is_plain_relative(value: &str) -> bool {
     !value.is_empty()
         && Path::new(value).components().all(|part| {
@@ -297,7 +279,6 @@ fn test_output_segments(name: &str) -> Vec<String> {
     vec![name.to_owned()]
 }
 
-/// Output roots for one workspace, from `bazel info` when it answered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OutputLocations {
     workspace: PathBuf,
@@ -307,7 +288,6 @@ pub struct OutputLocations {
 }
 
 impl OutputLocations {
-    /// Locations for a workspace before any `bazel info` output is applied.
     #[must_use]
     pub fn new(workspace: &Path) -> Self {
         OutputLocations {
@@ -318,7 +298,6 @@ impl OutputLocations {
         }
     }
 
-    /// Applies `bazel info` key and value lines to these locations.
     pub fn apply_bazel_info(&mut self, output: &[u8]) {
         let text = String::from_utf8_lossy(output);
         for line in text.lines() {
@@ -337,7 +316,6 @@ impl OutputLocations {
         }
     }
 
-    /// The testlogs root: the reported one when available, else the workspace symlink.
     fn testlogs_root(&self) -> PathBuf {
         match &self.testlogs {
             Some(root) => root.clone(),
@@ -345,7 +323,6 @@ impl OutputLocations {
         }
     }
 
-    /// The testlogs root of one configuration's output directory.
     fn config_testlogs_root(&self, mnemonic: &str) -> PathBuf {
         let mut root = match &self.output_path {
             Some(root) => root.clone(),
@@ -356,7 +333,6 @@ impl OutputLocations {
         root
     }
 
-    /// The testlogs root a BEP path prefix names under the execution root.
     pub(crate) fn prefix_testlogs_root(&self, prefix: &[String]) -> Option<PathBuf> {
         if prefix.is_empty() || !prefix.iter().all(|part| is_path_segment(part)) {
             return None;
@@ -367,7 +343,6 @@ impl OutputLocations {
     }
 }
 
-/// One test result's indexes beside the totals reported with them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TestOutputIdentity {
     pub run: u32,
@@ -378,12 +353,10 @@ pub struct TestOutputIdentity {
     pub attempt_total: u32,
 }
 
-/// Splits a test label into its repository, package, and target parts.
 fn testlogs_label_parts(label: &str) -> Option<(Option<&str>, &str, &str)> {
     let parsed = Label::parse(label).filter(|parsed| !parsed.relative)?;
     let repo = match parsed.repo {
         Repo::Local => None,
-        // `@@//p:t` is the main repository, which has no external testlogs directory.
         Repo::Canonical(repo) => Some(repo).filter(|repo| !repo.is_empty()),
         Repo::Apparent(repo) => Some(repo),
     };
@@ -406,12 +379,10 @@ fn missing_test_output(
     }
 }
 
-/// Whether `value` is one plain path segment.
 fn is_path_segment(value: &str) -> bool {
     !value.is_empty() && value != "." && value != ".." && !value.contains(['/', '\\', '\0'])
 }
 
-/// Resolves one named test output under the testlogs root for its label and identity.
 pub fn testlog_path(
     locations: &OutputLocations,
     mnemonic: Option<&str>,
@@ -426,11 +397,6 @@ pub fn testlog_path(
     testlog_path_under(root, label, name, identity, false)
 }
 
-/// Whether a BEP path prefix already ends in the testlogs directory of the label's repository.
-///
-/// Under `--experimental_sibling_repository_layout` an external repository's test logs live in
-/// their own per-repository directory, and the prefix names it, so `external/<repo>` must not be
-/// added again.
 pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
     match (testlogs_label_parts(label), prefix.last()) {
         (Some((Some(repo), _, _)), Some(last)) => last == repo,
@@ -438,11 +404,6 @@ pub(crate) fn prefix_names_repo(prefix: &[String], label: &str) -> bool {
     }
 }
 
-/// Resolves one named test output under `root` for its label and identity.
-/// BEP names map to their on-disk paths, such as `test.outputs__x` to `test.outputs/x`.
-///
-/// `root_names_repo` is set when `root` already ends in the label's repository directory, in
-/// which case the `external/<repo>` segments are skipped.
 pub(crate) fn testlog_path_under(
     root: PathBuf,
     label: &str,
@@ -522,14 +483,12 @@ pub fn exec_matches(artifact_path: &Path, exec_path: &str) -> bool {
     if exec_path.is_empty() {
         return false;
     }
-    // Compare raw bytes: a lossy rendering maps distinct non-UTF-8 paths to the same text.
     bytes_suffix_matches(
         artifact_path.as_os_str().as_encoded_bytes(),
         exec_path.as_bytes(),
     )
 }
 
-/// Whether `exec_path` names `artifact` outright or as a whole trailing path suffix.
 #[must_use]
 pub fn suffix_matches(artifact: &str, exec_path: &str) -> bool {
     bytes_suffix_matches(artifact.as_bytes(), exec_path.as_bytes())
@@ -544,7 +503,6 @@ fn bytes_suffix_matches(artifact: &[u8], exec_path: &[u8]) -> bool {
         .is_some_and(|head| head.ends_with(b"/"))
 }
 
-/// Paths of the non-shard artifacts, each once, in first-seen order.
 pub fn non_shard_artifact_paths(
     outputs: &[TargetOutput],
     suffix: &str,
@@ -554,7 +512,6 @@ pub fn non_shard_artifact_paths(
     for output in outputs {
         for artifact in &output.artifacts {
             if !is_shard_artifact(&artifact.exec_path, suffix) {
-                // A lossy rendering would merge distinct paths, so reject them by name.
                 let path =
                     artifact
                         .exec_path
@@ -715,24 +672,20 @@ mod tests {
         assert!(stream_build_tool_version(Path::new("/nonexistent/dx/bep.json")).is_err());
     }
 
-    /// The first value on Windows, the second elsewhere, on one line so both count as run.
     fn on_windows<T>(windows: T, other: T) -> T {
         if cfg!(windows) { windows } else { other }
     }
 
-    /// A hand-written file URI naming one path under a root this host can resolve.
     fn out_uri(rel: &str) -> String {
         let root = if cfg!(windows) { "C:/out" } else { "out" };
         format!("file:///{root}/{rel}")
     }
 
-    /// A hand-written file URI naming the fixture root with a localhost authority.
     fn localhost_uri(rel: &str) -> String {
         let root = if cfg!(windows) { "C:/out" } else { "out" };
         format!("file://localhost/{root}/{rel}")
     }
 
-    /// The host path one fixture root plus its path parts name.
     fn want_path(root: &str, parts: &[&str]) -> PathBuf {
         let mut path = PathBuf::from(root);
         for part in parts {
@@ -741,13 +694,11 @@ mod tests {
         path
     }
 
-    /// The host path one slash-separated relative name under the fixture root names.
     fn out_path(rel: &str) -> PathBuf {
         let root = if cfg!(windows) { r"C:\out" } else { "/out" };
         want_path(root, &rel.split('/').collect::<Vec<_>>())
     }
 
-    /// One run, one shard, one attempt: the layout Bazel uses without sharding or retries.
     const IDENTITY: TestOutputIdentity = TestOutputIdentity {
         run: 1,
         shard: 1,

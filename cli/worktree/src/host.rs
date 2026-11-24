@@ -5,7 +5,6 @@ use dx_process::lifecycle::{
     CapturePolicy, ChildOutcome, CleanupBudget, Descendants, EnvPolicy, SpawnSpec, run_within_until,
 };
 
-/// One running Bazel server.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Server {
     pub pid: u32,
@@ -15,7 +14,6 @@ pub struct Server {
     pub output_user_root: Option<PathBuf>,
 }
 
-/// One Bazel output base and the workspace it was made for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OutputBase {
     pub(crate) dir: PathBuf,
@@ -24,61 +22,45 @@ pub(crate) struct OutputBase {
 
 pub(crate) use dx_process::DiskSpace;
 
-/// Names the slot count above which `add` deletes surplus free slots; `0` turns that off.
 pub const MAX_SLOTS_ENV: &str = "DX_WORKTREE_MAX_SLOTS";
 const DEFAULT_MAX_SLOTS: usize = 24;
 
-/// The machine facts the pool reads and the effects it has outside git.
 pub trait Host {
     fn now(&self) -> u64;
     fn process_alive(&self, pid: u32) -> bool;
 
-    /// The start time of `pid`, when the OS gives one.
     fn process_start(&self, pid: u32) -> Option<String>;
 
-    /// The id of the current boot, when the OS gives one.
     fn boot_id(&self) -> Option<String>;
 
-    /// Whether a running process has `dir` or a directory below it as its working directory.
     fn process_in(&self, _dir: &Path) -> bool {
         false
     }
     fn disk_space(&self, path: &Path) -> Option<DiskSpace>;
     fn servers(&self) -> Vec<Server>;
-    /// Whether `servers` can see the process list; false when `ps` is absent or fails.
     fn servers_known(&self) -> bool;
-    /// The output roots that need no server scan: the defaults and the custom roots the rc files name.
     fn config_output_roots(&self) -> Vec<PathBuf>;
     fn output_roots(&self, servers: &[Server]) -> Vec<PathBuf>;
-    /// Runs `bazel shutdown` in workspace and reports whether it ran and succeeded.
     fn bazel_shutdown(&self, workspace: &Path) -> bool;
-    /// Whether no Bazel client holds the server's output-base lock; `None` when unknown.
     fn server_idle(&self, server: &Server) -> Option<bool>;
-    /// When the server last ran a command, in epoch seconds; `None` when unknown.
     fn server_last_used(&self, server: &Server) -> Option<u64>;
-    /// Resident plus swapped bytes the server holds.
     fn server_footprint(&self, server: &Server) -> u64;
-    /// Stops this one server without waiting for a busy output base; true once its pid is gone.
     fn shutdown_server(&self, server: &Server) -> bool;
     fn disk_bytes(&self, path: &Path) -> u64;
     fn disk_cache(&self) -> Option<PathBuf>;
-    /// The slot count above which `add` deletes free slots whose commits are all pushed.
     fn max_slots(&self) -> usize {
         DEFAULT_MAX_SLOTS
     }
     fn interrupted(&self) -> Option<i32>;
-    /// Deletes a directory tree, including read-only entries; true when it is gone afterwards.
     #[must_use]
     fn remove_tree(&self, path: &Path) -> bool;
 }
 
-/// Compares two paths the way Bazel prints them.
 #[must_use]
 pub fn same_path(left: &Path, right: &Path) -> bool {
     normalize(&resolved(left)) == normalize(&resolved(right))
 }
 
-/// Resolves symlinks in the deepest existing ancestor and keeps the missing tail.
 pub(crate) fn resolved(path: &Path) -> PathBuf {
     for ancestor in path.ancestors() {
         if let Ok(real) = std::fs::canonicalize(ancestor) {
@@ -111,7 +93,6 @@ fn flag_value(args: &str, flag: &str) -> Option<PathBuf> {
     }
 }
 
-/// Reads a flag from a Windows command line, where quoted arguments may hold spaces.
 fn windows_flag_value(line: &str, flag: &str) -> Option<PathBuf> {
     let key = format!("{flag}=");
     let value = windows_args(line)
@@ -120,7 +101,6 @@ fn windows_flag_value(line: &str, flag: &str) -> Option<PathBuf> {
     non_empty_path(&value)
 }
 
-/// Reads a flag from `ps` output, which has no quoting. A value ends at the next ` --`.
 fn ps_flag_value(args: &str, flag: &str) -> Option<PathBuf> {
     let (_, rest) = args.split_once(&format!(" {flag}="))?;
     let value = rest.split_once(" --").map_or(rest, |(value, _)| value);
@@ -136,7 +116,6 @@ fn non_empty_path(value: &str) -> Option<PathBuf> {
     }
 }
 
-/// Splits a Windows command line into arguments with the C runtime quoting rules.
 fn windows_args(line: &str) -> Vec<String> {
     let mut args = Vec::new();
     let mut arg = String::new();
@@ -184,7 +163,6 @@ fn windows_args(line: &str) -> Vec<String> {
     args
 }
 
-/// Builds a server from one process, or `None` when it is not a Bazel server.
 pub(crate) fn server_from(pid: u32, rss_bytes: u64, args: &str) -> Option<Server> {
     let args = format!(" {}", args.trim_start());
     if !args.contains("A-server.jar") {
@@ -199,7 +177,6 @@ pub(crate) fn server_from(pid: u32, rss_bytes: u64, args: &str) -> Option<Server
     })
 }
 
-/// Reads Bazel servers from `pid rss-kib args` lines.
 #[cfg(unix)]
 pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
     let mut servers = Vec::new();
@@ -217,7 +194,6 @@ pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
     servers
 }
 
-/// Finds the output bases under each root that record a workspace path.
 pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
     let mut bases: Vec<OutputBase> = Vec::new();
     for root in roots {
@@ -243,7 +219,6 @@ pub(crate) fn scan_output_bases(roots: &[PathBuf]) -> Vec<OutputBase> {
     bases
 }
 
-/// Whether any output base under `roots` was made for `workspace`.
 #[must_use]
 pub fn has_output_base(roots: &[PathBuf], workspace: &Path) -> bool {
     scan_output_bases(roots)
@@ -251,7 +226,6 @@ pub fn has_output_base(roots: &[PathBuf], workspace: &Path) -> bool {
         .any(|base| same_path(&base.workspace, workspace))
 }
 
-/// One entry of Bazel's repository cache download store.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Download {
     pub dir: PathBuf,
@@ -260,7 +234,6 @@ pub struct Download {
     pub bytes: u64,
 }
 
-/// Where Bazel keeps downloads under an output root when `--repository_cache` is not set.
 pub(crate) fn download_store(root: &Path) -> PathBuf {
     root.join("cache")
         .join("repos")
@@ -268,7 +241,6 @@ pub(crate) fn download_store(root: &Path) -> PathBuf {
         .join("content_addressable")
 }
 
-/// Newest file modified time in a download entry, in epoch seconds.
 pub(crate) fn download_used(dir: &Path) -> Option<u64> {
     let entries = std::fs::read_dir(dir).ok()?;
     let mut newest = None;
@@ -288,7 +260,6 @@ fn seconds(meta: &std::fs::Metadata) -> u64 {
         .map_or(0, |elapsed| elapsed.as_secs())
 }
 
-/// Finds the download entries in each root's default repository cache, `<algo>/<key>/` under `content_addressable`.
 pub(crate) fn scan_downloads(roots: &[PathBuf], stop: &dyn Fn() -> Option<i32>) -> Vec<Download> {
     let mut downloads: Vec<Download> = Vec::new();
     let mut seen: Vec<PathBuf> = Vec::new();
@@ -353,8 +324,6 @@ fn walk_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> u64 {
     total
 }
 
-/// The `bazel shutdown` of a workspace's server; it fails at once if a client holds the lock. The server must
-/// outlive a killed client, so descendants stay detachable.
 fn shutdown_spec(bazel: &Path, opts: &[&str], workspace: &Path) -> SpawnSpec {
     let mut argv: Vec<std::ffi::OsString> = vec![bazel.as_os_str().to_owned()];
     argv.extend(opts.iter().map(std::ffi::OsString::from));
@@ -391,7 +360,6 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
         .map(|kib| kib.saturating_mul(1024))
 }
 
-/// Swapped-out bytes from a `/proc/<pid>/status` text.
 #[cfg(target_os = "linux")]
 pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
     let line = status
@@ -401,7 +369,6 @@ pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
     Some(kib.saturating_mul(1024))
 }
 
-/// The command line that stops exactly `server`, failing at once if a client holds its lock.
 pub(crate) fn shutdown_argv(
     bazel: &Path,
     startup_opts: &[&str],
@@ -423,7 +390,6 @@ pub(crate) fn shutdown_argv(
     Some(argv)
 }
 
-/// Whether the output base's lock file is free; `None` when it is missing or owned by another user.
 #[cfg(unix)]
 fn output_base_idle(base: &Path) -> Option<bool> {
     use std::os::unix::fs::MetadataExt;
@@ -440,7 +406,6 @@ fn output_base_idle(_base: &Path) -> Option<bool> {
     None
 }
 
-/// The newer modified time of the output base's `lock` and `command.log`.
 fn output_base_used(base: &Path) -> Option<u64> {
     ["lock", "command.log"]
         .iter()
@@ -462,13 +427,10 @@ fn swap_bytes(_pid: u32) -> u64 {
     0
 }
 
-/// How long one targeted `bazel shutdown` may run.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// How long a stopped server may take to exit after its client returns.
 const EXIT_WAIT: Duration = Duration::from_secs(5);
 
-/// The machine this process runs on.
 pub struct SystemHost;
 
 #[cfg(unix)]
@@ -494,7 +456,6 @@ fn user_name(env_get: &dyn Fn(&str) -> Option<String>) -> String {
         .unwrap_or_default()
 }
 
-/// Where Bazel keeps output bases when nothing moves them.
 pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
     let user = user_name(env_get);
     let mut roots = Vec::new();
@@ -510,8 +471,6 @@ pub fn default_output_roots(env_get: &dyn Fn(&str) -> Option<String>) -> Vec<Pat
     roots
 }
 
-/// Custom `--output_user_root` values that `startup` lines in the rc files `files` name,
-/// following `import` and `try-import` lines.
 pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
     let mut pending = files;
     let mut seen: Vec<PathBuf> = Vec::new();
@@ -558,8 +517,6 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
     roots
 }
 
-/// Whether a process works in `dir` or below it, read from `/proc/<pid>/cwd`. Git processes are
-/// skipped: dx runs them in the slot for its own probes. Processes this user cannot read are not seen.
 #[cfg(target_os = "linux")]
 fn process_in(dir: &Path) -> bool {
     let dir = resolved(dir);

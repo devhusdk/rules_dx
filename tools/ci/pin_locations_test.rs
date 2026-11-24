@@ -1,5 +1,3 @@
-//! Every download carries a digest, every digest lives in a pins.json, no pin is written twice and no reference is mutable, outside `tools/ci/pin_locations_allowlist.txt`.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
@@ -11,7 +9,6 @@ use dx_guard::starlark::is_bazel_file;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/pin_locations_allowlist.txt";
 
 const NO_DIGEST: &str = "no-digest";
@@ -20,7 +17,6 @@ const DUPLICATE: &str = "duplicate-pin";
 const MUTABLE: &str = "mutable-ref";
 const KINDS: [&str; 4] = [NO_DIGEST, OUTSIDE, DUPLICATE, MUTABLE];
 
-/// Calls that download and take a `sha256` or `integrity` argument.
 const DOWNLOADS: [&str; 6] = [
     "http_archive",
     "http_file",
@@ -30,13 +26,10 @@ const DOWNLOADS: [&str; 6] = [
     ".download_and_extract",
 ];
 
-/// Calls that fetch a git ref.
 const GIT_FETCHES: [&str; 3] = ["git_override", "git_repository", "new_git_repository"];
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
 
-/// True when `value` is absent or an empty literal.
 fn is_empty_value(value: Option<&str>) -> bool {
     matches!(value, None | Some("" | "\"\"" | "''" | "None"))
 }
@@ -56,7 +49,6 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// The lowercase hex of a 43 character base64 SHA-256, or None when it is not base64.
 fn sri_hex(base64: &[u8]) -> Option<String> {
     let mut bits = 0u32;
     let mut held = 0;
@@ -72,7 +64,6 @@ fn sri_hex(base64: &[u8]) -> Option<String> {
     Some(out)
 }
 
-/// Every SHA-256 literal in `text` as lowercase hex: a run of exactly 64 hex characters, or `sha256-` and 43 base64 characters and `=`.
 fn digests(text: &str) -> Vec<String> {
     let bytes = text.as_bytes();
     let mut out = Vec::new();
@@ -107,7 +98,6 @@ fn digests(text: &str) -> Vec<String> {
     out
 }
 
-/// Download calls in `source` with no `sha256` or `integrity` argument, or with an empty one.
 fn downloads_without_digest(source: &Masked) -> usize {
     DOWNLOADS
         .iter()
@@ -118,14 +108,12 @@ fn downloads_without_digest(source: &Masked) -> usize {
         .count()
 }
 
-/// True when `text` holds `@sha256:` and 64 hex characters.
 fn has_image_digest(text: &str) -> bool {
     text.split("@sha256:")
         .skip(1)
         .any(|rest| rest.len() >= 64 && rest.bytes().take(64).all(is_hex))
 }
 
-/// Mutable references in Starlark: an `oci.pull` with no digest, a git fetch by branch, a `docker://` string with no digest and a `:latest` string.
 fn mutable_starlark(source: &Masked) -> usize {
     let pulls = calls(source, ".pull")
         .iter()
@@ -152,7 +140,6 @@ fn mutable_starlark(source: &Masked) -> usize {
     pulls + branches + strings
 }
 
-/// Container images in a bazelrc with no digest.
 fn mutable_bazelrc(text: &str) -> usize {
     text.lines()
         .filter(|line| !line.trim_start().starts_with('#'))
@@ -161,7 +148,6 @@ fn mutable_bazelrc(text: &str) -> usize {
         .count()
 }
 
-/// Workflow `uses:` lines that are not a 40 hex commit, and `image:` and `container:` scalars with no digest.
 fn mutable_workflow(text: &str) -> usize {
     text.lines()
         .filter(|line| {
@@ -188,7 +174,6 @@ fn mutable_workflow(text: &str) -> usize {
         .count()
 }
 
-/// The `name version` pair of every pins.json entry that carries a `version` string.
 fn pin_pairs(value: &serde_json::Value, key: Option<&str>, out: &mut BTreeSet<String>) {
     let Some(object) = value.as_object() else {
         return;
@@ -201,10 +186,8 @@ fn pin_pairs(value: &serde_json::Value, key: Option<&str>, out: &mut BTreeSet<St
     }
 }
 
-/// Hosts that rebuild files in place under an unchanged URL.
 const REBUILT_IN_PLACE: [&str; 1] = ["dl.static-php.dev"];
 
-/// The `urls` lists of a pins.json whose first entry is on a `REBUILT_IN_PLACE` host.
 fn rebuilt_in_place(value: &serde_json::Value) -> usize {
     match value {
         serde_json::Value::Object(object) => object
@@ -232,7 +215,6 @@ fn rebuilt_in_place(value: &serde_json::Value) -> usize {
     }
 }
 
-/// The hits in `files`, a `(path, text)` list.
 fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
     let mut digest_files: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();

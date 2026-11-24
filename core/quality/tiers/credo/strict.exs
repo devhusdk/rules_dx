@@ -6,6 +6,7 @@
       strict: true,
       checks: %{
         enabled: [
+          {Credo.Check.Consistency.UnusedVariableNames, []},
           {Credo.Check.Warning.ApplicationConfigInModuleAttribute, []},
           {Credo.Check.Warning.BoolOperationOnSameValues, []},
           {Credo.Check.Warning.Dbg, []},

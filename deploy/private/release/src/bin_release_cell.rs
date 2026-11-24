@@ -3,7 +3,6 @@
 use dx_release_tools::ReleaseError;
 use dx_release_tools::cell::{self, CellRecord, Verdict};
 
-/// Returns the exit code and message for one finished `qualify`.
 fn qualify_outcome(record: &CellRecord) -> (i32, String) {
     let failed: Vec<String> = record
         .checks

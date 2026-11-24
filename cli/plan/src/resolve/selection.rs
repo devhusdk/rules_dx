@@ -25,10 +25,6 @@ fn selection_options(options: &[String]) -> Vec<String> {
     kept
 }
 
-/// Options `bazel query` accepts that change which packages and repositories load.
-/// `--config` is left out on purpose: Bazel expands `--config=X` for `query`
-/// only from `always`, `common` and `query` rc sections, so a `build:`-only
-/// config would make the query fail.
 const QUERY_OPTIONS: &[&str] = &[
     "override_repository",
     "override_module",
@@ -145,9 +141,6 @@ impl SelectionContext {
         }
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn filtered_options(&self) -> Result<Vec<String>, DxError> {
         crate::args::filter_build_mode_configs(&self.options, self.build_mode)
     }
@@ -167,9 +160,6 @@ impl SelectionContext {
         crate::plan::bazel_argv(verb, &options, required, &[], &[], &self.startup)
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn selection_argv(
         &self,
         verb: &str,

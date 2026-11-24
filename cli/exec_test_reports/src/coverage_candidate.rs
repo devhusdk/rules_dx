@@ -1,24 +1,17 @@
-//! The commit a coverage run measured and the tracked sources no Bazel rule uses.
-
 use dx_exec_core::common::git_output;
 use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, RuleGraph};
 use std::collections::HashMap;
 use std::path::Path;
 
-/// The checkout a coverage run measured.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Candidate {
     pub(super) sha: String,
-    /// True when a tracked file differs from `HEAD`.
     pub(super) dirty: bool,
 }
 
-/// Why the tracked-source check could not run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Unavailable {
-    /// The workspace is not a Git work tree; this is never enforced.
     NotGit,
-    /// Git or the rule-graph query failed inside a work tree; this is an accounting error.
     Failed(String),
 }
 
@@ -32,7 +25,6 @@ fn inside_work_tree(workspace: &Path, runner: &dyn QueryRunner) -> bool {
     .is_ok_and(|out| String::from_utf8_lossy(&out).trim() == "true")
 }
 
-/// The `HEAD` commit and whether tracked files differ from it, or None outside a work tree.
 pub(super) fn candidate(workspace: &Path, runner: &dyn QueryRunner) -> Option<Candidate> {
     if !inside_work_tree(workspace, runner) {
         return None;
@@ -83,10 +75,6 @@ fn has_package(workspace: &Path, file: &str, cache: &mut HashMap<String, bool>) 
     found
 }
 
-/// Tracked covered-language files in a Bazel package that no rule of the workspace graph uses.
-///
-/// The graph is the unconfigured `kind('rule', //...)` query, so every `select()` branch and
-/// every manual rule counts as a user. Files outside any package and `.bazelignore` trees are skipped.
 pub(super) fn tracked_orphans(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -135,7 +123,6 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::VecDeque;
 
-    /// Answers git and rule-graph queries in the order they were scripted.
     #[derive(Default)]
     struct Script(RefCell<VecDeque<QueryResult>>);
 

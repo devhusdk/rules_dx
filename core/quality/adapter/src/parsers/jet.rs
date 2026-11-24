@@ -4,17 +4,6 @@ use super::{FileFinding, ParseError, as_text, finding};
 
 const TOOL: &str = "jet";
 
-/// Findings from the JSON-lines report the pinned `jet.jl` driver writes.
-///
-/// Each line is `{"v":1,"kind":..,"message":..,"frames":[{"file":..,"line":..}]}` with the
-/// frames ordered from the analysis entry to the error point. A finding lands on the
-/// deepest frame inside an owned file; a report with no owned frame is dropped. The rule
-/// is `jet/<kind>` and the severity is error. `files` holds the owned paths as the run
-/// spells them.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_jet(report: &[u8], files: &[&str]) -> Result<Vec<FileFinding>, ParseError> {
     let text = as_text(TOOL, report)?;
     let mut findings: Vec<FileFinding> = Vec::new();

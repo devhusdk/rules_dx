@@ -28,7 +28,6 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
         if output.class_jar:
             own_jars.append(output.class_jar.path)
 
-    # The library's own jars sit in its transitive classpath; the adapter drops them by path.
     jar_sets = [java_info.transitive_compile_time_jars]
     if language == "kotlin":
         jar_sets.append(ctx.toolchains[KOTLIN_TOOLCHAIN].jvm_stdlibs.transitive_compile_time_jars)

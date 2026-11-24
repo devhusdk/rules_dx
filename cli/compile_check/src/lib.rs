@@ -1,14 +1,3 @@
-//! Runs the check-only replay of one compile action as `dx compile_check`.
-//!
-//! usage: `dx compile_check LOG STATUS [OPTION]... -- STEP [--dx-next-- STEP]...`
-//!
-//! - `--append IDX DEST --line L ...` copies argv[IDX] of the first step to DEST, adds one line
-//!   per `--line`, then runs the step with DEST in its place.
-//! - `--alias FROM TO` replaces FROM with TO (fixed strings) in the log.
-//!
-//! Steps run in order and stop at the first nonzero exit. Their stderr is collected in LOG and
-//! the last exit code is written to STATUS.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -25,7 +14,6 @@ const PREFIX: &str = "compile_check: ";
 const NEXT: &str = "--dx-next--";
 const USAGE: &str = "usage: LOG STATUS [OPTION]... -- STEP [--dx-next-- STEP]...";
 
-/// The parsed command line of one replay.
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Replay {
     log: String,
@@ -35,7 +23,6 @@ struct Replay {
     steps: Vec<Vec<String>>,
 }
 
-/// Where the first step's flag file is copied, and the lines added to the copy.
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Append {
     idx: usize,
@@ -43,7 +30,6 @@ struct Append {
     lines: Vec<String>,
 }
 
-/// Runs one replay from its command line and returns the exit code of this process.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let replay = match parse(args) {
@@ -107,8 +93,6 @@ fn parse(args: &[String]) -> Result<Replay, String> {
     Ok(replay)
 }
 
-/// The text of the copied flag file: the original without trailing newlines, then one line per
-/// added flag.
 fn appended(original: &str, lines: &[String]) -> String {
     let mut text = original.trim_end_matches('\n').to_owned();
     text.push('\n');
@@ -119,7 +103,6 @@ fn appended(original: &str, lines: &[String]) -> String {
     text
 }
 
-/// Swaps argv[IDX] of the first step for a copy of that file with the added lines.
 fn apply_append(step: &mut [String], append: &Append) -> Result<(), String> {
     let missing = || format!("no file at argv[{}] to append to", append.idx);
     let slot = step.get_mut(append.idx).ok_or_else(missing)?;
@@ -133,7 +116,6 @@ fn apply_append(step: &mut [String], append: &Append) -> Result<(), String> {
     Ok(())
 }
 
-/// The exit code a POSIX shell reports for a finished child.
 fn exit_code(status: ExitStatus) -> i32 {
     #[cfg(unix)]
     {
@@ -145,7 +127,6 @@ fn exit_code(status: ExitStatus) -> i32 {
     status.code().unwrap_or(1)
 }
 
-/// Runs one step with its stderr appended to `raw` and returns its exit code.
 fn run_step(step: &[String], raw: &mut Vec<u8>) -> i32 {
     let Some((program, args)) = step.split_first() else {
         raw.extend_from_slice(format!("{PREFIX}empty step\n").as_bytes());
@@ -168,7 +149,6 @@ fn run_step(step: &[String], raw: &mut Vec<u8>) -> i32 {
     }
 }
 
-/// Replaces each alias in every line of the collected stderr; each line ends in a newline.
 fn aliased(raw: &str, aliases: &[(String, String)]) -> String {
     let mut out = String::with_capacity(raw.len());
     for line in raw.lines() {

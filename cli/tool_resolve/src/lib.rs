@@ -1,5 +1,3 @@
-//! Resolves one pinned tool label to the absolute artifact path CI exports.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod cli;
@@ -10,7 +8,6 @@ use std::process::Command;
 
 pub const RESOLVE_CODE: &str = "tool_resolve_failed";
 
-/// Every way resolving one tool label can fail.
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveError {
     #[error("{RESOLVE_CODE}: {detail}")]
@@ -50,14 +47,12 @@ impl From<ResolveError> for dx_error::DxError {
     }
 }
 
-/// How one resolution reaches the Bazel server.
 pub trait Bazel {
     fn cquery_files(&self, label: &str, args: &[String]) -> Result<String, ResolveError>;
     fn output_base(&self) -> Result<String, ResolveError>;
     fn execution_root(&self) -> Result<String, ResolveError>;
 }
 
-/// The real Bazel child processes.
 pub struct CommandBazel {
     pub bin: PathBuf,
     pub dir: PathBuf,
@@ -146,12 +141,6 @@ impl CommandBazel {
     }
 }
 
-/// Returns the directory inner Bazel commands run in.
-///
-/// An explicit workspace wins. Otherwise `bazel run` publishes its invocation
-/// root as `BUILD_WORKSPACE_DIRECTORY`, which matters because the binary
-/// itself executes below `bazel-bin` and Bazel refuses output directories.
-/// The current directory is the last resort.
 pub fn context_dir(
     explicit: Option<&Path>,
     build_workspace_dir: Option<&std::ffi::OsStr>,
@@ -166,7 +155,6 @@ pub fn context_dir(
     }
 }
 
-/// Returns the first non-empty stderr line, the one-line failure summary.
 pub fn first_line(stderr: &[u8]) -> Option<String> {
     String::from_utf8_lossy(stderr)
         .lines()
@@ -175,7 +163,6 @@ pub fn first_line(stderr: &[u8]) -> Option<String> {
         .map(|line| line.chars().take(MAX_DETAIL_CHARS).collect())
 }
 
-/// Renders one inner Bazel failure as `exit <code>[: <first stderr line>]`.
 #[must_use]
 pub fn exit_detail(code: Option<i32>, stderr: &[u8]) -> String {
     let code = code.unwrap_or(-1);
@@ -185,7 +172,6 @@ pub fn exit_detail(code: Option<i32>, stderr: &[u8]) -> String {
     }
 }
 
-/// Returns whether `name` is a plain environment variable name.
 #[must_use]
 pub fn is_var_name(name: &str) -> bool {
     let mut chars = name.chars();
@@ -196,7 +182,6 @@ pub fn is_var_name(name: &str) -> bool {
     chars.all(|char| char == '_' || char.is_ascii_alphanumeric())
 }
 
-/// Validates the exported variable name.
 pub fn validate_var(var: &str) -> Result<(), ResolveError> {
     if is_var_name(var) {
         Ok(())
@@ -207,7 +192,6 @@ pub fn validate_var(var: &str) -> Result<(), ResolveError> {
     }
 }
 
-/// Validates the tool label before Bazel ever runs.
 pub fn validate_label(label: &str) -> Result<(), ResolveError> {
     if label.is_empty()
         || label.starts_with('-')
@@ -220,7 +204,6 @@ pub fn validate_label(label: &str) -> Result<(), ResolveError> {
     Ok(())
 }
 
-/// Returns the last non-empty cquery output line, the artifact path.
 pub fn select_artifact(cquery_stdout: &str, label: &str) -> Result<String, ResolveError> {
     cquery_stdout
         .lines()
@@ -232,7 +215,6 @@ pub fn select_artifact(cquery_stdout: &str, label: &str) -> Result<String, Resol
         })
 }
 
-/// Joins one root directory with one cquery artifact path.
 #[must_use]
 pub fn join_under(root: &str, rel: &str) -> PathBuf {
     rel.split('/')
@@ -245,7 +227,6 @@ fn stays_under_root(rel: &str) -> bool {
         && rel.split(['/', '\\']).all(|part| part != "..")
 }
 
-/// Renders one `NAME=value` environment file line.
 pub fn env_line(var: &str, path: &Path) -> Result<String, ResolveError> {
     validate_var(var)?;
     let Some(rendered) = path.to_str() else {
@@ -261,7 +242,6 @@ pub fn env_line(var: &str, path: &Path) -> Result<String, ResolveError> {
     Ok(format!("{var}={rendered}\n"))
 }
 
-/// Appends one line to the environment file, creating it when missing.
 pub fn append_env_file(env_file: &Path, line: &str) -> io::Result<()> {
     use std::fs::OpenOptions;
     use std::io::{Read, Seek, SeekFrom, Write};
@@ -290,7 +270,6 @@ pub fn append_env_file(env_file: &Path, line: &str) -> io::Result<()> {
     handle.write_all(entry.as_bytes())
 }
 
-/// Resolves one tool label to its absolute artifact path, failing closed.
 pub fn resolve(
     bazel: &dyn Bazel,
     label: &str,

@@ -6,9 +6,7 @@
 namespace {
 
 PyObject *Greet(PyObject *, PyObject *) {
-  // A copy sized at run time keeps a memcpy call, and under MSVC a throw
-  // imports the C++ exception runtime, which vcruntime140.dll provides, so the
-  // import check has something real to find.
+  // A runtime-sized copy and a throw make MSVC import vcruntime140.dll.
   static const char kGreeting[] = "dx-native-probe native";
   volatile size_t size = sizeof(kGreeting);
   char buffer[sizeof(kGreeting)];

@@ -54,12 +54,9 @@ impl AuditFamily {
     }
 }
 
-/// Which targets an audit covers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuditScope {
-    /// No scope was given, so the audit covers the whole workspace.
     Default,
-    /// Only these scopes; an empty list audits no dependency set.
     Only(Vec<String>),
 }
 
@@ -70,7 +67,6 @@ pub struct AuditRequest {
 }
 
 impl AuditRequest {
-    /// Returns the scopes to audit.
     #[must_use]
     pub fn effective_scopes(&self) -> Vec<String> {
         match &self.scope {

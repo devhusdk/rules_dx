@@ -320,11 +320,6 @@ fn parse_json(text: &str) -> Result<Json, String> {
     Ok(value)
 }
 
-/// Validates the platforms input: empty, or a non-empty JSON array of known platform labels.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
     let hint = platform_hint();
     if text.is_empty() {
@@ -376,11 +371,6 @@ pub fn validate_platforms(text: &str) -> Result<Vec<String>, String> {
     Ok(labels)
 }
 
-/// Validates the release workflow `deployables` input: empty, or a non-empty JSON array of Bazel labels.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate_deployables(text: &str) -> Result<Vec<String>, String> {
     if text.trim().is_empty() {
         return Ok(Vec::new());
@@ -442,11 +432,6 @@ pub fn validate_deployables(text: &str) -> Result<Vec<String>, String> {
     Ok(labels)
 }
 
-/// Validates a percentage input named `name`, using `omitted` when it is empty.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate_percent(text: &str, name: &str, omitted: &str) -> Result<String, String> {
     if text.is_empty() {
         return Ok(String::new());
@@ -461,11 +446,6 @@ pub fn validate_percent(text: &str, name: &str, omitted: &str) -> Result<String,
     Ok(text.to_string())
 }
 
-/// Validates the fuzz time input.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate_fuzz_time(text: &str) -> Result<(), String> {
     let digits = text.strip_suffix(['s', 'm', 'h']).unwrap_or(text);
     let valid = !digits.is_empty()
@@ -481,11 +461,6 @@ pub fn validate_fuzz_time(text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Validates the invocation input.
-///
-/// # Errors
-///
-/// Returns `Err` with the diagnostic when the input is rejected.
 pub fn validate_invocation(text: &str) -> Result<String, String> {
     let valid = (1..=40).contains(&text.len())
         && text
@@ -521,11 +496,6 @@ fn or_none(text: &str) -> &str {
     if text.is_empty() { "(none)" } else { text }
 }
 
-/// Validates every input read through `get` and returns the job outputs, or every diagnostic.
-///
-/// # Errors
-///
-/// Returns `Err` with every diagnostic when any input is rejected.
 pub fn validate(get: impl Fn(&str) -> String) -> Result<Validated, Vec<String>> {
     let platforms = validate_platforms(&get(PLATFORMS_ENV));
     let coverage = validate_percent(

@@ -1,6 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-// LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+// LCOV_EXCL_START - reason: thin wrapper, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 use std::path::Path;
 
 fn run(argv: &[String]) -> i32 {
@@ -16,7 +16,7 @@ fn run(argv: &[String]) -> i32 {
         return usage();
     };
     let stage = Path::new(stage);
-    // LCOV_EXCL_STOP - reason: end thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+    // LCOV_EXCL_STOP - reason: end thin wrapper, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     if let Err(error) = dx_deploy_tools::stage_regular_files(stage, srcs) {
         return dx_deploy_tools::bin_cannot("nfpm_stage", "stage files into", stage, error);
     }

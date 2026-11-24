@@ -1,5 +1,3 @@
-//! Tests for explicit launch descriptions.
-
 use std::ffi::OsString;
 use std::path::Path;
 

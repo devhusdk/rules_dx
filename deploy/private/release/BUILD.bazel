@@ -132,6 +132,8 @@ rust_test(
     coverage_lib = ":dx_release_tools",
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
+    data = [":host_exe_fixture"],
+    env = {"DX_RELEASE_HOST_EXE": "$(rlocationpath :host_exe_fixture)"},
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,
@@ -152,6 +154,12 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde",
     ],
+)
+
+rust_binary(
+    name = "host_exe_fixture",
+    testonly = True,
+    srcs = ["host_exe_fixture.rs"],
 )
 
 rust_test(
@@ -248,7 +256,6 @@ rust_test(
     ],
 )
 
-# Release binaries that have a bin_test.
 rust_binary(
     name = "publish_dry_run_check",
     srcs = ["src/bin_publish_dry_run_check.rs"],
@@ -469,6 +476,7 @@ inventory_unit_tests(name = "inventory_unit")
 
 inventory_file_tests(
     name = "cxx_qt_inventory_test",
+    size = "small",
     absent = [],
     app = "@crates//:cxx-qt-gen",
     present = ["cxx-qt-gen"],

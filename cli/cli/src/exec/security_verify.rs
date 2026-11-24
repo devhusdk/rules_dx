@@ -1,7 +1,3 @@
-//! `dx security --verify`: checks one downloaded asset against its Sigstore
-//! bundle with the pinned cosign and, when `gh` is installed, against its
-//! GitHub attestation.
-
 use base64::Engine as _;
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -20,23 +16,18 @@ pub(crate) const ISSUER: &str = "https://token.actions.githubusercontent.com";
 pub(crate) const PROVENANCE_TYPE: &str = "https://slsa.dev/provenance/v1";
 pub(crate) const BUNDLE_SUFFIX: &str = ".sigstore.json";
 
-/// What a Sigstore bundle signs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BundleKind {
-    /// A signature over the blob itself (`cosign sign-blob`).
     Message,
-    /// An in-toto statement naming the blob as a subject (`actions/attest`).
     Attestation,
 }
 
-/// The parts of a bundle `--verify` reads.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct BundleInfo {
     pub(crate) kind: BundleKind,
     pub(crate) signer: Option<String>,
 }
 
-/// Checks `repo` is `owner/name` with GitHub's name characters.
 pub(crate) fn check_repo(repo: &str) -> Result<(&str, &str), DxError> {
     let valid = |part: &str| {
         !part.is_empty()
@@ -52,7 +43,6 @@ pub(crate) fn check_repo(repo: &str) -> Result<(&str, &str), DxError> {
     }
 }
 
-/// The certificate identity regexp a signer from `repo`'s workflows matches.
 pub(crate) fn identity_regexp(owner: &str, name: &str) -> String {
     let escape = |part: &str| part.replace('.', "\\.");
     format!("^https://github\\.com/{}/{}/", escape(owner), escape(name))
@@ -103,7 +93,6 @@ pub(crate) fn gh_argv(kind: BundleKind, bundle: &Path, repo: &str, file: &Path) 
     argv
 }
 
-/// Reads the bundle kind and the signing certificate's identity.
 pub(crate) fn read_bundle(text: &str) -> Result<BundleInfo, String> {
     let value: serde_json::Value =
         serde_json::from_str(text).map_err(|error| format!("not JSON: {error}"))?;
@@ -141,7 +130,6 @@ fn certificate_der(value: &serde_json::Value) -> Option<Vec<u8>> {
     engine.decode(body.trim()).ok()
 }
 
-/// One DER element: its tag, its contents and the bytes after it.
 fn der_element(bytes: &[u8]) -> Option<(u8, &[u8], &[u8])> {
     let (&tag, rest) = bytes.split_first()?;
     let (&first, rest) = rest.split_first()?;
@@ -164,7 +152,6 @@ fn der_element(bytes: &[u8]) -> Option<(u8, &[u8], &[u8])> {
 
 const SAN_OID: [u8; 5] = [0x06, 0x03, 0x55, 0x1d, 0x11];
 
-/// The first URI or email in the certificate's subject alternative names.
 pub(crate) fn san_identity(der: &[u8]) -> Option<String> {
     let at = der
         .windows(SAN_OID.len())
@@ -342,8 +329,6 @@ pub(crate) fn execute_verify(invocation: &Invocation, env: Env<'_>) -> i32 {
                 ),
             );
         }
-        // A missing gh fails instead of skipping: a green exit must mean both
-        // the Sigstore bundle and the GitHub attestation were checked.
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return failed(
                 out,

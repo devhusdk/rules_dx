@@ -1,5 +1,3 @@
-//! Checks the Python fixture shard produced by `python_doc_shard`.
-
 use dx_testing as _;
 use documentation_ir::validate_shard;
 use shard_test_support::{line_of, shard, symbol};

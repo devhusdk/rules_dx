@@ -508,8 +508,6 @@ def page(root, lang, rows):
     extra = readme_sections(root, lang)
     platforms = extra.pop("Platforms", "")
     api = api_docs(root, lang, rows, extra)
-    # The remaining README sections are task guides (dependencies, quality,
-    # toolchain), so they come before the reference generated from lang.json and defs.bzl.
     for heading, body in extra.items():
         out.append("## %s\n" % heading)
         if body:

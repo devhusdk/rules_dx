@@ -1,4 +1,3 @@
-//! One reader for literal top-level `MODULE.bazel` calls, shared by every MODULE.bazel tool.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod identity;
@@ -12,14 +11,12 @@ use starlark_syntax::syntax::ast::{
 };
 use starlark_syntax::syntax::{AstModule, Dialect};
 
-/// A string literal with its decoded value and the byte range of its token.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Str {
     pub value: String,
     pub span: Range<usize>,
 }
 
-/// One call argument, kept only as far as it is literal.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Str(Str),
@@ -29,13 +26,11 @@ pub enum Value {
     Computed { line: usize },
 }
 
-/// One top-level call such as `bazel_dep(...)` or `maven.install(...)`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Call {
     pub name: String,
     pub binding: Option<String>,
     pub line: usize,
-    /// Byte range of the call expression.
     pub span: Range<usize>,
     pub positional: Vec<Value>,
     pub named: Vec<(String, Value)>,
@@ -43,7 +38,6 @@ pub struct Call {
 }
 
 impl Call {
-    /// The value passed for keyword `key`.
     #[must_use]
     pub fn arg(&self, key: &str) -> Option<&Value> {
         self.named
@@ -52,7 +46,6 @@ impl Call {
             .map(|(_, value)| value)
     }
 
-    /// The literal string passed for keyword `key`.
     #[must_use]
     pub fn str(&self, key: &str) -> Option<&str> {
         match self.arg(key) {
@@ -61,7 +54,6 @@ impl Call {
         }
     }
 
-    /// The literal strings of the list passed for keyword `key`.
     #[must_use]
     pub fn str_list(&self, key: &str) -> Vec<&str> {
         match self.arg(key) {
@@ -79,7 +71,6 @@ impl Call {
     }
 }
 
-/// Why a MODULE.bazel read or edit cannot proceed safely.
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ModuleError {
     #[error("MODULE.bazel does not parse at line {line}: {message}")]
@@ -124,10 +115,8 @@ pub enum ModuleError {
     UnsafeComment { value: String },
 }
 
-/// The marker that starts the comment line naming why a `bazel_dep` has its floor version.
 pub const FLOOR_MARKER: &str = "# floor: ";
 
-/// A literal tag argument.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Arg {
     Str(String),
@@ -135,7 +124,6 @@ pub enum Arg {
     Dict(Vec<(String, String)>),
 }
 
-/// A tag to add to an extension, such as `from_cargo` with its keyword arguments.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NewTag {
     pub name: String,
@@ -191,28 +179,23 @@ impl NewTag {
     }
 }
 
-/// One `rules_rust` `crate.from_cargo` tag: a `crate_universe` hub and the manifests it reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CargoHub<'a> {
     pub name: &'a str,
     pub cargo_lockfile: Option<&'a str>,
-    /// The literal `lockfile` label (the cargo-bazel lock), when set.
     pub lockfile: Option<&'a str>,
     pub manifests: Vec<&'a Str>,
     pub line: usize,
 }
 
-/// How a `maven.install` tag sets `fail_if_repin_required`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RepinPolicy {
-    /// Not set, so the `rules_jvm_external` default (true) applies.
     Unset,
     True,
     False,
     Computed,
 }
 
-/// One `rules_jvm_external` `maven.install` tag: a hub and its literal lock file label.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MavenInstall<'a> {
     pub name: &'a str,
@@ -221,7 +204,6 @@ pub struct MavenInstall<'a> {
     pub line: usize,
 }
 
-/// One `aspect_rules_js` `npm.npm_translate_lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NpmLock<'a> {
     pub name: &'a str,
@@ -229,7 +211,6 @@ pub struct NpmLock<'a> {
     pub line: usize,
 }
 
-/// One `rules_py` `uv.project` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UvProject<'a> {
     pub hub_name: &'a str,
@@ -238,14 +219,12 @@ pub struct UvProject<'a> {
     pub line: usize,
 }
 
-/// One gazelle `go_deps.from_file` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GoModFile<'a> {
     pub go_mod: &'a str,
     pub line: usize,
 }
 
-/// One `ruby.lock` tag of the `rules_dx` ruby extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RubyLock<'a> {
     pub name: &'a str,
@@ -253,7 +232,6 @@ pub struct RubyLock<'a> {
     pub line: usize,
 }
 
-/// One `cpan.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CpanInstall<'a> {
     pub name: &'a str,
@@ -261,7 +239,6 @@ pub struct CpanInstall<'a> {
     pub line: usize,
 }
 
-/// One `from_manifest` tag of the `rules_julia` `pkg` extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JuliaManifest<'a> {
     pub name: &'a str,
@@ -269,7 +246,6 @@ pub struct JuliaManifest<'a> {
     pub line: usize,
 }
 
-/// One `lock` tag of the `rules_dx` composer extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ComposerLock<'a> {
     pub name: &'a str,
@@ -277,7 +253,6 @@ pub struct ComposerLock<'a> {
     pub line: usize,
 }
 
-/// One `luarocks.lock` tag of the `rules_dx` luarocks extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LuaRocksLock<'a> {
     pub name: &'a str,
@@ -285,7 +260,6 @@ pub struct LuaRocksLock<'a> {
     pub line: usize,
 }
 
-/// One `fpm.lock` tag of the `rules_dx` Fortran extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FpmLock<'a> {
     pub name: &'a str,
@@ -293,7 +267,6 @@ pub struct FpmLock<'a> {
     pub line: usize,
 }
 
-/// One `zig.lock` tag of the `rules_dx` zig extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ZigLock<'a> {
     pub name: &'a str,
@@ -301,7 +274,6 @@ pub struct ZigLock<'a> {
     pub line: usize,
 }
 
-/// One `dub.lock` tag of the `rules_dx` dub extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
     pub name: &'a str,
@@ -309,7 +281,6 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
-/// One `nuget.lock` tag of the `rules_dx` nuget extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NugetLock<'a> {
     pub name: &'a str,
@@ -317,7 +288,6 @@ pub struct NugetLock<'a> {
     pub line: usize,
 }
 
-/// One `ansible.lock` tag of the `rules_dx` ansible extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AnsibleCollections<'a> {
     pub name: &'a str,
@@ -325,7 +295,6 @@ pub struct AnsibleCollections<'a> {
     pub line: usize,
 }
 
-/// One `bicep.lock` tag of the `rules_dx` bicep extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BicepLock<'a> {
     pub name: &'a str,
@@ -333,7 +302,6 @@ pub struct BicepLock<'a> {
     pub line: usize,
 }
 
-/// One `opam.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpamPackages<'a> {
     pub name: &'a str,
@@ -341,7 +309,6 @@ pub struct OpamPackages<'a> {
     pub line: usize,
 }
 
-/// One `swiftpm.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SwiftPmLock<'a> {
     pub name: &'a str,
@@ -349,7 +316,6 @@ pub struct SwiftPmLock<'a> {
     pub line: usize,
 }
 
-/// One `cabal.lock` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HaskellPackages<'a> {
     pub name: &'a str,
@@ -357,8 +323,6 @@ pub struct HaskellPackages<'a> {
     pub line: usize,
 }
 
-/// One `pub.from_lock` tag of `rules_dart`, `rules_flutter` or `rules_dx`, or `flutter.pub` tag of
-/// `rules_flutter`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PubLock<'a> {
     pub name: &'a str,
@@ -366,7 +330,6 @@ pub struct PubLock<'a> {
     pub line: usize,
 }
 
-/// One `hex.lock` tag of `rules_dx` or this repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MixLock<'a> {
     pub name: &'a str,
@@ -374,7 +337,6 @@ pub struct MixLock<'a> {
     pub line: usize,
 }
 
-/// A parsed MODULE.bazel with its top-level calls in source order.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleFile {
     source: String,
@@ -401,20 +363,10 @@ fn dialect() -> Dialect {
 }
 
 impl ModuleFile {
-    /// Parses MODULE.bazel source without evaluating it.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the source does not parse or uses a statement MODULE.bazel does not allow.
     pub fn parse(source: &str) -> Result<ModuleFile, ModuleError> {
         Self::parse_with(source, &dialect())
     }
 
-    /// Parses a BUILD file the same way, accepting `load` statements and ignoring them.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the source does not parse.
     pub fn parse_build(source: &str) -> Result<ModuleFile, ModuleError> {
         let build = Dialect {
             enable_load: true,
@@ -441,29 +393,20 @@ impl ModuleFile {
         })
     }
 
-    /// The source the file was parsed from.
     #[must_use]
     pub fn source(&self) -> &str {
         &self.source
     }
 
-    /// Every top-level call in source order.
     #[must_use]
     pub fn calls(&self) -> &[Call] {
         &self.calls
     }
 
-    /// Top-level calls with the given name.
     pub fn calls_named<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Call> + 'a {
         self.calls.iter().filter(move |call| call.name == name)
     }
 
-    /// The single `bazel_dep` that declares module `name`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when no `bazel_dep` or more than one declares `name`, or a `bazel_dep` has
-    /// a computed name.
     pub fn bazel_dep(&self, name: &str) -> Result<&Call, ModuleError> {
         let mut found = Vec::new();
         for call in self.calls_named("bazel_dep") {
@@ -488,12 +431,6 @@ impl ModuleFile {
         }
     }
 
-    /// The literal version token of the single `bazel_dep` for `name`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::bazel_dep`] does, or the `bazel_dep` has no version or a
-    /// computed one.
     pub fn bazel_dep_version(&self, name: &str) -> Result<&Str, ModuleError> {
         let call = self.bazel_dep(name)?;
         match call.arg("version") {
@@ -513,23 +450,11 @@ impl ModuleFile {
         }
     }
 
-    /// The source with the `bazel_dep` version of `name` set to `version`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::bazel_dep_version`] does or `version` cannot be written
-    /// into a string literal.
     pub fn set_bazel_dep_version(&self, name: &str, version: &str) -> Result<String, ModuleError> {
         let literal = self.bazel_dep_version(name)?;
         self.replace(literal, version)
     }
 
-    /// The single `single_version_override` whose `module_name` is `name`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when no override or more than one names `name`, or an override has a
-    /// computed `module_name`.
     pub fn single_version_override(&self, name: &str) -> Result<&Call, ModuleError> {
         let mut found = Vec::new();
         for call in self.calls_named("single_version_override") {
@@ -554,12 +479,6 @@ impl ModuleFile {
         }
     }
 
-    /// The literal `version` token of the single `single_version_override` for `name`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::single_version_override`] does, or the override has no
-    /// `version` or a computed one.
     pub fn override_version(&self, name: &str) -> Result<&Str, ModuleError> {
         let call = self.single_version_override(name)?;
         match call.arg("version") {
@@ -579,24 +498,11 @@ impl ModuleFile {
         }
     }
 
-    /// The source with the `single_version_override` version of `name` set to `version`,
-    /// keeping its patches and every other byte.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::override_version`] does or `version` cannot be written
-    /// into a string literal.
     pub fn set_override_version(&self, name: &str, version: &str) -> Result<String, ModuleError> {
         let literal = self.override_version(name)?;
         self.replace(literal, version)
     }
 
-    /// The reason of the `# floor: ` comment lines directly above the `bazel_dep` of `name`,
-    /// joined by spaces, or None when there is none.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::bazel_dep`] does.
     pub fn floor_comment(&self, name: &str) -> Result<Option<String>, ModuleError> {
         let call = self.bazel_dep(name)?;
         let (_, lines) = self.floor_lines(call)?;
@@ -615,14 +521,6 @@ impl ModuleFile {
         Ok(Some(reasons.join(" ")))
     }
 
-    /// The source with the contiguous `# floor: ` lines directly above the `bazel_dep` of
-    /// `name` replaced by one `# floor: <reason>` line, or that line inserted when there is
-    /// none. Other comments and every other byte are kept.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::bazel_dep`] does, `reason` is empty or holds a control
-    /// character, or the edited source does not round-trip.
     pub fn set_floor_comment(&self, name: &str, reason: &str) -> Result<String, ModuleError> {
         let reason = reason.trim();
         if reason.is_empty() || reason.chars().any(char::is_control) {
@@ -651,7 +549,6 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The byte offset where the `# floor: ` lines above `call` start, and those lines.
     fn floor_lines(&self, call: &Call) -> Result<(usize, Vec<&str>), ModuleError> {
         let line_start = text_at(&self.source, ..call.span.start)?
             .rfind('\n')
@@ -685,7 +582,6 @@ impl ModuleFile {
         Ok((start, lines))
     }
 
-    /// The repository name module `name` is visible as, if it is declared.
     #[must_use]
     pub fn repo_name(&self, name: &str) -> Option<&str> {
         self.calls_named("bazel_dep")
@@ -693,7 +589,6 @@ impl ModuleFile {
             .and_then(|call| call.str("repo_name").or_else(|| call.str("name")))
     }
 
-    /// The `use_extension` calls with literal arguments, as `(bzl_file label, extension name)`.
     #[must_use]
     pub fn extensions(&self) -> Vec<(&str, &str)> {
         self.calls_named("use_extension")
@@ -706,7 +601,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The variables bound to `use_extension(bzl, name)` calls, with their line.
     #[must_use]
     pub fn extension_bindings(&self, bzl: &str, name: &str) -> Vec<(&str, usize)> {
         self.calls_named("use_extension")
@@ -721,8 +615,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The variables bound to the `rules_dx` hub extension `extension` (like
-    /// `@rules_dx//rust:extensions.bzl`) or to the upstream extension it wraps, with their line.
     #[must_use]
     pub fn hub_bindings(&self, extension: &str, name: &str) -> Vec<(&str, usize)> {
         let Some(lang) = extension
@@ -752,7 +644,6 @@ impl ModuleFile {
         found
     }
 
-    /// The literal repo names `use_repo(binding, ...)` imports, with the call's line.
     #[must_use]
     pub fn use_repos(&self, binding: &str) -> Vec<(&str, usize)> {
         let mut out = Vec::new();
@@ -769,23 +660,10 @@ impl ModuleFile {
         out
     }
 
-    /// Every literal coordinate in the `artifacts` of `rules_jvm_external` `maven.install` tags.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a `maven.install` has a computed name or its `artifacts` are not a list
-    /// of string literals.
     pub fn maven_artifacts(&self) -> Result<Vec<&Str>, ModuleError> {
         self.maven_artifacts_matching(None)
     }
 
-    /// The literal coordinates in the `artifacts` of the `maven.install` named `install`
-    /// only (`maven` when the tag has no name). A computed name is an error.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a `maven.install` has a computed name or its `artifacts` are not a list
-    /// of string literals.
     pub fn maven_artifacts_of(&self, install: &str) -> Result<Vec<&Str>, ModuleError> {
         self.maven_artifacts_matching(Some(install))
     }
@@ -835,11 +713,6 @@ impl ModuleFile {
         Ok(artifacts)
     }
 
-    /// Every `rules_rust` `crate.from_cargo` tag in source order, with its literal manifests.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag has a computed name, `cargo_lockfile` or `manifests`.
     pub fn cargo_hubs(&self) -> Result<Vec<CargoHub<'_>>, ModuleError> {
         let proxies = self.crate_proxies();
         let mut hubs = Vec::new();
@@ -894,11 +767,6 @@ impl ModuleFile {
         Ok(hubs)
     }
 
-    /// The name a `from_cargo` hub is visible under in the root module: `x` for
-    /// `use_repo(crate, "x")`, `alias` for `use_repo(crate, alias = "x")`. None when
-    /// the hub is not imported. Bazel resolves `@<name>` in the root module by this
-    /// visible name, while `crate_universe` compares `CARGO_BAZEL_REPIN_ONLY` with the
-    /// hub's own name.
     #[must_use]
     pub fn cargo_apparent(&self, hub: &CargoHub<'_>) -> Option<&str> {
         let proxies = self.crate_proxies();
@@ -923,7 +791,6 @@ impl ModuleFile {
         None
     }
 
-    /// The hub name and literal `libs_versions_toml` label of every `maven.from_toml` tag.
     #[must_use]
     pub fn maven_from_tomls(&self) -> Vec<(&str, &str)> {
         let proxies = self.maven_proxies();
@@ -943,12 +810,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `rules_jvm_external` `maven.install` tag in source order. The name defaults
-    /// to `maven`; a computed name or `lock_file` is an error.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag has a computed name or `lock_file`.
     pub fn maven_installs(&self) -> Result<Vec<MavenInstall<'_>>, ModuleError> {
         let proxies = self.maven_proxies();
         let mut installs = Vec::new();
@@ -989,11 +850,6 @@ impl ModuleFile {
         Ok(installs)
     }
 
-    /// Every `aspect_rules_js` `npm.npm_translate_lock` tag in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn npm_translate_locks(&self) -> Result<Vec<NpmLock<'_>>, ModuleError> {
         const TAG: &str = "npm.npm_translate_lock";
         self.tags(JS_MODULE, "npm:extensions.bzl", "npm", "npm_translate_lock")
@@ -1008,11 +864,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `rules_py` `uv.project` tag in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn uv_projects(&self) -> Result<Vec<UvProject<'_>>, ModuleError> {
         const TAG: &str = "uv.project";
         self.tags(PY_MODULE, "uv:extensions.bzl", "uv", "project")
@@ -1028,11 +879,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every gazelle `go_deps.from_file` or `rules_dx` `go.from_file` tag that names a `go_mod`, in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn go_deps_files(&self) -> Result<Vec<GoModFile<'_>>, ModuleError> {
         const TAG: &str = "go_deps.from_file";
         let mut out = Vec::new();
@@ -1050,11 +896,6 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// Every `ruby.lock` tag of the `rules_dx` ruby extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn ruby_locks(&self) -> Result<Vec<RubyLock<'_>>, ModuleError> {
         const TAG: &str = "ruby.lock";
         self.tags(RUBY_MODULE, "ruby:extensions.bzl", "ruby", "lock")
@@ -1068,13 +909,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of `rules_dart`, `rules_flutter` `flutter/pub:extensions.bzl` and
-    /// the `rules_dx` `dart/extensions.bzl` and `flutter/extensions.bzl`, and `flutter.pub` tag of
-    /// `rules_flutter`, in source order within each extension.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
             .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
@@ -1107,11 +941,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `hex.lock` tag of `rules_dx` or this repository's `//elixir:extensions.bzl`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "hex.lock";
         let external = self.tags(RUBY_MODULE, "elixir:extensions.bzl", "hex", "lock");
@@ -1128,11 +957,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `lock` tag of the `rules_dx` composer extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
         const TAG: &str = "php:extensions.bzl composer lock";
         self.tags(RUBY_MODULE, "php:extensions.bzl", "composer", "lock")
@@ -1146,11 +970,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `luarocks.lock` tag of the `rules_dx` luarocks extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn luarocks_locks(&self) -> Result<Vec<LuaRocksLock<'_>>, ModuleError> {
         const TAG: &str = "luarocks.lock";
         self.tags(RUBY_MODULE, "lua:extensions.bzl", "luarocks", "lock")
@@ -1164,11 +983,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `from_manifest` tag of the `rules_julia` `pkg` extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn julia_manifests(&self) -> Result<Vec<JuliaManifest<'_>>, ModuleError> {
         const TAG: &str = "julia_pkg.from_manifest";
         self.tags(
@@ -1188,11 +1002,6 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `swiftpm.lock` tag of the `rules_dx` swift extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn swiftpm_locks(&self) -> Result<Vec<SwiftPmLock<'_>>, ModuleError> {
         const TAG: &str = "swiftpm.lock";
         self.dx_tags("swift", "swiftpm", "lock")
@@ -1206,11 +1015,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `cpan.lock` tag of the `rules_dx` extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
         const TAG: &str = "cpan.lock";
         self.dx_tags("perl", "cpan", "lock")
@@ -1224,11 +1028,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `fpm.lock` tag of the `rules_dx` Fortran extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
         const TAG: &str = "fpm.lock";
         let own = self.tags_of("//fortran:extensions.bzl", "fpm", "lock");
@@ -1244,11 +1043,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `dub.lock` tag of the `rules_dx` dub extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
         const TAG: &str = "dub.lock";
         let own = self.tags_of("//d:extensions.bzl", "dub", "lock");
@@ -1264,11 +1058,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `nuget.lock` tag of the `rules_dx` nuget extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn nuget_locks(&self) -> Result<Vec<NugetLock<'_>>, ModuleError> {
         const TAG: &str = "nuget.lock";
         let own = self.tags_of("//csharp:extensions.bzl", "nuget", "lock");
@@ -1284,11 +1073,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `zig.lock` tag of the `rules_dx` zig extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
         let own = self.tags_of("//zig:extensions.bzl", "zig", "lock");
@@ -1304,11 +1088,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `ansible.lock` tag of the `rules_dx` ansible extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
         const TAG: &str = "ansible.lock";
         let own = self.tags_of("//ansible:extensions.bzl", "ansible", "lock");
@@ -1329,11 +1108,6 @@ impl ModuleFile {
         .collect()
     }
 
-    /// Every `bicep.lock` tag of the `rules_dx` bicep extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn bicep_locks(&self) -> Result<Vec<BicepLock<'_>>, ModuleError> {
         const TAG: &str = "bicep.lock";
         let own = self.tags_of("//bicep:extensions.bzl", "bicep", "lock");
@@ -1349,11 +1123,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `opam.lock` tag of this repository's opam extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
         const TAG: &str = "opam.lock";
         let own = self.tags_of("//ocaml:extensions.bzl", "opam", "lock");
@@ -1369,11 +1138,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `cabal.lock` tag of this repository's Haskell extension in source order.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a tag argument this reads is not a string literal.
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
         const TAG: &str = "cabal.lock";
         let own = self.tags_of("//haskell:extensions.bzl", "cabal", "lock");
@@ -1389,8 +1153,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The calls of `tag` on every binding of the `rules_dx` extension `name` in
-    /// `<lang>/extensions.bzl`, named from a consumer or from this repository.
     fn dx_tags<'a>(
         &'a self,
         lang: &str,
@@ -1402,7 +1164,6 @@ impl ModuleFile {
             .chain(self.tags_of(&format!("//{lang}:extensions.bzl"), name, tag))
     }
 
-    /// The calls of `tag` on every binding of the extension `name` in `@<module>//<file>`.
     fn tags<'a>(
         &'a self,
         module: &str,
@@ -1433,13 +1194,6 @@ impl ModuleFile {
         })
     }
 
-    /// The source with `bazel_dep(name = name, version = version)` added after the
-    /// last top-level `bazel_dep`, or after `module()`, keeping every other byte.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `name` is already declared, a value cannot be written into a string
-    /// literal, there is no place to insert, or the edited source does not round-trip.
     pub fn insert_bazel_dep(&self, name: &str, version: &str) -> Result<String, ModuleError> {
         for value in [name, version] {
             check_safe(value)?;
@@ -1497,14 +1251,6 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The source with a block appended at the end: `binding = use_extension(bzl, ext)` (skipped
-    /// when `binding` is already bound to that extension), the `tags`, and a `use_repo` for the
-    /// `repos` not yet imported through `binding`. Every other byte is kept.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when a value cannot be written into a string literal, `binding` is bound to
-    /// another extension, or the edited source does not round-trip.
     pub fn insert_extension_block(
         &self,
         binding: &str,
@@ -1577,24 +1323,10 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
-    /// one `rules_jvm_external` `maven.install` tag that feeds the default `@maven` repository.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when [`ModuleFile::insert_maven_artifact_in`] does.
     pub fn insert_maven_artifact(&self, coordinate: &str) -> Result<String, ModuleError> {
         self.insert_maven_artifact_in("maven", coordinate)
     }
 
-    /// Like [`ModuleFile::insert_maven_artifact`], for the `maven.install(name = <repository>)`
-    /// tag that feeds `use_repo(maven, "<repository>")`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `coordinate` cannot be written into a string literal, no single
-    /// `maven.install` feeds `repository`, its `artifacts` are not a literal list, or the edited
-    /// source does not round-trip.
     pub fn insert_maven_artifact_in(
         &self,
         repository: &str,
@@ -1716,7 +1448,6 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The bindings of the `use_extension` calls for `rules_jvm_external`'s `maven`.
     #[must_use]
     pub fn maven_proxies(&self) -> Vec<&str> {
         let repo = self.repo_name(MAVEN_MODULE).unwrap_or(MAVEN_MODULE);
@@ -1755,11 +1486,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The source with one string literal set to `value`, keeping its quote style.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `value` cannot be written into a string literal.
     pub fn replace(&self, literal: &Str, value: &str) -> Result<String, ModuleError> {
         if literal.value == value {
             return Ok(self.source.clone());
@@ -1790,10 +1516,6 @@ impl ModuleFile {
     }
 }
 
-/// Compares two module versions the way Bazel orders them
-/// (<https://bazel.build/external/module#version_format>): release identifiers first,
-/// numeric before alphanumeric and numerically among themselves, a prerelease below its
-/// release, build metadata ignored, and the empty version above every other.
 #[must_use]
 pub fn compare_module_versions(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
@@ -1854,7 +1576,6 @@ fn check_safe(value: &str) -> Result<(), ModuleError> {
     Ok(())
 }
 
-/// `\r\n` when the source uses CRLF line endings, else `\n`.
 fn line_ending(source: &str) -> &'static str {
     if source.contains("\r\n") {
         "\r\n"
@@ -1863,7 +1584,6 @@ fn line_ending(source: &str) -> &'static str {
     }
 }
 
-/// The byte just past the newline that ends the line holding `at`, or the source end.
 fn line_end(source: &str, at: usize) -> usize {
     source
         .get(at..)
@@ -1906,12 +1626,6 @@ fn parse_starlark(source: &str) -> Result<AstModule, ModuleError> {
     })
 }
 
-/// The `(load label, exported symbol)` of every call in a Starlark source whose
-/// callee is a name bound by a `load()`, in source order.
-///
-/// # Errors
-///
-/// Returns an error when the source does not parse.
 pub fn loaded_calls(source: &str) -> Result<Vec<(String, String)>, ModuleError> {
     fn walk(
         expr: &AstExpr,
@@ -1942,11 +1656,6 @@ pub fn loaded_calls(source: &str) -> Result<Vec<(String, String)>, ModuleError> 
     Ok(out)
 }
 
-/// The module strings of every `load()` in a .bzl source, in source order.
-///
-/// # Errors
-///
-/// Returns an error when the source does not parse.
 pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
     let ast = parse_starlark(source)?;
     Ok(ast
@@ -2110,17 +1819,13 @@ fn line_of(ast: &AstModule, span: Span) -> usize {
     ast.file_span(span).resolve_span().begin.line + 1
 }
 
-/// Why loading a MODULE.bazel with its includes failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadError<E> {
-    /// The `read_include` callback failed; carries its error unchanged.
     Read(E),
-    /// A file did not parse, or an include is malformed or repeated.
     Parse(String),
 }
 
 impl<E> LoadError<E> {
-    /// Collapses to the callback's error type, building one from a parse message.
     pub fn into_error(self, parse: impl FnOnce(String) -> E) -> E {
         match self {
             Self::Read(error) => error,
@@ -2140,12 +1845,6 @@ impl<E: std::fmt::Display> std::fmt::Display for LoadError<E> {
 
 impl<E: std::fmt::Debug + std::fmt::Display> std::error::Error for LoadError<E> {}
 
-/// Parses the root MODULE.bazel and every file it includes, in include order.
-///
-/// # Errors
-///
-/// Returns [`LoadError::Read`] when `read_include` fails, and [`LoadError::Parse`] when a file
-/// does not parse or an include is malformed or repeated.
 pub fn load_with_includes<E>(
     root_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, E>,
@@ -2156,12 +1855,6 @@ pub fn load_with_includes<E>(
         .collect())
 }
 
-/// Like [`load_with_includes`], pairing each file with the include label it came from
-/// (`None` for the root), so a finding can name its file.
-///
-/// # Errors
-///
-/// Returns an error when [`load_with_includes`] does.
 pub fn load_with_includes_labeled<E>(
     root_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, E>,
@@ -2172,8 +1865,6 @@ pub fn load_with_includes_labeled<E>(
     Ok(files)
 }
 
-/// Splits a main-repository `//package:file` label into package and file, or None when
-/// it is not one; Err when a part would leave the workspace.
 fn workspace_label_parts(label: &str) -> Option<Result<(&str, &str), ()>> {
     let (package, file) = label.strip_prefix("//")?.split_once(':')?;
     let bad =
@@ -2185,12 +1876,6 @@ fn workspace_label_parts(label: &str) -> Option<Result<(&str, &str), ()>> {
     Some(Ok((package, file)))
 }
 
-/// The workspace-relative path of a main-repository `//package:file` label.
-///
-/// # Errors
-///
-/// Returns the reason when `label` is not a main-repository `//package:file` label or leaves the
-/// workspace.
 pub fn label_path(label: &str) -> Result<String, String> {
     if label.starts_with('@') {
         return Err(format!(
@@ -2205,7 +1890,6 @@ pub fn label_path(label: &str) -> Result<String, String> {
     }
 }
 
-/// Splits an include label into package and file the way Bazel accepts it.
 fn include_parts(label: &str) -> Result<(&str, &str), String> {
     if label.starts_with('@') {
         return Err(format!(
@@ -2224,12 +1908,6 @@ fn include_parts(label: &str) -> Result<(&str, &str), String> {
     Ok((package, file))
 }
 
-/// Resolves an include label to a workspace-relative path under `module_dir`.
-///
-/// # Errors
-///
-/// Returns the reason when `label` is not a `//package:file` label, leaves the workspace, or does
-/// not name a `.MODULE.bazel` file.
 pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
     let (package, file) = include_parts(label)?;
     let mut rel = module_dir.to_owned();
@@ -2244,7 +1922,6 @@ pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
     Ok(rel)
 }
 
-/// Parses one module file, then recurses into its includes.
 fn collect_module<E>(
     text: &str,
     label: Option<&str>,
@@ -2293,8 +1970,6 @@ mod tests;
 
 const RULES_DX: &str = "rules_dx";
 
-/// The name the workspace MODULE.bazel (and the files it includes) gives `rules_dx`,
-/// or `rules_dx` when it declares none.
 #[must_use]
 pub fn rules_dx_repo(workspace: &std::path::Path) -> String {
     let read_include = |label: &str| {
@@ -2311,14 +1986,11 @@ pub fn rules_dx_repo(workspace: &std::path::Path) -> String {
     )
 }
 
-/// The name a MODULE.bazel source gives `rules_dx`, ignoring any includes.
 #[must_use]
 pub fn rules_dx_repo_of(module_text: &str) -> String {
     rules_dx_repo_with(module_text, &|_| Err("no includes".to_owned()))
 }
 
-/// The name `rules_dx` gets across a MODULE.bazel and its includes, in include order.
-/// When the includes cannot be loaded, falls back to the root file alone.
 fn rules_dx_repo_with(
     module_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, String>,
@@ -2335,7 +2007,6 @@ fn rules_dx_repo_with(
     }
 }
 
-/// The repo name one module file gives `rules_dx`, if the file declares `rules_dx`.
 fn repo_in_file(file: &ModuleFile) -> Option<&str> {
     match file
         .calls_named("module")

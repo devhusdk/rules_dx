@@ -1137,6 +1137,68 @@ rust_test(
     ],
 )
 
+rust_library(
+    name = "sleep_budget",
+    testonly = True,
+    srcs = ["sleep_budget/lib.rs"],
+    crate_name = "sleep_budget",
+    crate_root = "sleep_budget/lib.rs",
+    deps = [":dx_guard"],
+)
+
+_SLEEP_BUDGET_INPUTS = [
+    "@dx_test_tags_sources//:code.json",
+    "@dx_test_tags_sources//:other_code.json",
+    "@dx_test_tags_sources//:sources.json",
+]
+
+_SLEEP_BUDGET_ENV = {
+    "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+    "DX_OTHER_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:other_code.json)",
+    "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+}
+
+rust_binary(
+    name = "sleep_budget_update",
+    testonly = True,
+    srcs = ["sleep_budget/update.rs"],
+    crate_name = "sleep_budget_update",
+    crate_root = "sleep_budget/update.rs",
+    data = _SLEEP_BUDGET_INPUTS,
+    env = _SLEEP_BUDGET_ENV,
+    deps = [
+        ":dx_guard",
+        ":sleep_budget",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "sleep_budget_test",
+    size = "small",
+    srcs = ["sleep_budget_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "sleep_budget_test",
+    crate_root = "sleep_budget_test.rs",
+    data = ["sleep_budget.txt"] + _SLEEP_BUDGET_INPUTS,
+    env = _SLEEP_BUDGET_ENV | {"SLEEP_BUDGET": "$(rlocationpath sleep_budget.txt)"},
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_guard",
+        ":sleep_budget",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
 rust_test(
     name = "verbatim_prefix_test",
     size = "small",

@@ -12,6 +12,7 @@ exports_files([
 rust_library(
     name = "dx_worktree",
     srcs = [
+        "src/bazel.rs",
         "src/cache.rs",
         "src/disk.rs",
         "src/git.rs",
@@ -20,7 +21,6 @@ rust_library(
         "src/lib.rs",
         "src/ops.rs",
         "src/pool.rs",
-        "src/primary.rs",
         "src/reap.rs",
         "src/setup.rs",
     ],
@@ -28,7 +28,6 @@ rust_library(
         package_name = "cli/dx_worktree",
         normal = True,
     ),
-    compile_data = ["templates/reference-transaction"],
     crate_name = "dx_worktree",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
@@ -50,6 +49,7 @@ rust_test(
     name = "dx_worktree_test",
     size = "small",
     srcs = [
+        "src/bazel.rs",
         "src/cache.rs",
         "src/disk.rs",
         "src/git.rs",
@@ -58,7 +58,6 @@ rust_test(
         "src/lib.rs",
         "src/ops.rs",
         "src/pool.rs",
-        "src/primary.rs",
         "src/reap.rs",
         "src/setup.rs",
         "src/tests.rs",
@@ -68,7 +67,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    compile_data = ["templates/reference-transaction"],
     coverage_lib = ":dx_worktree",
     crate_name = "dx_worktree",
     crate_root = "src/lib.rs",
@@ -84,7 +82,6 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
         "@crates//:serde",
         "@crates//:serde_json",
     ],

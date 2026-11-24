@@ -625,7 +625,6 @@ fn hook_event_names_are_stable() {
             Some("WorktreeRemove"),
             Some("SubagentStop"),
             Some("PreToolUse"),
-            None,
             None
         ]
     );
@@ -3699,66 +3698,6 @@ mod hooks {
         }
     }
 
-    fn in_primary(command: &str, cwd: &str, holds: bool) -> Option<String> {
-        let input = serde_json::json!({
-            "cwd": cwd, "agent_id": "a1", "session_id": "s1",
-            "tool_input": {"command": command},
-        });
-        let slots = |dir: &Path| {
-            dir.starts_with("/primary").then(|| {
-                vec![(
-                    PathBuf::from("/pool/1"),
-                    lease_record(holds.then_some("a1")),
-                )]
-            })
-        };
-        hook::primary_checkout(&input, &who("s1", 1), &slots)
-    }
-
-    #[test]
-    fn mutating_commands_in_the_primary_checkout_are_blocked_for_a_slot_holder() {
-        for command in [
-            "git checkout x",
-            "git switch x",
-            "git stash",
-            "git reset --hard",
-            "git fetch origin",
-            "git pull",
-            "git rebase main",
-            "git commit -m x",
-            "bazel build //x",
-            "tools/dx build //x",
-            "dx test --affected",
-            "dx check",
-            "cd /primary && git fetch",
-            "git -C /primary fetch",
-        ] {
-            let line = in_primary(command, "/primary/sub", true).unwrap_or_default();
-            assert!(line.contains("/pool/1"), "{command}: {line}");
-            assert!(line.contains("primary checkout"), "{command}: {line}");
-        }
-    }
-
-    #[test]
-    fn read_only_and_pool_commands_in_the_primary_checkout_are_allowed() {
-        for command in [
-            "git status",
-            "git log -3",
-            "git diff",
-            "gh pr view 1",
-            "tools/dx worktree add b",
-            "tools/dx worktree release /pool/1",
-            "tools/dx worktree list",
-            "ls",
-            "cd /pool/1 && git fetch",
-            "git -C /pool/1 commit -m x",
-        ] {
-            assert_eq!(in_primary(command, "/primary", true), None, "{command}");
-        }
-        assert_eq!(in_primary("git fetch", "/primary", false), None);
-        assert_eq!(in_primary("git fetch", "/pool/1", true), None);
-    }
-
     #[test]
     fn slot_switching_follows_cd_and_dash_c() {
         let cases = [
@@ -6529,126 +6468,74 @@ fn without_a_process_list_stop_server_still_shuts_down_and_reports_failure() {
     assert!(ops::stop_server(&host, &path));
 }
 
-fn primary_value(main: &Path) -> Option<String> {
-    dx_test_scratch::git(main, main, &["config", "--get", super::primary::KEY]).ok()
-}
-
 #[test]
-fn the_first_add_protects_the_main_checkout_once() {
+fn an_add_writes_no_git_config_or_git_hook_into_the_main_checkout() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
     host.live(10);
-    assert_eq!(primary_value(&fixture.main), None);
-    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let notice = first.notice.expect("notice");
-    assert!(notice.contains("is now protected"), "{notice}");
-    assert_eq!(primary_value(&fixture.main).as_deref(), Some("protected"));
-    let second = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
-    assert_eq!(second.notice, None);
+    let config = std::fs::read(fixture.main.join(".git/config")).expect("config");
+    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(
+        std::fs::read(fixture.main.join(".git/config")).expect("config"),
+        config
+    );
+    assert!(
+        !fixture
+            .main
+            .join(".git/hooks/reference-transaction")
+            .exists()
+    );
 }
 
 #[test]
-fn an_add_keeps_an_open_main_checkout_open() {
+fn an_add_removes_only_the_git_hook_dx_wrote() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let hook = fixture.main.join(".git/hooks/reference-transaction");
+    std::fs::create_dir_all(hook.parent().expect("hooks dir")).expect("hooks dir");
+    let theirs = "#!/bin/sh\n# a user's hook\nexit 0\n";
+    std::fs::write(&hook, theirs).expect("hook");
+    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(std::fs::read_to_string(&hook).expect("hook"), theirs);
+    std::fs::write(
+        &hook,
+        "#!/bin/sh\n# Written by dx worktree add, which rewrites it.\nexit 0\n",
+    )
+    .expect("hook");
+    let added = ops::add(&pool, &host, &who("s2", 10), &create("feature/b")).expect("add");
+    assert!(!hook.exists());
+    assert!(added.warnings.is_empty(), "{:?}", added.warnings);
+}
+
+#[test]
+fn bazel_clean_is_refused_only_in_a_slot() {
     let fixture = Fixture::new();
     dx_test_scratch::git(
         &fixture.main,
         &fixture.main,
-        &["config", "dx.primary", "open"],
+        &["config", "dx.primary", "protected"],
     )
-    .unwrap();
+    .expect("config");
     let pool = fixture.pool();
     let host = FakeHost::new();
     host.live(10);
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    assert_eq!(added.notice, None);
-    assert_eq!(primary_value(&fixture.main).as_deref(), Some("open"));
-}
-
-#[test]
-fn the_main_checkout_rule_follows_mode_and_agent() {
-    let fixture = Fixture::new();
-    let nested = fixture.main.join("sub");
-    std::fs::create_dir_all(&nested).expect("sub dir");
-    let plain = |_: &str| None;
-    let agent = |name: &str| (name == "CODEX_SANDBOX").then(|| "seatbelt".to_owned());
-    let main_line = format!(
-        "no Bazel in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
-        fixture.main.display()
-    );
-    for (mode, agent_env, want) in [
-        (None, false, None),
-        (None, true, None),
-        (Some("protected"), false, Some(main_line.clone())),
-        (Some("protected"), true, Some(main_line.clone())),
-        (Some("open"), false, None),
-        (Some("open"), true, Some(main_line.clone())),
-        (
-            Some("protectd"),
-            false,
-            Some(format!(
-                "dx.primary is \"protectd\", which is neither protected nor open, so dx treats it as protected: {main_line}"
-            )),
-        ),
-    ] {
-        let args = match mode {
-            Some(mode) => vec!["config", "dx.primary", mode],
-            None => vec!["config", "--unset-all", "dx.primary"],
-        };
-        let set = dx_test_scratch::git(&fixture.main, &fixture.main, &args);
-        assert!(mode.is_none() || set.is_ok(), "{set:?}");
-        let env: &dyn Fn(&str) -> Option<String> = if agent_env { &agent } else { &plain };
-        let case = format!("{mode:?} agent={agent_env}");
-        assert_eq!(super::primary::refusal(&nested, env), want, "{case}");
-        let bazel = super::primary::bazel_refusal(&fixture.main, &["build".to_owned()], env);
-        assert_eq!(bazel, want, "{case}");
-    }
-}
-
-#[test]
-fn a_config_git_cannot_read_refuses_everywhere_in_the_repository() {
-    let fixture = Fixture::new();
-    let config = fixture.main.join(".git").join("config");
-    let good = std::fs::read_to_string(&config).expect("config");
-    std::fs::write(&config, format!("{good}\n[dx\n")).expect("broken config");
-    let plain = |_: &str| None;
-    let got = super::primary::refusal(&fixture.main, &plain).expect("refused");
-    assert!(
-        got.starts_with("cannot check dx.primary: git config --get dx.primary failed: "),
-        "{got}"
-    );
-    assert!(
-        got.ends_with(". dx refuses Bazel work until git can read it"),
-        "{got}"
-    );
-    std::fs::write(&config, good).expect("restore config");
-    assert_eq!(super::primary::refusal(&fixture.main, &plain), None);
-}
-
-#[test]
-fn outside_git_the_rule_is_off() {
-    let scratch = dx_test_scratch::scratch("primary-outside-").unwrap();
-    let plain = |_: &str| None;
-    assert_eq!(super::primary::refusal(scratch.path(), &plain), None);
-}
-
-#[test]
-fn a_slot_may_build_but_not_bazel_clean() {
-    let fixture = Fixture::new();
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let plain = |_: &str| None;
     let words = |line: &str| {
         line.split_whitespace()
             .map(str::to_owned)
             .collect::<Vec<_>>()
     };
-    assert_eq!(super::primary::refusal(&added.path, &plain), None);
     for args in ["build //:all", "--output_base=/x build //...", "shutdown"] {
         assert_eq!(
-            super::primary::bazel_refusal(&added.path, &words(args), &plain),
+            super::bazel::refusal(&added.path, &words(args)),
+            None,
+            "{args}"
+        );
+        assert_eq!(
+            super::bazel::refusal(&fixture.main, &words(args)),
             None,
             "{args}"
         );
@@ -6660,357 +6547,76 @@ fn a_slot_may_build_but_not_bazel_clean() {
         "--host_jvm_args -Xmx1g clean",
     ] {
         assert_eq!(
-            super::primary::bazel_refusal(&added.path, &words(args), &plain).as_deref(),
-            Some(super::primary::SLOT_CLEAN),
+            super::bazel::refusal(&added.path, &words(args)),
+            Some(super::bazel::SLOT_CLEAN),
+            "{args}"
+        );
+        assert_eq!(
+            super::bazel::refusal(&fixture.main, &words(args)),
+            None,
             "{args}"
         );
     }
-    assert!(
-        super::primary::bazel_refusal(&fixture.main, &words("clean"), &plain)
-            .is_some_and(|line| line.starts_with("no Bazel in the main checkout"))
-    );
 }
 
-const GIT_HOOK_CHILD: &str = "DX_WORKTREE_TEST_GIT_HOOK";
-
 #[test]
-fn git_hook_child() {
-    if std::env::var_os(GIT_HOOK_CHILD).is_none() {
-        return;
-    }
-    let mut updates = String::new();
-    std::io::Read::read_to_string(&mut std::io::stdin(), &mut updates).expect("stdin");
-    let dir = std::env::current_dir().expect("cwd");
-    let code = match super::primary::git_refusal(&dir, &updates, &|_| None) {
-        Some(reason) => {
-            eprintln!("dx: refused: {reason}");
-            2
-        }
-        None => 0,
+fn the_guard_tips_but_never_blocks_in_the_main_checkout() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let input = |cwd: &Path, command: &str| {
+        serde_json::json!({
+            "cwd": cwd, "session_id": "s1",
+            "tool_input": {"command": command},
+        })
     };
-    std::process::exit(code);
-}
-
-#[cfg(unix)]
-fn fake_main_dx(main: &Path) {
-    let exe = std::env::current_exe().expect("test binary");
-    std::fs::create_dir_all(main.join("tools")).expect("tools dir");
-    dx_testing::shell_script(
-        &main.join("tools/dx"),
-        &format!(
-            "{GIT_HOOK_CHILD}=1 exec '{}' tests::git_hook_child --exact --nocapture --quiet\n",
-            exe.display()
-        ),
+    let specific =
+        |input: &serde_json::Value| match crate::hook::guard(input, &who("s1", 10), &|_| None) {
+            crate::hook::Guard::Rewrite(output) | crate::hook::Guard::Ask(output) => {
+                output.get("hookSpecificOutput").cloned()
+            }
+            crate::hook::Guard::Allow => None,
+            crate::hook::Guard::Block(line) => Some(serde_json::json!({ "blocked": line })),
+        };
+    let tip = Some(serde_json::json!({
+        "hookEventName": "PreToolUse",
+        "additionalContext": crate::hook::MAIN_CHECKOUT_TIP,
+    }));
+    for command in [
+        "git commit -m x",
+        "git checkout x",
+        "bazel build //x",
+        "tools/dx test --affected",
+    ] {
+        assert_eq!(specific(&input(&fixture.main, command)), tip, "{command}");
+        assert_eq!(specific(&input(&added.path, command)), None, "{command}");
+    }
+    for command in ["git status", "ls", "tools/dx worktree list"] {
+        assert_eq!(specific(&input(&fixture.main, command)), None, "{command}");
+    }
+    let mut cursor = input(&fixture.main, "tools/dx test --affected");
+    cursor["cursor_version"] = serde_json::json!("1");
+    let merged = specific(&cursor).expect("rewrite");
+    assert_eq!(
+        merged.get("additionalContext"),
+        Some(&serde_json::json!(crate::hook::MAIN_CHECKOUT_TIP))
     );
-}
-
-#[cfg(unix)]
-fn git_hook_path(main: &Path) -> PathBuf {
-    main.join(".git/hooks/reference-transaction")
-}
-
-#[cfg(unix)]
-fn skipped_hook(added: &ops::Added) -> Option<&str> {
-    added
-        .warnings
-        .iter()
-        .find(|w| w.code == "git_hook_skipped")
-        .map(|w| w.message.as_str())
-}
-
-#[cfg(unix)]
-#[test]
-fn the_git_hook_refuses_the_main_checkout_and_passes_slots() {
-    let fixture = Fixture::new();
-    fake_main_dx(&fixture.main);
-    let root = fixture.cache.parent().expect("root").to_path_buf();
-    let main = &fixture.main;
-    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, &root, args);
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert!(
-        added
-            .warnings
-            .iter()
-            .all(|w| !w.code.starts_with("git_hook")),
-        "{:?}",
-        added.warnings
+        merged
+            .pointer("/updatedInput/command")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|command| command.ends_with("\ntools/dx test --affected")),
+        "{merged}"
     );
-    let hook = std::fs::read_to_string(git_hook_path(main)).expect("hook");
-    assert!(hook.contains("worktree hook git"), "{hook}");
-    ops::add(&pool, &host, &who("s2", 10), &create("feature/b")).expect("second add");
-
-    std::fs::write(added.path.join("b.txt"), "two\n").expect("write");
-    git(&added.path, &["add", "b.txt"]).unwrap();
-    git(&added.path, &["commit", "--quiet", "-m", "slot"]).unwrap();
-    git(&added.path, &["fetch", "--quiet", "origin"]).unwrap();
-    git(&added.path, &["reset", "--quiet", "--hard", "HEAD~1"]).unwrap();
-    std::fs::write(added.path.join("a.txt"), "stashed\n").expect("write");
-    git(&added.path, &["stash", "--quiet"]).unwrap();
-    let plain = root.join("plain");
-    git(
-        main,
-        &[
-            "worktree",
-            "add",
-            "--quiet",
-            "--detach",
-            &plain.to_string_lossy(),
-            "HEAD",
-        ],
-    )
-    .unwrap();
-    git(main, &["fetch", "--quiet", "origin"]).unwrap();
-    git(main, &["branch", "--quiet", "topic"]).unwrap();
-
-    let head = git(main, &["rev-parse", "HEAD"]).unwrap();
-    let tail = format!(
-        " in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
-        main.display()
-    );
-    std::fs::write(main.join("a.txt"), "changed\n").expect("write");
-    for args in [
-        &["commit", "--quiet", "-am", "main"][..],
-        &["switch", "--quiet", "topic"],
-        &["reset", "--quiet", "--soft", "HEAD"],
-        &["stash", "--quiet"],
-    ] {
-        let error = git(main, args).expect_err("refused");
-        assert!(
-            error.contains("dx: refused: no git update of ") && error.contains(&tail),
-            "{args:?}: {error}"
-        );
-    }
-    assert_eq!(git(main, &["rev-parse", "HEAD"]).unwrap(), head);
-    assert_eq!(
-        git(main, &["symbolic-ref", "HEAD"]).unwrap(),
-        "refs/heads/main"
-    );
-}
-
-#[cfg(unix)]
-#[test]
-fn the_git_hook_keeps_a_foreign_hook_and_rewrites_its_own() {
-    let fixture = Fixture::new();
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    let path = git_hook_path(&fixture.main);
-    std::fs::create_dir_all(path.parent().expect("hooks dir")).expect("hooks dir");
-    let foreign = "exit 0\ntools/dx worktree hook git\n";
-    std::fs::write(&path, foreign).expect("foreign hook");
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let kept = skipped_hook(&added).expect("kept warning");
-    assert!(kept.contains("is not dx's"), "{kept}");
-    assert_eq!(std::fs::read_to_string(&path).expect("hook"), foreign);
-    let mark = "# Written by dx worktree add, which rewrites it.";
-    std::fs::write(&path, format!("exit 0\n{mark}\n")).expect("old hook");
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
-    assert_eq!(skipped_hook(&added), None, "{:?}", added.warnings);
-    let hook = std::fs::read_to_string(&path).expect("hook");
-    assert!(hook.contains("\"$dx\" worktree hook git"), "{hook}");
-    assert_eq!(hook.lines().nth(1), Some(mark));
-}
-
-#[cfg(unix)]
-#[test]
-fn the_git_hook_goes_only_into_the_hooks_dir_of_its_own_repository() {
-    let fixture = Fixture::new();
-    let root = fixture.cache.parent().expect("root").to_path_buf();
-    let main = &fixture.main;
-    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, &root, args);
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    git(main, &["config", "core.hooksPath", ".githooks"]).unwrap();
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let skipped = skipped_hook(&added).expect("skipped");
-    assert!(skipped.contains("outside"), "{skipped}");
-    assert!(!main.join(".githooks").exists());
-    assert!(!git_hook_path(main).exists());
-
-    git(main, &["config", "--unset", "core.hooksPath"]).unwrap();
-    git(main, &["config", "extensions.worktreeConfig", "true"]).unwrap();
-    git(
-        main,
-        &["config", "--worktree", "core.hooksPath", ".git/hooks"],
-    )
-    .unwrap();
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
-    let skipped = skipped_hook(&added).expect("skipped");
-    assert!(skipped.contains("set in the worktree config"), "{skipped}");
-    assert!(!git_hook_path(main).exists());
-
-    git(main, &["config", "--worktree", "--unset", "core.hooksPath"]).unwrap();
-    let own = main.join(".git/own-hooks");
-    git(main, &["config", "core.hooksPath", &own.to_string_lossy()]).unwrap();
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/c")).expect("add");
-    assert_eq!(skipped_hook(&added), None, "{:?}", added.warnings);
-    let hook = std::fs::read(own.join("reference-transaction")).expect("hook");
-
-    let other = root.join("other");
-    git(
-        &root,
-        &["init", "--quiet", "--initial-branch=main", "other"],
-    )
-    .unwrap();
-    git(
-        &other,
-        &["commit", "--quiet", "--allow-empty", "-m", "first"],
-    )
-    .unwrap();
-    std::fs::create_dir_all(other.join("tools")).expect("tools dir");
-    let ran = root.join("other-dx-ran");
-    dx_testing::shell_script(
-        &other.join("tools/dx"),
-        &format!("touch '{}'\nexit 1\n", ran.display()),
-    );
-    let copy = git_hook_path(&other);
-    std::fs::create_dir_all(copy.parent().expect("hooks dir")).expect("hooks dir");
-    std::fs::write(&copy, hook).expect("copy");
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&copy, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-    }
-    git(
-        &other,
-        &["commit", "--quiet", "--allow-empty", "-m", "second"],
-    )
-    .unwrap();
-    assert!(!ran.exists());
-}
-
-#[cfg(unix)]
-#[test]
-fn a_refused_rebase_or_cherry_pick_in_the_main_checkout_can_be_aborted() {
-    let fixture = Fixture::new();
-    fake_main_dx(&fixture.main);
-    let root = fixture.cache.parent().expect("root").to_path_buf();
-    let main = &fixture.main;
-    let git = |args: &[&str]| dx_test_scratch::git(main, &root, args);
-    git(&["switch", "--quiet", "-c", "topic"]).unwrap();
-    std::fs::write(main.join("a.txt"), "topic\n").expect("write");
-    git(&["commit", "--quiet", "-am", "topic"]).unwrap();
-    git(&["switch", "--quiet", "main"]).unwrap();
-    std::fs::write(main.join("c.txt"), "main\n").expect("write");
-    git(&["add", "c.txt"]).unwrap();
-    git(&["commit", "--quiet", "-m", "main"]).unwrap();
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let head = git(&["rev-parse", "HEAD"]).unwrap();
-    let status = git(&["status", "--porcelain"]).unwrap();
-    for (start, mark, abort) in [
-        (
-            &["rebase", "--quiet", "topic"][..],
-            "rebase-merge",
-            "rebase",
-        ),
-        (&["cherry-pick", "topic"], "CHERRY_PICK_HEAD", "cherry-pick"),
-    ] {
-        let error = git(start).expect_err("refused");
-        assert!(
-            error.contains("dx: refused: no git update of "),
-            "{start:?}: {error}"
-        );
-        assert!(main.join(".git").join(mark).exists(), "{start:?}");
-        git(&[abort, "--abort"]).unwrap();
-        assert!(!main.join(".git").join(mark).exists(), "{start:?}");
-        assert_eq!(git(&["rev-parse", "HEAD"]).unwrap(), head);
-        assert_eq!(git(&["status", "--porcelain"]).unwrap(), status);
-        assert_eq!(git(&["symbolic-ref", "HEAD"]).unwrap(), "refs/heads/main");
-    }
-    let error = git(&["commit", "--quiet", "--allow-empty", "-m", "x"]).expect_err("refused");
-    assert!(error.contains("dx: refused: no git update of "), "{error}");
-}
-
-#[cfg(unix)]
-#[test]
-fn the_git_hook_passes_a_push_into_the_main_checkout() {
-    let fixture = Fixture::new();
-    fake_main_dx(&fixture.main);
-    let root = fixture.cache.parent().expect("root").to_path_buf();
-    let main = &fixture.main;
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    std::fs::write(added.path.join("b.txt"), "two\n").expect("write");
-    dx_test_scratch::git(&added.path, &root, &["add", "b.txt"]).unwrap();
-    dx_test_scratch::git(&added.path, &root, &["commit", "--quiet", "-m", "slot"]).unwrap();
-    dx_test_scratch::git(
-        &added.path,
-        &root,
-        &[
-            "push",
-            "--quiet",
-            &main.to_string_lossy(),
-            "HEAD:refs/heads/pushed",
-        ],
-    )
-    .unwrap();
-    let new = dx_test_scratch::git(&added.path, &root, &["rev-parse", "HEAD"]).unwrap();
-    assert_eq!(
-        dx_test_scratch::git(main, &root, &["rev-parse", "pushed"]).unwrap(),
-        new
-    );
-    let update = format!("0000000000000000000000000000000000000000 {new} refs/heads/main\n");
-    let plain = |_: &str| None;
-    assert!(super::primary::git_refusal(main, &update, &plain).is_some());
-    assert_eq!(
-        super::primary::git_refusal(&main.join(".git"), &update, &plain),
-        None
-    );
-    assert_eq!(
-        super::primary::edit_refusal(&main.join(".git/config"), &plain),
-        None
-    );
-}
-
-#[test]
-fn an_edit_in_a_refused_main_checkout_is_refused() {
-    let fixture = Fixture::new();
-    let pool = fixture.pool();
-    let host = FakeHost::new();
-    host.live(10);
-    let plain = |_: &str| None;
-    let file = fixture.main.join("a.txt");
-    assert_eq!(super::primary::edit_refusal(&file, &plain), None);
-    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let tail = format!(
-        " in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
-        fixture.main.display()
-    );
-    let fresh = fixture.main.join("new/deeper/b.txt");
-    for path in [&file, &fresh] {
-        assert_eq!(
-            super::primary::edit_refusal(path, &plain),
-            Some(format!("no edit of {}{tail}", path.display()))
-        );
-    }
-    assert_eq!(
-        super::primary::edit_refusal(&added.path.join("a.txt"), &plain),
-        None
-    );
-    let input = serde_json::json!({
+    let edit = serde_json::json!({
         "cwd": fixture.main,
         "tool_name": "Edit",
         "tool_input": {"file_path": "a.txt"},
     });
     assert_eq!(
-        crate::hook::guard(&input, &who("s1", 1), &|_| None),
-        crate::hook::Guard::Block(format!("dx: refused: no edit of {}{tail}", file.display()))
-    );
-    let notebook = serde_json::json!({
-        "cwd": added.path,
-        "tool_name": "NotebookEdit",
-        "tool_input": {"notebook_path": "n.ipynb"},
-    });
-    assert_eq!(
-        crate::hook::guard(&notebook, &who("s1", 1), &|_| None),
+        crate::hook::guard(&edit, &who("s1", 1), &|_| None),
         crate::hook::Guard::Allow
     );
 }

@@ -22,7 +22,7 @@ dx worktree release [<path>|<slot-number>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply] [--bases]
-dx worktree hook create|remove|stop|guard|bazel|git [-- <bazel-args>]
+dx worktree hook create|remove|stop|guard|bazel [-- <bazel-args>]
 ```
 
 A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>`.
@@ -65,6 +65,9 @@ returns your own slot for `<branch>` as is. It takes over a held slot only
 when its holder is gone, the tree is clean, nothing is unpushed and no `dx`
 command runs in it and no process other than `git` has it as its working
 directory. If `git fetch origin` fails, it uses local refs and warns.
+It deletes the main checkout's `reference-transaction` git hook when its second
+line is `# Written by dx worktree add, which rewrites it.`, and warns with
+`git_hook_failed` when it cannot.
 
 `release [<path>|<slot-number>]` frees the slot at `<path>`, the slot numbered
 `<slot-number>` when the argument is only digits and no such path exists, or the
@@ -139,13 +142,9 @@ print `dx worktree: low disk at <path>: <free> free; removed <what>; <free> free
 If the disk stays full, `add` refuses with `disk_full`. Run
 `dx worktree prune --apply --bases`.
 
-The first `add` that turns on the main-checkout rule also prints
-`dx worktree: the main checkout <path> is now protected: ...`.
-
 `--output=json` streams `command_started`, one `slot` event per slot and
 `command_finished`. `list` adds a `summary` event. A fetch failure adds a
-`notice` event with code `fetch_failed`. Turning on the main-checkout rule adds
-an `info` notice.
+`notice` event with code `fetch_failed`.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and
@@ -161,7 +160,7 @@ optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 | --- | --- |
 | `0` | Success. |
 | `1` | Operational failure: branch checked out elsewhere, dirty or unpushed slot on `release`, `slot_busy`, `lease_changed`, `no_home`, `disk_full`, `path` finds no checkout, `prune` found work without `--apply`, or a `hook` failure. |
-| `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, any other `dx` command in a slot leased to another session, or a command the main-checkout rule refuses. |
+| `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, or any other `dx` command in a slot leased to another session. |
 | `77` | `hook bazel` refused the Bazel call. |
 | `128` plus signal | Ctrl-C, `SIGTERM` or `SIGHUP` stopped `list --disk`, `prune` or the memory wait of `hook bazel`. |
 
@@ -195,9 +194,8 @@ Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 | `create` | `name`, `cwd` | Leases a slot on branch `worktree-<name>` and prints the path. |
 | `remove` | `worktree_path` | Releases that slot. Paths outside the pool are ignored. |
 | `stop` | `agent_id` | Marks the slots that agent holds as held by a gone holder and stops their Bazel servers. |
-| `bazel` | nothing; the Bazel arguments follow `--` | Exits `77` when the main-checkout rule refuses this Bazel call, or for `bazel clean` in a slot. Otherwise waits for [memory admission](#memory-admission). The [Bazel wrapper](init.md#bazel-wrapper) runs it before every Bazel call. |
-| `git` | `<old> <new> <ref>` lines from git | Exits `2` when the main-checkout rule refuses this update of `HEAD`, `ORIG_HEAD`, `refs/stash` or the main checkout's branch. |
-| `guard` | `tool_input.command`, `tool_input.file_path`, `tool_input.notebook_path` | Exits `2` for an edit of a file in the main checkout when the main-checkout rule refuses it there. Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
+| `bazel` | nothing; the Bazel arguments follow `--` | Exits `77` for `bazel clean` in a slot. Otherwise waits for [memory admission](#memory-admission). The [Bazel wrapper](init.md#bazel-wrapper) runs it before every Bazel call. |
+| `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. For the same commands in the main checkout, lets them run and prints `hookSpecificOutput.additionalContext` set to `tip: tools/dx worktree add <branch> gives you an isolated slot`. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
 
 `create`, `remove` and `stop` exit `1` on any failure, including empty or
 invalid stdin. `guard` exits `0` on empty or invalid stdin. For Cursor and
@@ -251,84 +249,6 @@ hook entries. It also writes the launcher and the agent commands block in
 `AGENTS.md`; see the [fixed file set](init.md#fixed-file-set). `dx status`
 reports the `agents` check as `warn` when a hook is missing or `CLAUDE.md` does
 not import `AGENTS.md`.
-
-## Main checkout
-
-The main checkout is the clone itself, not a slot. The git config key
-`dx.primary` keeps Bazel work out of it:
-
-| `dx.primary` | Who is refused in the main checkout |
-| --- | --- |
-| unset | Nobody. |
-| `protected` | Everyone. |
-| `open` | Agent sessions only; see [Agent sessions](#agent-sessions). |
-
-The first `dx worktree add` sets `dx.primary` to `protected` when it is unset.
-To refuse only agents:
-
-```sh
-git config dx.primary open
-```
-
-A refused command exits `2` and prints
-`dx: refused: no Bazel in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
-JSON reports error code `main_checkout`. A refused command writes nothing.
-
-Only commands that only read still run: `dx status`, `dx worktree`,
-`dx completion`, `dx config` except `dx config override`, `--help` and the
-version flag. Every other command is refused.
-
-dx fails closed. Any other value of `dx.primary`, such as a typo, counts as
-`protected`, and the message names the value. When git cannot read the
-setting, dx refuses and prints why. `GIT_CONFIG`, `GIT_CONFIG_COUNT` and
-config set on the git command line do not change what dx reads. Without git
-on `PATH`, dx reads the nearest `.git` itself. It refuses when `.git/worktrees` exists, when
-`.git/config` cannot be read, or when `.git/config` has `primary` in a `[dx]`
-section.
-
-`CI=true` does not skip the check.
-
-`tools/dx` does not rebuild dx in a refused main checkout. It asks the copy
-of dx in `.dx/local/launcher`, then the one in `bazel-bin`, and runs the one
-that refuses. When neither can answer, it reads `dx.primary` with git and
-refuses when it is set or unreadable. Without git, it reads `.git` as dx does.
-`tools/dx.cmd` refuses a `.git/config` that has a `[dx]` section and the word
-`primary` anywhere.
-
-With `dx.primary` set, a Bazel `clean` in a slot is refused, through
-`dx worktree hook bazel` (exit `77`) or [`dx clean`](clean.md) (exit `2`). Rerun with
-`--noremote_accept_cached`, or release the slot and add a fresh one.
-
-`dx worktree add` also writes the git hook `reference-transaction` in
-`.git/hooks` of the main checkout when the file is absent or was written by
-dx. It keeps any other hook and warns. A `core.hooksPath` set in the
-repository's own config is used when it lies inside `.git`. When
-`core.hooksPath` is set in any other config, or points outside `.git`, dx
-writes no hook and warns. The hook holds the path of the main checkout and
-does nothing in any other repository. It runs
-`tools/dx worktree hook git` of that checkout. Where the rule refuses, git
-refuses `commit`, `switch`, a branch `checkout`, `reset`, `merge`, `rebase`,
-`cherry-pick`, `revert`, `am` and `stash` in the main checkout and prints
-`dx: refused: no git update of <ref> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
-`git worktree add`, `fetch`, a push into the repository and every git command
-in a slot still run. When the main checkout's `tools/dx` cannot answer, or
-git cannot read `dx.primary`, the hook lets git go ahead.
-
-A refused command may have changed the files and the index, and those changes
-stay. To put them back:
-
-| Left behind | Run |
-| --- | --- |
-| `.git/rebase-merge` or `.git/rebase-apply` from `rebase` | git rebase --abort |
-| `.git/rebase-apply` from `am` | git am --abort |
-| `.git/CHERRY_PICK_HEAD` or `.git/sequencer` | git cherry-pick --abort |
-| `.git/REVERT_HEAD` | git revert --abort |
-| `.git/MERGE_HEAD` | git merge --abort |
-| Changed files after `switch`, `checkout`, `reset` or `revert` | git restore --source=HEAD --staged --worktree . |
-
-The agent guard refuses an edit of a file in the main checkout with
-`dx: refused: no edit of <file> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
-Edits inside `.git`, and edits where git cannot read `dx.primary`, go ahead.
 
 ## Memory admission
 

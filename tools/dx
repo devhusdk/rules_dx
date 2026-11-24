@@ -1,5 +1,6 @@
 #!/bin/sh
-set -eu
+# shellcheck shell=sh
+set -u
 die() {
   echo "dx: $1" >&2
   exit 1
@@ -7,6 +8,7 @@ die() {
 is_ci() {
   case "${CI:-}" in
   [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss]) return 0 ;;
+  *) ;;
   esac
   return 1
 }
@@ -14,7 +16,7 @@ case $0 in
 */*) self_dir=${0%/*} ;;
 *) self_dir=. ;;
 esac
-root=$(CDPATH='' cd -- "${self_dir:-/}/.." && pwd)
+root=$(CDPATH='' cd -- "${self_dir:-/}/.." && pwd) || exit
 os=
 exe=
 case "$(uname -s)" in
@@ -26,15 +28,18 @@ MINGW* | MSYS* | CYGWIN*)
   MSYS2_ARG_CONV_EXCL='*'
   export MSYS2_ARG_CONV_EXCL
   ;;
+*) ;;
 esac
 # Says whether $1 is rooted, so it does not move with the current directory.
 rooted() {
   case $1 in
   /*) return 0 ;;
+  *) ;;
   esac
   [ "$os" = windows ] || return 1
   case $1 in
   \\* | [A-Za-z]:/* | [A-Za-z]:\\*) return 0 ;;
+  *) ;;
   esac
   return 1
 }
@@ -57,6 +62,7 @@ source_checkout() {
   while IFS= read -r sc_line || [ -n "$sc_line" ]; do
     case $sc_line in
     '    name = "rules_dx",'*) return 0 ;;
+    *) ;;
     esac
   done <"$1/MODULE.bazel" 2>/dev/null
   return 1
@@ -68,6 +74,7 @@ execroot_marker() {
 bin="$root/bazel-bin/cli/cli/dx$exe"
 state="$root/.dx/local/launcher"
 if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
+  [ "${3:-}" != git ] || exit 0
   [ -x "$state/dx$exe" ] && exec "$state/dx$exe" "$@"
   [ -x "$bin" ] && exec "$bin" "$@"
   # No dx is built yet, as in a fresh clone. Agents run guard and stop on every tool call, and their hook timeout
@@ -84,12 +91,15 @@ if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
         echo "dx: dx is not built yet; run tools/dx --version, then run the deploy again" >&2
         exit 2
         ;;
+      *) ;;
       esac
       ;;
+    *) ;;
     esac
     exit 0
     ;;
-  stop | bazel | git) exit 0 ;;
+  stop | bazel) exit 0 ;;
+  *) ;;
   esac
 fi
 here=$(pwd -P) || here=/
@@ -113,7 +123,8 @@ while [ "$here" != / ]; do
   here=${here%/*}
   here=${here:-/}
 done
-if [ "$here" != / ] && [ "$here" != "$(cd -P -- "$root" && pwd -P)" ] && [ -x "$here/tools/dx" ]; then
+root_p=$(cd -P -- "$root" && pwd -P) || root_p=
+if [ "$here" != / ] && [ "$here" != "$root_p" ] && [ -x "$here/tools/dx" ]; then
   exec "$here/tools/dx" "$@"
 fi
 # Without bazel on PATH, Linux uses the Bazelisk pinned in tools/bazelisk/pin.env, kept under the user cache, as
@@ -131,6 +142,7 @@ bazelisk_pin() {
     case $bz_k in
     BAZELISK_VERSION) bz_v=$bz_val ;;
     "$bz_key") bz_sum=$bz_val ;;
+    *) ;;
     esac
   done <"$root/tools/bazelisk/pin.env"
   bz_cache=$(user_cache)
@@ -162,10 +174,10 @@ fetch_pinned() {
     echo "dx: the $4 download does not match its sha256 in $5" >&2
     return 1
   fi
-  chmod +x "$fp_tmp" && mv -f "$fp_tmp" "$3" || {
+  if ! { chmod +x "$fp_tmp" && mv -f "$fp_tmp" "$3"; }; then
     rm -f "$fp_tmp"
     return 1
-  }
+  fi
 }
 download_bazelisk() {
   bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
@@ -206,6 +218,7 @@ prebuilt_pin() {
     '    "dx": {') pb_in=1 ;;
     '    }'*) pb_in= ;;
     "        \"$pb_key\": \""*'",') [ -z "$pb_in" ] || pb_sum=${pb_line#*: \"} pb_sum=${pb_sum%\",} ;;
+    *) ;;
     esac
   done <"$root/cli/prebuilt/pins.bzl"
   [ -n "$pb_v" ] && [ "$pb_v" != 0.0.0 ] && [ -n "$pb_url" ] && [ -n "$pb_sum" ] || return 1
@@ -260,12 +273,13 @@ input_newer() {
     st_p=${st_p#:}
     case $st_p in
     *:*) st_p=${st_p%%:*}/${st_p#*:} ;;
+    *) ;;
     esac
     [ -n "$st_p" ] || continue
     if [ $# -gt 0 ]; then
       st_m=
       for st_x in "$@"; do
-        case $st_p in "$st_x"*) st_m=1 ;; esac
+        case $st_p in "$st_x"*) st_m=1 ;; *) ;; esac
       done
       [ -n "$st_m" ] || continue
     fi
@@ -285,6 +299,7 @@ if [ "${1:-}" = worktree ]; then
       [ -x "$bin" ] && exec "$bin" "$@"
     fi
     ;;
+  *) ;;
   esac
 fi
 # Sets rc_u to $1 without one pair of matching outer quotes.
@@ -292,6 +307,7 @@ rc_unq() {
   rc_u=$1
   case $1 in
   \"*\" | \'*\') rc_u=${1#?} rc_u=${rc_u%?} ;;
+  *) ;;
   esac
 }
 # Scans one bazelrc file and the files it imports. Prints cache and returns 0 when a disk cache option is set; prints gc
@@ -306,6 +322,7 @@ rc_scan() {
   *"
 $rs_file
 "*) return 1 ;;
+  *) ;;
   esac
   rc_seen="$rc_seen$rs_file
 "
@@ -316,17 +333,18 @@ $rs_file
   rs_gc=
   while IFS= read -r rs_line || [ -n "$rs_line" ]; do
     case $rs_line in
-    *[!$rs_ws]*) ;;
+    *[!"$rs_ws"]*) ;;
     *) continue ;;
     esac
-    rs_line=${rs_line#"${rs_line%%[!$rs_ws]*}"}
-    rs_line=${rs_line%"${rs_line##*[!$rs_ws]}"}
+    rs_line=${rs_line#"${rs_line%%[!"$rs_ws"]*}"}
+    rs_line=${rs_line%"${rs_line##*[!"$rs_ws"]}"}
     case $rs_line in
     '#'*) continue ;;
+    *) ;;
     esac
-    rs_first=${rs_line%%[$rs_ws]*}
+    rs_first=${rs_line%%["$rs_ws"]*}
     rs_rest=${rs_line#"$rs_first"}
-    rs_rest=${rs_rest#"${rs_rest%%[!$rs_ws]*}"}
+    rs_rest=${rs_rest#"${rs_rest%%[!"$rs_ws"]*}"}
     rc_unq "$rs_first"
     case $rc_u in
     import | try-import)
@@ -351,9 +369,11 @@ $rs_file
         return 0
         ;;
       *gc*) rs_gc=1 ;;
+      *) ;;
       esac
       continue
       ;;
+    *) ;;
     esac
     for rs_w in $rs_line; do
       rc_unq "$rs_w"
@@ -370,6 +390,7 @@ $rs_file
         return 0
         ;;
       --experimental_disk_cache_gc_max_size | --experimental_disk_cache_gc_max_size=* | --experimental_disk_cache_gc_max_age | --experimental_disk_cache_gc_max_age=*) rs_gc=1 ;;
+      *) ;;
       esac
     done
   done <"$rs_file"
@@ -388,6 +409,7 @@ rc_scan_all() {
       return 0
       ;;
     *gc*) rsa_gc=1 ;;
+    *) ;;
     esac
   done
   if [ -n "$rsa_gc" ]; then echo gc; else echo none; fi
@@ -407,8 +429,10 @@ stale() {
 # mtime, so a copy made by either launcher counts for the other. The copy is never written in place; on Windows the
 # running copy is renamed aside first because a running exe cannot be replaced.
 copy_current() {
-  [ -f "$state/dx$exe" ] && [ -f "$bin" ] && [ "$(wc -c <"$state/dx$exe")" = "$(wc -c <"$bin")" ] &&
-    ! [ "$state/dx$exe" -nt "$bin" ] && ! [ "$state/dx$exe" -ot "$bin" ]
+  [ -f "$state/dx$exe" ] && [ -f "$bin" ] || return 1
+  cc_copy=$(wc -c <"$state/dx$exe") || cc_copy=
+  cc_bin=$(wc -c <"$bin") || cc_bin=
+  [ "$cc_copy" = "$cc_bin" ] && ! [ "$state/dx$exe" -nt "$bin" ] && ! [ "$state/dx$exe" -ot "$bin" ]
 }
 # A run killed before its trap ran leaves its pid's temp files behind. A pid that still answers kill -0 belongs to a live run.
 sweep_temps() {
@@ -493,74 +517,12 @@ guard_temps() {
   trap 'on_signal TERM' TERM
   trap 'on_signal HUP' HUP
 }
-# Succeeds when $root/.git has worktrees, a config that cannot be read, or a primary entry in a [dx] section.
-primary_without_git() {
-  [ ! -e "$root/.git/worktrees" ] || return 0
-  [ -e "$root/.git/config" ] || return 1
-  [ -f "$root/.git/config" ] && [ -r "$root/.git/config" ] || return 0
-  pw_dx=0
-  while IFS= read -r pw_line || [ -n "$pw_line" ]; do
-    pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
-    case $pw_line in
-    \[*\]*)
-      pw_name=${pw_line#\[}
-      pw_name=${pw_name%%\]*}
-      pw_line=${pw_line#*\]}
-      pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
-      case $pw_name in
-      [dD][xX]) pw_dx=1 ;;
-      *) pw_dx=0 ;;
-      esac
-      ;;
-    \[*) pw_dx=0 ;;
-    *) ;;
-    esac
-    [ "$pw_dx" = 1 ] || continue
-    case $pw_line in
-    [pP][rR][iI][mM][aA][rR][yY] | [pP][rR][iI][mM][aA][rR][yY][=[:space:]]*) return 0 ;;
-    *) ;;
-    esac
-  done <"$root/.git/config"
-  return 1
-}
-# Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
-# runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
-# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no git on PATH, the
-# launcher reads .git itself: slots, a config it cannot read, or a primary entry in a [dx] section refuse. The check
-# skips memory admission, which tools/bazel does when the build starts. Keep in sync with tools/dx.cmd and without_git
-# in cli/worktree/src/primary.rs.
-primary_allows_build() {
-  for pr_dx in "$state/dx$exe" "$bin"; do
-    [ -x "$pr_dx" ] || continue
-    pr_ec=0
-    pr_err=$(cd "$root" && DX_BUILD_SLOTS=off "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
-    case $pr_ec:$pr_err in
-    0:*) return 0 ;;
-    2:*refused:* | 77:*refused:*) exec "$pr_dx" "$@" ;;
-    esac
-  done
-  [ -d "$root/.git" ] || return 0
-  if ! command -v git >/dev/null 2>&1; then
-    primary_without_git || return 0
-    echo "dx: refused: git is not on PATH, and the main checkout $root has slots, sets dx.primary, or has a .git/config dx cannot read, so dx is not built here. Put git on PATH, or work in a slot." >&2
-    exit 2
-  fi
-  pr_ec=0
-  (
-    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
-    git -C "$root" -c 'safe.directory=*' config --get dx.primary >/dev/null 2>&1
-  ) || pr_ec=$?
-  [ "$pr_ec" != 1 ] || return 0
-  echo "dx: refused: dx.primary is set in the main checkout $root, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here." >&2
-  exit 2
-}
 if stale; then
-  primary_allows_build "$@"
   command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
-  mkdir -p "$state"
+  mkdir -p "$state" || exit
   tag_state
   guard_temps
-  : >"$state/built.$$"
+  : >"$state/built.$$" || exit
   rc="--nohome_rc --nosystem_rc"
   [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
@@ -574,7 +536,7 @@ if stale; then
   [ -n "$rc" ] || [ -z "$cache" ] || found=$(rc_scan_all "$root/.bazelrc" "${home:+$home/.bazelrc}" "$sysrc" 2>/dev/null) || found=
   if [ -z "$rc" ] && ! is_ci && [ -n "$cache" ] && [ "${found:-}" != cache ]; then
     dc="--disk_cache=$cache/dx/disk-cache"
-    [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")"
+    [ "$os" != windows ] || dc="--disk_cache=$(cygpath -w "$cache/dx/disk-cache")" || exit
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
@@ -610,16 +572,17 @@ if stale; then
   fi
   sync_copy || true
   if retry_crash query_inputs; then
-    : >"$state/inputs.$$"
+    : >"$state/inputs.$$" || exit
     while IFS= read -r q_line || [ -n "$q_line" ]; do
       q_line=${q_line%"$(printf '\r')"}
       case $q_line in
-      //*) printf '%s\n' "$q_line" >>"$state/inputs.$$" ;;
+      //*) printf '%s\n' "$q_line" >>"$state/inputs.$$" || exit ;;
+      *) ;;
       esac
     done <"$state/query.$$"
     rm -f "$state/query.$$" "$state/deps.$$"
-    mv "$state/inputs.$$" "$state/inputs"
-    mv "$state/built.$$" "$state/built"
+    mv "$state/inputs.$$" "$state/inputs" || exit
+    mv "$state/built.$$" "$state/built" || exit
   else
     # The fresh dx is already stored. Leave built alone so the next call rebuilds and queries again.
     echo "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway" >&2

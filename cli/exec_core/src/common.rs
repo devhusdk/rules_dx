@@ -671,20 +671,6 @@ pub fn refusal_dx_error(
     )
 }
 
-pub fn main_checkout_refusal(
-    output: OutputMode,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
-    message: &str,
-) -> i32 {
-    report_failure(
-        output,
-        out,
-        err,
-        &Failure::new(crate::failure::CODE_MAIN_CHECKOUT, message, pre_exec_code()).without_usage(),
-    )
-}
-
 pub fn refusal(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
     report_failure(
         output,

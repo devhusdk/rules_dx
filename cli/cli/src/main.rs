@@ -560,14 +560,6 @@ fn run() -> i32 {
         Ok(workspace) => workspace,
         Err(code) => return code,
     };
-    if let Some(code) = dx_cli::exec::refuse_main_checkout(
-        &invocation,
-        &workspace,
-        &mut io::stdout(),
-        &mut io::stderr(),
-    ) {
-        return code;
-    }
     let pid = std::process::id();
     let temp_base = std::env::temp_dir();
     let (temp_dir, nonce) = match make_run_dir(&invocation, &temp_base, pid) {

@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+pub mod bazel;
 mod cache;
 pub mod disk;
 mod git;
@@ -7,7 +8,6 @@ pub mod hook;
 pub mod host;
 pub mod ops;
 pub mod pool;
-pub mod primary;
 pub mod reap;
 pub mod setup;
 #[cfg(test)]
@@ -16,7 +16,7 @@ mod tests;
 use std::path::Path;
 
 pub use hook::HookKind;
-pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace, slots_for_primary};
+pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace};
 
 #[must_use]
 pub fn reclaim_for_build(workspace: &Path) -> Option<String> {

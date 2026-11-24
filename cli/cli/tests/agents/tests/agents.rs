@@ -342,7 +342,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert!(
         bogus
             .stderr
-            .contains("want one of: create, remove, stop, guard, bazel, git"),
+            .contains("want one of: create, remove, stop, guard, bazel"),
         "{}",
         bogus.stderr
     );
@@ -395,31 +395,6 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         status.stderr
     );
 
-    let preset = root.join(".dx/bazelrc/correctness.bazelrc");
-    if preset.exists() {
-        std::fs::remove_file(&preset).expect("drop preset");
-    }
-    let empty = env.base.join("empty.gitconfig");
-    write(&empty, "");
-    let empty = empty.to_str().expect("utf8");
-    let bypass = [
-        ("CI", "true"),
-        ("GIT_CONFIG", empty),
-        ("GIT_CONFIG_COUNT", "1"),
-        ("GIT_CONFIG_KEY_0", "dx.primary"),
-        ("GIT_CONFIG_VALUE_0", "open"),
-    ];
-    for extra in [&[][..], &bypass[..]] {
-        let build = run_env(launcher, &["build"], &root, &env, "", extra);
-        assert_eq!(build.code, 2, "{extra:?}: {}{}", build.stdout, build.stderr);
-        assert!(
-            build
-                .stderr
-                .contains("refused: no Bazel in the main checkout"),
-            "{extra:?}: {}",
-            build.stderr
-        );
-    }
     let hook = run_with(
         launcher,
         &["worktree", "hook", "bazel", "--", "build", "//..."],
@@ -427,26 +402,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         &env,
         "",
     );
-    assert_eq!(hook.code, 77, "{}{}", hook.stdout, hook.stderr);
-    assert!(hook.stderr.contains("dx: refused: "), "{}", hook.stderr);
-    let no_git = env.base.join("no-git");
-    std::fs::create_dir_all(&no_git).expect("empty PATH dir");
-    let dx = env_file("DX_BIN");
-    let build = run_env(
-        dx.to_str().expect("utf8"),
-        &["build"],
-        &root,
-        &env,
-        "",
-        &[("PATH", no_git.to_str().expect("utf8"))],
-    );
-    assert_eq!(build.code, 2, "no git: {}{}", build.stdout, build.stderr);
-    assert!(
-        build.stderr.contains("git is not on PATH"),
-        "no git: {}",
-        build.stderr
-    );
-    assert!(!preset.exists(), "a refused command writes no preset");
+    assert_eq!(hook.code, 0, "{}{}", hook.stdout, hook.stderr);
+    assert!(!hook.stderr.contains("refused"), "{}", hook.stderr);
 }
 
 fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {

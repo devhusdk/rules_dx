@@ -177,7 +177,7 @@ fn bazel_wrapper_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCh
         return None;
     }
     let mut detail = format!(
-        "{} not written by dx: Bazel runs without the main-checkout check and memory admission",
+        "{} not written by dx: Bazel runs without the slot clean refusal and memory admission",
         custom.join(", ")
     );
     if shadows {

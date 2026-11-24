@@ -10,7 +10,6 @@ use super::host::{
     scan_output_bases,
 };
 use super::pool::{Pool, Record, Who};
-use super::primary;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
 const EXTERNAL_GRACE_SECS: u64 = 24 * 60 * 60;
@@ -57,7 +56,6 @@ pub struct Added {
     pub reused: bool,
     pub base: Option<String>,
     pub warnings: Vec<Warning>,
-    pub notice: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -518,7 +516,6 @@ fn reuse_held(
         reused: true,
         base: None,
         warnings,
-        notice: None,
     }))
 }
 
@@ -581,6 +578,23 @@ pub(crate) fn lease(
     lease_locked(pool, host, who, request, skip, warnings, lock)
 }
 
+const OLD_GIT_HOOK_MARK: &str = "# Written by dx worktree add, which rewrites it.";
+
+fn drop_old_git_hook(main: &Path) -> Result<(), WorktreeError> {
+    let hook = main.join(git::line(
+        main,
+        &["rev-parse", "--git-path", "hooks/reference-transaction"],
+    )?);
+    match std::fs::read(&hook) {
+        Ok(bytes) if String::from_utf8_lossy(&bytes).lines().nth(1) == Some(OLD_GIT_HOOK_MARK) => {
+            Ok(std::fs::remove_file(&hook)?)
+        }
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
 pub(crate) fn lease_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -594,30 +608,14 @@ pub(crate) fn lease_locked(
     loop {
         match lease_once(pool, host, who, request, &skip, warnings, lock) {
             Ok(mut added) => {
-                match primary::protect(&pool.main) {
-                    Ok(notice) => added.notice = notice,
-                    Err(error) => added.warnings.push(Warning {
-                        code: "protect_failed",
-                        message: format!(
-                            "cannot set {} in the main checkout: {}",
-                            primary::KEY,
-                            error.message
-                        ),
-                    }),
-                }
-                match primary::guard_git(&pool.main) {
-                    Ok(None) => {}
-                    Ok(Some(message)) => added.warnings.push(Warning {
-                        code: "git_hook_skipped",
-                        message,
-                    }),
-                    Err(error) => added.warnings.push(Warning {
+                if let Err(error) = drop_old_git_hook(&pool.main) {
+                    added.warnings.push(Warning {
                         code: "git_hook_failed",
                         message: format!(
-                            "cannot write the git hook of the main checkout: {}",
+                            "cannot remove the old dx git hook of the main checkout: {}",
                             error.message
                         ),
-                    }),
+                    });
                 }
                 return Ok(added);
             }
@@ -681,7 +679,6 @@ fn lease_once(
                 reused: true,
                 base: None,
                 warnings,
-                notice: None,
             });
         }
         if request.force {
@@ -699,7 +696,6 @@ fn lease_once(
                 reused: true,
                 base: None,
                 warnings,
-                notice: None,
             });
         }
         let held = hold(pool, host, record);
@@ -898,7 +894,6 @@ fn lease_once(
             Start::Local | Start::Remote => None,
         },
         warnings,
-        notice: None,
     })
 }
 

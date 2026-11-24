@@ -50,109 +50,25 @@ fn set_primary(harness: &Harness, mode: &str) {
 }
 
 #[test]
-fn a_protected_main_checkout_refuses_a_build_with_exit_2() {
-    let harness = Harness::new("wt_main_refused");
-    set_primary(&harness, "protected");
-    let (code, stdout, stderr) = harness.run(&["build", "--output=json"]);
-    assert_eq!(code, 2, "{stderr}");
-    assert!(
-        stderr.starts_with("dx: refused: no Bazel in the main checkout "),
-        "{stderr}"
-    );
-    assert!(
-        stderr.contains(". Work in a slot: tools/dx worktree add <branch>\n"),
-        "{stderr}"
-    );
-    let error = stdout
-        .lines()
-        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("json line"))
-        .find(|event| event["event"] == "error")
-        .expect("error event");
-    assert_eq!(error["code"], "main_checkout", "{stdout}");
-}
-
-#[test]
-fn ci_does_not_pass_a_protected_main_checkout() {
-    let harness = Harness::new("wt_main_ci");
-    set_primary(&harness, "protected");
-    let (code, _, stderr) = harness.run_with_ci(&["build"], true);
-    assert_eq!(code, 2, "{stderr}");
-    assert!(stderr.contains("refused"), "{stderr}");
-}
-
-#[test]
-fn only_read_only_commands_run_in_a_protected_main_checkout() {
-    let harness = Harness::new("wt_main_read_only");
-    set_primary(&harness, "protected");
-    for words in [
-        &["status"][..],
-        &["worktree", "list"][..],
-        &["completion", "bash"][..],
-        &["config"][..],
-    ] {
-        let (_, _, stderr) = harness.run(words);
-        assert!(!stderr.contains("refused"), "{words:?}: {stderr}");
-    }
-    for words in [
-        &["config", "override", "hlint"][..],
-        &["check"][..],
-        &["lint"][..],
-        &["format", "--apply"][..],
-        &["generate"][..],
-        &["clean"][..],
-        &["fetch"][..],
-        &["docs"][..],
-    ] {
-        let (code, _, stderr) = harness.run(words);
-        assert_eq!(code, 2, "{words:?}: {stderr}");
+fn a_leftover_dx_primary_in_the_main_checkout_is_ignored() {
+    for mode in ["protected", "open", "protectd"] {
+        let harness = Harness::new("wt_main_leftover");
+        set_primary(&harness, mode);
+        for words in [&["build"][..], &["check"][..], &["clean"][..]] {
+            let (_, _, stderr) = harness.run(words);
+            assert!(!stderr.contains("refused"), "{mode} {words:?}: {stderr}");
+        }
+        let invocation = super::test_support::invocation(&["run", "//:app"]);
+        let runner = harness.runner();
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let env = harness.env(&runner, &mut out, &mut err);
+        super::execute_until(&invocation, env, &|| false);
+        let stderr = String::from_utf8(err).expect("stderr");
+        assert!(!stderr.contains("refused"), "{mode} run: {stderr}");
         assert!(
-            stderr.starts_with("dx: refused: no Bazel in the main checkout "),
-            "{words:?}: {stderr}"
+            !harness.build_argv.borrow().is_empty(),
+            "{mode} run: {stderr}"
         );
     }
-}
-
-#[test]
-fn an_unknown_mode_refuses_as_protected_and_names_the_value() {
-    let harness = Harness::new("wt_main_typo");
-    set_primary(&harness, "protectd");
-    let (code, _, stderr) = harness.run(&["build"]);
-    assert_eq!(code, 2, "{stderr}");
-    assert!(
-        stderr.starts_with(
-            "dx: refused: dx.primary is \"protectd\", which is neither protected nor open, so dx treats it as protected: no Bazel in the main checkout "
-        ),
-        "{stderr}"
-    );
-}
-
-#[test]
-fn an_unset_or_open_main_checkout_lets_a_plain_shell_build() {
-    for mode in [None, Some("open")] {
-        let harness = Harness::new("wt_main_open");
-        if let Some(mode) = mode {
-            set_primary(&harness, mode);
-        }
-        let (_, _, stderr) = harness.run(&["build"]);
-        assert!(!stderr.contains("refused"), "{mode:?}: {stderr}");
-    }
-}
-
-#[test]
-fn a_protected_main_checkout_refuses_dx_run_before_it_builds() {
-    let harness = Harness::new("wt_main_run");
-    set_primary(&harness, "protected");
-    let invocation = super::test_support::invocation(&["run", "//:app"]);
-    let runner = harness.runner();
-    let mut out = Vec::new();
-    let mut err = Vec::new();
-    let env = harness.env(&runner, &mut out, &mut err);
-    let code = super::execute_until(&invocation, env, &|| false);
-    let stderr = String::from_utf8(err).expect("stderr");
-    assert_eq!(code, 2, "{stderr}");
-    assert!(
-        stderr.starts_with("dx: refused: no Bazel in the main checkout "),
-        "{stderr}"
-    );
-    assert!(harness.build_argv.borrow().is_empty());
 }

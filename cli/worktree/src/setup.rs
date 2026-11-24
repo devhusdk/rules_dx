@@ -690,7 +690,7 @@ mod tests {
                     }
                     HookKind::Stop => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop",
                     HookKind::Guard => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
-                    HookKind::Bazel | HookKind::Git => continue,
+                    HookKind::Bazel => continue,
                 };
                 assert_eq!(commands(&settings, event), vec![expected.to_owned()]);
             }

@@ -45,21 +45,24 @@ impl Dialect {
         }
     }
 
-    fn rewrite(self, updated: &Value) -> Value {
+    fn event(self) -> &'static str {
         match self {
-            Dialect::Claude | Dialect::Cursor => serde_json::json!({
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "updatedInput": updated,
-                }
-            }),
-            Dialect::Gemini => serde_json::json!({
-                "hookSpecificOutput": {
-                    "hookEventName": "BeforeTool",
-                    "tool_input": updated,
-                }
-            }),
+            Dialect::Claude | Dialect::Cursor => "PreToolUse",
+            Dialect::Gemini => "BeforeTool",
         }
+    }
+
+    fn rewrite(self, updated: &Value) -> Value {
+        let field = match self {
+            Dialect::Claude | Dialect::Cursor => "updatedInput",
+            Dialect::Gemini => "tool_input",
+        };
+        serde_json::json!({
+            "hookSpecificOutput": {
+                "hookEventName": self.event(),
+                field: updated,
+            }
+        })
     }
 }
 
@@ -70,17 +73,15 @@ pub enum HookKind {
     Stop,
     Guard,
     Bazel,
-    Git,
 }
 
 impl HookKind {
-    pub const ALL: [HookKind; 6] = [
+    pub const ALL: [HookKind; 5] = [
         HookKind::Create,
         HookKind::Remove,
         HookKind::Stop,
         HookKind::Guard,
         HookKind::Bazel,
-        HookKind::Git,
     ];
 
     #[must_use]
@@ -96,7 +97,6 @@ impl HookKind {
             HookKind::Stop => "stop",
             HookKind::Guard => "guard",
             HookKind::Bazel => "bazel",
-            HookKind::Git => "git",
         }
     }
 
@@ -107,7 +107,7 @@ impl HookKind {
             HookKind::Remove => Some("WorktreeRemove"),
             HookKind::Stop => Some("SubagentStop"),
             HookKind::Guard => Some("PreToolUse"),
-            HookKind::Bazel | HookKind::Git => None,
+            HookKind::Bazel => None,
         }
     }
 
@@ -775,32 +775,18 @@ const SLOT_SWITCHING: &[&str] = &[
 
 const DX_MUTATING: &[&str] = &["build", "test", "check"];
 
-pub type SlotsLookup<'a> = &'a dyn Fn(&Path) -> Option<Vec<(PathBuf, Record)>>;
+pub const MAIN_CHECKOUT_TIP: &str =
+    "tip: tools/dx worktree add <branch> gives you an isolated slot";
 
-pub fn primary_checkout(input: &Value, who: &Who, slots: SlotsLookup) -> Option<String> {
+fn main_checkout_tip(input: &Value) -> Option<&'static str> {
     let command = input
         .get("tool_input")
         .and_then(|tool| tool.get("command"))
         .and_then(Value::as_str)?;
-    let dirs = switching_dirs(command, cwd(input));
-    if dirs.is_empty() {
-        return None;
-    }
-    let caller = Who {
-        session: who.session.clone().or_else(|| field(input, "session_id")),
-        agent: field(input, "agent_id"),
-        pid: who.pid,
-    };
-    dirs.iter().find_map(|dir| {
-        let owned = slots(dir)?
-            .into_iter()
-            .find(|(_, record)| record.held && !record.broken && record.held_by(&caller))?;
-        Some(format!(
-            "{} is the primary checkout and you hold {}; run the command there, or dx worktree add <branch> for another slot",
-            dir.display(),
-            owned.0.display()
-        ))
-    })
+    switching_dirs(command, cwd(input))
+        .iter()
+        .any(|dir| super::pool::in_main_checkout(dir))
+        .then_some(MAIN_CHECKOUT_TIP)
 }
 
 pub fn guard(input: &Value, who: &Who, lease: LeaseLookup) -> Guard {
@@ -813,9 +799,47 @@ pub fn guard_with(
     lease: LeaseLookup,
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Guard {
-    if let Some(line) = main_checkout_edit(input, env_get) {
-        return Guard::Block(line);
+    let guard = decide(input, who, lease, env_get);
+    match main_checkout_tip(input) {
+        Some(tip) => guard.with_context(Dialect::of(input), tip),
+        None => guard,
     }
+}
+
+impl Guard {
+    fn with_context(self, dialect: Dialect, context: &str) -> Guard {
+        let (mut output, ask) = match self {
+            Guard::Block(_) => return self,
+            Guard::Allow => (
+                serde_json::json!({ "hookSpecificOutput": { "hookEventName": dialect.event() } }),
+                false,
+            ),
+            Guard::Rewrite(output) => (output, false),
+            Guard::Ask(output) => (output, true),
+        };
+        if let Some(specific) = output
+            .get_mut("hookSpecificOutput")
+            .and_then(Value::as_object_mut)
+        {
+            specific.insert(
+                "additionalContext".to_owned(),
+                Value::String(context.to_owned()),
+            );
+        }
+        if ask {
+            Guard::Ask(output)
+        } else {
+            Guard::Rewrite(output)
+        }
+    }
+}
+
+fn decide(
+    input: &Value,
+    who: &Who,
+    lease: LeaseLookup,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Guard {
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
     }
@@ -870,16 +894,6 @@ pub fn guard_with(
         return Guard::Ask(serde_json::json!({ "hookSpecificOutput": specific }));
     }
     Guard::Rewrite(dialect.rewrite(&Value::Object(updated)))
-}
-
-fn main_checkout_edit(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
-    let tool = input.get("tool_input")?;
-    let path = field(tool, "file_path").or_else(|| field(tool, "notebook_path"))?;
-    let path = match cwd(input) {
-        Some(dir) => dir.join(path),
-        None => PathBuf::from(path),
-    };
-    super::primary::edit_refusal(&path, env_get).map(|reason| format!("dx: refused: {reason}"))
 }
 
 fn codex_thread(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {

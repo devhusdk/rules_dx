@@ -138,10 +138,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
     .to_string();
     let manifest = parse_manifest(&text, Path::new("/run")).unwrap();
     assert_eq!(manifest.workspace_dir, "consumer ws");
-    assert_eq!(
-        manifest.languages,
-        vec!["cpp", "rust"]
-    );
+    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
     assert_eq!(
         manifest.files,
         vec![(
@@ -592,10 +589,7 @@ fn runfiles_manifest() -> Manifest {
 fn the_cpp_rust_target_names_a_real_consumer() {
     let manifest = runfiles_manifest();
     assert_eq!(manifest.label, "//tools/testing/hermetic:cpp_rust");
-    assert_eq!(
-        manifest.languages,
-        vec!["cpp", "rust"]
-    );
+    assert_eq!(manifest.languages, vec!["cpp", "rust"]);
     assert_eq!(manifest.repo_name, "my_dx");
     assert!(
         manifest.workspace_dir.contains(' '),

@@ -655,6 +655,7 @@ fn the_consumer_materializes_from_dx_init() {
     let overrides = [
         ("rules_python", "fix.patch"),
         ("rules_swift", "xcode_select_absolute_path.patch"),
+        ("llvm", "msvc_coverage.patch"),
     ]
     .map(|(module, patch)| {
         let dir = source.join("patches").join(module);

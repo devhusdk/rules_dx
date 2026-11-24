@@ -109,21 +109,36 @@ const STRIPPED: &[&str] = &[
     "XML_OUTPUT_FILE",
 ];
 
-/// The nested root on Windows: `<drive>:\\dxn\\<hash of tmpdir>`, short enough that `CreateProcess` accepts the
-/// build-script working directories below the nested execroot (its limit is 260 characters).
-fn windows_root(tmpdir: &Path) -> PathBuf {
-    let hash = tmpdir
-        .to_string_lossy()
-        .to_lowercase()
+fn fnv1a(text: &str) -> u64 {
+    text.to_lowercase()
         .bytes()
         .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
             (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
-        });
+        })
+}
+
+/// The nested root on Windows: `<drive>:\\n<hash of tmpdir>`, short enough that `CreateProcess` and
+/// `SetCurrentDirectory` accept the build-script and npm extraction directories below the nested
+/// execroot (their limits are 260 and 258 characters).
+fn windows_root(tmpdir: &Path) -> PathBuf {
+    let hash = fnv1a(&tmpdir.to_string_lossy());
     let mut root = PathBuf::new();
     for component in tmpdir.components().take(2) {
         root.push(component);
     }
-    root.join("dxn").join(format!("{:08x}", hash >> 32))
+    root.join(format!("n{:06x}", hash >> 40))
+}
+
+/// The `--output_base` of the workspace `root` on Windows: `<user root>\\<hash of root>` instead of
+/// Bazel's own hash, for the same path limits as `windows_root`.
+fn windows_output_base(home: &Path, root: &Path) -> String {
+    let hash = fnv1a(&root.to_string_lossy());
+    format!(
+        "--output_base={}",
+        home.join(USER_ROOT)
+            .join(format!("{:02x}", hash >> 56))
+            .display()
+    )
 }
 
 /// Settings for the nested Bazel server of one test binary.
@@ -1234,7 +1249,11 @@ fn wrapper_at(home: &Path) -> PathBuf {
 
 fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str)]) -> Command {
     let mut command = Command::new(wrapper_at(home));
-    command.current_dir(root).args(STARTUP).args(args);
+    command.current_dir(root).args(STARTUP);
+    if cfg!(windows) {
+        command.arg(windows_output_base(home, root));
+    }
+    command.args(args);
     apply_env_at(home, &mut command, envs, &[]);
     command
 }

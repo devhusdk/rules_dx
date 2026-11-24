@@ -3245,6 +3245,10 @@ nested_repository_cache.set(
     list = "//tools/testing/nested_cache:adopt_polyglot.txt",
 )
 nested_repository_cache.set(
+    name = "nested_cache_cpp_rust",
+    list = "//tools/testing/nested_cache:cpp_rust.txt",
+)
+nested_repository_cache.set(
     name = "nested_cache_harness",
     list = "//tools/testing/nested_cache:harness.txt",
 )
@@ -3256,7 +3260,7 @@ nested_repository_cache.set(
     name = "nested_cache_release",
     list = "//tools/testing/nested_cache:release.txt",
 )
-use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_harness", "nested_cache_release")
+use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_cpp_rust", "nested_cache_harness", "nested_cache_release")
 
 _fixture_repo(
     name = "shared_consumer",

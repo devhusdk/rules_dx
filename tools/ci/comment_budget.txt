@@ -199,7 +199,7 @@ cli/cli/src/exec/dx_asset.rs comment 16
 cli/cli/src/exec/error_boundary_launcher_tests.rs comment 7
 cli/cli/src/exec/first_run.rs comment 12
 cli/cli/src/exec/fuzz.rs comment 2
-cli/cli/src/exec/generate.rs comment 17
+cli/cli/src/exec/generate.rs comment 16
 cli/cli/src/exec/help_launcher_tests.rs comment 2
 cli/cli/src/exec/ide_refresh.rs comment 4
 cli/cli/src/exec/managed_codegen.rs comment 1

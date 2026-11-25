@@ -31,7 +31,7 @@ def _hermetic_manifest_impl(ctx):
         "compiler": {"name": compiler, "producer": COMPILER_PRODUCERS.get(compiler, "")},
         "coverage": ctx.attr.coverage,
         "covered": ctx.attr.covered,
-        "dx": ctx.executable._dx.short_path,
+        "dx": ctx.executable.dx.short_path if ctx.attr.dx else "",
         "failures": ctx.attr.failures,
         "fetch_fails": ctx.attr.fetch_fails,
         "generate": ctx.attr.generate,
@@ -49,7 +49,9 @@ def _hermetic_manifest_impl(ctx):
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
         files = [out, ctx.file._bazelversion, ctx.file._module] + ([ctx.file.module_fragment] if ctx.file.module_fragment else []) + ctx.files.files + ctx.files.srcs,
-    ).merge(ctx.attr._dx[0][DefaultInfo].default_runfiles)
+    )
+    if ctx.attr.dx:
+        runfiles = runfiles.merge(ctx.attr.dx[0][DefaultInfo].default_runfiles)
     return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
 
 hermetic_manifest = rule(
@@ -59,6 +61,7 @@ hermetic_manifest = rule(
         "compiler": attr.string(doc = "Compiler the consumer artifacts must be built by (gcc, llvm or msvc); empty skips the check."),
         "coverage": attr.string_list(doc = "Consumer target patterns to run under coverage with the network denied."),
         "covered": attr.string_list(doc = "Consumer source paths the coverage report must show as hit."),
+        "dx": attr.label(cfg = no_coverage_transition, executable = True, doc = "dx binary the consumer runs; only smoke consumers set it, so golden checks do not rebuild on dx edits."),
         "failures": attr.string_dict(doc = "Manual consumer targets that must fail to build, mapped to the log marker of the failure."),
         "fetch_fails": attr.bool(doc = "The consumer must fail at repository fetch: only the failures run, and no archive may be downloaded."),
         "generate": attr.bool(doc = "Run dx generate on the patterns with the network allowed before the fetch probe."),
@@ -80,7 +83,6 @@ hermetic_manifest = rule(
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
-        "_dx": attr.label(cfg = no_coverage_transition, default = "//:dx", executable = True),
         "_module": attr.label(allow_single_file = True, default = "//:MODULE.bazel"),
     },
 )
@@ -135,6 +137,7 @@ def hermetic_qualification(
         compiler = compiler,
         coverage = coverage,
         covered = covered,
+        dx = "//:dx" if smoke else None,
         failures = failures,
         fetch_fails = fetch_fails,
         generate = generate,

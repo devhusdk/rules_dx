@@ -1212,7 +1212,7 @@ exports_files(
 no_coverage_build_scripts_test(
     name = "manifest_build_scripts_no_coverage_test",
     size = "small",
-    target_under_test = ":ocaml_manifest",
+    target_under_test = ":cpp_rust_manifest",
 )
 
 _HERMETIC_BINARIES = [

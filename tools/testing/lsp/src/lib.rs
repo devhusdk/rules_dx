@@ -496,7 +496,7 @@ impl Session {
             self.wait_response(id, "shutdown", Instant::now() + Duration::from_secs(15))?;
         ok_result(&response)?;
         self.notify("exit", serde_json::Value::Null)?;
-        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(15)) {
+        match dx_test_wait::child_exits(&mut self.child, Duration::from_secs(15)) {
             Ok(_) => Ok(()),
             Err(error) => {
                 drop(self.child.kill());

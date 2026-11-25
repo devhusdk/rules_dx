@@ -1,0 +1,59 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_CLI_TEST)
+
+rust_library(
+    name = "dx_testing_msix",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/dx_testing_msix",
+        normal = True,
+    ),
+    crate_name = "dx_testing_msix",
+    crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
+    deps = ["//cli/archive:dx_archive"],
+)
+
+rust_test(
+    name = "dx_testing_msix_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/testing/dx_testing_msix",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_testing_msix",
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_testing_msix",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/archive:dx_archive_testing"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = VIS_TOOLS_CLI_TEST,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

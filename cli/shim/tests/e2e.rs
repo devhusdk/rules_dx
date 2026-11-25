@@ -510,7 +510,7 @@ fn sigterm_mid_download_leaves_no_part_file() {
             .flatten()
             .any(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
     };
-    dx_test_scratch::wait::watch_until(
+    dx_test_wait::watch_until(
         &dir.join("download"),
         "a download starting",
         std::time::Duration::from_secs(20),

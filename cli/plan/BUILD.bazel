@@ -248,6 +248,7 @@ rust_test(
         "//cli/setup:dx_setup",
         "//cli/shim:dx_shim",
         "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//tools/bazelrc:dx_preset",

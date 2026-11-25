@@ -27,7 +27,7 @@ fn an_exited_child_with_an_open_handle_is_not_alive() {
         .spawn()
         .expect("spawn");
     let pid = child.id();
-    dx_test_scratch::wait::pid_gone(pid, std::time::Duration::from_secs(30)).unwrap();
+    dx_test_wait::pid_gone(pid, std::time::Duration::from_secs(30)).unwrap();
     assert!(!pid_alive(pid));
     child.wait().expect("wait");
 }
@@ -70,7 +70,7 @@ fn command_lines_see_a_child_with_a_marker_and_memory() {
         .expect("spawn");
     let pid = child.id();
     let stdout = child.stdout.take().expect("stdout");
-    let ready = dx_test_scratch::wait::within(
+    let ready = dx_test_wait::within(
         "cmd running",
         std::time::Duration::from_secs(30),
         move || {
@@ -148,7 +148,7 @@ fn an_unreaped_child_is_a_zombie() {
         .expect("spawn");
     let pid = child.id();
     let raw = i32::try_from(pid).expect("pid fits");
-    dx_test_scratch::wait::within(
+    dx_test_wait::within(
         "the child exiting",
         std::time::Duration::from_secs(30),
         move || dx_os_sys::process::await_exit_unreaped(raw),

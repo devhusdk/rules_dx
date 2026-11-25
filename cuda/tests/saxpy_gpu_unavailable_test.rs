@@ -1,5 +1,5 @@
 use dx_testing::env_file;
-use dx_testing::fatbin;
+use dx_testing_image::fatbin;
 
 #[test]
 fn a_host_without_a_visible_gpu_fails_as_unavailable() {

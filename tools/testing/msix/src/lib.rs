@@ -1,3 +1,5 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
 use std::path::Path;
 
 const MANIFEST: &str = "AppxManifest.xml";

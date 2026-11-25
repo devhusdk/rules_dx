@@ -2060,7 +2060,7 @@ const SETTLE_LIMIT: Duration = Duration::from_secs(5);
 fn slot_settles_free(dir: &Path, count: usize) -> bool {
     (0..count).all(|index| {
         let path = slot_path(dir, index);
-        !path.exists() || dx_test_scratch::wait::lock_free(&path, SETTLE_LIMIT).is_ok()
+        !path.exists() || dx_test_wait::lock_free(&path, SETTLE_LIMIT).is_ok()
     })
 }
 

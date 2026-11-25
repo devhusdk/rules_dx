@@ -446,7 +446,7 @@ mod tests {
         assert!(verify(&digest, &digest));
         assert!(verify(&digest.to_uppercase(), &digest));
         assert!(verify(&digest, &digest.to_uppercase()));
-        assert!(!verify(&sha256_hex(b"abd"), &digest));
+        assert!(!verify(&sha256_hex(b"xyz"), &digest));
         assert!(!verify("", ""));
         assert!(!verify("ab", "ab"));
         assert!(!verify(&"zz".repeat(32), &"zz".repeat(32)));

@@ -191,7 +191,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
+    ],
 )
 
 real_source_target(

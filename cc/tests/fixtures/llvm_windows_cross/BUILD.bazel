@@ -40,17 +40,21 @@ cc_toolchain_binary(
     rust_test(
         name = lang + "_test",
         size = "small",
-        srcs = ["//tools/testing/conformance:runner_test.rs"],
+        srcs = [
+            "//tools/testing/conformance:cross_test.rs",
+            "//tools/testing/conformance:runfiles_manifest.rs",
+        ],
+        crate_root = "//tools/testing/conformance:cross_test.rs",
         data = [":" + lang],
         env = {
-            "DX_CONFORMANCE_MODE": "cross",
             "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s)" % lang,
             "DX_CONFORMANCE_TEXT": "windows_x86_64",
         },
         target_compatible_with = _LINUX_X86_64,
         deps = [
             "//tools/testing:dx_testing",
-            "//tools/testing/conformance:conformance_quality",
+            "//tools/testing/image:dx_testing_image",
+            "//tools/testing/msix:dx_testing_msix",
         ],
     )
     for lang in _LANGS + ["rust_opt"]

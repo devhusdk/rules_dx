@@ -72,7 +72,9 @@ rust_library(
 )
 
 exports_files([
+    "cross_test.rs",
     "quality.bzl",
+    "runfiles_manifest.rs",
     "runner_test.rs",
 ])
 

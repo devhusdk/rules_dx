@@ -109,6 +109,7 @@ rust_test(
         "//cli/error:dx_error",
         "//cli/os_sys:dx_os_sys",
         "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
     ],

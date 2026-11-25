@@ -1,4 +1,5 @@
-use dx_testing::{image_machine, read_runfiles, resolve_runfiles, starlark_const};
+use dx_testing::{read_runfiles, resolve_runfiles, starlark_const};
+use dx_testing_image::machine;
 
 #[test]
 fn gcc_x86_64_artifacts_carry_the_pinned_compiler_and_glibc_floor() {
@@ -17,11 +18,7 @@ fn gcc_x86_64_artifacts_carry_the_pinned_compiler_and_glibc_floor() {
     for rel in paths {
         let path = resolve_runfiles(rel);
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-        assert_eq!(
-            image_machine(&bytes).as_deref(),
-            Some("x86_64"),
-            "{rel}: machine"
-        );
+        assert_eq!(machine(&bytes).as_deref(), Some("x86_64"), "{rel}: machine");
         assert!(
             dx_testing::contains_bytes(&bytes, stamp.as_bytes()),
             "{rel}: missing {stamp:?}"

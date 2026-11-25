@@ -376,7 +376,7 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         (GenerationUse::Generated, digest('2')),
     ] {
         let lease = dx_atomic_fs::lease::lease_path(&dx_dir, kind, &hex).expect("lease path");
-        dx_test_scratch::wait::lock_free(&lease, WAIT).expect("the lease outlived the child tree");
+        dx_test_wait::lock_free(&lease, WAIT).expect("the lease outlived the child tree");
     }
     let outcome = prune(&workspace);
     assert!(outcome.skipped_leased_generations.is_empty(), "{outcome:?}");

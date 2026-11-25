@@ -303,7 +303,7 @@ fn holding_run_does_not_inherit_held() {
 
 #[cfg(unix)]
 fn lock_comes_free(path: &std::path::Path) -> bool {
-    dx_test_scratch::wait::lock_free(path, std::time::Duration::from_secs(2)).is_ok()
+    dx_test_wait::lock_free(path, std::time::Duration::from_secs(2)).is_ok()
 }
 
 // LCOV_EXCL_START - reason: failure-only message, never evaluated when the test passes, issue: 8104, policy: docs/cli/commands/build-test-coverage.md

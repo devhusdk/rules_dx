@@ -179,7 +179,7 @@ mod tests {
             id.as_str(),
         )
         .expect("lease path");
-        let freed = dx_test_scratch::wait::lock_free(&path, std::time::Duration::from_secs(5));
+        let freed = dx_test_wait::lock_free(&path, std::time::Duration::from_secs(5));
         assert!(
             freed.is_ok(),
             "releasing the staging lease makes the generation prunable again: {freed:?}"

@@ -6,11 +6,11 @@ The guards check the rules of `docs/design/tests.md`.
 
 - `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file. Its repository rule watches every path it reads.
 - `@dx_test_tags_sources//:files.json` snapshots `MODULE.bazel`, `<lang>/lang.json`, `<lang>/README.md`, repository `*.BUILD` and `*.BUILD.bazel` files and the `docs/` language and command pages.
-- A test that walks the module tree declares the snapshots, sets `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
+- A test that walks the module tree declares the snapshots and sets `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`. A Python test writes them into a scratch tree.
 
 ## Determinism
 
-- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with no disk or remote cache, and compares the two compact execution logs with `dx_testing::exec_log`.
+- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with no disk or remote cache, and compares the two compact execution logs with `dx_testing_exec_log`.
 - With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: a `query` lists the non-manual ones, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind is kept. The builds pass `--skip_incompatible_explicit_targets`.
 - The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` in seven shards with `--kinds --shard i/7`, which keeps every seventh top-level package of kind targets. Shards 0 to 3 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...` and `//msix/tests/...`; shards 5 and 6 split `//deploy/private/...` into `:all` and its subpackages.
 - Each build deletes its output base after `shutdown`.

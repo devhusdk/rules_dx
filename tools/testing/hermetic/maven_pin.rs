@@ -47,11 +47,11 @@ fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
     let child = command
         .spawn()
         .map_err(|error| format!("cannot start the pin: {error}"))?;
-    let status = match dx_test_scratch::wait::exit_within(child, PIN_DEADLINE)
+    let status = match dx_test_wait::exit_within(child, PIN_DEADLINE)
         .map_err(|error| format!("cannot wait for the pin: {error}"))?
     {
-        dx_test_scratch::wait::Exit::Exited(status) => status,
-        dx_test_scratch::wait::Exit::Killed(_) => {
+        dx_test_wait::Exit::Exited(status) => status,
+        dx_test_wait::Exit::Killed(_) => {
             return Err(format!(
                 "pin exceeded {}s; last output:\n{}",
                 PIN_DEADLINE.as_secs(),

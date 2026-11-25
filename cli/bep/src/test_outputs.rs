@@ -1669,11 +1669,9 @@ mod tests {
         assert_eq!(labels, ["//a:gone"]);
     }
 
-    #[test]
-    fn a_stream_with_many_results_collects_quickly() {
-        let count = 50_000;
+    fn many_results_stream(count: usize) -> String {
         let uri = out_uri("a.xml");
-        let mut lines = Vec::with_capacity(2 * count + 2);
+        let mut lines = Vec::with_capacity(3 * count + 2);
         lines.push(configured_test("//a:t"));
         lines.push(completed("//a:t", true));
         for shard in 1..=count {
@@ -1690,13 +1688,35 @@ mod tests {
             lines.push(configured_test(&label));
             lines.push(completed(&label, true));
         }
-        let stream = lines.join("\n");
+        lines.join("\n")
+    }
+
+    fn collection_time(stream: &str, count: usize) -> std::time::Duration {
         let started = std::time::Instant::now();
         let events = collect_test_events(Cursor::new(stream), || None).expect("events");
         let elapsed = started.elapsed();
         assert_eq!(events.results.len(), count);
         assert_eq!(events.filtered.len(), count);
-        assert!(elapsed < std::time::Duration::from_secs(10), "{elapsed:?}");
+        elapsed
+    }
+
+    #[test]
+    fn a_stream_with_many_results_collects_in_linear_time() {
+        const SMALL: usize = 5_000;
+        const LARGE: usize = 4 * SMALL;
+        const MAX_RATIO: u32 = 10;
+        let small_stream = many_results_stream(SMALL);
+        let large_stream = many_results_stream(LARGE);
+        let mut small = std::time::Duration::MAX;
+        let mut large = std::time::Duration::MAX;
+        for _ in 0..3 {
+            small = small.min(collection_time(&small_stream, SMALL));
+            large = large.min(collection_time(&large_stream, LARGE));
+        }
+        assert!(
+            large < small * MAX_RATIO,
+            "{SMALL} results took {small:?}, {LARGE} took {large:?}"
+        );
     }
 
     #[test]

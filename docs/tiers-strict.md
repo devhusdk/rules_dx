@@ -362,31 +362,31 @@ Source: dx. Native file: `.hlint.yaml`.
 +- group: {name: generalise, enabled: true}
 +- group: {name: future, enabled: true}
 +- functions:
-+  - {name: head, within: []}
-+  - {name: tail, within: []}
-+  - {name: init, within: []}
-+  - {name: last, within: []}
-+  - {name: fromJust, within: []}
-+  - {name: "!!", within: []}
-+  - {name: read, within: []}
-+  - {name: error, within: []}
-+  - {name: undefined, within: []}
-+  - {name: unsafePerformIO, within: []}
-+  - {name: unsafeCoerce, within: []}
-+  - {name: trace, within: []}
-+  - {name: traceShow, within: []}
-+  - {name: traceM, within: []}
-+  - {name: foldl1, within: []}
-+  - {name: foldr1, within: []}
-+  - {name: maximum, within: []}
-+  - {name: minimum, within: []}
-+  - {name: genericIndex, within: []}
++    - {name: head, within: []}
++    - {name: tail, within: []}
++    - {name: init, within: []}
++    - {name: last, within: []}
++    - {name: fromJust, within: []}
++    - {name: "!!", within: []}
++    - {name: read, within: []}
++    - {name: error, within: []}
++    - {name: undefined, within: []}
++    - {name: unsafePerformIO, within: []}
++    - {name: unsafeCoerce, within: []}
++    - {name: trace, within: []}
++    - {name: traceShow, within: []}
++    - {name: traceM, within: []}
++    - {name: foldl1, within: []}
++    - {name: foldr1, within: []}
++    - {name: maximum, within: []}
++    - {name: minimum, within: []}
++    - {name: genericIndex, within: []}
 +- modules:
-+  - {name: Debug.Trace, within: []}
-+  - {name: System.IO.Unsafe, within: []}
-+  - {name: Unsafe.Coerce, within: []}
++    - {name: Debug.Trace, within: []}
++    - {name: System.IO.Unsafe, within: []}
++    - {name: Unsafe.Coerce, within: []}
 +- flags:
-+  - default: false
++    - default: false
 +- error: {name: Use fromMaybe}
 +- error: {name: Avoid restricted function}
 +- error: {name: Avoid restricted module}
@@ -1617,18 +1617,18 @@ Source: dx. Native file: `typos.toml`.
 -extend-exclude = ["*.lock", "*.min.js", "*.svg"]
 +ignore-hidden = false
 +extend-exclude = [
-+    ".git/",
-+    "*.lock",
-+    "*.min.css",
-+    "*.min.js",
-+    "*.map",
-+    "*.pb.go",
-+    "*.svg",
-+    "*_pb2.py",
-+    "go.sum",
-+    "package-lock.json",
-+    "pnpm-lock.yaml",
-+    "yarn.lock",
++  ".git/",
++  "*.lock",
++  "*.min.css",
++  "*.min.js",
++  "*.map",
++  "*.pb.go",
++  "*.svg",
++  "*_pb2.py",
++  "go.sum",
++  "package-lock.json",
++  "pnpm-lock.yaml",
++  "yarn.lock",
 +]
 ```
 

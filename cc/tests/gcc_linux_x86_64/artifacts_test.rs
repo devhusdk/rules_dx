@@ -5,7 +5,7 @@ fn gcc_x86_64_artifacts_carry_the_pinned_compiler_and_glibc_floor() {
     let pins = read_runfiles(&std::env::var("PINS").expect("PINS"));
     let version = std::env::var("GCC_VERSION").expect("GCC_VERSION");
     let floor = glibc_version(
-        &starlark_const(&pins, "GCC_GLIBC", "pins.bzl")
+        starlark_const(&pins, "GCC_GLIBC", "pins.bzl")
             .get("glibc_".len()..)
             .expect("string slice within bounds"),
     );

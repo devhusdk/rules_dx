@@ -795,7 +795,9 @@ mod tests {
             ),
         ];
         for (krate, want) in cases {
-            let error = join(&[krate], LOCK, "", &BTreeMap::new()).expect_err(want).to_string();
+            let error = join(&[krate], LOCK, "", &BTreeMap::new())
+                .expect_err(want)
+                .to_string();
             assert!(error.starts_with(want), "{error}");
         }
         let error = join(&[], "not json", "", &BTreeMap::new()).expect_err("lock json");
@@ -873,13 +875,27 @@ versions = "=2.0.0"
 reason = "upstream ships no LICENSE file"
 expires = "2099-01-01"
 "#;
-        let joined = join(&[shipped("beta", "2.0.0", vec![])], LOCK, policy, &BTreeMap::new()).expect("approved");
+        let joined = join(
+            &[shipped("beta", "2.0.0", vec![])],
+            LOCK,
+            policy,
+            &BTreeMap::new(),
+        )
+        .expect("approved");
         assert_eq!(
             joined[0].words,
             "beta 2.0.0 ships no license text; declared license: MIT\n"
         );
         let other = policy.replace("\"beta\"", "\"alpha\"");
-        assert!(join(&[shipped("beta", "2.0.0", vec![])], LOCK, &other, &BTreeMap::new()).is_err());
+        assert!(
+            join(
+                &[shipped("beta", "2.0.0", vec![])],
+                LOCK,
+                &other,
+                &BTreeMap::new()
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -928,7 +944,10 @@ text = "third_party/licenses/cargo/beta-2.0.0/LICENSE"
 
         let blank = BTreeMap::from([(key.to_owned(), text(dir.path(), "exec/blank", " \n"))]);
         let error = join(&[beta()], LOCK, policy, &blank).expect_err("blank");
-        assert!(matches!(error, InventoryError::EmptyText { .. }), "{error:?}");
+        assert!(
+            matches!(error, InventoryError::EmptyText { .. }),
+            "{error:?}"
+        );
 
         let other = policy.replace("=2.0.0", "=9.9.9");
         let error = join(&[beta()], LOCK, &other, &vendored).expect_err("other version");

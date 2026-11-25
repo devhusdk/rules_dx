@@ -1,10 +1,10 @@
 load("//cc:defs.bzl", "cc_library")
+load("//core:failure_test.bzl", "failure_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:archive.bzl", "consumer_archive")
 load("//deploy/private:native_runtime.bzl", "native_runtime")
 load("//deploy/private:resources.bzl", "resources")
-load("//core/private/testing:defs.bzl", "starlark_test")
-load("//core:failure_test.bzl", "failure_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(

@@ -110,7 +110,10 @@ fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
     })
 }
 
-fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::BTreeMap<String, String> {
+fn minimal_env(
+    keep: &[&str],
+    extra: &[(&str, &str)],
+) -> std::collections::BTreeMap<String, String> {
     let mut env = std::collections::BTreeMap::new();
     for (key, value) in std::env::vars_os() {
         let (Some(key), Some(value)) = (key.to_str(), value.to_str()) else {

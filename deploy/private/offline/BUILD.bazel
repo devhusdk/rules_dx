@@ -97,11 +97,9 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
         "Cargo.toml",
-    ]) + [
         "bootstrap_test.rs",
         "demo/bazelisk-darwin-amd64",
         "demo/bazelisk-darwin-arm64",

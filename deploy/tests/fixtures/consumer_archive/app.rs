@@ -47,8 +47,10 @@ fn run() -> i32 {
         eprintln!("consumer_app: native create failed");
         return 1;
     }
-    // SAFETY: state is the non-null handle from create; the message pointer is a valid C string.
-    let message = unsafe { std::ffi::CStr::from_ptr(consumer_greet_message(state)) }
+    // SAFETY: state is the non-null handle from create.
+    let message = unsafe { consumer_greet_message(state) };
+    // SAFETY: message is the valid NUL-terminated C string the library returns for state.
+    let message = unsafe { std::ffi::CStr::from_ptr(message) }
         .to_string_lossy()
         .into_owned();
     // SAFETY: state came from create and is destroyed once, after the last use.

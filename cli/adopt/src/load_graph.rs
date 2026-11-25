@@ -414,7 +414,7 @@ struct BazelrcRoots {
     aspects: Vec<String>,
     toolchains: Vec<String>,
     repos: BTreeSet<String>,
-    flag_labels: Vec<String>,
+    flag_labels: Vec<(String, String)>,
 }
 
 fn repo_matches(name: &str, repo: &str) -> bool {
@@ -484,7 +484,7 @@ fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
                         .split(',')
                         .map(|item| item.trim_matches(|c| c == '"' || c == '\''))
                         .filter(|item| item.starts_with("//") || item.starts_with('@'))
-                        .map(str::to_owned),
+                        .map(|item| (flag.to_owned(), item.to_owned())),
                 );
                 let list = match flag {
                     "aspects" => &mut roots.aspects,
@@ -771,7 +771,7 @@ struct ImpactGraph<'a> {
     graph: LoadGraph<'a>,
     aspects: Vec<String>,
     bazelrc_repos: BTreeSet<String>,
-    bazelrc_flag_labels: Vec<String>,
+    bazelrc_flag_labels: Vec<(String, String)>,
     aspect_repos: BTreeSet<String>,
     module_repos: Option<BTreeSet<String>>,
     input_repos: BTreeSet<String>,
@@ -1122,22 +1122,37 @@ pub fn bzl_impact(
     Ok(impact)
 }
 
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct ImplicitDependencies {
+    pub global: BTreeSet<String>,
+    pub settings: BTreeMap<String, BTreeSet<String>>,
+}
+
 pub fn implicit_dependencies(
     workspace: &Path,
     aspect_labels: &[String],
-) -> Result<BTreeSet<String>, DxError> {
+) -> Result<ImplicitDependencies, DxError> {
     let graph = impact_graph(workspace, aspect_labels)?;
     let names = &graph.graph.names;
-    let mut labels: BTreeSet<String> = graph
-        .bazelrc_flag_labels
-        .iter()
-        .filter_map(|label| main_repo_label(label, names))
-        .collect();
+    let mut implicit = ImplicitDependencies::default();
+    for (flag, label) in &graph.bazelrc_flag_labels {
+        let Some(value) = main_repo_label(label, names) else {
+            continue;
+        };
+        match build_setting(flag, names) {
+            Some(setting) => {
+                implicit.settings.entry(value).or_default().insert(setting);
+            }
+            None => {
+                implicit.global.insert(value);
+            }
+        }
+    }
     for rel in &graph.aspect_inputs {
         let Some(text) = read(workspace, rel)? else {
             continue;
         };
-        labels.extend(
+        implicit.global.extend(
             string_literals(&text)
                 .into_iter()
                 .filter(|literal| literal.starts_with("//") || literal.starts_with('@'))
@@ -1145,7 +1160,17 @@ pub fn implicit_dependencies(
                 .filter_map(|literal| main_repo_label(literal, names)),
         );
     }
-    Ok(labels)
+    let global = &implicit.global;
+    implicit.settings.retain(|value, _| !global.contains(value));
+    Ok(implicit)
+}
+
+fn build_setting(flag: &str, names: &[String]) -> Option<String> {
+    if !flag.starts_with("//") && !flag.starts_with('@') {
+        return None;
+    }
+    Label::parse(flag)?;
+    Some(main_repo_label(flag, names).unwrap_or_else(|| flag.to_owned()))
 }
 
 pub fn bazelrc_flag_targets(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
@@ -1153,7 +1178,7 @@ pub fn bazelrc_flag_targets(workspace: &Path) -> Result<BTreeSet<String>, DxErro
     Ok(bazelrc_roots(workspace)?
         .flag_labels
         .iter()
-        .filter_map(|label| main_repo_label(label, &names))
+        .filter_map(|(_, label)| main_repo_label(label, &names))
         .collect())
 }
 
@@ -1924,6 +1949,35 @@ override_repo(other, tool = \"overridden\")\n";
                 "//.dx:policy".to_owned(),
                 "//tools/workspace:clippy.toml".to_owned(),
             ])
+        );
+    }
+
+    #[test]
+    fn build_setting_values_stay_apart_from_global_flag_values() {
+        let scratch = dx_test_scratch::scratch("dx-load-implicit-settings-").unwrap();
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(
+            root,
+            ".bazelrc",
+            "common --@rules_dx//config:workspace=//.dx:policy\nbuild --@demo//cfg:mode //cfg:fast\nbuild --//cfg:shared=//tc:shared\nbuild --extra_toolchains=//tc:all,//tc:shared\nbuild --platforms=@other//:p\n",
+        )
+        .unwrap();
+        assert_eq!(
+            super::implicit_dependencies(root, &[]).unwrap(),
+            super::ImplicitDependencies {
+                global: BTreeSet::from(["//tc:all".to_owned(), "//tc:shared".to_owned()]),
+                settings: BTreeMap::from([
+                    (
+                        "//.dx:policy".to_owned(),
+                        BTreeSet::from(["@rules_dx//config:workspace".to_owned()]),
+                    ),
+                    (
+                        "//cfg:fast".to_owned(),
+                        BTreeSet::from(["//cfg:mode".to_owned()]),
+                    ),
+                ]),
+            }
         );
     }
 

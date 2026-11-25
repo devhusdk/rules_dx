@@ -407,6 +407,15 @@ impl RuleGraph {
         self.keep(self.reach(seeds), |_| true)
     }
 
+    pub(crate) fn readers_of(&self, settings: &[String]) -> Vec<String> {
+        let seeds: Vec<String> = settings
+            .iter()
+            .flat_map(|setting| self.seeds_for(setting))
+            .collect();
+        // A rule named `all` would read back as its whole package; its readers are already here.
+        self.keep(self.reach(&seeds), |rule| !is_pattern(rule))
+    }
+
     fn seeds_for(&self, label: &str) -> Vec<String> {
         if let Some(rest) = label
             .strip_prefix("@@//")
@@ -703,6 +712,24 @@ mod tests {
                 .reached_of_kind(&[], |kind| kind == "rust_binary")
                 .len(),
             0
+        );
+    }
+
+    #[test]
+    fn readers_of_a_setting_leave_out_rules_named_like_patterns() {
+        let graph = graph(&[
+            rule(
+                "//config:policy_subject",
+                &["@@rules_dx+//config:workspace"],
+                &[],
+            ),
+            rule("//config:policy_test", &["//config:policy_subject"], &[]),
+            rule("//config:all", &["//config:policy_test"], &[]),
+            rule("//config:toolchains_on", &[], &[]),
+        ]);
+        assert_eq!(
+            graph.readers_of(&strings(&["@rules_dx//config:workspace"])),
+            ["//config:policy_subject", "//config:policy_test"]
         );
     }
 

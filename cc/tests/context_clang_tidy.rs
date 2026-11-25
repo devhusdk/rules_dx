@@ -121,8 +121,11 @@ fn tidy(env: &Env, bundle: &str) -> (Option<i32>, String) {
         .expect("clang-tidy runs");
     (
         output.status.code(),
-        String::from_utf8_lossy(&output.stdout).into_owned()
-            + &String::from_utf8_lossy(&output.stderr),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ),
     )
 }
 
@@ -403,8 +406,11 @@ fn msvc_tidy(name: &str, extra: &str) -> (Option<i32>, String) {
         .expect("clang-tidy runs");
     (
         output.status.code(),
-        String::from_utf8_lossy(&output.stdout).into_owned()
-            + &String::from_utf8_lossy(&output.stderr),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        ),
     )
 }
 

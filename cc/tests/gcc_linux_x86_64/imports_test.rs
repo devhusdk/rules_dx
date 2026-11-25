@@ -21,7 +21,7 @@ fn missing_libstdcxx_member_fails_the_import_check() {
     let guard = dx_test_scratch::scratch("gcc-imports").unwrap();
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
-    let out = archiver(&scratch, &["--check", "hello_cxx_gcc", &member]);
+    let out = archiver(scratch, &["--check", "hello_cxx_gcc", &member]);
     assert!(!out.status.success(), "unexpected success: {out:?}");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stderr.contains("libstdc++.so.6"), "stderr: {stderr}");
@@ -37,6 +37,6 @@ fn provided_libstdcxx_passes_the_import_check() {
     let guard = dx_test_scratch::scratch("gcc-imports-ok").unwrap();
     let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
-    let out = archiver(&scratch, &["--provides", "libstdc++.so.6", &member]);
+    let out = archiver(scratch, &["--provides", "libstdc++.so.6", &member]);
     assert!(out.status.success(), "failed: {out:?}");
 }

@@ -81,10 +81,7 @@ fn archive_with_args(argv: &[String]) -> i32 {
     {
         // LCOV_EXCL_START - reason: argv parsing, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         let [_, _, dst, platform, reference, image] = argv else {
-            return crate::bin_usage(
-                "archiver",
-                "--oci-layout <out> <platform> <ref> <image>",
-            );
+            return crate::bin_usage("archiver", "--oci-layout <out> <platform> <ref> <image>");
         };
         let dst = Path::new(dst);
         let image = Path::new(image);
@@ -157,12 +154,7 @@ pub fn size_checker(argv: &[String]) -> i32 {
     match crate::check_files_size_budget(&paths, budget) {
         Ok(bytes) => match std::fs::write(stamp, format!("{bytes} of {budget} bytes\n")) {
             Ok(()) => 0,
-            Err(error) => crate::bin_cannot(
-                "size_checker",
-                "write",
-                Path::new(stamp),
-                error,
-            ),
+            Err(error) => crate::bin_cannot("size_checker", "write", Path::new(stamp), error),
         },
         Err(message) => {
             eprintln!("size_checker: {message}");

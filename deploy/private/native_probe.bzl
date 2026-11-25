@@ -1,7 +1,7 @@
+"""Platform constraints and wheel tags for the native probe wheel."""
+
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils_copy")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
-
-"""Platform constraints and wheel tags for the native probe wheel."""
 
 NATIVE_PROBE_COMPATIBLE = select({
     "@platforms//os:linux": ["@platforms//cpu:x86_64"],

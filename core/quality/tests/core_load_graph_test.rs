@@ -39,10 +39,10 @@ fn default_labels(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     for marker in ["default = \"", "Label(\""] {
         for part in text.split(marker).skip(1) {
-            if let Some(label) = part.split('"').next() {
-                if label.starts_with("//") {
-                    found.push(label.to_owned());
-                }
+            if let Some(label) = part.split('"').next()
+                && label.starts_with("//")
+            {
+                found.push(label.to_owned());
             }
         }
     }
@@ -233,7 +233,8 @@ fn pending_tool_packages_still_offend() {
             tool_packages.contains(&root),
             "{package} is no longer a core tool-default package; drop it from PENDING_TOOL_PACKAGES"
         );
-        let found = dx_adopt::external_repos(&source, &[root.clone()]).expect("load graph");
+        let found =
+            dx_adopt::external_repos(&source, std::slice::from_ref(&root)).expect("load graph");
         let offends = found
             .values()
             .flatten()

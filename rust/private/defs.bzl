@@ -17,7 +17,6 @@ load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rul
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":build_script_cc_env.bzl", "BUILD_SCRIPT_CC_ENV")
 load(":edition.bzl", "RUST_EDITION")
-load(":pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
 
 _DX_FORWARD_PROVIDES = [
     _rust_common.crate_info,
@@ -44,8 +43,7 @@ _MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link_exec")
 MSVC_OPT_LINK_FLAGS = [
     "-Clinker=$(execpath {})".format(_MSVC_LINK),
     "-Clinker-flavor=lld-link",
-    "-Clink-arg=/Brepro",
-] + REPRODUCIBLE_PDB_LINK_FLAGS
+]
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 

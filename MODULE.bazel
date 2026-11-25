@@ -24,6 +24,7 @@ single_version_override(
         "//patches/rules_rust:msvc_stdlib_ntdll.patch",
         "//patches/rules_rust:build_script_sorted_cfgs.patch",
         "//patches/rules_rust:build_script_debug_info.patch",
+        "//patches/rules_rust:toolchain_linker_wrapper.patch",
     ],
     version = "0.75.0",
 )

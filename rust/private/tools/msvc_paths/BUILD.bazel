@@ -33,6 +33,18 @@ exec_tool(
     visibility = ["//visibility:public"],
 )
 
+filegroup(name = "no_linker")
+
+# The rules_rust toolchain linker on Windows; exec config resets the flag, so msvc_link links with rust-lld.
+alias(
+    name = "toolchain_linker",
+    actual = select({
+        "//core/platforms:msvc": ":msvc_link_exec",
+        "//conditions:default": ":no_linker",
+    }),
+    visibility = ["//visibility:public"],
+)
+
 rust_binary(
     name = "msvc_lib",
     srcs = ["src/msvc_lib.rs"],

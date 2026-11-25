@@ -28,9 +28,6 @@ def rust_wrapper_registry_tests(name, size):
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
                 "-Clinker=$(execpath {})".format(Label("//rust/private/tools/msvc_paths:msvc_link_exec")),
                 "-Clinker-flavor=lld-link",
-                "-Clink-arg=/Brepro",
-                "-Clink-arg=/pdbsourcepath:X:\\dx",
-                "-Clink-arg=/pdbaltpath:%_PDB%",
             ]),
         ],
     )

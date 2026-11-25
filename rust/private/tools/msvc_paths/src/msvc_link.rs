@@ -12,6 +12,9 @@ use std::process::{Command, ExitCode};
 
 use msvc_paths::{Rewriter, edit_args, exit_code, link_copy_dir, rustc_temp_file, split_option};
 
+/// Hashes the PE timestamp and PDB GUID from the content and keeps the build directory out of the PDB.
+const REPRODUCIBLE_ARGS: [&str; 3] = ["/Brepro", r"/pdbsourcepath:X:\dx", "/pdbaltpath:%_PDB%"];
+
 fn main() -> ExitCode {
     run().unwrap_or_else(|err| {
         eprintln!("msvc_link: {err}");
@@ -62,6 +65,7 @@ fn run() -> io::Result<ExitCode> {
     let status = Command::new(rust_lld(&rewriter)?)
         .args(["-flavor", "link"])
         .args(&args)
+        .args(REPRODUCIBLE_ARGS)
         .status();
     let _: io::Result<()> = fs::remove_dir_all(&copy_dir);
     Ok(exit_code(status?))

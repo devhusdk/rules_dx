@@ -350,6 +350,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         affected,
         since,
         base,
+        lint_scope,
         serve,
         port,
         host,
@@ -449,6 +450,9 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     if base.is_some() && !affected {
         return Err(ArgsError::BaseNeedsAffected);
+    }
+    if lint_scope.is_some() && !affected {
+        return Err(ArgsError::LintScopeNeedsAffected);
     }
     if affected && here {
         return Err(ArgsError::AffectedWithHere);
@@ -807,6 +811,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         affected,
         since,
         base,
+        lint_closure: lint_scope.as_deref() == Some("closure"),
         affected_handoff: None,
         serve,
         port,

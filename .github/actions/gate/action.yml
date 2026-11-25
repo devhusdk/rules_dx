@@ -74,6 +74,7 @@ runs:
       env:
         COMMAND_LINE: ${{ inputs.command }}
         LCOV: ${{ inputs.lcov }}
+        LINT_SCOPE: ${{ github.event_name == 'pull_request' && 'direct' || 'closure' }}
       shell: bash
       run: |
         # shellcheck disable=SC2086
@@ -83,7 +84,7 @@ runs:
         out="${RUNNER_TEMP:-/tmp}/gate.json"
         read -ra COMMAND <<<"$COMMAND_LINE"
         filters=()
-        report=(--max-findings 0)
+        report=(--max-findings 0 --lint-scope "$LINT_SCOPE")
         if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
           filters=("--test_tag_filters=$pr_tags")
         fi

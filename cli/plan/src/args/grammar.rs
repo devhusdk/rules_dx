@@ -140,6 +140,7 @@ pub(crate) struct Flags {
     pub(crate) affected: bool,
     pub(crate) since: Option<String>,
     pub(crate) base: Option<String>,
+    pub(crate) lint_scope: Option<String>,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
@@ -552,6 +553,19 @@ flag_group! {
     BaseFlag, {
         #[arg(long, allow_negative_numbers = true, overrides_with = "base", conflicts_with = "since", value_name = "REF", value_parser = non_empty)]
         base: Option<String>,
+    }
+}
+
+flag_group! {
+    /// With --affected, lint the changed targets and their direct users (direct) or every reverse dependency (closure).
+    LintScopeFlag, {
+        #[arg(
+            long,
+            value_name = "SCOPE",
+            overrides_with = "lint_scope",
+            value_parser = clap::builder::PossibleValuesParser::new(["direct", "closure"])
+        )]
+        lint_scope: Option<String>,
     }
 }
 
@@ -1103,6 +1117,7 @@ command_args! {
         affected: AffectedFlag,
         since: SinceFlag,
         base: BaseFlag,
+        lint_scope: LintScopeFlag,
     };
     Typecheck => 3, BazelTail, {
         output: OutputFlag,
@@ -1210,6 +1225,7 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
         coverage: CoverageFlag,
+        lint_scope: LintScopeFlag,
     };
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Clean => 13, NoScopeTail, {

@@ -10,6 +10,7 @@ pub struct AffectedHandoff {
     pub base: Option<String>,
     pub generate: Vec<String>,
     pub format: Vec<String>,
+    pub lint: Vec<String>,
     pub writable: Option<Vec<String>>,
 }
 
@@ -94,6 +95,7 @@ pub struct UmbrellaRequest {
     pub scope: HintScope,
     pub generate_targets: Vec<String>,
     pub format_targets: Vec<String>,
+    pub lint_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
     pub coverage: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
@@ -169,6 +171,18 @@ impl UmbrellaRequest {
         self.mode == OperationMode::Apply
     }
 
+    #[must_use]
+    pub fn selects_nothing(&self, phase: Command) -> bool {
+        let targets = if phase == Command::Format {
+            &self.format_targets
+        } else if phase == Command::Lint {
+            &self.lint_targets
+        } else {
+            return false;
+        };
+        self.scope == HintScope::Affected && targets.is_empty()
+    }
+
     pub fn phase_quality_request(
         &self,
         phase: Command,
@@ -232,6 +246,8 @@ impl UmbrellaRequest {
             mode,
             targets: if phase == Command::Format {
                 self.format_targets.clone()
+            } else if phase == Command::Lint {
+                self.lint_targets.clone()
             } else {
                 self.targets.clone()
             },
@@ -302,6 +318,7 @@ pub struct Invocation {
     pub affected: bool,
     pub since: Option<String>,
     pub base: Option<String>,
+    pub lint_closure: bool,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -583,6 +600,10 @@ impl Invocation {
                 Some(handoff) => handoff.format.clone(),
                 None => self.targets.clone(),
             },
+            lint_targets: match &self.affected_handoff {
+                Some(handoff) => handoff.lint.clone(),
+                None => self.targets.clone(),
+            },
             test,
             coverage,
             commits_base: self
@@ -795,6 +816,7 @@ mod tests {
             affected: false,
             since: None,
             base: None,
+            lint_closure: false,
             affected_handoff: None,
             serve: false,
             port: None,
@@ -937,6 +959,7 @@ mod tests {
         affected.affected_handoff = Some(AffectedHandoff {
             generate: vec!["//a/...".to_owned()],
             format: vec!["//a:x".to_owned()],
+            lint: vec!["//a:x".to_owned(), "//a:y".to_owned()],
             ..AffectedHandoff::default()
         });
         let request = affected.umbrella_request().expect("umbrella");
@@ -962,6 +985,20 @@ mod tests {
         assert_eq!(
             request
                 .phase_quality_request(Command::Lint, Vec::new())
+                .expect("phase")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .verify_quality_request(Command::Lint)
+                .expect("verify")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .phase_quality_request(Command::Typecheck, Vec::new())
                 .expect("phase")
                 .targets,
             vec![
@@ -996,6 +1033,20 @@ mod tests {
 
         let direct = invocation_for(Command::Lint, &["//a/..."]);
         assert_eq!(direct.quality_request().expect("quality").origin, None);
+    }
+
+    #[test]
+    fn affected_phases_with_no_targets_select_nothing() {
+        let mut affected = invocation_for(Command::Check, &["//svc:bin"]);
+        affected.affected_handoff = Some(AffectedHandoff::default());
+        let request = affected.umbrella_request().expect("umbrella");
+        assert!(request.selects_nothing(Command::Format));
+        assert!(request.selects_nothing(Command::Lint));
+        assert!(!request.selects_nothing(Command::Typecheck));
+        assert!(!request.selects_nothing(Command::Generate));
+        let plain = invocation_for(Command::Check, &[]);
+        let request = plain.umbrella_request().expect("umbrella");
+        assert!(!request.selects_nothing(Command::Lint));
     }
 
     #[test]

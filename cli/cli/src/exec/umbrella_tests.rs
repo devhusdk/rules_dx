@@ -2654,6 +2654,7 @@ fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
     inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         generate: vec!["//test/...".to_owned()],
         format: vec!["//test:corpus".to_owned()],
+        lint: vec!["//test:corpus".to_owned()],
         ..Default::default()
     });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());
@@ -2684,6 +2685,7 @@ fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocat
         base: Some(base),
         generate: vec!["//test/...".to_owned()],
         format: inv.targets.clone(),
+        lint: inv.targets.clone(),
         ..Default::default()
     });
     (harness, inv)
@@ -2735,6 +2737,7 @@ fn check_affected_generate_runs_on_affected_packages() {
     inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         generate: vec!["//test/...".to_owned()],
         format: vec!["//test:corpus".to_owned()],
+        lint: vec!["//test:corpus".to_owned()],
         ..Default::default()
     });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());
@@ -2754,6 +2757,29 @@ fn check_affected_generate_runs_on_affected_packages() {
         vec![r#"[{"dirs":["test"],"element":"//test/..."}]"#.to_owned()],
         "{out}"
     );
+}
+
+#[test]
+fn check_affected_skips_format_and_lint_when_their_scope_is_empty() {
+    let harness = umbrella_clean("umbrella-affected-empty-lint");
+    harness.write_source("test/BUILD.bazel", "");
+    let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
+    inv.affected = false;
+    inv.targets = vec!["//test:corpus".to_owned()];
+    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+        generate: vec!["//test/...".to_owned()],
+        ..Default::default()
+    });
+    let (code, out, err) = harness.execute_with(&inv, &harness.runner());
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(out.matches("no affected targets\n").count(), 2, "{out}");
+    assert!(
+        out.contains("Running typecheck analysis for //test:corpus"),
+        "{out}"
+    );
+    for skipped in ["Running format analysis", "Running lint analysis", "//..."] {
+        assert!(!out.contains(skipped), "{skipped}: {out}");
+    }
 }
 
 #[test]

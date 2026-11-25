@@ -1,4 +1,4 @@
-use super::affected::writable_paths;
+use super::affected::{no_affected_targets, writable_paths};
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use dx_exec_core::common::{
@@ -651,9 +651,10 @@ fn verify_fix(
     let command = request.command.name();
     let through = through.min(UMBRELLA_PHASES.len() - 1);
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
-        if failed_during_apply
-            .iter()
-            .any(|(failed, _)| failed == phase)
+        if request.selects_nothing(*phase)
+            || failed_during_apply
+                .iter()
+                .any(|(failed, _)| failed == phase)
         {
             continue;
         }
@@ -1114,6 +1115,13 @@ fn execute_phase(
         .find(|(planned, _)| *planned == phase)
     {
         execute_test_phase(test, phase_env)
+    } else if request.selects_nothing(phase) {
+        let written = no_affected_targets(request.common.output, phase_env.out, phase_env.err);
+        PhaseRun {
+            code: i32::from(written.is_err()),
+            kind: PhaseKind::Clean,
+            effects: PhaseEffects::default(),
+        }
     } else {
         match request.phase_quality_request(phase, phase_reports) {
             Ok(phase_request) => execute_quality_phase(&phase_request, phase_env, shared),
@@ -1151,7 +1159,12 @@ fn run_step(
     let output = base.request.common.output;
     let index = run.index;
     let phase_nonce = base.nonce.wrapping_add(index as u64);
-    let Some((phase_reports, capture)) = capture_reports(base, phase, phase_nonce) else {
+    let reports = if base.request.selects_nothing(phase) {
+        Some((Vec::new(), None))
+    } else {
+        capture_reports(base, phase, phase_nonce)
+    };
+    let Some((phase_reports, capture)) = reports else {
         return Step::Exit(pre_exec(
             output,
             out,

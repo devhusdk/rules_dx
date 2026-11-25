@@ -132,3 +132,25 @@ fn base_needs_affected_and_excludes_since() {
     assert!(parse(&strings(&["test", "--affected", "--base=a", "--since=b"])).is_err());
     assert!(parse(&strings(&["test", "--affected", "--base="])).is_err());
 }
+
+#[test]
+fn lint_scope_needs_affected_and_only_lint_and_check_take_it() {
+    for command in ["lint", "check"] {
+        let closure =
+            parse(&strings(&[command, "--affected", "--lint-scope=closure"])).expect("closure");
+        assert!(closure.lint_closure, "{command}");
+        let direct =
+            parse(&strings(&[command, "--affected", "--lint-scope", "direct"])).expect("direct");
+        assert!(!direct.lint_closure, "{command}");
+        let default = parse(&strings(&[command, "--affected"])).expect("default");
+        assert!(!default.lint_closure, "{command}");
+        assert_eq!(
+            parse(&strings(&[command, "--lint-scope=closure"])),
+            Err(ArgsError::LintScopeNeedsAffected)
+        );
+        assert!(parse(&strings(&[command, "--affected", "--lint-scope=all"])).is_err());
+    }
+    for command in ["test", "format", "typecheck"] {
+        assert!(parse(&strings(&[command, "--affected", "--lint-scope=closure"])).is_err());
+    }
+}

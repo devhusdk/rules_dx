@@ -10,7 +10,7 @@ load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_c
 load(":families/core.bzl", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
-load(":real_core.bzl", "real_config", "real_merged_output_groups")
+load(":real_core.bzl", "real_config", "real_in_main_repo", "real_merged_output_groups")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 visibility("private")
@@ -117,6 +117,11 @@ def real_pipeline_unit_tests(name):
                 "the core shards every scoped check attaches carry no biome, docstrfmt, typos or vale attr",
                 _always_on_tool_attrs(["_biome", "_docstrfmt", "_typos", "_vale"]),
                 [],
+            ),
+            expect_equal(
+                "quality aspects propagate into main repository targets and stop at external ones",
+                [real_in_main_repo(struct(rule = struct(label = Label(label)))) for label in ["//core/quality:real_core", "@bazel_skylib//lib:paths", "@@+crate+dx_crates__serde-1.0.0//:serde"]],
+                [True, False, False],
             ),
             expect_equal(
                 "merged output groups keep the results and skip notes of every target",

@@ -18,13 +18,25 @@ pub struct RuleGraph {
     kinds: HashMap<String, String>,
     filter_tags: HashMap<String, Vec<String>>,
     test_tags: HashMap<String, Vec<String>>,
+    source_readers: HashMap<String, Vec<String>>,
 }
+
+const SOURCE_EDGES: [&str; 6] = [
+    "aspect_hints",
+    "beam",
+    "beam_files_dir",
+    "crate",
+    "dx_tfm_variants",
+    "upstream",
+];
+
+const FORWARDING_KINDS: [&str; 2] = ["filegroup", "genrule"];
 
 const QUERY_FLAGS: [&str; 9] = [
     "query",
     "--keep_going",
     "--output=streamed_jsonproto",
-    "--proto:output_rule_attrs=tags,size",
+    "--proto:output_rule_attrs=aspect_hints,beam,beam_files_dir,crate,dx_tfm_variants,size,tags,upstream",
     "--noproto:default_values",
     "--noproto:locations",
     "--noproto:instantiation_stack",
@@ -57,6 +69,41 @@ fn attribute<'a>(rule: &'a Value, wanted: &str) -> Option<&'a Value> {
         .and_then(Value::as_array)?
         .iter()
         .find(|attribute| attribute.get("name").and_then(Value::as_str) == Some(wanted))
+}
+
+fn source_edge_labels(rule: &Value) -> Vec<String> {
+    let attributes = rule.get("attribute").and_then(Value::as_array);
+    attributes
+        .into_iter()
+        .flatten()
+        .filter(|attribute| {
+            attribute
+                .get("name")
+                .and_then(Value::as_str)
+                .is_some_and(|name| SOURCE_EDGES.contains(&name))
+        })
+        .flat_map(|attribute| {
+            let branches = attribute
+                .get("selectorList")
+                .and_then(|selects| selects.get("elements"))
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|select| select.get("entries").and_then(Value::as_array))
+                .flatten();
+            std::iter::once(attribute).chain(branches)
+        })
+        .flat_map(|value| {
+            let lists = value
+                .get("stringListValue")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten();
+            value.get("stringValue").into_iter().chain(lists)
+        })
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect()
 }
 
 fn tags_of(rule: &Value) -> Vec<String> {
@@ -154,6 +201,7 @@ impl RuleGraph {
             kinds: HashMap::new(),
             filter_tags: HashMap::new(),
             test_tags: HashMap::new(),
+            source_readers: HashMap::new(),
         };
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: Value = serde_json::from_str(line).map_err(|error| {
@@ -202,6 +250,13 @@ impl RuleGraph {
                     .or_default()
                     .push(name.to_owned());
             }
+            for read in source_edge_labels(rule) {
+                graph
+                    .source_readers
+                    .entry(read)
+                    .or_default()
+                    .push(name.to_owned());
+            }
             if has_manual_tag(rule) {
                 graph.manual.insert(name.to_owned());
             }
@@ -233,6 +288,11 @@ impl RuleGraph {
                 .cloned()
                 .collect();
             if !consumers.is_empty() {
+                graph
+                    .source_readers
+                    .entry(name.clone())
+                    .or_default()
+                    .extend(consumers.iter().cloned());
                 graph.users.entry(name).or_default().extend(consumers);
             }
         }
@@ -278,20 +338,70 @@ impl RuleGraph {
     }
 
     #[must_use]
-    pub fn selected(&self, scopes: &[String]) -> Vec<String> {
-        let mut rules: Vec<String> = self
+    pub fn own_sources(&self, scopes: &[String]) -> Vec<String> {
+        self.keep(self.owned(scopes), |rule| !self.manual.contains(rule))
+    }
+
+    #[must_use]
+    pub fn own_sources_and_direct_users(&self, scopes: &[String]) -> Vec<String> {
+        let owned = self.owned(scopes);
+        let mut pending: Vec<&str> = owned
+            .iter()
+            .filter_map(|rule| self.users.get(*rule))
+            .flatten()
+            .map(String::as_str)
+            .collect();
+        let mut reached = owned;
+        let mut users: HashSet<&str> = HashSet::new();
+        while let Some(user) = pending.pop() {
+            if users.insert(user) && self.is_kind(user, "alias") {
+                pending.extend(
+                    self.users
+                        .get(user)
+                        .into_iter()
+                        .flatten()
+                        .map(String::as_str),
+                );
+            }
+        }
+        reached.extend(users);
+        self.keep(reached, |rule| !self.manual.contains(rule))
+    }
+
+    fn is_kind(&self, rule: &str, kind: &str) -> bool {
+        self.kinds.get(rule).is_some_and(|class| class == kind)
+    }
+
+    fn owned<'a>(&'a self, scopes: &[String]) -> HashSet<&'a str> {
+        let mut pending: Vec<&str> = self
             .inputs
             .keys()
-            .filter(|rule| !self.manual.contains(*rule))
+            .map(String::as_str)
             .filter(|rule| {
-                scopes.iter().any(|scope| {
-                    scope == *rule || (is_pattern(scope) && matches_scope(scope, rule))
-                })
+                scopes
+                    .iter()
+                    .any(|scope| scope == rule || (is_pattern(scope) && matches_scope(scope, rule)))
             })
-            .cloned()
             .collect();
-        rules.sort();
-        rules
+        let mut seen: HashSet<&str> = HashSet::new();
+        while let Some(rule) = pending.pop() {
+            if !seen.insert(rule) {
+                continue;
+            }
+            if let Some(readers) = self.source_readers.get(rule) {
+                pending.extend(readers.iter().map(String::as_str));
+            }
+            let forwards = FORWARDING_KINDS.iter().any(|kind| self.is_kind(rule, kind));
+            pending.extend(
+                self.users
+                    .get(rule)
+                    .into_iter()
+                    .flatten()
+                    .map(String::as_str)
+                    .filter(|user| forwards || self.is_kind(user, "alias")),
+            );
+        }
+        seen
     }
 
     #[must_use]
@@ -990,14 +1100,153 @@ mod tests {
     }
 
     #[test]
-    fn selected_names_matched_rules_without_users_or_manual_rules() {
+    fn own_sources_names_matched_rules_without_users_or_manual_rules() {
         let graph = sample();
-        assert_eq!(graph.selected(&strings(&["//a:lib"])), ["//a:lib"]);
-        let package = graph.selected(&strings(&["//c:all"]));
+        assert_eq!(graph.own_sources(&strings(&["//a:lib"])), ["//a:lib"]);
+        let package = graph.own_sources(&strings(&["//c:all"]));
         assert!(package.contains(&"//c:t".to_owned()), "{package:?}");
         assert!(!package.contains(&"//c:m".to_owned()), "{package:?}");
         assert!(!package.contains(&"//a:t".to_owned()), "{package:?}");
-        assert_eq!(graph.selected(&strings(&["//a:a.rs", "@@x+//:y"])).len(), 0);
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:a.rs", "@@x+//:y"])).len(),
+            0
+        );
+    }
+
+    fn rule_reading(name: &str, inputs: &[&str], attribute: serde_json::Value) -> String {
+        serde_json::json!({
+            "type": "RULE",
+            "rule": {"name": name, "ruleInput": inputs, "attribute": [attribute]},
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn own_sources_adds_rules_that_read_a_selected_rules_sources() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:lib.rs"], &[]),
+            rule_reading(
+                "//a:unit",
+                &["//a:lib"],
+                serde_json::json!({"name": "crate", "stringValue": "//a:lib"}),
+            ),
+            rule("//a:bin_upstream", &["//a:lib"], &["manual"]),
+            rule_reading(
+                "//a:bin",
+                &["//a:bin_upstream"],
+                serde_json::json!({"name": "upstream", "stringValue": "//a:bin_upstream"}),
+            ),
+            rule("//a:hint", &["//a:schema.json"], &[]),
+            rule_reading(
+                "//a:corpus",
+                &["//a:hint"],
+                serde_json::json!({
+                    "name": "aspect_hints",
+                    "selectorList": {"elements": [{"entries": [
+                        {"label": "//conditions:default", "stringListValue": ["//a:hint"]},
+                    ]}]},
+                }),
+            ),
+            rule_reading(
+                "//a:user",
+                &["//a:lib"],
+                serde_json::json!({"name": "deps", "stringListValue": ["//a:lib"]}),
+            ),
+        ]);
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:lib"])),
+            ["//a:lib", "//a:unit"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:bin_upstream"])),
+            ["//a:bin"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:hint"])),
+            ["//a:corpus", "//a:hint"]
+        );
+    }
+
+    #[test]
+    fn own_sources_follow_generated_files_filegroups_and_aliases() {
+        let generated = serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//a:gen",
+                "ruleClass": "genrule",
+                "ruleInput": ["//a:schema.json"],
+                "ruleOutput": ["//a:gen.rs"],
+            },
+        })
+        .to_string();
+        let written = serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//a:write",
+                "ruleClass": "write_file",
+                "ruleInput": ["//a:template.txt"],
+                "ruleOutput": ["//a:written.rs"],
+            },
+        })
+        .to_string();
+        let graph = graph(&[
+            generated,
+            written,
+            graph_rule_of_kind("//a:lib", "rust_library", &["//a:gen", "//a:lib.rs"], &[]),
+            graph_rule_of_kind("//a:file_user", "rust_library", &["//a:written.rs"], &[]),
+            graph_rule_of_kind("//a:lib_alias", "alias", &["//a:lib"], &[]),
+            rule_reading(
+                "//a:unit",
+                &["//a:lib_alias"],
+                serde_json::json!({"name": "crate", "stringValue": "//a:lib_alias"}),
+            ),
+            graph_rule_of_kind("//a:bin", "rust_binary", &["//a:lib_alias"], &[]),
+            graph_rule_of_kind("//a:py_files", "filegroup", &["//a:x.py"], &[]),
+            graph_rule_of_kind("//a:py", "py_library", &["//a:py_files"], &[]),
+        ]);
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:gen"])),
+            ["//a:gen", "//a:lib", "//a:lib_alias", "//a:unit"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:write"])),
+            ["//a:file_user", "//a:write"]
+        );
+        assert_eq!(
+            graph.own_sources(&strings(&["//a:py_files"])),
+            ["//a:py", "//a:py_files"]
+        );
+    }
+
+    #[test]
+    fn own_sources_and_direct_users_add_one_hop_of_reverse_dependencies() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:lib.rs"], &[]),
+            rule_reading(
+                "//a:unit",
+                &["//a:lib"],
+                serde_json::json!({"name": "crate", "stringValue": "//a:lib"}),
+            ),
+            rule("//b:bin", &["//a:lib"], &[]),
+            rule("//b:app", &["//b:bin"], &[]),
+            rule("//b:held", &["//a:lib"], &["manual"]),
+            graph_rule_of_kind("//a:lib_alias", "alias", &["//a:lib"], &[]),
+            rule("//c:via_alias", &["//a:lib_alias"], &[]),
+        ]);
+        assert_eq!(
+            graph.own_sources_and_direct_users(&strings(&["//a:lib"])),
+            [
+                "//a:lib",
+                "//a:lib_alias",
+                "//a:unit",
+                "//b:bin",
+                "//c:via_alias"
+            ]
+        );
+        assert_eq!(
+            graph.own_sources_and_direct_users(&strings(&["//b:app"])),
+            ["//b:app"]
+        );
     }
 
     #[test]

@@ -107,6 +107,7 @@ Exit codes: `0`, `1`, `2`.
 | `--fail-on` |  | `info`, `warning`, `error` |  |
 | `--here` |  |  |  |
 | `--include-edits` |  |  |  |
+| `--lint-scope` |  | `direct`, `closure` |  |
 | `--max-findings` |  |  |  |
 | `--online` |  |  |  |
 | `--output` | `-o` | `text`, `json` |  |
@@ -387,6 +388,7 @@ Exit codes: `0`, `1`, `2`.
 | `--fail-on` |  | `info`, `warning`, `error` |  |
 | `--here` |  |  |  |
 | `--include-edits` |  |  |  |
+| `--lint-scope` |  | `direct`, `closure` |  |
 | `--max-findings` |  |  |  |
 | `--no-retry` |  |  |  |
 | `--output` | `-o` | `text`, `json` |  |

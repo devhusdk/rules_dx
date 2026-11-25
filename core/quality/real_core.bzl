@@ -306,6 +306,10 @@ def real_family_tier(ctx, family_id):
         return section.tier
     return ctx.attr._config_tier[BuildSettingInfo].value
 
+def real_in_main_repo(ctx):
+    """Propagation predicate that keeps a quality aspect out of external repositories, where it reports nothing."""
+    return ctx.rule.label.repo_name == ""
+
 def real_wired_tools(cfg):
     """Maps each capability to the sorted tool names the table wires for it."""
     return {capability: list(tools) for capability, tools in cfg.wired.items()}
@@ -697,6 +701,7 @@ def real_make_aspect(cfg, shard_name):
         implementation = _impl,
         doc = shard["doc"],
         attr_aspects = ["aspect_hints", "crate"] if follows_crate else ["aspect_hints"],
+        propagation_predicate = real_in_main_repo,
         attrs = shard["attrs"],
         toolchains = shard.get("toolchains", []),
         requires = shard.get("requires", []),
@@ -763,6 +768,7 @@ def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeIn
     return aspect(
         implementation = _impl,
         attr_aspects = ["aspect_hints", "crate"] if capability == "format" else ["aspect_hints"],
+        propagation_predicate = real_in_main_repo,
         attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
         doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
     )

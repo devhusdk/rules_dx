@@ -566,23 +566,12 @@ fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
     }
 }
 
-#[must_use]
-pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
-    let dir = host::resolved(dir);
-    let main = dir
+pub(crate) fn in_main_checkout(dir: &Path) -> bool {
+    host::resolved(dir)
         .ancestors()
-        .find(|ancestor| ancestor.join(".git").is_dir())?;
-    let env = |name: &str| std::env::var(name).ok();
-    let pool = Pool::find(main, &cache_base(&env).ok()?)?;
-    if host::resolved(&pool.main) != main {
-        return None;
-    }
-    Some(
-        pool.records()
-            .into_iter()
-            .map(|record| (pool.slot_path(record.slot), record))
-            .collect(),
-    )
+        .map(|ancestor| ancestor.join(".git"))
+        .find(|entry| entry.symlink_metadata().is_ok())
+        .is_some_and(|entry| entry.is_dir())
 }
 
 #[must_use]

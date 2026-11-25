@@ -26,7 +26,7 @@ This repository uses Bazel.
 - A PR that touches `.github/review-paths.txt` paths gets `needs-review` and a second-session `Review:` comment before merge. See CONTRIBUTING.md.
 
 <!-- dx:begin -->
-- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Mutating git, bazel and dx commands in the primary checkout are denied while you hold a slot. Never build, edit or commit in the main checkout.
+- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Work in the slot it prints, not in the main checkout.
 - Fix first: `tools/dx check --apply --affected`.
 - Then verify: `tools/dx test --affected`.
 - Before a PR: `tools/dx check --affected`. It is the gate.

@@ -83,32 +83,6 @@ pub(super) fn run_until<S: AsRef<OsStr>>(
     }
 }
 
-const CONFIG_OVERRIDES: [&str; 3] = ["GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"];
-
-pub(super) fn own_config_command(cwd: &Path, args: &[&str]) -> Command {
-    let mut cmd = command(cwd);
-    for name in CONFIG_OVERRIDES {
-        cmd.env_remove(name);
-    }
-    cmd.args(["-c", "safe.directory=*"]).args(args);
-    cmd
-}
-
-pub(super) fn own_config(
-    cwd: &Path,
-    args: &[&str],
-) -> Result<Option<dx_process::capture::Captured>, String> {
-    match dx_process::capture::run_captured(&mut own_config_command(cwd, args), READ_TIMEOUT) {
-        Ok(output) => Ok(Some(output)),
-        Err(dx_process::capture::RunError::Spawn { source, .. })
-            if source.kind() == std::io::ErrorKind::NotFound =>
-        {
-            Ok(None)
-        }
-        Err(error) => Err(error.to_string()),
-    }
-}
-
 pub(super) fn line(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
     run(cwd, args).map(|text| text.trim().to_owned())
 }

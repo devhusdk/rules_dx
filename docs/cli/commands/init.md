@@ -111,9 +111,8 @@ Each agent gets the `dx worktree` hooks:
 | Codex (`codex`) | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
 | Gemini CLI (`gemini`) | `.gemini/settings.json` | `guard`, in a trusted folder |
 | GitHub Copilot (`copilot`) | `.github/copilot-instructions.md`, and `.github/hooks/dx.json` | `guard` |
-| Any agent and plain git | `.git/hooks/reference-transaction`, written by `dx worktree add` | `git` |
 
-In Claude Code, Cursor and Gemini CLI, `guard` also checks file edits. See [Hooks](worktree.md#hooks). The hooks run `tools/dx`. On Windows, that also works in a Git Bash or MSYS2 shell.
+See [Hooks](worktree.md#hooks). The hooks run `tools/dx`. On Windows, that also works in a Git Bash or MSYS2 shell.
 
 Init also writes a marked block to `AGENTS.md` and creates the file when it is missing; see [Agent commands block](#agent-commands-block). With `--agents claude`, it writes `CLAUDE.md` with an `@AGENTS.md` import when the import is missing.
 
@@ -280,7 +279,7 @@ with code `init_plan_partial`.
 
 ```text
 <!-- dx:begin -->
-- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Mutating git, bazel and dx commands in the primary checkout are denied while you hold a slot. Never build, edit or commit in the main checkout.
+- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Work in the slot it prints, not in the main checkout.
 - Fix first: `tools/dx check --apply --affected`.
 - Then verify: `tools/dx test --affected`.
 - Before a PR: `tools/dx check --affected`. It is the gate.
@@ -372,9 +371,8 @@ before writing any file. It also fails when `MODULE.bazel` pins a different
 
 Bazelisk runs `tools/bazel` on Linux and macOS and `tools/bazel.bat` on Windows
 in place of Bazel. The wrapper first runs
-`tools/dx worktree hook bazel -- <args>`, which applies the
-[main-checkout rule](worktree.md#main-checkout) and
-[memory admission](worktree.md#memory-admission). Then it runs `$BAZEL_REAL`
+`tools/dx worktree hook bazel -- <args>`, which refuses a Bazel `clean` in a
+slot and applies [memory admission](worktree.md#memory-admission). Then it runs `$BAZEL_REAL`
 with the same arguments. The hook's output goes to stderr.
 
 Only a refusal (exit `77`) or a stop (exit `130` or `143`) from the hook stops
@@ -395,9 +393,7 @@ not run `worktree hook bazel`.
 
 ## Git hooks
 
-Init does not install Git hooks. `dx worktree add` writes only the
-`reference-transaction` hook; see [Main checkout](worktree.md#main-checkout).
-For a commit or push hook, write a plain hook or use a hook tool, and have it
+Init and `dx worktree add` do not install Git hooks. For a commit or push hook, write a plain hook or use a hook tool, and have it
 run:
 
 ```sh

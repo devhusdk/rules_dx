@@ -28,7 +28,6 @@ use dx_worktree::pool::{Pool, Who, cache_base};
 use dx_worktree::{HookKind, WorktreeError, hook};
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
-const CODE_MAIN_CHECKOUT_PROTECTED: &str = "main_checkout_protected";
 
 fn env_var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
@@ -275,13 +274,6 @@ fn add_output(
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         warning_events(out, &added.warnings)?;
-        if let Some(notice) = &added.notice {
-            let notice = NoticeEvent {
-                related_command: Some("worktree".to_owned()),
-                ..NoticeEvent::info(CODE_MAIN_CHECKOUT_PROTECTED, notice.clone())
-            };
-            emit_built(out, notice_event(&notice))?;
-        }
         let event = slot_event(&SlotEvent {
             action: "add".to_owned(),
             path: added.path.to_string_lossy().into_owned(),
@@ -298,7 +290,6 @@ fn add_output(
         emit_event(out, &event)?;
     } else if invocation.path_only || quiet_text(invocation) {
         warn_lines(err, &added.warnings);
-        notice_line(err, added);
         if let Some(base) = &added.base {
             dx_output::write_stderr(
                 err,
@@ -309,9 +300,6 @@ fn add_output(
     } else {
         for warning in &added.warnings {
             write_line(out, &format!("dx worktree: {}", warning.message))?;
-        }
-        if let Some(notice) = &added.notice {
-            write_line(out, &format!("dx worktree: {notice}"))?;
         }
         if let Some(base) = &added.base {
             write_line(out, &format!("dx worktree: started {branch} from {base}"))?;
@@ -839,7 +827,6 @@ pub fn run_worktree_hook(
     let stdin = read_stdin();
     match kind {
         HookKind::Guard => return guard_hook(&stdin, &Who::from_env(&env_var), out, err),
-        HookKind::Git => return git_hook(workspace, &stdin, err),
         HookKind::Create | HookKind::Remove | HookKind::Stop | HookKind::Bazel => {}
     }
     dx_process::configure_real(workspace);
@@ -848,12 +835,12 @@ pub fn run_worktree_hook(
 }
 
 fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
-    if let Some(reason) = dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
+    if let Some(reason) = dx_worktree::bazel::refusal(dir, bazel_args) {
         dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
-        return dx_worktree::primary::BAZEL_REFUSED_EXIT;
+        return dx_worktree::bazel::REFUSED_EXIT;
     }
     if matches!(
-        dx_worktree::primary::bazel_command(bazel_args),
+        dx_worktree::bazel::command(bazel_args),
         None | Some("shutdown")
     ) {
         return 0;
@@ -869,32 +856,14 @@ fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
     }
 }
 
-/// Refuses a git reference transaction that changes a refused main checkout, with exit 2.
-fn git_hook(dir: &Path, updates: &str, err: &mut dyn Write) -> i32 {
-    match dx_worktree::primary::git_refusal(dir, updates, &env_var) {
-        Some(reason) => {
-            dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
-            dx_process::pre_exec_code()
-        }
-        None => 0,
-    }
-}
-
 fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
     for warning in warnings {
         dx_output::write_stderr(err, format_args!("dx worktree: {}\n", warning.message));
     }
 }
 
-fn notice_line(err: &mut dyn Write, added: &Added) {
-    if let Some(notice) = &added.notice {
-        dx_output::write_stderr(err, format_args!("dx worktree: {notice}\n"));
-    }
-}
-
 fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32 {
     warn_lines(err, &added.warnings);
-    notice_line(err, added);
     match write_line(out, &added.path.to_string_lossy()) {
         Ok(()) => 0,
         Err(exit) => exit,
@@ -920,7 +889,6 @@ fn run_hook(
     match kind {
         HookKind::Guard => guard_hook(stdin, who, out, err),
         HookKind::Bazel => bazel_hook(workspace, &[], err),
-        HookKind::Git => git_hook(workspace, stdin, err),
         HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
@@ -945,10 +913,6 @@ fn guard_hook(stdin: &str, who: &Who, out: &mut dyn Write, err: &mut dyn Write) 
             return 0;
         }
     };
-    if let Some(line) = hook::primary_checkout(&input, who, &dx_worktree::slots_for_primary) {
-        dx_output::write_stderr(err, format_args!("{line}\n"));
-        return dx_process::pre_exec_code();
-    }
     match hook::guard(&input, who, &dx_worktree::lease_for_dir) {
         hook::Guard::Block(line) => {
             dx_output::write_stderr(err, format_args!("{line}\n"));
@@ -1105,7 +1069,6 @@ mod tests {
                 code: "fetch_failed",
                 message: "cannot fetch origin, using local refs: offline".to_owned(),
             }],
-            notice: None,
         }
     }
 
@@ -1142,41 +1105,6 @@ mod tests {
         assert_eq!(events[2]["action"], "add");
         assert_eq!(events[2]["state"], "held");
         assert_eq!(events[2]["base"], "origin/main");
-    }
-
-    #[test]
-    fn add_prints_the_protect_notice_once_in_every_mode() {
-        let protected = Added {
-            warnings: Vec::new(),
-            notice: Some("the main checkout /repo is now protected".to_owned()),
-            ..added()
-        };
-        for (words, on_out, on_err) in [
-            (&["worktree", "add", "x"][..], 1, 0),
-            (&["worktree", "add", "x", "--path-only"][..], 0, 1),
-        ] {
-            let mut out = Vec::new();
-            let mut err = Vec::new();
-            add_output(&mut out, &mut err, &parsed(words), "x", &protected).expect("output");
-            let out = String::from_utf8(out).expect("utf8");
-            let err = String::from_utf8(err).expect("utf8");
-            let line = "dx worktree: the main checkout /repo is now protected\n";
-            assert_eq!(out.matches(line).count(), on_out, "{words:?}: {out}");
-            assert_eq!(err.matches(line).count(), on_err, "{words:?}: {err}");
-        }
-        let mut out = Vec::new();
-        let mut err = Vec::new();
-        let json = parsed(&["worktree", "add", "x", "--output=json"]);
-        add_output(&mut out, &mut err, &json, "x", &protected).expect("output");
-        let notices: Vec<serde_json::Value> = String::from_utf8(out)
-            .expect("utf8")
-            .lines()
-            .map(|line| serde_json::from_str(line).expect("json"))
-            .filter(|event: &serde_json::Value| event["event"] == "notice")
-            .collect();
-        assert_eq!(notices.len(), 1);
-        assert_eq!(notices[0]["severity"], "info");
-        assert_eq!(notices[0]["code"], "main_checkout_protected");
     }
 
     #[test]
@@ -2010,6 +1938,29 @@ mod tests {
     }
 
     #[test]
+    fn guard_tells_the_agent_about_slots_in_the_main_checkout() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir(dir.path().join(".git")).expect("git dir");
+        let stdin = serde_json::json!({
+            "cwd": dir.path(),
+            "tool_input": {"command": "git commit -m x"},
+        })
+        .to_string();
+        let (code, out, err) = hook(HookKind::Guard, &stdin, dir.path());
+        assert_eq!((code, err.as_str()), (0, ""), "{out}");
+        let output: serde_json::Value = serde_json::from_str(&out).expect("json");
+        assert_eq!(
+            output,
+            serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": hook::MAIN_CHECKOUT_TIP,
+                }
+            })
+        );
+    }
+
+    #[test]
     fn copilot_pre_tool_use_payload_is_blocked_like_claudes() {
         let dir = tempfile::tempdir().expect("tempdir");
         let payload = r#"{"hook_event_name":"PreToolUse","session_id":"c1","timestamp":"2026-11-05T00:00:00.000Z","cwd":"/r","tool_name":"Bash","tool_input":{"command":"git worktree remove ../x"}}"#;
@@ -2055,7 +2006,7 @@ mod tests {
 
     #[test]
     fn hook_names_list_every_kind() {
-        assert_eq!(HookKind::names(), "create, remove, stop, guard, bazel, git");
+        assert_eq!(HookKind::names(), "create, remove, stop, guard, bazel");
         for kind in HookKind::ALL {
             assert_eq!(HookKind::from_word(kind.word()), Some(kind));
         }

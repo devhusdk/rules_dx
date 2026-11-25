@@ -603,7 +603,6 @@ cli/worktree/src/host.rs comment 43
 cli/worktree/src/lib.rs comment 6
 cli/worktree/src/ops.rs comment 122
 cli/worktree/src/pool.rs comment 44
-cli/worktree/src/primary.rs comment 40
 cli/worktree/src/reap.rs comment 10
 cli/worktree/src/setup.rs comment 36
 cli/worktree/src/tests.rs comment 27

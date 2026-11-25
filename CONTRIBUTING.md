@@ -6,13 +6,11 @@ Read [AGENTS.md](AGENTS.md) before you change code, and `docs/design/layout.md` 
 
 ## Make a change
 
-1. Get your own checkout, called a slot, on a new branch:
+1. Make a branch in your clone:
 
    ```sh
-   tools/dx worktree add <branch>
+   git switch -c <branch>
    ```
-
-   Work in the path it prints.
 
 2. Edit the code. Update tests and user docs when behaviour changes. Never edit a generated file by hand; run its generator.
 
@@ -42,15 +40,25 @@ Read [AGENTS.md](AGENTS.md) before you change code, and `docs/design/layout.md` 
    tools/dx check --affected
    ```
 
-7. Push, open the pull request, and free your slot:
-
-   ```sh
-   tools/dx worktree release
-   ```
+7. Push and open the pull request.
 
 Warnings count as errors. Library crates return typed errors; only binaries turn them into exit codes.
 
 To run everything, use `tools/dx test //...`. `//...` means every target in the repo, so this takes a long time.
+
+### Work in a slot
+
+A slot is a second checkout with its own branch and Bazel server. Use one to keep a change, or an agent, apart from your clone:
+
+```sh
+tools/dx worktree add <branch>
+```
+
+Run the same steps in the path it prints. Free the slot once the pull request is open:
+
+```sh
+tools/dx worktree release
+```
 
 ## Run tests on another platform
 
@@ -125,7 +133,7 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.
 
-2. Work in a slot, as `AGENTS.md` says. A slot is a second checkout with its own Bazel server and output base. Stop the primary checkout's Bazel server first, so only one server holds memory:
+2. Work in a slot, as `AGENTS.md` says. A slot is a second checkout with its own Bazel server and output base. Stop the main checkout's Bazel server first, so only one server holds memory:
 
    ```sh
    ~/.cache/dx/bazelisk/*/bazel shutdown

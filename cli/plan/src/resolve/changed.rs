@@ -2,6 +2,7 @@ use std::path::Path;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::consumer_fixtures;
 use super::extension_scope::{self, Names, Scope};
 use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_diff::{self, Named};
@@ -1065,14 +1066,29 @@ enum Fallback {
     Package { scope: String, reason: String },
 }
 
-fn unowned(workspace: &Path, path: &str, fallback: &Fallback) -> Option<(String, String)> {
-    match fallback {
-        Fallback::Keep => None,
-        Fallback::Nearest => Some((
+/// The scope an unowned path widens to. A scope that names no rule would select nothing, as for a
+/// path under a directory the root module ignores, so that path widens to the whole repository.
+fn unowned(
+    workspace: &Path,
+    graph: &RuleGraph,
+    path: &str,
+    fallback: &Fallback,
+) -> Option<(String, String)> {
+    let (scope, reason) = match fallback {
+        Fallback::Keep => return None,
+        Fallback::Nearest => (
             dx_adopt::nearest_package_pattern(workspace, path),
             format!("unowned {path}"),
-        )),
-        Fallback::Package { scope, reason } => Some((scope.clone(), reason.clone())),
+        ),
+        Fallback::Package { scope, reason } => (scope.clone(), reason.clone()),
+    };
+    if scope == "//..." || graph.selects_any_rule(&scope) {
+        Some((scope, reason))
+    } else {
+        Some((
+            "//...".to_owned(),
+            format!("{reason}, and no rule is in {scope}"),
+        ))
     }
 }
 
@@ -1315,6 +1331,8 @@ pub fn resolve_affected(
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
     let mut module_paths: Vec<String> = Vec::new();
+    let mut fixtures: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut rules_dx_root = None;
     let mut cache = PackageCache::default();
     let (hubs, inputs) = module_inputs_of(workspace);
     let rc_files = workspace_rc_files(workspace, startup_options);
@@ -1325,6 +1343,15 @@ pub fn resolve_affected(
         }
         for path in paths {
             valid_change_path(&path)?;
+            if let Some(lang) = consumer_fixtures::language(workspace, &path)
+                && *rules_dx_root.get_or_insert_with(|| dx_adopt::is_rules_dx_root(workspace))
+            {
+                fixtures
+                    .entry(lang.to_owned())
+                    .or_default()
+                    .push(path.clone());
+                continue;
+            }
             if is_lock_input(&path, &hubs) {
                 lock_paths.push(path);
                 continue;
@@ -1489,7 +1516,11 @@ pub fn resolve_affected(
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() || !extensions.is_empty()
+    if !candidates.is_empty()
+        || !narrowed.is_empty()
+        || update.is_some()
+        || !extensions.is_empty()
+        || !fixtures.is_empty()
     {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
         let users = Users {
@@ -1632,6 +1663,33 @@ pub fn resolve_affected(
                 });
             }
         }
+        for (lang, paths) in &mut fixtures {
+            paths.sort_unstable();
+            paths.dedup();
+            let what = format!("consumer fixture {}", paths.join(", "));
+            let seeds = consumer_fixtures::seeds(loaded.external_labels(), lang);
+            if seeds.is_empty() {
+                push_widened(
+                    &mut widened,
+                    "//...".to_owned(),
+                    format!("{what}, and no rule reads its snapshot"),
+                );
+                continue;
+            }
+            users.widen_repo_users(
+                &seeds,
+                &what,
+                &mut widened,
+                &mut aspect_widened,
+                &mut targets,
+            );
+            targets.extend(seeds.iter().cloned());
+            widened.push(WidenedScope {
+                scope: rdeps_scope(&seeds),
+                reason: what,
+                repos: seeds,
+            });
+        }
         graph = Some(loaded);
     }
     if let Some(loaded) = graph.as_ref().filter(|_| !candidates.is_empty()) {
@@ -1654,7 +1712,7 @@ pub fn resolve_affected(
         );
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
-                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                if let Some((scope, reason)) = unowned(workspace, loaded, path, fallback) {
                     push_widened(&mut widened, scope, reason);
                 }
             }
@@ -1666,7 +1724,7 @@ pub fn resolve_affected(
                 if sources.contains(label.as_str()) {
                     continue;
                 }
-                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                if let Some((scope, reason)) = unowned(workspace, loaded, path, fallback) {
                     push_widened(&mut widened, scope, reason);
                 }
             }
@@ -1854,7 +1912,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "BUILD.bazel", "").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//:lib", &[])])]);
         let selection = resolve_affected(
             &[change("gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1935,7 +1993,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[
                 change("pkg/a.py", dx_adopt::ChangeKind::Modified),
@@ -2043,7 +2101,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -3820,7 +3878,7 @@ use_repo(pip, \"pypi\")\n"
                 scope: "pkg/gone.py".to_owned(),
             }
         );
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -3908,7 +3966,7 @@ use_repo(pip, \"pypi\")\n"
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "outer/BUILD.bazel", "").unwrap();
         write(&workspace, "outer/inner/BUILD.bazel", "").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//outer/inner:lib", &[])])]);
         let selection = resolve_affected(
             &[change("outer/inner/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -4596,7 +4654,7 @@ use_repo(pip, \"pypi\")\n"
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/notes.txt", "x\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/notes.txt", dx_adopt::ChangeKind::Modified)],
             &workspace,

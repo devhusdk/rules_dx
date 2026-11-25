@@ -303,56 +303,56 @@ actionlint_go_deps.module(
     version = "v1.7.13-0.20260419144658-011a6d15e749",
 )
 actionlint_go_deps.module(
-    path = "github.com/bmatcuk/doublestar/v4",
     indirect = True,
+    path = "github.com/bmatcuk/doublestar/v4",
     sum = "h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=",
     version = "v4.10.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/clipperhouse/uax29/v2",
     indirect = True,
+    path = "github.com/clipperhouse/uax29/v2",
     sum = "h1:+gs4oBZ2gPfVrKPthwbMzWZDaAFPGYK72F0NJv2v7Vk=",
     version = "v2.7.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/fatih/color",
     indirect = True,
+    path = "github.com/fatih/color",
     sum = "h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=",
     version = "v1.19.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-colorable",
     indirect = True,
+    path = "github.com/mattn/go-colorable",
     sum = "h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=",
     version = "v0.1.14",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-isatty",
     indirect = True,
+    path = "github.com/mattn/go-isatty",
     sum = "h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=",
     version = "v0.0.20",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-runewidth",
     indirect = True,
+    path = "github.com/mattn/go-runewidth",
     sum = "h1:jJKAZiQH+2mIinzCJIaIG9Be1+0NR+5sz/lYEEjdM8w=",
     version = "v0.0.21",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-shellwords",
     indirect = True,
+    path = "github.com/mattn/go-shellwords",
     sum = "h1:M2zGm7EW6UQJvDeQxo4T51eKPurbeFbe8WtebGE2xrk=",
     version = "v1.0.12",
 )
 actionlint_go_deps.module(
-    path = "github.com/robfig/cron/v3",
     indirect = True,
+    path = "github.com/robfig/cron/v3",
     sum = "h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=",
     version = "v3.0.1",
 )
 actionlint_go_deps.module(
-    path = "go.yaml.in/yaml/v4",
     indirect = True,
+    path = "go.yaml.in/yaml/v4",
     sum = "h1:3h1fjsh1CTAPjW7q/EMe+C8shx5d8ctzZTrLcs/j8Go=",
     version = "v4.0.0-rc.3",
 )

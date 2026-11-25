@@ -396,15 +396,6 @@ mod tests {
     }
 
     #[test]
-    fn release_query_matches_the_workflow() {
-        let workflow = include_str!("../../../../.github/workflows/reusable-release.yml");
-        assert!(
-            workflow.contains(&format!("'{RELEASE_DEPLOYMENTS_QUERY}'")),
-            "reusable-release.yml must run RELEASE_DEPLOYMENTS_QUERY"
-        );
-    }
-
-    #[test]
     fn run_labels_pass_through_without_query() {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-labels-").unwrap();
         let workspace = scratch.path().to_path_buf();

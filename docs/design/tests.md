@@ -60,7 +60,6 @@ Nested | A test that runs a second Bazel in a consumer workspace. | No other kin
 
 - The target is under 1 second per test.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
-- `//tools/ci:test_budget_test` holds the budget: `docs/design/test-budget.md`.
 
 ## Expected failures
 

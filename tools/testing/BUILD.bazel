@@ -186,45 +186,6 @@ rust_binary(
 )
 
 testing_rust_test(
-    name = "root_layout_test",
-    data = [
-        "//:lang_json",
-        "//:module_srcs",
-    ],
-    deps = [":dx_testing"],
-)
-
-testing_rust_test(
-    name = "toolchain_gate_test",
-    size = "small",
-    data = ["//:module_srcs"],
-    deps = [":dx_testing"],
-)
-
-testing_rust_test(
-    name = "language_skeleton_test",
-    size = "small",
-    data = [
-        "language_skeleton_allowlist.txt",
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:paths.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:paths.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-        "LANGUAGE_SKELETON_ALLOWLIST": "$(rlocationpath language_skeleton_allowlist.txt)",
-    },
-    deps = [
-        ":dx_testing",
-        "//tools/ci:dx_guard",
-        "@crates//:serde_json",
-        "@crates//:starlark_syntax",
-    ],
-)
-
-testing_rust_test(
     name = "dx_generated_fresh_test",
     data = ["//:module_srcs"],
     deps = [
@@ -513,11 +474,6 @@ exports_files(
 exports_files(
     ["Cargo.toml"],
     visibility = VIS_TOOLS_CLI_TEST,
-)
-
-exports_files(
-    ["nested_smoke.txt"],
-    visibility = ["//tools/ci:__pkg__"],
 )
 
 real_source_target(

@@ -17,11 +17,6 @@ exports_files(
 )
 
 exports_files(
-    ["deprecations.txt"],
-    visibility = ["//tools/ci:__pkg__"],
-)
-
-exports_files(
     ["starlark.json"],
     visibility = ["//cli/tests/entrypoint:__pkg__"],
 )

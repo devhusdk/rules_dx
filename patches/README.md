@@ -11,7 +11,7 @@ This page helps you add, change or drop a patch that rules_dx applies to another
    Upstream: bazelbuild/rules_rust#4390
    ```
 
-   Name several with commas. When the fix landed upstream without a pull request, name its commit with the full sha: `Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f`. When the fix will never go upstream, say why: `Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)`. Every Monday `.github/workflows/patch-upstream.yml` checks these lines and opens an issue when an upstream fix is in a release, so you know which patch to drop. A `bazelbuild/bazel-central-registry#N` ref counts as released once the pull request merges, so bump the module to the `.bcr.N` version it adds. `//patches:headers_test` fails a pull request whose patch has no readable `Upstream:` line.
+   Name several with commas. When the fix landed upstream without a pull request, name its commit with the full sha: `Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f`. When the fix will never go upstream, say why: `Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)`. Every Monday `.github/workflows/patch-upstream.yml` checks these lines and opens an issue when an upstream fix is in a release, so you know which patch to drop. A `bazelbuild/bazel-central-registry#N` ref counts as released once the pull request merges, so bump the module to the `.bcr.N` version it adds.
 2. Add its label, such as `//patches/rules_rust:my_fix.patch`, to the `patches` list of the module's `single_version_override` in `MODULE.bazel`.
 3. Add a row to the table below. Leave the Version cell as it is; the next step fills it in.
 4. Refresh the page:
@@ -29,7 +29,7 @@ Bazel applies a `single_version_override` only in the root module, the one you r
 
 When the upstream fix is in a release rules_dx uses, delete the patch file, its label and its row, then run `bazel run //patches:update_readme` again.
 
-Some upstream fixes are carried as rules_dx code instead of a patch, such as extra toolchain args. Mark such a carry with a `# Upstream: owner/repo#N` comment line in its `BUILD.bazel` or `.bzl` file, above the code to delete. The weekly check reads these lines like patch headers, and `//patches:headers_test` fails a pull request whose marker is unreadable. When the fix is in a release, bump the module and delete the carry and its marker.
+Some upstream fixes are carried as rules_dx code instead of a patch, such as extra toolchain args. Mark such a carry with a `# Upstream: owner/repo#N` comment line in its `BUILD.bazel` or `.bzl` file, above the code to delete. The weekly check reads these lines like patch headers. When the fix is in a release, bump the module and delete the carry and its marker.
 
 ## Patches in MODULE.bazel overrides
 

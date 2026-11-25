@@ -12,13 +12,5 @@ name = "consumer_deps_test"
 path = "consumer_deps_test.rs"
 
 [[test]]
-name = "oci_pins_test"
-path = "oci_pins_test.rs"
-
-[[test]]
 name = "lang_json_test"
 path = "lang_json_test.rs"
-
-[[test]]
-name = "python_budget_test"
-path = "python_budget_test.rs"

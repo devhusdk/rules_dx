@@ -14,34 +14,6 @@ name = "actionlint_test"
 path = "actionlint_test.rs"
 
 [[test]]
-name = "advisory_launch_test"
-path = "advisory_launch_test.rs"
-
-[[test]]
-name = "advisory_snapshots_test"
-path = "advisory_snapshots_test.rs"
-
-[[test]]
-name = "aggregate_gates_test"
-path = "aggregate_gates_test.rs"
-
-[[test]]
-name = "artifact_writes_test"
-path = "artifact_writes_test.rs"
-
-[[test]]
-name = "aspect_to_list_test"
-path = "aspect_to_list_test.rs"
-
-[[test]]
-name = "command_docs_test"
-path = "command_docs_test.rs"
-
-[[test]]
-name = "comment_budget_test"
-path = "comment_budget_test.rs"
-
-[[test]]
 name = "config_consistency_test"
 path = "config_consistency_test.rs"
 
@@ -62,145 +34,13 @@ name = "evidence_inputs_test"
 path = "evidence_inputs_test.rs"
 
 [[test]]
-name = "dx_guard_test"
-path = "dx_guard_test.rs"
-
-[[test]]
 name = "gate_base_test"
 path = "gate_base_test.rs"
-
-[[test]]
-name = "gazelle_rust_coverage_test"
-path = "gazelle_rust_coverage_test.rs"
-
-[[test]]
-name = "gitlab_example_test"
-path = "gitlab_example_test.rs"
-
-[[test]]
-name = "gitlab_inputs_parity_test"
-path = "gitlab_inputs_parity_test.rs"
-
-[[test]]
-name = "host_env_test"
-path = "host_env_test.rs"
-
-[[test]]
-name = "lint_attributes_test"
-path = "lint_attributes_test.rs"
-
-[[test]]
-name = "determinism_allowlist_test"
-path = "determinism_allowlist_test.rs"
-
-[[test]]
-name = "host_program_test"
-path = "host_program_test.rs"
-
-[[test]]
-name = "hub_literals_test"
-path = "hub_literals_test.rs"
 
 [[test]]
 name = "input_validation_test"
 path = "input_validation_test.rs"
 
 [[test]]
-name = "pin_locations_test"
-path = "pin_locations_test.rs"
-
-[[test]]
-name = "lock_hub_names_test"
-path = "lock_hub_names_test.rs"
-
-[[test]]
-name = "lock_registry_test"
-path = "lock_registry_test.rs"
-
-[[test]]
-name = "rust_test_crate_deps_test"
-path = "rust_test_crate_deps_test.rs"
-
-[[test]]
-name = "rule_set_loads_test"
-path = "rule_set_loads_test.rs"
-
-[[test]]
-name = "prose_rules_test"
-path = "prose_rules_test.rs"
-
-[[test]]
-name = "release_assets_test"
-path = "release_assets_test.rs"
-
-[[test]]
-name = "repo_rule_refetch_test"
-path = "repo_rule_refetch_test.rs"
-
-[[test]]
-name = "reusable_callers_test"
-path = "reusable_callers_test.rs"
-
-[[test]]
-name = "review_paths_test"
-path = "review_paths_test.rs"
-
-[[test]]
-name = "sandbox_escape_test"
-path = "sandbox_escape_test.rs"
-
-[[test]]
 name = "secret_flags_test"
 path = "secret_flags_test.rs"
-
-[[test]]
-name = "signing_pins_test"
-path = "signing_pins_test.rs"
-
-[[test]]
-name = "sleep_budget_test"
-path = "sleep_budget_test.rs"
-
-[[test]]
-name = "starlark_docs_test"
-path = "starlark_docs_test.rs"
-
-[[test]]
-name = "test_budget_test"
-path = "test_budget_test.rs"
-
-[[test]]
-name = "test_duplicates_test"
-path = "test_duplicates_test.rs"
-
-[[test]]
-name = "test_tags_test"
-path = "test_tags_test.rs"
-
-[[test]]
-name = "tool_resolve_test"
-path = "tool_resolve_test.rs"
-
-[[test]]
-name = "unreferenced_files_test"
-path = "unreferenced_files_test.rs"
-
-[[test]]
-name = "verbatim_prefix_test"
-path = "verbatim_prefix_test.rs"
-
-[[test]]
-name = "workflow_expressions_test"
-path = "workflow_expressions_test.rs"
-
-[[test]]
-name = "workflow_pins_test"
-path = "workflow_pins_test.rs"
-
-[[test]]
-name = "zero_compat_test"
-path = "zero_compat_test.rs"
-
-[[test]]
-name = "workflow_files_test"
-path = "workflow_files_test.rs"

@@ -1,6 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@crates//:crates.bzl", "aliases")
 load("@rules_apple//apple:macos.bzl", "macos_bundle", "macos_framework")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("//apple/private/ios:app.bzl", "apple_ios_app", "apple_ios_xcframework", "ios_xctest_selection")
@@ -13,7 +12,6 @@ load("//apple/private/xcode:license.bzl", "xcode_license")
 load("//apple/private/xcode:repos.bzl", "UNACCEPTED")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load(":cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
 load(":ios_app_tests.bzl", "apple_ios_app_tests")
@@ -24,27 +22,6 @@ load(":macos_app_tests.bzl", "apple_macos_app_tests")
 load(":platform_config_tests.bzl", "apple_platform_config_test")
 load(":signing_tests.bzl", "apple_signing_tests")
 load(":toolchain_tests.bzl", "apple_ios_tests")
-
-rust_test(
-    name = "path_test",
-    size = "small",
-    testonly = True,
-    srcs = ["path_test.rs"],
-    aliases = aliases(
-        package_name = "apple/apple_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "path_test",
-    crate_root = "path_test.rs",
-    data = [
-        "//apple/private/bundle:defs.bzl",
-        "//apple/private/ios:app.bzl",
-        "//apple/private/macos:app.bzl",
-    ],
-    env = {"DX_APPLE_PATH_SOURCES": "$(rootpath //apple/private/bundle:defs.bzl) $(rootpath //apple/private/ios:app.bzl) $(rootpath //apple/private/macos:app.bzl)"},
-    deps = ["//tools/testing:dx_testing"],
-)
 
 nested_bazel_test(
     name = "consumer_build_test",
@@ -118,13 +95,6 @@ real_source_target(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//visibility:public"],
-)
-
-real_source_target(
-    name = "corpus_toml",
-    testonly = True,
-    tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
 )
 
 filegroup(

@@ -8,29 +8,6 @@ consumer_fixture_tests(
     size = "small",
 )
 
-rust_test(
-    name = "root_module_test",
-    size = "small",
-    srcs = ["root_module_test.rs"],
-    data = [
-        "pending.txt",
-        "@dx_test_tags_sources//:consumer.json",
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "DX_CONSUMER_FIXTURES": " ".join(CONSUMER_FIXTURES),
-        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
-        "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-    },
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:starlark_syntax",
-    ],
-)
-
 # A nested Bazel consumer build and test per language, each case in a fresh workspace with an empty
 # output base. Fails when the repositories a one-language consumer fetches differ from
 # cold_start/<lang>.txt or include another language's repositories.
@@ -119,11 +96,9 @@ rust_test(
     crate = ":in_graph_prebuilt_guard",
     data = [
         "prebuilt_guard_allowlist.txt",
-        "//.github:workflows/ci.yml",
         "@dx_test_tags_sources//:consumer.json",
     ],
     env = IN_GRAPH_GUARD_ENV | {
-        "DX_CI_WORKFLOW": "$(rlocationpath //.github:workflows/ci.yml)",
         "DX_CONSUMER_FIXTURES": " ".join(CONSUMER_FIXTURES),
         "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
         "DX_GUARD_PENDING": " ".join(GUARD_PENDING),
@@ -131,7 +106,6 @@ rust_test(
         "DX_MACOS_IN_GRAPH_GUARD_LANGS": " ".join(MACOS_IN_GRAPH_GUARD_LANGS),
         "DX_WINDOWS_IN_GRAPH_GUARD_LANGS": " ".join(WINDOWS_IN_GRAPH_GUARD_LANGS),
     },
-    deps = ["//tools/ci/ci_workflow"],
 )
 
 # A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the

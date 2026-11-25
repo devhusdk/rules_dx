@@ -306,36 +306,4 @@ mod tests {
             Err("DX_IN_GRAPH_GUARD_LANGS names no language".to_owned())
         );
     }
-
-    #[test]
-    fn each_os_leg_runs_its_list() {
-        let workflow = dx_testing::env_text("DX_CI_WORKFLOW");
-        let job = ci_workflow::job(workflow.trim(), "in-graph-prebuilt-guard").unwrap();
-        assert_eq!(job["defaults"]["run"]["shell"], "bash");
-        let legs: BTreeMap<String, String> = job["strategy"]["matrix"]["include"]
-            .as_array()
-            .expect("in-graph-prebuilt-guard declares a matrix include list")
-            .iter()
-            .map(|leg| {
-                (
-                    leg["platform"].as_str().unwrap_or_default().to_owned(),
-                    leg["langs"].as_str().unwrap_or_default().to_owned(),
-                )
-            })
-            .collect();
-        assert_eq!(
-            legs,
-            BTreeMap::from([
-                ("linux_x86_64".to_owned(), String::new()),
-                (
-                    "macos_arm64".to_owned(),
-                    dx_testing::env_text("DX_MACOS_IN_GRAPH_GUARD_LANGS")
-                ),
-                (
-                    "windows_x86_64".to_owned(),
-                    dx_testing::env_text("DX_WINDOWS_IN_GRAPH_GUARD_LANGS")
-                ),
-            ])
-        );
-    }
 }

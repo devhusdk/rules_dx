@@ -90,7 +90,7 @@ cargo.annotation(
 - A rule that chooses what to build for takes `platforms` and applies a transition. No consumer sets `--platforms`, a minimum OS flag or an SDK version flag.
 - A flag Bazel can take only from an rc file is in the manifest `setup.flags`. dx writes it into `.dx/bazelrc/` when the workspace has that language's files.
 - The `.bazelrc` that `dx init` writes holds the `try-import` lines of `.dx/bazelrc/`. It holds no other flag.
-- Root `.bazelrc` gets language flags from the same generated layers. It sets no other build flag, except the names in `tools/ci/root_bazelrc_allowlist.txt`. That list only shrinks.
+- Root `.bazelrc` gets language flags from the same generated layers. It sets no other build flag.
 
 ## Platform families
 

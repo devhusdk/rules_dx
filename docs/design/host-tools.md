@@ -6,7 +6,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 
 - An action or test never puts a host directory on `PATH`. `/usr/bin`, `/bin`, `/usr/local/bin`, the inherited `$PATH` and the Windows system root (`C:\Windows`, `System32`, `%SystemRoot%`) are host directories.
 - `PATH` holds only directories of declared inputs.
-- Xcode and the Apple SDK cannot be redistributed. `apple/private/tools/ops/src/xcode.rs` is the one file that names `/usr/bin/xcrun`, `/usr/bin/codesign`, `/usr/bin/security`, `/usr/bin/plutil` and `/usr/bin/ditto`; `//tools/ci:host_env_test` skips exactly those strings there. `DEVELOPER_DIR` comes from the configured `xcode_version`, never from `PATH`.
+- Xcode and the Apple SDK cannot be redistributed. `apple/private/tools/ops/src/xcode.rs` is the one file that names `/usr/bin/xcrun`, `/usr/bin/codesign`, `/usr/bin/security`, `/usr/bin/plutil` and `/usr/bin/ditto`. `DEVELOPER_DIR` comes from the configured `xcode_version`, never from `PATH`.
 - An action that needs no program from `PATH` sets `PATH=/dx_no_path`.
 - No action sets `use_default_shell_env = True`.
 
@@ -70,21 +70,6 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 
 - Each converted rule has a test that fails when a host directory returns to its `PATH`.
 - `//core/coreutils:applet_probe_test` runs one applet by name with only the applet directory on `PATH`.
-- `//tools/ci:host_env_test` parses every `BUILD`, `.bzl` and repository `*.BUILD` file and scans Rust, shell, template, rc, `.bat`, `.cmd` and `.ps1` files. Its kinds:
-  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line. In Starlark, shell, template, rc and Windows script files also `:/windows`, `:\windows`, `/system32`, `\system32`, `%systemroot%`, `%windir%`, `$env:systemroot` or `$env:windir` in any case. In Rust, a string token that is `SystemRoot`, `windir` or `System32`.
-  - `home`: the string `HOME` in Starlark, `$HOME` or `${HOME}` in Starlark, shell and templates.
-  - `env-inherit`: an `env_inherit` argument or key.
-  - `default-shell-env`: `use_default_shell_env` set to anything but `False`, or passed as a key.
-  - `run-shell`, `genrule`, `sh-rule`: a call of `run_shell`, `genrule`, `sh_test` or `sh_binary`.
-  - `shebang`: a file or a written string that starts with a shell `#!` line.
-  - `rc-env-passthrough`: `--action_env`, `--host_action_env` or `--test_env` with a name and no value.
-- `//tools/ci:host_program_test` scans Rust and Starlark. Its kinds:
-  - `spawn-by-name`: `Command::new` with a string that has no path separator.
-  - `env-path`, `env-home`: `env::var` or `env::var_os` of `PATH`, `HOME` or `USERPROFILE`.
-  - `rctx-which`: a `.which(` call.
-  - `rctx-execute-by-name`: an `.execute(` call whose first argument element is a string with no path separator.
-- Test code counts the same as product code.
-- `tools/ci/host_env_allowlist.txt` and `tools/ci/host_program_allowlist.txt` hold one sorted line per file and kind: `<path> <kind> <count>`. They follow the allowlist rules in `docs/design/tests.md` section Guard.
 
 ## Conversion order
 
@@ -93,5 +78,4 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 3. `run_shell` actions and `genrule` commands.
 4. `sh_test` targets and shell test helpers.
 5. Rust code that starts host programs by name.
-6. The allowlists of `//tools/ci:host_env_test` and `//tools/ci:host_program_test`, emptied by the steps above.
 GitHub action logic that must run without Bazel is a node24 JavaScript action tested with `//core/env:node`.

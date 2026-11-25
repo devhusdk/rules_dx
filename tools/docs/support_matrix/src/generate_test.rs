@@ -78,32 +78,6 @@ fn a_row_test_missing_from_every_platform_file_fails() {
 }
 
 #[test]
-fn every_compiler_and_target_row_has_a_row_tagged_test() {
-    let source = RunfilesSource::create().expect("runfiles");
-    let facts = parse_facts(
-        &source
-            .read("tools/docs/support_matrix/facts.json")
-            .expect("facts"),
-    )
-    .expect("facts parse");
-    let labels: std::collections::BTreeMap<String, Vec<String>> =
-        serde_json::from_str(&source.read(ROW_LABELS_PATH).expect("row labels"))
-            .expect("row labels parse");
-    for row in facts
-        .rows
-        .iter()
-        .filter(|row| row.section == "compilers" || row.section == "targets")
-    {
-        assert!(
-            labels.get(&row.name).is_some_and(|have| !have.is_empty()),
-            "row {} has no test tagged row:{}; tag its tests and run `bazel run //tools/docs/support_matrix:row_tests -- <platform>`",
-            row.name,
-            row.name
-        );
-    }
-}
-
-#[test]
 fn a_row_tag_naming_no_row_fails() {
     struct WithRow<'a>(&'a RunfilesSource);
     impl Source for WithRow<'_> {

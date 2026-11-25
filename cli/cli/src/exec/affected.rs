@@ -164,7 +164,7 @@ fn scope_to_graph(
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        let mut tests = graph.tests_of(&rules);
+        let mut tests = graph.affected_tests(&selection.targets, &rules);
         tests.retain(|test| !exclude::covered(&excludes, test));
         tests
     } else {

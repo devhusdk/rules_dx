@@ -689,6 +689,16 @@ pub fn executable_script(path: &Path, body: &str) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
+#[cfg(not(unix))]
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
+pub fn executable_script(path: &Path, body: &str) {
+    std::fs::write(path, body).expect("write script body");
+}
+
 /// Copies an executable in a child process, so no forked thread inherits a write fd to the copy.
 #[track_caller]
 #[expect(
@@ -1331,7 +1341,7 @@ mod tests {
             let actual = dir.join("actual.txt");
             let err = snapshot_diff(&golden, &actual, Some("pkg/golden.txt"))
                 .expect_err("a staged-only refresh must fail");
-            let staged = dir.join("out/golden.txt.expected.update");
+            let staged = dir.join("out").join("golden.txt.expected.update");
             assert!(err.contains(&staged.display().to_string()), "{err}");
             assert!(err.contains("pkg/golden.txt"), "{err}");
             assert_eq!(read(&staged), "new\n");

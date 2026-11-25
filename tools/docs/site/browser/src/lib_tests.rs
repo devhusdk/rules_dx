@@ -8,15 +8,39 @@ use super::{
 };
 
 fn running_child() -> std::process::Child {
-    Command::new("cat")
+    let (stdin_reader, args): (&str, &[&str]) = if cfg!(windows) {
+        ("findstr", &["x"])
+    } else {
+        ("cat", &[])
+    };
+    Command::new(stdin_reader)
+        .args(args)
         .stdin(std::process::Stdio::piped())
         .spawn()
         .expect("a running child")
 }
 
-fn script(dir: &Path, body: &str) -> PathBuf {
-    let path = dir.join("firefox");
-    dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
+fn fake_firefox(dir: &Path, stderr: &[&str], code: u8) -> PathBuf {
+    let (path, body) = if cfg!(windows) {
+        let lines: String = stderr
+            .iter()
+            .map(|line| format!("1>&2 echo {line}\r\n"))
+            .collect();
+        (
+            dir.join("firefox.cmd"),
+            format!("@echo off\r\n{lines}exit /b {code}\r\n"),
+        )
+    } else {
+        let lines: String = stderr
+            .iter()
+            .map(|line| format!("echo '{line}' >&2\n"))
+            .collect();
+        (
+            dir.join("firefox"),
+            format!("#!/bin/sh\n{lines}exit {code}\n"),
+        )
+    };
+    dx_testing::executable_script(&path, &body);
     path
 }
 
@@ -137,9 +161,10 @@ fn a_missing_browser_tree_is_reported_as_empty() {
 fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
     let scratch_tmp = dx_test_scratch::scratch("browser-exits").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
-    let firefox = script(
+    let firefox = fake_firefox(
         &scratch,
-        "echo 'libfake.so.2: cannot open shared object file' >&2\nexit 1",
+        &["libfake.so.2: cannot open shared object file"],
+        1,
     );
     let profile = scratch.join("profile");
     let started = Instant::now();
@@ -167,9 +192,14 @@ fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
 fn a_browser_missing_system_libraries_names_each_one_once() {
     let scratch_tmp = dx_test_scratch::scratch("browser-libraries").unwrap();
     let scratch = scratch_tmp.path().to_path_buf();
-    let firefox = script(
+    let firefox = fake_firefox(
         &scratch,
-        "echo 'firefox: error while loading shared libraries: libasound.so.2: cannot open shared object file: No such file or directory' >&2\necho 'libgtk-3.so.0: cannot open shared object file: No such file or directory' >&2\necho 'libasound.so.2: cannot open shared object file: No such file or directory' >&2\nexit 127",
+        &[
+            "firefox: error while loading shared libraries: libasound.so.2: cannot open shared object file: No such file or directory",
+            "libgtk-3.so.0: cannot open shared object file: No such file or directory",
+            "libasound.so.2: cannot open shared object file: No such file or directory",
+        ],
+        127,
     );
     let profile = scratch.join("profile");
     let Err(error) = Browser::start(&firefox, &profile) else {

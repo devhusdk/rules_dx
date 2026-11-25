@@ -21,6 +21,11 @@ pub struct RuleGraph {
     source_readers: HashMap<String, Vec<String>>,
 }
 
+struct Reached<'a> {
+    seeds: &'a [String],
+    reached: HashSet<&'a str>,
+}
+
 const SOURCE_EDGES: [&str; 6] = [
     "aspect_hints",
     "beam",
@@ -149,6 +154,12 @@ fn has_tag(rule: &Value, wanted: &str) -> bool {
 
 pub(crate) fn is_pattern(scope: &str) -> bool {
     scope.ends_with("/...") || scope.ends_with(":all") || scope.ends_with(":*")
+}
+
+fn in_scopes(scopes: &[String], rule: &str) -> bool {
+    scopes
+        .iter()
+        .any(|scope| scope == rule || (is_pattern(scope) && matches_scope(scope, rule)))
 }
 
 fn matches_scope(scope: &str, label: &str) -> bool {
@@ -377,11 +388,7 @@ impl RuleGraph {
             .inputs
             .keys()
             .map(String::as_str)
-            .filter(|rule| {
-                scopes
-                    .iter()
-                    .any(|scope| scope == rule || (is_pattern(scope) && matches_scope(scope, rule)))
-            })
+            .filter(|rule| in_scopes(scopes, rule))
             .collect();
         let mut seen: HashSet<&str> = HashSet::new();
         while let Some(rule) = pending.pop() {
@@ -458,9 +465,19 @@ impl RuleGraph {
 
     #[must_use]
     pub fn tests_of(&self, rules: &[String]) -> Vec<String> {
+        self.collect_tests(rules, None)
+    }
+
+    #[must_use]
+    pub fn affected_tests(&self, seeds: &[String], rules: &[String]) -> Vec<String> {
+        let reached = self.reach(seeds);
+        self.collect_tests(rules, Some(&Reached { seeds, reached }))
+    }
+
+    fn collect_tests(&self, rules: &[String], reached: Option<&Reached<'_>>) -> Vec<String> {
         let mut tests: Vec<String> = rules
             .iter()
-            .flat_map(|rule| self.expand_tests(rule, &mut Vec::new()))
+            .flat_map(|rule| self.expand_tests(rule, reached, &mut Vec::new()))
             .map(str::to_owned)
             .collect();
         tests.sort();
@@ -486,7 +503,12 @@ impl RuleGraph {
         })
     }
 
-    fn expand_tests<'a>(&'a self, rule: &'a str, stack: &mut Vec<&'a str>) -> Vec<&'a str> {
+    fn expand_tests<'a>(
+        &'a self,
+        rule: &'a str,
+        reached: Option<&Reached<'_>>,
+        stack: &mut Vec<&'a str>,
+    ) -> Vec<&'a str> {
         let Some(kind) = self.kinds.get(rule) else {
             return Vec::new();
         };
@@ -497,10 +519,14 @@ impl RuleGraph {
             return Vec::new();
         }
         stack.push(rule);
+        let reached = reached.filter(|reached| !in_scopes(reached.seeds, rule));
         let suite_tags = self.filter_tags.get(rule).map_or(&[][..], Vec::as_slice);
         let mut tests = Vec::new();
-        for member in self.inputs.get(rule).into_iter().flatten() {
-            for test in self.expand_tests(member, stack) {
+        let members = self.inputs.get(rule).into_iter().flatten();
+        for member in members.filter(|member| {
+            reached.is_none_or(|reached| reached.reached.contains(member.as_str()))
+        }) {
+            for test in self.expand_tests(member, reached, stack) {
                 let tags = self.filter_tags.get(test).map_or(&[][..], Vec::as_slice);
                 if suite_admits(suite_tags, tags) {
                     tests.push(test);
@@ -784,6 +810,80 @@ mod tests {
             ),
             graph_rule_of_kind("//a:near_test", "rust_test", &[], &["no-coverage-ok"]),
         ])
+    }
+
+    fn suite_graph() -> RuleGraph {
+        graph(&[
+            rule("//a:lib", &["//a:lib.rs"], &[]),
+            graph_rule_of_kind("//a:uses_lib", "rust_test", &["//a:lib"], &[]),
+            graph_rule_of_kind("//a:manual_lib", "rust_test", &["//a:lib"], &["manual"]),
+            graph_rule_of_kind("//a:other", "rust_test", &[], &[]),
+            graph_rule_of_kind("//b:far", "sh_test", &[], &[]),
+            graph_rule_of_kind("//m:inner", "test_suite", &["//b:far"], &[]),
+            graph_rule_of_kind(
+                "//m:matrix",
+                "test_suite",
+                &["//a:uses_lib", "//a:manual_lib", "//a:other", "//m:inner"],
+                &[],
+            ),
+        ])
+    }
+
+    fn affected_tests(graph: &RuleGraph, seeds: &[&str]) -> Vec<String> {
+        let seeds = strings(seeds);
+        graph.affected_tests(&seeds, &graph.affected(&seeds))
+    }
+
+    #[test]
+    fn an_unchanged_suite_selects_only_its_reached_members() {
+        let graph = suite_graph();
+        assert_eq!(
+            affected_tests(&graph, &["//a:lib"]),
+            ["//a:manual_lib", "//a:uses_lib"]
+        );
+        assert_eq!(affected_tests(&graph, &["//b:far"]), ["//b:far"]);
+        assert_eq!(
+            graph.tests_of(&strings(&["//m:matrix"])),
+            ["//a:manual_lib", "//a:other", "//a:uses_lib", "//b:far"]
+        );
+    }
+
+    #[test]
+    fn a_changed_suite_selects_every_member() {
+        let graph = suite_graph();
+        let every = ["//a:manual_lib", "//a:other", "//a:uses_lib", "//b:far"];
+        assert_eq!(affected_tests(&graph, &["//m:matrix"]), every);
+        assert_eq!(affected_tests(&graph, &["//m:all"]), every);
+        assert_eq!(affected_tests(&graph, &["//a:lib", "//m/..."]), every);
+        assert_eq!(affected_tests(&graph, &["//m:inner"]), ["//b:far"]);
+    }
+
+    #[test]
+    fn a_tag_suite_selects_its_reached_members_and_filters_by_tag_when_changed() {
+        let graph = graph(&[
+            rule("//a:lib", &["//a:lib.rs"], &[]),
+            graph_rule_of_kind("//a:fast", "rust_test", &["//a:lib"], &[]),
+            graph_rule_of_kind("//a:flaky", "rust_test", &["//a:lib"], &["flaky"]),
+            graph_rule_of_kind("//a:alone", "rust_test", &[], &[]),
+            graph_rule_of_kind(
+                "//a:stable",
+                "test_suite",
+                &["//a:alone", "//a:fast", "//a:flaky"],
+                &["-flaky"],
+            ),
+        ]);
+        assert_eq!(
+            affected_tests(&graph, &["//a:lib"]),
+            ["//a:fast", "//a:flaky"]
+        );
+        assert_eq!(
+            graph.affected_tests(&strings(&["//a:lib"]), &strings(&["//a:stable"])),
+            ["//a:fast"]
+        );
+        assert_eq!(
+            affected_tests(&graph, &["//a:stable"]),
+            ["//a:alone", "//a:fast"]
+        );
     }
 
     #[test]

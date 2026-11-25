@@ -531,7 +531,7 @@ fn conformance_quality_bzl(manifests: &BTreeMap<String, Value>) -> Result<String
         for (kind, names) in kinds {
             write!(
                 text,
-                "\n{lang}_{kind}_subject = config_subject_rule([{}], [OutputGroupInfo])\n",
+                "\n{lang}_{kind}_subject = config_subject_rule([{}])\n",
                 names.join(", ")
             )
             .map_err(|e| e.to_string())?;
@@ -917,9 +917,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(
-                "py_lint_subject = config_subject_rule([real_py_lint_aspect], [OutputGroupInfo])"
-            ),
+            text.contains("py_lint_subject = config_subject_rule([real_py_lint_aspect])"),
             "{text}"
         );
         assert!(

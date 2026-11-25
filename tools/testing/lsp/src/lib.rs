@@ -766,7 +766,7 @@ mod tests {
             .expect("frame is utf8")
         };
         let script = format!(
-            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; exec cat >/dev/null",
+            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; read -r _",
             publish(serde_json::json!([])),
             publish(serde_json::json!([{"message": "bad"}])),
         );

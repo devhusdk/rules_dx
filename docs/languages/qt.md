@@ -24,6 +24,8 @@ For a Qt project, `MODULE.bazel` then looks like this:
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"], terms_sha256 = {"visual-studio-build-tools": "9284a30da91bfdf5c56a681a6c007a0376cec75f069596dc6d28c3218c9e23d3"})
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Qt package from [`qt/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/qt/tests/consumer/BUILD.bazel):

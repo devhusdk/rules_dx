@@ -5,14 +5,17 @@ pub mod codegen_expand;
 pub mod config_scope;
 pub mod entry;
 pub mod exclude;
+pub(crate) mod extension_scope;
 #[cfg(test)]
 pub(crate) mod fake_query;
 pub mod graph_cache;
 pub mod graph_memo;
 pub(crate) mod lock_inputs;
+pub(crate) mod module_diff;
 pub(crate) mod module_inputs;
 pub mod packages;
 pub mod query;
+pub(crate) mod rc_diff;
 pub mod rule_graph;
 pub mod run_deploy;
 pub mod selection;

@@ -24,7 +24,8 @@ visibility(["//..."])
 
 _TS_BUILD_TOOLS = ["tsc", "validator"]
 
-def _dx_ts_project(**kwargs):
+def dx_ts_project(**kwargs):
+    """Declares a ts_project whose tsc and validator default to per-project tools that also run on Windows."""
     for key in _TS_BUILD_TOOLS:
         if key in kwargs:
             continue
@@ -272,7 +273,7 @@ def _typescript_wrap_library(name, srcs = None, declaration_srcs = None, visibil
     upstream_kwargs["transpiler"] = typescript_transpiler(scoped.get("transpiler", None))
     upstream_kwargs["visibility"] = ["//visibility:private"]
     upstream_kwargs["tags"] = dx_upstream_tags(scoped.get("tags", None))
-    _dx_ts_project(
+    dx_ts_project(
         name = name + "_upstream",
         **upstream_kwargs
     )
@@ -421,7 +422,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         ts_kwargs["declaration"] = declaration
     upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
     scoped = _dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
-    _dx_ts_project(
+    dx_ts_project(
         name = name + "_ts",
         srcs = upstream_srcs,
         testonly = testonly,

@@ -547,8 +547,8 @@ pub fn pnpm_run_argv(
 }
 
 #[must_use]
-pub fn resolver_build_argv(head: &dx_process::BazelHead, resolver: &str) -> Vec<String> {
-    bazel(head, "build", &[resolver])
+pub fn resolver_build_argv(head: &dx_process::BazelHead, resolvers: &[&str]) -> Vec<String> {
+    bazel(head, "build", resolvers)
 }
 
 #[must_use]

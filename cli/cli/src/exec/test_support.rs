@@ -750,7 +750,9 @@ impl Runner for FakeRunner {
                 return Ok(ChildStatus::exited(code));
             }
         }
-        if bazel_subcommand(argv) == Some("run") {
+        if bazel_subcommand(argv) == Some("run")
+            || argv.first().map(String::as_str) != Some(dx_process::launcher_argv0())
+        {
             if let Some(signo) = self.app_signal {
                 return Ok(ChildStatus::signalled(Some(signo)));
             }

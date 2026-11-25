@@ -22,8 +22,15 @@ filegroup(
 )
 
 filegroup(
+    name = "binary_or_marker",
+    srcs = ["{binary}"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "binary",
     srcs = ["{binary}"],
+    target_compatible_with = {compatible_with},
     visibility = ["//visibility:public"],
 )
 """
@@ -31,6 +38,7 @@ filegroup(
 def _doxygen_repo_impl(ctx):
     cell = json.decode(ctx.read(Label(":pins.json")))["cells"].get(host_cell(ctx))
     binary = UNSUPPORTED_MARKER
+    compatible_with = ["@platforms//:incompatible"]
     if cell == None:
         ctx.file(UNSUPPORTED_MARKER, UNSUPPORTED_REASON + "\n")
     else:
@@ -43,7 +51,8 @@ def _doxygen_repo_impl(ctx):
         if not ctx.path(cell["binary"]).exists:
             fail("dx_doxygen: " + cell["urls"][0] + " does not ship " + cell["binary"])
         binary = cell["binary"]
-    ctx.file("BUILD.bazel", _BUILD.format(binary = binary))
+        compatible_with = []
+    ctx.file("BUILD.bazel", _BUILD.format(binary = binary, compatible_with = repr(compatible_with)))
     return ctx.repo_metadata(reproducible = True)
 
 doxygen_repo = repository_rule(

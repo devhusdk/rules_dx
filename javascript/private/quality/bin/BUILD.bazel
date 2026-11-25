@@ -281,6 +281,12 @@ js_build_tool(
 typedoc_bin.typedoc_binary(
     name = "typedoc_stock",
     testonly = True,
+)
+
+js_build_tool(
+    name = "typedoc_stock_tool",
+    testonly = True,
+    tool = ":typedoc_stock",
     visibility = ["//tools/docs/typescript:__subpackages__"],
 )
 

@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_rust#4463
 diff --git a/rust/private/toolchain.bzl b/rust/private/toolchain.bzl
 --- a/rust/private/toolchain.bzl
 +++ b/rust/private/toolchain.bzl

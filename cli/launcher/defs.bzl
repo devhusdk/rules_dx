@@ -35,7 +35,7 @@ def subcommand_descriptor(program_key, subcommand, path_args = [], args = []):
     return "\n".join(lines) + "\n"
 
 def _dx_subcommand_impl(ctx):
-    dx = ctx.executable._dx
+    dx = ctx.executable.dx
     path_args = []
     for flag in sorted(ctx.attr.path_args.keys()):
         files = ctx.attr.path_args[flag].files.to_list()
@@ -43,20 +43,24 @@ def _dx_subcommand_impl(ctx):
             fail("path_args[{}] must be exactly one file, got {}".format(flag, len(files)))
         path_args.append((flag, rlocation_path(ctx, files[0])))
     launcher, _, runfiles = write_native_launcher(ctx, subcommand_descriptor(rlocation_path(ctx, dx), ctx.attr.subcommand, path_args, ctx.attr.subcommand_args))
-    runfiles = runfiles.merge(ctx.runfiles(files = [dx])).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(ctx.runfiles(files = [dx])).merge(ctx.attr.dx[DefaultInfo].default_runfiles)
     for target in ctx.attr.data + ctx.attr.path_args.values():
         runfiles = runfiles.merge(ctx.runfiles(transitive_files = target.files)).merge(target[DefaultInfo].default_runfiles)
     return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles)]
 
-dx_subcommand = rule(
+_dx_subcommand = rule(
     implementation = _dx_subcommand_impl,
     doc = "Runs `dx <subcommand> [ARG]...` from the prebuilt dx through the native launcher.",
     executable = True,
     attrs = dict({
         "data": attr.label_list(allow_files = True, doc = "Files the subcommand reads at run time."),
+        "dx": attr.label(mandatory = True, executable = True, cfg = "target", doc = "The dx that runs the subcommand."),
         "path_args": attr.string_keyed_label_dict(allow_files = True, cfg = "target", doc = "Flag to a one-file target; dx gets `FLAG=<absolute path>` after the subcommand."),
         "subcommand": attr.string(mandatory = True, doc = "The dx multicall subcommand."),
         "subcommand_args": attr.string_list(doc = "Literal arguments after the subcommand, before the `path_args` flags."),
-        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "target", doc = "The prebuilt dx."),
     }, **NATIVE_LAUNCHER_ATTRS),
 )
+
+def dx_subcommand(name, subcommand, dx = None, **kwargs):
+    """Declares a `dx <subcommand>` launcher whose dx defaults to the hub label `@dx_prebuilt//dx:<subcommand>`."""
+    _dx_subcommand(name = name, subcommand = subcommand, dx = dx or Label("@dx_prebuilt//dx:" + subcommand), **kwargs)

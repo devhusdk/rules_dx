@@ -102,13 +102,29 @@ fn hub(tool: &str) -> &'static str {
     }
 }
 
+/// The names the hub serves for one registry tool, one per line.
+struct HubNames {
+    dx: String,
+    go: String,
+}
+
 /// The hub targets of `tool` on platform `key`, by canonical name so the consumer needs no
-/// `use_repo`. The `go` registry tool is the dx-go multicall, served as one hub target per name in
-/// `go_names`; `python_tools` is served as one `python_tool_<name>` per bundled tool not missing on `key`.
-fn hub_targets(tool: &str, key: &str, go_names: &str, bundle: &[BundleTool]) -> Vec<String> {
+/// `use_repo`. The `dx` registry tool is also served as `dx:<name>` per name in `names.dx`. The `go`
+/// registry tool is the dx-go multicall, served as one hub target per name in `names.go`;
+/// `python_tools` is served as one `python_tool_<name>` per bundled tool not missing on `key`.
+fn hub_targets(tool: &str, key: &str, names: &HubNames, bundle: &[BundleTool]) -> Vec<String> {
     let hub = hub(tool);
     match tool {
-        "go" => go_names
+        "dx" => std::iter::once(format!("@@rules_dx++{hub}+{hub}//:dx"))
+            .chain(
+                names
+                    .dx
+                    .split_whitespace()
+                    .map(|name| format!("@@rules_dx++{hub}+{hub}//dx:{name}")),
+            )
+            .collect(),
+        "go" => names
+            .go
             .split_whitespace()
             .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
             .collect(),
@@ -153,7 +169,10 @@ pub fn compiles_no_rules_dx_tool(var: &str) {
     let registry = runfile("DX_PREBUILT_REGISTRY");
     let tools = host_tools(&registry, &key);
     let targeted = target_keys(&registry, &runfile("DX_PREBUILT_TARGET_TOOLS"));
-    let go_names = runfile("DX_PREBUILT_GO_HUB_TARGETS");
+    let names = HubNames {
+        dx: runfile("DX_PREBUILT_DX_HUB_TARGETS"),
+        go: runfile("DX_PREBUILT_GO_HUB_TARGETS"),
+    };
     let bundle = bundle_tools(&runfile("DX_PREBUILT_PYTHON_HUB_TARGETS"))
         .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
@@ -184,7 +203,7 @@ pub fn compiles_no_rules_dx_tool(var: &str) {
         let url = stub_url(&stub);
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         if rooted(platform, &langs) {
-            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
+            roots.extend(hub_targets(tool, &key, &names, &bundle));
         }
     }
     let mut target_roots = Vec::new();
@@ -199,12 +218,12 @@ pub fn compiles_no_rules_dx_tool(var: &str) {
             tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         }
         if keys.contains(&key) {
-            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
+            roots.extend(hub_targets(tool, &key, &names, &bundle));
         }
         target_roots.push(TargetRoot {
             tool: tool.clone(),
             keys: keys.clone(),
-            targets: hub_targets(tool, &key, &go_names, &bundle),
+            targets: hub_targets(tool, &key, &names, &bundle),
         });
     }
     let extra = format!(
@@ -370,32 +389,39 @@ mod tests {
             asset_tag("selene", "linux", "x86_64", "file:///s", "ab")
                 .starts_with("dx_prebuilt.asset(name = \"selene\"")
         );
-        let go_names = "dx_errcheck\ndx_govet\n";
+        let names = HubNames {
+            dx: "lua_lock\nperl_lock\n".to_owned(),
+            go: "dx_errcheck\ndx_govet\n".to_owned(),
+        };
         let bundle =
             bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n")
                 .expect("parses");
         let key = "linux_x86_64";
         assert_eq!(
-            hub_targets("gazelle", key, go_names, &bundle),
+            hub_targets("gazelle", key, &names, &bundle),
             ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
         );
         assert_eq!(
-            hub_targets("dx", key, go_names, &bundle),
-            ["@@rules_dx++dx_prebuilt+dx_prebuilt//:dx"]
+            hub_targets("dx", key, &names, &bundle),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//dx:lua_lock",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//dx:perl_lock",
+            ]
         );
         assert_eq!(
-            hub_targets("python_tools", key, go_names, &bundle),
+            hub_targets("python_tools", key, &names, &bundle),
             [
                 "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_ansible_lint_tool",
                 "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint",
             ]
         );
         assert_eq!(
-            hub_targets("python_tools", "windows_arm64", go_names, &bundle),
+            hub_targets("python_tools", "windows_arm64", &names, &bundle),
             ["@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"]
         );
         assert_eq!(
-            hub_targets("go", key, go_names, &bundle),
+            hub_targets("go", key, &names, &bundle),
             [
                 "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
                 "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",

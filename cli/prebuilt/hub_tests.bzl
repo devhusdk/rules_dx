@@ -1,10 +1,10 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "dx_subcommand_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
 load(":launcher.bzl", "launcher_hub")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "DX_SUBCOMMANDS", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
 
 visibility("private")
 
@@ -101,6 +101,9 @@ def _checks():
     python_assets = plan_python_tools("1.2.3", python_pins, URL_TEMPLATE, {})
     python_build = with_python_tools(pinned_build, python_assets)
     guard_build = with_jars(with_python_tools(with_native_tools(alias_build(SOURCE_LABEL, guard = True), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True), plan_python_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True), plan_jars("1.2.3", {}, URL_TEMPLATE), guard = True)
+    consumer_dx = dx_subcommand_build(consumer = True)
+    root_dx = dx_subcommand_build(consumer = False)
+    guarded_dx = dx_subcommand_build(consumer = False, guard = True)
     plain_build = with_jars(with_python_tools(with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})), plan_python_tools("1.2.3", {}, URL_TEMPLATE, {})), plan_jars("1.2.3", {}, URL_TEMPLATE))
     guard_pinned = with_native_tools(pinned_build, {"launcher": launchers["launcher"]}, consumer = True, guard = True)
     python_root = plan_root([_mod("app", True, assets = [_tag(name = "python_tools", os = "macos", cpu = "aarch64")])], tools = ["dx", "python_tools"])
@@ -335,6 +338,13 @@ def _checks():
         expect_equal("guard leaves a pinned tool's select alone", guard_pinned.count("guard_view"), 0),
         expect_equal("guard leaves the consumer hub unchanged", with_native_tools(pinned_build, {"launcher": launchers["launcher"]}, consumer = True), guard_pinned),
         expect_equal("the go multicall answers to seven names", sorted(GO_TOOLS.keys()), ["dx_errcheck", "dx_godoc_json", "dx_gofumpt", "dx_gotype", "dx_govet", "dx_modfmt", "dx_staticcheck"]),
+        expect_equal("the consumer dx package serves each subcommand from the one dx asset", consumer_dx.count('    actual = "//:dx",'), len(DX_SUBCOMMANDS)),
+        expect_contains("a consumer subcommand aliases the hub dx", consumer_dx, 'name = "lua_lock",\n    actual = "//:dx",'),
+        expect_contains("a root subcommand aliases its own binary", root_dx, 'name = "lua_lock",\n    actual = "@rules_dx//lua/private/tools/lock:lua_lock",'),
+        expect_equal("the root dx package names every subcommand binary", [label for label in DX_SUBCOMMANDS.values() if '"{}"'.format(label) not in root_dx], []),
+        expect_false("the root dx package never aliases the hub dx", "//:dx" in root_dx),
+        expect_contains("a guarded subcommand selects the stub", guarded_dx, 'name = "apple_ops",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//apple/private/tools/ops:apple_ops",\n    }),'),
+        expect_equal("every guarded subcommand selects the stub", guarded_dx.count("guard_view_set"), len(DX_SUBCOMMANDS)),
     ]
 
 def _launcher_checks():

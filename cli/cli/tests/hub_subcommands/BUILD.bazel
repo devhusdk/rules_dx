@@ -1,0 +1,31 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust:defs.bzl", "rust_test")
+
+package(default_testonly = True)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+rust_test(
+    name = "hub_subcommands_test",
+    size = "small",
+    testonly = True,
+    srcs = ["tests/hub_subcommands.rs"],
+    crate_name = "hub_subcommands",
+    crate_root = "tests/hub_subcommands.rs",
+    data = ["//cli/prebuilt:dx_hub_targets"],
+    env = {"DX_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:dx_hub_targets)"},
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        "//cli/cli:dx_cli",
+        "//tools/testing:dx_testing",
+    ],
+)

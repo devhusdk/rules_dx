@@ -9,7 +9,7 @@ use crate::args::{TagFilter, takes_coverage};
 
 const EXPRESSION: &str = "kind('rule', //...)";
 
-const ROOT_EXPRESSION: &str = "kind('rule', //... + @dx_prebuilt//:all)";
+const ROOT_EXPRESSION: &str = "kind('rule', //... + @dx_prebuilt//...)";
 
 #[derive(Debug)]
 pub struct RuleGraph {
@@ -1205,6 +1205,8 @@ mod tests {
     }
 
     const HUB_DX: &str = "@@+dx_prebuilt+dx_prebuilt//:dx";
+    const HUB_LUA_LOCK: &str = "@@+dx_prebuilt+dx_prebuilt//dx:lua_lock";
+    const HUB_PERL_LOCK: &str = "@@+dx_prebuilt+dx_prebuilt//dx:perl_lock";
 
     fn load_in(module: &str, lines: &[String]) -> (RuleGraph, Vec<String>) {
         let scratch = dx_test_scratch::scratch("dx-resolve-rule-graph-").expect("scratch");
@@ -1245,12 +1247,75 @@ mod tests {
                     &["@@other+//:tool"],
                     &[],
                 ),
+                graph_rule_of_kind(
+                    "//lua/private/tools/lock:lua_lock",
+                    "rust_binary",
+                    &["//lua/private/tools/lock:src/main.rs"],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    HUB_LUA_LOCK,
+                    "alias",
+                    &[
+                        "//cli/prebuilt:guard_stub",
+                        "//lua/private/tools/lock:lua_lock",
+                    ],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    "//lua/private/tools/lock:lock",
+                    "_dx_subcommand",
+                    &[HUB_LUA_LOCK],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    "//lua/tests:lock_test",
+                    "sh_test",
+                    &["//lua/private/tools/lock:lock"],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    "//perl/private/tools/lock:perl_lock",
+                    "rust_binary",
+                    &["//perl/private/tools/lock:src/main.rs"],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    HUB_PERL_LOCK,
+                    "alias",
+                    &[
+                        "//cli/prebuilt:guard_stub",
+                        "//perl/private/tools/lock:perl_lock",
+                    ],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    "//perl/private/tools/lock:lock",
+                    "_dx_subcommand",
+                    &[HUB_PERL_LOCK],
+                    &[],
+                ),
             ],
         );
         assert_eq!(argv.last().map(String::as_str), Some(ROOT_EXPRESSION));
         assert_eq!(
             graph.affected(&strings(&["//cli/cli:main.rs"])),
             ["//cli/cli:dx", "//go:lint_test"]
+        );
+        assert_eq!(
+            graph.affected(&strings(&["//lua/private/tools/lock:src/main.rs"])),
+            [
+                "//lua/private/tools/lock:lock",
+                "//lua/private/tools/lock:lua_lock",
+                "//lua/tests:lock_test"
+            ]
+        );
+        assert_eq!(
+            graph.affected(&strings(&["//perl/private/tools/lock:src/main.rs"])),
+            [
+                "//perl/private/tools/lock:lock",
+                "//perl/private/tools/lock:perl_lock"
+            ]
         );
         assert_eq!(
             graph.affected_tests(&strings(&["//cli/cli:dx"]), &strings(&["//go:lint_test"])),

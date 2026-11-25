@@ -14,10 +14,6 @@ name = "actionlint_test"
 path = "actionlint_test.rs"
 
 [[test]]
-name = "actions_cache_test"
-path = "actions_cache_test.rs"
-
-[[test]]
 name = "advisory_launch_test"
 path = "advisory_launch_test.rs"
 

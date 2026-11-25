@@ -13,6 +13,10 @@ inputs:
     description: Run bazel info to set the repository-cache-root output. It starts a Bazel server, so only jobs that read the output turn it on.
     required: false
     default: "false"
+  free-disk:
+    description: Before Bazel starts, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one, the simulator runtimes and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK.
+    required: false
+    default: "false"
 outputs:
   repository-cache-root:
     description: The Bazel repository cache directory, set when locate-repository-cache is "true".
@@ -88,6 +92,33 @@ runs:
           echo "startup --host_jvm_args=-XX:MaxRAMPercentage=$heap"
           echo "common --local_resources=memory=HOST_RAM*$memory"
         } >> user.bazelrc
+    - name: Free preinstalled macOS content rules_dx does not use
+      if: ${{ inputs.free-disk == 'true' && runner.os == 'macOS' }}
+      shell: bash
+      run: |
+        df -h /
+        keep="$(cd "$(xcode-select -p)/../.." && pwd -P)"
+        for app in /Applications/Xcode*.app; do
+          if [ ! -L "$app" ] && [ "$(cd "$app" && pwd -P)" != "$keep" ]; then
+            sudo rm -rf "$app" &
+          fi
+        done
+        if [ -n "${ANDROID_HOME:-}" ]; then
+          sudo rm -rf "$ANDROID_HOME" &
+        fi
+        xcrun simctl runtime list -j | jq -r 'keys[]' | while read -r runtime; do
+          xcrun simctl runtime delete "$runtime"
+        done
+        wait
+        find /Applications -maxdepth 1 -name 'Xcode*.app' -type l ! -exec test -e {} \; -exec sudo rm -f {} +
+        echo "kept $keep"
+        df -h /
+    - name: Free preinstalled Linux content rules_dx does not use
+      if: ${{ inputs.free-disk == 'true' && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+        df -h /
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}

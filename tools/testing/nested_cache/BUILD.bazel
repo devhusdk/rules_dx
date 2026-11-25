@@ -55,6 +55,7 @@ filegroup(
     srcs = [
         "release_bcr.MODULE.bazel.lock",
         "release_candidate.MODULE.bazel.lock",
+        "release_commands.MODULE.bazel.lock",
         "release_quickstart.MODULE.bazel.lock",
     ],
     visibility = ["//deploy/private/release/tests:__pkg__"],

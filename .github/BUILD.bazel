@@ -17,7 +17,10 @@ filegroup(
 
 filegroup(
     name = "actions",
-    srcs = glob(["actions/*/action.yml"]),
+    srcs = glob(
+        ["actions/*/action.yml"],
+        allow_empty = True,
+    ),
 )
 
 exports_files([
@@ -63,6 +66,6 @@ filegroup(
     srcs = [
         "BUILD.bazel",
         "workflows/dx-update.yml",
-    ] + glob(["actions/*/action.yml"]),
+    ],
     visibility = ["//:__subpackages__"],
 )

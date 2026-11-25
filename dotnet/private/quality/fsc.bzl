@@ -8,7 +8,7 @@ load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
 visibility(["//dotnet/..."])
 
-_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 _FSHARP_KINDS = ["fsharp_library", "fsharp_binary", "fsharp_test"]
 
@@ -78,7 +78,7 @@ def _fsc_impl(target, ctx):
     wrapper = ctx.rule.executable._compiler_wrapper_sh
 
     assembly_name = getattr(attrs, "out", "") or target.label.name
-    (refs, _, _, _, _, _, compile_data, framework_files, _) = collect_compile_info(
+    (refs, _, _, _, _, _, compile_data, framework_files, _, _) = collect_compile_info(
         assembly_name,
         attrs.deps,
         single_target(attrs._targeting_pack),
@@ -114,7 +114,7 @@ def _fsc_impl(target, ctx):
         args.add_all(["--debug-", "--optimize+", "--define:TRACE", "--define:RELEASE"])
     args.add("--debug:portable")
     args.add("%s/%s.dll" % (out_tree.path, assembly_name), format = "--out:%s")
-    args.add_all(depset(framework_files, transitive = [refs]), format_each = "-r:%s")
+    args.add_all(depset(transitive = [framework_files, refs]), format_each = "-r:%s")
     args.add_all(ctx.rule.files.srcs)
     args.add_all(framework_preprocessor_symbols(tfm) + list(attrs.defines), format_each = "-d:%s")
     args.add_all(attrs.compiler_options)
@@ -123,8 +123,9 @@ def _fsc_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + framework_files + [wrapper, runtime, fsc],
+        direct = ctx.rule.files.srcs + [wrapper, runtime, fsc],
         transitive = [
+            framework_files,
             refs,
             compile_data,
             toolchain.runtime.default_runfiles.files,

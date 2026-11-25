@@ -18,12 +18,12 @@
       "version": "bd39d4e88d715ab460a929943645be2a186cde52"
     },
     "rules_dotnet": {
-      "sha256": "ce35dad18db31cd68323b568dc09c689cc6d75ec16eba1510ccd128bb5f1264e",
-      "strip_prefix": "rules_dotnet-0.22.2",
+      "sha256": "aff55abade9f0327149075fbfd0c477c86f7e65a0e087b1dd2797445ecfb4b05",
+      "strip_prefix": "rules_dotnet-0.23.0",
       "urls": [
-        "https://github.com/bazel-contrib/rules_dotnet/releases/download/v0.22.2/rules_dotnet-v0.22.2.tar.gz"
+        "https://github.com/bazel-contrib/rules_dotnet/releases/download/v0.23.0/rules_dotnet-v0.23.0.tar.gz"
       ],
-      "version": "0.22.2"
+      "version": "0.23.0"
     }
   }
 }

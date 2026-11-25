@@ -1,5 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
+load("//core/modules:versions.bzl", "DOTNET_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
@@ -43,7 +44,7 @@ rust_binary(
 dx_subcommand(
     name = "lock",
     path_args = {
-        "--dotnet": "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
+        "--dotnet": "@dotnet_sdk." + DOTNET_VERSION + "_x86_64-unknown-linux-gnu//:runtime",
         "--paket": "@dx_paket//file",
     },
     subcommand = "csharp_lock",

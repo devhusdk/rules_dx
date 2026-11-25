@@ -1,13 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
-    "canonical_labels.patch",
-    "fsharp_signature.patch",
-    "launcher_args.patch",
+    "bootstrap_module.patch",
     "fsharp_pdb_path.patch",
-    "reproducible.patch",
-    "nuget_group_prefix.patch",
-    "sdk_versions.patch",
     "target_runtime.patch",
     "toolchains_gate.patch",
 ])

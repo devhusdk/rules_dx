@@ -9348,16 +9348,27 @@
           {
             "attrs": [
               {
+                "default": "",
+                "mandatory": true,
+                "name": "dotnet_version",
+                "type": "STRING"
+              }
+            ],
+            "name": "bootstrap_toolchain"
+          },
+          {
+            "attrs": [
+              {
                 "default": "\"\"",
                 "mandatory": false,
                 "name": "dotnet_version",
                 "type": "STRING"
               },
               {
-                "default": "\"dotnet\"",
+                "default": "None",
                 "mandatory": false,
-                "name": "name",
-                "type": "NAME"
+                "name": "global_json",
+                "type": "LABEL"
               }
             ],
             "name": "toolchain"

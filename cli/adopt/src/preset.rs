@@ -55,13 +55,10 @@ impl PresetState {
                     self.import_lines().join("; ")
                 ));
             } else if !self.collisions.is_empty() {
-                notes.push(
-                    dx_preset::PresetError::OwnedCollision {
-                        lines: self.collisions.join(", "),
-                    }
-                    .to_string()
-                        + "; preset imports not added",
-                );
+                let collision = dx_preset::PresetError::OwnedCollision {
+                    lines: self.collisions.join(", "),
+                };
+                notes.push(format!("{collision}; preset imports not added"));
             }
         } else if self.partial() {
             let absent: Vec<_> = self

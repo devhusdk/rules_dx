@@ -84,11 +84,7 @@ rust_test(
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_install_tools",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_install_tools",
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private/release:dx_release_tools",

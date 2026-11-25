@@ -120,7 +120,7 @@ pub fn octopus_build_drop(
             "octopus drop: need a non-empty version",
         ));
     }
-    let drop = outdir.join(spec.deploy_name.to_owned() + "-drop");
+    let drop = outdir.join(format!("{}-drop", spec.deploy_name));
     std::fs::create_dir_all(&drop)?;
     let base = basename(package_src)?;
     let dest = drop.join(&base);

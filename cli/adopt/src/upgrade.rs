@@ -190,9 +190,9 @@ pub fn merge_override(
         theirs: "new base",
     };
     match merge3(ancestor, body, new_base, labels) {
-        Merge3::Merged(text) => Merge3::Merged(header + &text),
+        Merge3::Merged(text) => Merge3::Merged(format!("{header}{text}")),
         Merge3::Conflicts { text, hunks } => Merge3::Conflicts {
-            text: header + &text,
+            text: format!("{header}{text}"),
             hunks,
         },
     }

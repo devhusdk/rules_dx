@@ -83,9 +83,12 @@ mod tests {
         let pull = |name: &str, image: &str| {
             format!("oci.pull(name = \"{name}\", image = \"{image}\", digest = \"{OLD}\")\n")
         };
-        let text = pull("distroless_static", "gcr.io/distroless/static-debian12")
-            + &pull("distroless_cc", "gcr.io/distroless/cc-debian12")
-            + &pull("gone", "gcr.io/distroless/gone");
+        let text = [
+            pull("distroless_static", "gcr.io/distroless/static-debian12"),
+            pull("distroless_cc", "gcr.io/distroless/cc-debian12"),
+            pull("gone", "gcr.io/distroless/gone"),
+        ]
+        .concat();
         ModuleFile::parse(&text).expect("parse")
     }
 

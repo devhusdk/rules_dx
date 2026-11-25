@@ -46,10 +46,12 @@ fn dotted_version(text: &str) -> (u64, u64) {
 fn host_glibc(stdout: &str) -> (u64, u64) {
     for token in stdout.split(|c: char| !c.is_ascii_digit() && c != '.') {
         let parts: Vec<&str> = token.split('.').collect();
-        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
-            if let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse()) {
-                return (major, minor);
-            }
+        if parts.len() == 2
+            && !parts[0].is_empty()
+            && !parts[1].is_empty()
+            && let (Ok(major), Ok(minor)) = (parts[0].parse(), parts[1].parse())
+        {
+            return (major, minor);
         }
     }
     panic!("ldd --version must report a glibc version, got {stdout:?}");

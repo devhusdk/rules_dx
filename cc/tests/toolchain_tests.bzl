@@ -1,9 +1,9 @@
 """Identity tests pinning the hermetic C++ toolchain binding."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
 load("//cc/private/toolchain:pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 _CLANG_MAJOR = LLVM_CLANG_VERSION.split(".")[0]
 
@@ -23,7 +23,6 @@ aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/tests:identity_under_test
 aspect_field transitive_count=0""" % (_CLANG_MAJOR, _CLANG_MAJOR)
-
 
 def _gcc(template):
     return template.replace("@GCCU@", GCC_VERSION.replace(".", "_")).replace("@GCC@", GCC_VERSION).replace("@GLIBC@", GCC_GLIBC)
@@ -138,6 +137,7 @@ GCC_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS, "x86_64")
 GCC_X86_64_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS, "arm64")
 
 def cc_toolchain_identity_tests(name):
+    """Defines the cc toolchain type and compiler identity tests."""
     starlark_test(
         name = name + "_binding",
         mode = "load",

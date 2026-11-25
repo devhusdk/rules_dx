@@ -45,10 +45,7 @@ rust_binary(
     crate_name = "collect_native",
     crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "tools/coverage/collect_native",
-        normal = True,
-    ) + [":collect_native_lib"],
+    deps = [":collect_native_lib"],
 )
 
 dx_subcommand(
@@ -88,11 +85,7 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/coverage/collect_native",
-        normal = True,
-        normal_dev = True,
-    ) + [":collect_native_lib"],
+    deps = [],
 )
 
 rust_test(

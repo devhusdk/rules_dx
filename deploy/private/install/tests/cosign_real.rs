@@ -68,7 +68,11 @@ fn verify(identity: &str, issuer: &str, subject: &Path) -> Output {
 fn pinned_cosign_reports_the_pinned_git_version() {
     let want = std::env::var("DX_COSIGN_VERSION").expect("DX_COSIGN_VERSION");
     let output = run(&[cosign(), "version".to_owned()]);
-    let text = String::from_utf8_lossy(&output.stdout).into_owned() + &stderr(&output);
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        stderr(&output)
+    );
     assert!(output.status.success(), "{text}");
     assert!(dx_release_tools::signing_version_ok(&text, &want), "{text}");
 }

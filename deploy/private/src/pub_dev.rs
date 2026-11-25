@@ -302,7 +302,7 @@ fn pub_build_package(
     outdir: &Path,
     package_name: &str,
 ) -> Result<std::path::PathBuf, PubError> {
-    let house = outdir.join(package_name.to_owned() + "-package");
+    let house = outdir.join(format!("{package_name}-package"));
     path_io::create_dir_all(&house).map_err(PubError::Io)?;
     stage_mapped(mapped, &house).map_err(PubError::Stage)?;
     Ok(house)
@@ -744,7 +744,10 @@ mod tests {
         );
         assert_eq!(
             wrong.to_string(),
-            format!("pub_deploy: {} is pub_demo, target is other; refusing", manifest_name())
+            format!(
+                "pub_deploy: {} is pub_demo, target is other; refusing",
+                manifest_name()
+            )
         );
         let missing = pubspec_refusal("version: 1.2.3\n", "pub_demo").expect("missing");
         assert!(missing.to_string().contains("(missing)"), "{missing}");

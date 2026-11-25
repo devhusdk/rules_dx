@@ -6,6 +6,7 @@ The guards check the rules of `docs/design/tests.md`.
 
 - `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file. Its repository rule watches every path it reads.
 - `@dx_test_tags_sources//:files.json` snapshots `MODULE.bazel`, `<lang>/lang.json`, `<lang>/README.md`, repository `*.BUILD` and `*.BUILD.bazel` files and the `docs/` language and command pages.
+- `@dx_consumer_fixtures//:<lang>.json` snapshots the text files under `<lang>/tests/consumer`, and `@dx_consumer_fixtures//:consumer.json` those of every language. Its repository rule walks only those directories, so a fixture edit reruns only the tests that read its language.
 - A test that walks the module tree declares the snapshots and sets `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`. A Python test writes them into a scratch tree.
 
 ## Determinism

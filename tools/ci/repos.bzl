@@ -13,22 +13,18 @@ def ignored_paths(bazelignore):
             paths[line.rstrip("/")] = True
     return paths
 
-def _consumer_directory(path):
-    parts = path.split("/")
-    return len(parts) == 3 and parts[1] == "tests" and parts[2] == "consumer"
-
 def skipped(path, entry, ignored):
-    """True when the walk leaves out the entry at the root-relative path: an ignored path other than a language tests/consumer directory, a skipped name, a root bazel-* output link, or a directory symlink."""
+    """True when the walk leaves out the entry at the root-relative path: an ignored path, a skipped name, a root bazel-* output link, or a directory symlink."""
 
-    if (path in ignored and not _consumer_directory(path)) or path == ".dx/local" or entry.name in _SKIPPED_NAMES or (path == entry.name and entry.name.startswith("bazel-")):
+    if path in ignored or path == ".dx/local" or entry.name in _SKIPPED_NAMES or (path == entry.name and entry.name.startswith("bazel-")):
         return True
     return entry.is_dir and entry.is_link
 
-def walk(ignored, readdir):
-    """Returns the directories listed and the files found under the root, as sorted root-relative paths."""
+def walk(ignored, readdir, roots = [""]):
+    """Returns the directories listed and the files found under the roots, as sorted root-relative paths."""
     directories = []
     found = []
-    pending = [""]
+    pending = list(roots)
     for _ in range(_MAX_DIRS):
         if not pending:
             break
@@ -60,10 +56,13 @@ def _data(path, name):
         return True
     return path == "docs/cli/commands/README.md" or (path.startswith("docs/languages/") and name.endswith(".md"))
 
-def consumer_fixture_file(path, langs):
-    """True when the path is a text file under the tests/consumer directory of one of the language directories."""
-    parts = path.split("/")
-    return len(parts) > 3 and parts[0] in langs and parts[1] == "tests" and parts[2] == "consumer" and not path.endswith(".png")
+def consumer_fixture_paths(paths):
+    """Returns the text files among the consumer fixture paths, grouped by language."""
+    langs = {}
+    for path in paths:
+        if not path.endswith(".png"):
+            langs.setdefault(path.partition("/")[0], []).append(path)
+    return langs
 
 def _entry(parent, entry):
     is_dir = entry.is_dir
@@ -73,19 +72,21 @@ def _entry(parent, entry):
         is_link = is_dir and str(entry.realpath) != parent + "/" + entry.basename,
     )
 
-def _test_tags_sources_impl(rctx):
-    """Writes consumer.json, every file under a language tests/consumer directory, all_paths.json, every path, sources.json, a map from each BUILD and .bzl path to its text, and files.json, the same for the other files tests read."""
-    root = rctx.path(Label("//:MODULE.bazel")).dirname
-
+def _readdir(root):
     def readdir(path):
         directory = root.get_child(*path.split("/")) if path else root
         parent = str(directory.realpath)
         return [_entry(parent, entry) for entry in directory.readdir(watch = "yes")]
 
+    return readdir
+
+def _test_tags_sources_impl(rctx):
+    """Writes all_paths.json, every path, sources.json, a map from each BUILD and .bzl path to its text, and files.json, the same for the other files tests read."""
+    root = rctx.path(Label("//:MODULE.bazel")).dirname
     ignored = ignored_paths(rctx.read(root.get_child(".bazelignore"), watch = "yes"))
     sources = {}
     files = {}
-    paths = walk(ignored, readdir).files
+    paths = walk(ignored, _readdir(root)).files
     for path in paths:
         name = path.rpartition("/")[2]
         if _starlark(name):
@@ -101,20 +102,44 @@ def _test_tags_sources_impl(rctx):
         readme = root.get_child(lang, "README.md")
         if readme.exists:
             files[lang + "/README.md"] = rctx.read(readme, watch = "yes")
-    consumer = {
-        path: rctx.read(root.get_child(*path.split("/")), watch = "yes")
-        for path in paths
-        if consumer_fixture_file(path, langs)
-    }
-    rctx.file("consumer.json", json.encode(consumer))
     rctx.file("sources.json", json.encode(sources))
     rctx.file("files.json", json.encode(files))
     rctx.file("all_paths.json", json.encode(paths))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "all_paths.json", "consumer.json"])\n')
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "all_paths.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, language README, repository BUILD, language page and consumer fixture files, and every path, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, language README, repository BUILD and language page files, and every path, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+)
+
+def _consumer_fixtures_impl(rctx):
+    """Writes <lang>.json, a map from each text file under <lang>/tests/consumer to its text, for each language, and consumer.json, all of them."""
+    root = rctx.path(Label("//:MODULE.bazel")).dirname
+    readdir = _readdir(root)
+    roots = []
+    for entry in readdir(""):
+        if skipped(entry.name, entry, {}) or not entry.is_dir:
+            continue
+        lang_json = root.get_child(entry.name, "lang.json")
+        consumer = root.get_child(entry.name, "tests", "consumer")
+        rctx.watch(lang_json)
+        rctx.watch(consumer)
+        if lang_json.exists and consumer.is_dir:
+            roots.append(entry.name + "/tests/consumer")
+    everything = {}
+    exported = ["consumer.json"]
+    for lang, paths in consumer_fixture_paths(walk({}, readdir, roots).files).items():
+        texts = {path: rctx.read(root.get_child(*path.split("/")), watch = "yes") for path in paths}
+        rctx.file(lang + ".json", json.encode(texts))
+        everything.update(texts)
+        exported.append(lang + ".json")
+    rctx.file("consumer.json", json.encode(everything))
+    rctx.file("BUILD.bazel", "exports_files(%r)\n" % sorted(exported))
+    return rctx.repo_metadata(reproducible = True)
+
+consumer_fixtures = repository_rule(
+    implementation = _consumer_fixtures_impl,
+    doc = "Snapshots the text files under the tests/consumer directory of each language with a lang.json, one JSON file per language and one of all, walking only those directories and watching each directory and file it reads.",
 )
 
 _API_INTERNAL_MACROS = ["real_source_target"]

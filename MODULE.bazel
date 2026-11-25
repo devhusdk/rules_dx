@@ -3288,6 +3288,13 @@ _test_tags_sources(
     dev_dependency = True,
 )
 
+_consumer_fixtures = use_repo_rule("//tools/ci:repos.bzl", "consumer_fixtures")
+
+_consumer_fixtures(
+    name = "dx_consumer_fixtures",
+    dev_dependency = True,
+)
+
 _api_fixtures = use_repo_rule("//tools/ci:repos.bzl", "api_fixtures")
 
 _api_fixtures(

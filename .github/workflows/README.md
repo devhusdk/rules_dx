@@ -40,7 +40,7 @@
 
 `audit.yml` runs daily against the default branch head. After each run on main, its `report` job rewrites the pinned issue labelled `known-red` with the test labels that failed in that run. GitHub may delay or drop scheduled runs under load.
 
-`ci.yml` runs every job on `workflow_dispatch`. Pull requests and the merge queue run only the `check` jobs. A push to `main` runs nothing. The `audit` workflow dispatches `ci.yml` on `main` once a day. Runs share one concurrency group per ref (`ci-ci-<ref>`, and `ci-ci-main-refs/heads/main` for dispatches): a new push cancels the older pull request run, and a new dispatch on main replaces only the queued one.
+`ci.yml` runs every job on `workflow_dispatch`. Pull requests and the merge queue run only the `check` jobs. A push to `main` runs nothing. The `audit` workflow dispatches `ci.yml` on `main` once a day. Runs share one concurrency group per ref (`ci-ci-<ref>`, and `ci-ci-main-refs/heads/main` for dispatches): a new push cancels the older pull request run, and a new dispatch on main replaces only the queued one. Closing or merging a pull request starts a `ci` run in its group, which cancels the queued or running one; its `check` jobs skip, and its `cancel-dispatched` job cancels the queued and running `evidence.yml` and `lock-refresh.yml` runs on the pull request branch when the branch is in this repository.
 
 The platform table is `PLATFORMS` in `tools/ci/input_validation/src/lib.rs`; `input_validation_test` pins every other copy to it.
 

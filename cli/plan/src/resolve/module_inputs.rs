@@ -249,13 +249,19 @@ pub(crate) fn cached(caches: &[PathBuf], hash: &str) -> Option<String> {
     })
 }
 
+fn dev_only(call: &Call) -> bool {
+    matches!(call.arg("dev_dependency"), Some(Value::Ident(dev)) if dev == "True")
+}
+
+fn registration(call: &Call) -> bool {
+    matches!(
+        call.name.as_str(),
+        "register_toolchains" | "register_execution_platforms"
+    ) && !dev_only(call)
+}
+
 pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
-    file.calls().iter().any(|call| {
-        matches!(
-            call.name.as_str(),
-            "register_toolchains" | "register_execution_platforms"
-        )
-    })
+    file.calls().iter().any(registration)
 }
 
 pub(crate) fn registered_repo(label: &str) -> Option<&str> {
@@ -271,12 +277,7 @@ fn registered_scopes(module: &ModuleFile, name: &str) -> BTreeSet<Scope> {
     let imported = super::module_diff::imported(files, name);
     let deps = Names::of(files, name).deps;
     let mut scopes = BTreeSet::new();
-    for call in module.calls().iter().filter(|call| {
-        matches!(
-            call.name.as_str(),
-            "register_toolchains" | "register_execution_platforms"
-        ) && !matches!(call.arg("dev_dependency"), Some(Value::Ident(dev)) if dev == "True")
-    }) {
+    for call in module.calls().iter().filter(|call| registration(call)) {
         let labels: Vec<Option<&str>> = if call.unpacked {
             vec![None]
         } else {
@@ -336,7 +337,7 @@ pub(crate) fn module_graph(
             dx_error::DxError::infra(format!("cannot read MODULE.bazel of {id}: {error}"))
         })?;
         let deps = graph.deps.entry(file.name.clone()).or_default();
-        for call in module.calls_named("bazel_dep") {
+        for call in module.calls_named("bazel_dep").filter(|call| !dev_only(call)) {
             let name = call.str("name").ok_or_else(|| {
                 dx_error::DxError::infra(format!(
                     "cannot read MODULE.bazel of {id}: computed bazel_dep"
@@ -353,9 +354,7 @@ pub(crate) fn module_graph(
         }
         let mut names = Names::of(std::slice::from_ref(&module), &file.name);
         names.multiple.clone_from(multiple);
-        for call in module.calls_named("use_extension").filter(
-            |call| !matches!(call.arg("dev_dependency"), Some(Value::Ident(dev)) if dev == "True"),
-        ) {
+        for call in module.calls_named("use_extension").filter(|call| !dev_only(call)) {
             let bzl = binding_label(call, "extension_bzl_file");
             let name = match call
                 .positional
@@ -931,6 +930,39 @@ mod tests {
                 .message()
                 .starts_with("cannot read MODULE.bazel of bad@1: "),
             "{error}"
+        );
+    }
+
+    #[test]
+    fn module_graph_ignores_dev_deps_and_dev_registrations_of_registry_modules() {
+        let texts: BTreeMap<&str, &str> = [
+            ("leaf", "module(name = \"leaf\")\n"),
+            (
+                "ruleset",
+                "module(name = \"ruleset\")\nbazel_dep(name = \"leaf\", version = \"1\", dev_dependency = True)\nregister_toolchains(\"//:t\", dev_dependency = True)\nregister_execution_platforms(\"//:p\", dev_dependency = True)\n",
+            ),
+            (
+                "user",
+                "module(name = \"user\")\nbazel_dep(name = \"leaf\", version = \"1\")\nbazel_dep(name = \"ruleset\", version = \"1\", dev_dependency = False)\n",
+            ),
+        ]
+        .into_iter()
+        .collect();
+        let read = |hash: &str| texts.get(hash).map(|text| (*text).to_owned());
+        let listed = [
+            file("leaf", "leaf"),
+            file("ruleset", "ruleset"),
+            file("user", "user"),
+        ];
+        let graph = module_graph(&listed, &read, &BTreeSet::new()).expect("graph");
+        assert_eq!(graph.deps.get("ruleset"), Some(&BTreeSet::new()));
+        assert_eq!(graph.deps.get("user"), Some(&set(&["leaf", "ruleset"])));
+        assert_eq!(graph.registers, set(&[BUILTIN_TOOLS]));
+        assert!(!graph.registered.contains_key("ruleset"));
+        assert_eq!(closure(&set(&["leaf"]), &graph.deps), set(&["leaf", "user"]));
+        assert_eq!(
+            closure(&set(&["ruleset"]), &graph.deps),
+            set(&["ruleset", "user"])
         );
     }
 

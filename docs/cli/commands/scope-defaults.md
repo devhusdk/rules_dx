@@ -74,7 +74,7 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | A `local_path_override` path outside the workspace | `//...`. |
 | Any `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `maven_install.json`, or `requirements_lock.txt` when dx cannot read every `MODULE.bazel` value | `//...`. |
 
-A module change also widens to `//...` when the lock does not list the version, an override hides the `MODULE.bazel` of a changed module or patches it as listed under [Patches](#patches), a changed module registers toolchains or uses an extension outside its deps, a root `register_toolchains` or `register_execution_platforms` call names a changed repo, or dx cannot read a cached module file. CI that restores the repository cache keeps the narrow selection.
+A module change also widens to `//...` when the lock does not list the version, an override hides the `MODULE.bazel` of a changed module or patches it as listed under [Patches](#patches), a changed module or a module that depends on it registers toolchains, a changed module uses an extension outside its deps, a root `register_toolchains` or `register_execution_platforms` call names a changed repo, or dx cannot read a cached module file. In registry modules, `dev_dependency = True` `bazel_dep`s and `register_toolchains` or `register_execution_platforms` calls do not count. CI that restores the repository cache keeps the narrow selection.
 
 ### Patches
 

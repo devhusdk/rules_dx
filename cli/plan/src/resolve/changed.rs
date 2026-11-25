@@ -2794,6 +2794,31 @@ mod tests {
     }
 
     #[test]
+    fn dev_deps_and_dev_registrations_of_registry_modules_do_not_widen() {
+        let fixture = edit_workspace(
+            "dx-changed-update-dev-",
+            Update {
+                user_extra: "register_toolchains(\"//:t\", dev_dependency = True)\n",
+                other_extra: "bazel_dep(name = \"leaf\", version = \"1.0\", dev_dependency = True)\nregister_toolchains(\"//:t\")\n",
+                ..UPDATE
+            },
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            update_graph(),
+        ]);
+        let selection = resolve_edit(&fixture, &query);
+        assert_eq!(
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        let seeds = strings(&["@@leaf+//:lib", "@@user+//:lib"]);
+        assert_eq!(graph.affected(&seeds), ["//d:lib", "//u:lib"]);
+    }
+
+    #[test]
     fn update_of_bazel_tools_dep_widens() {
         let fixture = edit_workspace(
             "dx-changed-update-cc-",

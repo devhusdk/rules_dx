@@ -1839,6 +1839,7 @@ use_repo(
     "dx_swift_libs_linux_x86_64",
     "dx_swift_linux_aarch64",
     "dx_swift_linux_x86_64",
+    "dx_swift_toolchain_impl",
     "dx_swift_toolchains",
     "dx_swift_windows_aarch64",
     "dx_swift_windows_x86_64",

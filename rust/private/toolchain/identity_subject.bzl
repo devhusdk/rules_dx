@@ -1,6 +1,6 @@
 """Analysis subject proving rustfmt/Clippy/rustc bind to the toolchain."""
 
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _configuration_free(ctx, path):

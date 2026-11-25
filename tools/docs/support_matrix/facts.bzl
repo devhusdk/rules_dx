@@ -4,7 +4,7 @@ load("//cc/private/toolchain:bindings.bzl", "CC_COMPILERS", "cc_compiler_identit
 load("//cc/private/toolchain:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//core/modules:langs.bzl", "LANGS")
 load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
-load("//core/quality:parity_tests.bzl", "PARITY_DEFERRED")
+load("//core/quality:parity.bzl", "PARITY_DEFERRED")
 load("//core/quality:support.bzl", "SUPPORT_RECORDS")
 load("//tools/testing/conformance:defs.bzl", "ConformanceManifestInfo")
 load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")

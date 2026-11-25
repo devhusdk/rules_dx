@@ -383,11 +383,7 @@ rust_binary(
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
     visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ) + [
-        ":dx_testing",
+    deps = [
         "//cli/path:dx_path",
         "@crates//:serde_json",
     ],
@@ -406,10 +402,7 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/path:dx_path",
-        "//cli/test_scratch:dx_test_scratch",
-    ],
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_test(

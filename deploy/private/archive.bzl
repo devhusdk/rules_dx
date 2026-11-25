@@ -1,9 +1,9 @@
 """Credential-free release archives for dx deploy."""
 
-load("//core/private/testing:defs.bzl", "display_label")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
+load("//core/private/testing:providers.bzl", "display_label")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load(":deployment.bzl", "deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":validate_archive.bzl", "consumer_identity_error")

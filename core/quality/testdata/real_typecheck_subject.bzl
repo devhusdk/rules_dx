@@ -1,7 +1,8 @@
 """Analysis subject observing the real typecheck dx_results."""
 
 load("//core:canonical.bzl", "strip_canonical")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_erlang_typecheck_aspect",
@@ -14,7 +15,6 @@ load(
     "real_rust_typecheck_aspect",
     "real_typecheck_aspect",
 )
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 visibility("private")
 

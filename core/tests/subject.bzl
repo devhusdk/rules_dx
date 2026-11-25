@@ -1,6 +1,6 @@
 """Analysis subject rule exposing DxSubjectInfo and one output file."""
 
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 
 def _example_subject_impl(ctx):
     total = ctx.attr.left + ctx.attr.right

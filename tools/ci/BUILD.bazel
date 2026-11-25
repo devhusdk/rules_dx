@@ -182,6 +182,22 @@ rust_test(
 )
 
 rust_test(
+    name = "actions_cache_test",
+    size = "small",
+    srcs = ["actions_cache_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "actions_cache_test",
+    crate_root = "actions_cache_test.rs",
+    data = ["//.github:files"],
+    env = {"DX_GITHUB_FILES": "$(rootpaths //.github:files)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "aggregate_gates_test",
     size = "small",
     srcs = ["aggregate_gates_test.rs"],

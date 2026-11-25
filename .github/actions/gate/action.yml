@@ -47,22 +47,6 @@ runs:
         run-id: ${{ steps.previous.outputs.run }}
         github-token: ${{ github.token }}
         path: ${{ runner.temp }}/baseline-previous
-    - name: Key the dx rule graph
-      id: graph-key
-      env:
-        INPUTS: ${{ hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', '**/*.scl', '**/MODULE.bazel', '**/*.MODULE.bazel', '**/MODULE.bazel.lock', '**/REPO.bazel', '**/WORKSPACE', '**/WORKSPACE.bazel', '**/WORKSPACE.bzlmod', '**/.bazelignore', '**/.bazelversion', '**/*bazelrc') }}
-      shell: bash
-      run: |
-        files="$(git ls-files | sha256sum)"
-        prefix="dx-graph-$RUNNER_OS-$RUNNER_ARCH-$INPUTS-"
-        { echo "prefix=$prefix"; echo "key=$prefix${files%% *}"; } >> "$GITHUB_OUTPUT"
-    - name: Restore the dx rule graph
-      id: graph
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: .dx/local/rule_graph
-        key: ${{ steps.graph-key.outputs.key }}
-        restore-keys: ${{ steps.graph-key.outputs.prefix }}
     - name: Build the gate tools
       shell: bash
       run: |
@@ -121,12 +105,6 @@ runs:
           "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
         done
         exit "$status"
-    - name: Save the dx rule graph
-      if: ${{ !cancelled() && steps.check.outcome != 'skipped' && steps.graph.outputs.cache-hit != 'true' && hashFiles('.dx/local/rule_graph') != '' }}
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: .dx/local/rule_graph
-        key: ${{ steps.graph.outputs.cache-primary-key }}
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash

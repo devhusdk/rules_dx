@@ -73,8 +73,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
         with:
-          cache-save: ${{ runner.os == 'Windows' && env.BUILDBUDDY_API_KEY != '' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           free-disk: true
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
@@ -155,9 +153,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: dx-reports-coverage-*
@@ -184,8 +179,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Compare the analysis phase of the two chain depths
         run: |
           # shellcheck disable=SC2086
@@ -222,8 +215,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Analyze the consumer fixtures with --//cli/prebuilt:guard_view
         env:
           LANGS: ${{ matrix.langs }}
@@ -263,9 +254,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Build the bootstrap closure
         id: bootstrap-build
         run: |
@@ -381,9 +369,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086

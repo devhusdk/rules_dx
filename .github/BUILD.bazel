@@ -16,6 +16,11 @@ filegroup(
 )
 
 filegroup(
+    name = "files",
+    srcs = glob(["**"]),
+)
+
+filegroup(
     name = "actions",
     srcs = glob(
         ["actions/*/action.yml"],

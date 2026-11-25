@@ -186,15 +186,7 @@ Without a remote cache, no config is passed.
 
 For more, see [Remote cache](remote-cache.md).
 
-The workflow keeps these GitHub Actions caches:
-
-| Cache | When |
-|---|---|
-| Disk cache per `checks` job, keyed on the check and platform | Only without a remote cache. Saved on the default branch; other runs restore it. |
-| Advisory snapshots under `.dx/local/advisory` | When `.dx/pins` pins them. |
-| Fuzz corpus under `.dx/local/fuzz` | When `fuzz` is `true`. |
-
-Bazel downloads and Bazelisk are fetched fresh in each job.
+The workflow uses no GitHub Actions caches. Bazel downloads and Bazelisk are fetched fresh in each job.
 
 ## Inputs
 
@@ -208,7 +200,7 @@ These are the `with:` inputs of `reusable-consumer.yml`.
 | `affected_on_pr` | Default `true`. Use `--affected` on pull requests. |
 | `buf_breaking_on_pr` | Default `false`. On pull requests, run `lint` with `--breaking-against` so `buf breaking` compares the proto files with the pull request base. |
 | `link_check_online` | Default `false`. Run `lint` with `--online` so lychee checks external links. Ignored on pull requests; call the workflow from a `schedule` trigger to use it. |
-| `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. The corpus under `.dx/local/fuzz` is cached between runs. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
+| `fuzz` | Default `false`. Run [`dx fuzz`](cli/commands/fuzz.md) on `dx-fuzz` targets on Linux x86_64. Runs on the default branch upload the corpus under `.dx/local/fuzz` as the `dx-fuzz-corpus` artifact for 30 days; the next run starts from the newest one. The job needs `actions: read`. A crash fails the job and uploads the `dx-fuzz-crashes` artifact for 30 days; the log shows the reproduce line. |
 | `fuzz_time` | Default `300s`. Time budget per fuzz target, such as `90s`, `5m` or `1h`. |
 | `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/local/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --max-regression=<bench_max_regression>` and add the table to the job summary. |
 | `bench_max_regression` | Default `20`. Whole number 0 to 100. Percent a benchmark may be slower than the base branch before a pull request fails. |

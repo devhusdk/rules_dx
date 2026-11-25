@@ -1185,25 +1185,33 @@ mod tests {
         assert_eq!(listed, None);
     }
 
+    fn absolute(path: &str) -> String {
+        if cfg!(windows) {
+            format!("C:{path}")
+        } else {
+            path.to_owned()
+        }
+    }
+
     #[test]
     fn rc_output_roots_read_startup_lines_and_imports() {
         let dir = tempfile::tempdir().expect("dir");
+        let (big, other) = (absolute("/mnt/big/bazel"), absolute("/mnt/other"));
         std::fs::write(
             dir.path().join(".bazelrc"),
-            "build --foo\nstartup --output_user_root=/mnt/big/bazel # c\nimport %workspace%/extra.rc\n",
+            format!(
+                "build --foo\nstartup --output_user_root={big} # c\nimport %workspace%/extra.rc\n"
+            ),
         )
         .expect("rc");
         std::fs::write(
             dir.path().join("extra.rc"),
-            "startup --output_user_root=/mnt/other\n",
+            format!("startup --output_user_root={other}\n"),
         )
         .expect("extra");
         let mut roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
         roots.sort();
-        assert_eq!(
-            roots,
-            vec![PathBuf::from("/mnt/big/bazel"), PathBuf::from("/mnt/other")]
-        );
+        assert_eq!(roots, vec![PathBuf::from(big), PathBuf::from(other)]);
     }
 
     #[test]
@@ -1227,24 +1235,19 @@ mod tests {
     #[test]
     fn rc_output_roots_keep_quoted_paths_with_spaces() {
         let dir = tempfile::tempdir().expect("dir");
+        let (mine, other) = (absolute("/tmp/my cache"), absolute("/tmp/other cache"));
         std::fs::write(
             dir.path().join(".bazelrc"),
-            "startup --output_user_root=\"/tmp/my cache\"\nimport \"%workspace%/my rc\"\n",
+            format!("startup --output_user_root=\"{mine}\"\nimport \"%workspace%/my rc\"\n"),
         )
         .expect("rc");
         std::fs::write(
             dir.path().join("my rc"),
-            "startup --output_user_root \"/tmp/other cache\" # note\n",
+            format!("startup --output_user_root \"{other}\" # note\n"),
         )
         .expect("extra");
         let mut roots = rc_output_roots(vec![dir.path().join(".bazelrc")], dir.path());
         roots.sort();
-        assert_eq!(
-            roots,
-            vec![
-                PathBuf::from("/tmp/my cache"),
-                PathBuf::from("/tmp/other cache")
-            ]
-        );
+        assert_eq!(roots, vec![PathBuf::from(mine), PathBuf::from(other)]);
     }
 }

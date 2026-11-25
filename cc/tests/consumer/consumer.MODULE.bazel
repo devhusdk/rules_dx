@@ -2,3 +2,5 @@
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
+dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
+dx_licenses.accept(ids = ["visual-studio-build-tools"], terms_sha256 = {"visual-studio-build-tools": "9284a30da91bfdf5c56a681a6c007a0376cec75f069596dc6d28c3218c9e23d3"})

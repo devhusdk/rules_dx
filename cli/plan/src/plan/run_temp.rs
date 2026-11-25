@@ -92,7 +92,10 @@ pub fn remove_stale_run_dirs(base: &Path) {
     };
     for entry in entries.flatten() {
         let name = entry.file_name();
-        if name.to_str().and_then(run_dir_pid).is_none() {
+        let Some(pid) = name.to_str().and_then(run_dir_pid) else {
+            continue;
+        };
+        if dx_process::procs::pid_alive(pid) {
             continue;
         }
         let path = entry.path();
@@ -167,6 +170,18 @@ mod tests {
         assert!(old_format.is_dir(), "an old-format dir must stay");
         assert!(bep.is_file(), "other dx files must stay");
         live.close().expect("close live");
+    }
+
+    #[test]
+    fn remove_stale_run_dirs_keeps_a_live_owner_before_it_locks() {
+        let base = dx_test_scratch::scratch("dx-run-sweep-live-").unwrap();
+        let opening = base
+            .path()
+            .join(format!("dx-run-{}-abc", std::process::id()));
+        std::fs::create_dir_all(&opening).expect("opening dir");
+        std::fs::write(opening.join(OWNER_LOCK), b"").expect("unlocked owner");
+        remove_stale_run_dirs(base.path());
+        assert!(opening.is_dir(), "a live owner's dir must stay");
     }
 
     #[test]

@@ -3426,14 +3426,18 @@ mod cmd {
             .to_owned()
     }
 
-    /// The URL the launcher fetches on this host. Windows sets PROCESSOR_ARCHITECTURE for each
-    /// process from its own architecture, so a test cannot pick the CPU through the environment.
-    fn released_url() -> String {
-        let cpu = if cfg!(target_arch = "aarch64") {
-            "arm64"
+    /// The PROCESSOR_ARCHITECTURE a Windows session sets for this host and the asset CPU it picks.
+    /// Bazel's test environment on x86_64 drops the variable, so the released runs set it.
+    fn host_cpu() -> (&'static str, &'static str) {
+        if cfg!(target_arch = "aarch64") {
+            ("ARM64", "arm64")
         } else {
-            "x86_64"
-        };
+            ("AMD64", "x86_64")
+        }
+    }
+
+    fn released_url() -> String {
+        let (_, cpu) = host_cpu();
         format!("https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-windows-{cpu}\n")
     }
 
@@ -3478,6 +3482,7 @@ mod cmd {
             let out = self
                 .command(&[], &self.base.join("calls"))
                 .env("HOME", self.base.join("home"))
+                .env("PROCESSOR_ARCHITECTURE", host_cpu().0)
                 .env_remove("XDG_CACHE_HOME")
                 .output()
                 .expect("launcher runs");

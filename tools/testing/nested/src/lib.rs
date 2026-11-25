@@ -2180,7 +2180,7 @@ impl Case {
     /// # Errors
     ///
     /// Returns `Err` when the snapshot, a fixture, the first fixture's module or the `rules_dx`
-    /// checkout is missing, or a later fixture's module has extension lines.
+    /// checkout is missing, or a later fixture's module has lines other than license accepts.
     pub fn languages_consumer(
         name: &str,
         langs: &[&str],

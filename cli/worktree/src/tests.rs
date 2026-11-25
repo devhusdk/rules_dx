@@ -1224,17 +1224,15 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     assert!(pool.record(first.slot).is_none());
     let freed = pool.record(second.slot).expect("slot 2 record kept");
     assert!(!freed.held, "slot 2 is marked free again");
-    let listing = dx_test_scratch::git(
-        &fixture.main,
-        &fixture.main,
-        &["worktree", "list", "--porcelain"],
-    )
-    .unwrap();
-    let entry = listing
-        .split("\n\n")
-        .find(|block| block.contains(&second.path.to_string_lossy().into_owned()))
-        .expect("slot 2 listed");
-    assert!(entry.contains("locked"), "{entry}");
+    let entry = listed(&fixture.main, &second.path).expect("slot 2 listed");
+    assert!(entry.locked, "{entry:?}");
+}
+
+fn listed(main: &Path, checkout: &Path) -> Option<super::git::Checkout> {
+    super::git::checkouts(main)
+        .expect("worktree list")
+        .into_iter()
+        .find(|listed| same_path(&listed.path, checkout))
 }
 
 fn three_free_slots(pool: &Pool, host: &FakeHost, me: &Who) -> Vec<ops::Added> {
@@ -1447,13 +1445,7 @@ fn a_failed_add_on_a_fresh_slot_rolls_the_slot_back() {
     assert_eq!(error.code, "git_failed");
     assert!(pool.record(1).is_none());
     assert!(!pool.slot_path(1).exists());
-    let listing = dx_test_scratch::git(
-        &fixture.main,
-        &fixture.main,
-        &["worktree", "list", "--porcelain"],
-    )
-    .unwrap();
-    assert!(!listing.contains(&pool.slot_path(1).to_string_lossy().into_owned()));
+    assert!(listed(&fixture.main, &pool.slot_path(1)).is_none());
     std::fs::remove_file(heads.join("x.lock")).expect("unlock");
     let added = ops::add(&pool, &host, &me, &create("feature/x")).expect("retry");
     assert_eq!(added.slot, 1);
@@ -6017,13 +6009,7 @@ fn prune_apply_keeps_a_slot_whose_shutdown_was_interrupted() {
     assert!(paths.iter().all(|path| path.exists()));
     assert!(pool.records().iter().all(|record| !record.broken));
     assert_eq!(pool.records().len(), 2);
-    let listed = dx_test_scratch::git(
-        &fixture.main,
-        &fixture.main,
-        &["worktree", "list", "--porcelain"],
-    )
-    .unwrap();
-    assert!(listed.contains(&paths[0].to_string_lossy().into_owned()));
+    assert!(listed(&fixture.main, &paths[0]).is_some());
 }
 
 #[test]

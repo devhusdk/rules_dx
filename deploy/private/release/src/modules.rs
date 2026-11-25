@@ -160,7 +160,10 @@ mod tests {
             matches!(&error, ModuleError::RootOnlyOverride { overrides } if overrides == &[("rules_qt".to_owned(), "git_override")])
         );
         let error = error.to_string();
-        assert!(error.contains("bazel_dep rules_qt with git_override"), "{error}");
+        assert!(
+            error.contains("bazel_dep rules_qt with git_override"),
+            "{error}"
+        );
     }
 
     #[test]

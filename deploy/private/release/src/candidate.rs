@@ -15,7 +15,7 @@ use dx_fingerprint::FingerprintError;
 use crate::{
     BCR_WANT_MODULE, BcrError, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
     bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
-    modules::{ModuleError, root_only_override_error, module_version_error},
+    modules::{ModuleError, module_version_error, root_only_override_error},
     pretty_json, render_bcr_source_for_digest, write_bcr_source_for_archive,
 };
 
@@ -1684,7 +1684,10 @@ mod tests {
             .map_err(CandidateError::SourceJsonWrite)
             .expect_err("missing archive");
         assert!(
-            matches!(&error, CandidateError::SourceJsonWrite(BcrError::Hash { .. })),
+            matches!(
+                &error,
+                CandidateError::SourceJsonWrite(BcrError::Hash { .. })
+            ),
             "{error}"
         );
         assert!(

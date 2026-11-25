@@ -32,10 +32,11 @@ unsafe fn copy_out(value: &str, out: *mut u8, cap: usize) -> usize {
     if !out.is_null() && cap > 0 {
         let count = value.len().min(cap - 1);
         // SAFETY: callers pass pointers to live buffers whose lengths match the length arguments.
-        unsafe {
-            std::ptr::copy_nonoverlapping(value.as_ptr(), out, count);
-            *out.add(count) = 0;
-        }
+        unsafe { std::ptr::copy_nonoverlapping(value.as_ptr(), out, count) };
+        // SAFETY: count is below cap, so out plus count stays inside the caller's buffer.
+        let end = unsafe { out.add(count) };
+        // SAFETY: end points inside the caller's writable buffer.
+        unsafe { *end = 0 };
     }
     value.len()
 }

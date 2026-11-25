@@ -3,7 +3,10 @@ load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["check_lifecycle.sh"])
+exports_files([
+    "README.md",
+    "check_lifecycle.sh",
+])
 
 sh_test(
     name = "inspect_apk_test",

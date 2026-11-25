@@ -45,7 +45,7 @@ fn gcc_archive_runs_on_a_clean_environment_without_toolchain_files() {
 
     let out = Command::new(&app)
         .env_clear()
-        .current_dir(&scratch)
+        .current_dir(scratch)
         .output()
         .expect("run app");
     assert!(out.status.success(), "app failed: {out:?}");

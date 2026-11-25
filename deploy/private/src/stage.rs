@@ -134,7 +134,9 @@ fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
 }
 
 pub(crate) fn render_json(value: &serde_json::Value) -> std::io::Result<String> {
-    Ok(serde_json::to_string_pretty(value)? + "\n")
+    let mut text = serde_json::to_string_pretty(value)?;
+    text.push('\n');
+    Ok(text)
 }
 
 pub fn write_secure_file(

@@ -59,7 +59,7 @@ fn dynamic_libstdcxx_app_ships_its_runtime_and_runs_from_the_archive() {
 
     let out = Command::new(&app)
         .env_clear()
-        .current_dir(&scratch)
+        .current_dir(scratch)
         .output()
         .expect("run app");
     assert!(out.status.success(), "app failed: {out:?}");

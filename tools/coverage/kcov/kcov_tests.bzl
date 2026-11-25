@@ -72,9 +72,12 @@ def _platform_rule(platform):
         fail("dx_kcov_env_test has no analysis rule for {}; add it to kcov_tests.bzl".format(platform))
     return _PLATFORM_TESTS[platform]
 
-def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other_platforms = [], sancov_platforms = []):
-    """Asserts kcov runs on linux_platform, sancov on sancov_platforms, and neither elsewhere."""
-    _platform_rule(linux_platform)(name = name, size = "small", target_under_test = target, kcov = True, upstream = upstream, instrumented = instrumented)
+def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other_platforms = [], sancov_platforms = [], linux_host = []):
+    """Asserts kcov runs on linux_platform, sancov on sancov_platforms, and neither elsewhere.
+
+    linux_host constrains the host that analyzes the linux_platform case, for languages with no toolchain that targets linux_platform from another host.
+    """
+    _platform_rule(linux_platform)(name = name, size = "small", target_under_test = target, kcov = True, upstream = upstream, instrumented = instrumented, target_compatible_with = linux_host)
     for platform in other_platforms:
         _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False, sancov = platform in sancov_platforms, upstream = upstream)
     _off_test(name = name + "_off", size = "small", target_under_test = target, kcov = False)

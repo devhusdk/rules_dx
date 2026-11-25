@@ -81,7 +81,7 @@ def versions_contract_tests(name):
             "//third_party/jvm:scalafix/libs.versions.toml": "module = \"ch.epfl.scala:scalafix-cli_2.13." + _SCALA_VERSION.split(".")[2] + "\", version = \"" + _JVM_TOOL_VERSIONS["scalafix"] + "\"",
             "//scala:pins.json": "/download/v" + _RULES_SCALA_VERSION + "/rules_scala-v" + _RULES_SCALA_VERSION + ".tar.gz",
             "//scala/private/toolchain:config_extension.bzl": "SCALA_VERSION = \"" + _SCALA_VERSION + "\"",
-            "//julia:pins.json": "/download/" + _RULES_JULIA_VERSION + "/rules_julia-" + _RULES_JULIA_VERSION + ".tar.gz",
+            "//julia:pins.json": "/rules_julia/archive/" + _RULES_JULIA_VERSION + ".tar.gz",
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
                                "name = \"protobuf\", version = \"" + _PROTOBUF_VERSION + "\"\n" +

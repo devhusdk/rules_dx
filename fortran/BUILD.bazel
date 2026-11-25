@@ -1,6 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
+# Upstream: miinso/rules_fortran#48
 exports_files([
     "README.md",
     "defs.bzl",

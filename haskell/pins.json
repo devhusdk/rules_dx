@@ -169,12 +169,12 @@
       ]
     },
     "rules_haskell": {
-      "sha256": "86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1",
-      "strip_prefix": "rules_haskell-826018312ea91c80ff66fde1e1e39f76c42c07b8",
+      "sha256": "9c7b3f3afb26b0e705ab613ec24bcd44dc2b03e6983f318bd668f212e4f2982a",
+      "strip_prefix": "rules_haskell-cf02dbfce5165e9b310aebe5a9241c47d72cbb6a",
       "urls": [
-        "https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz"
+        "https://github.com/tweag/rules_haskell/archive/cf02dbfce5165e9b310aebe5a9241c47d72cbb6a.tar.gz"
       ],
-      "version": "826018312ea91c80ff66fde1e1e39f76c42c07b8"
+      "version": "cf02dbfce5165e9b310aebe5a9241c47d72cbb6a"
     }
   },
   "version": "9.10.3"

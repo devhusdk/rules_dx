@@ -18,6 +18,10 @@ fortran_test(
 dx_kcov_env_test(
     name = "calc_test_kcov_test",
     instrumented = ["fortran/tests/fixtures/calc/calc.f90"],
+    linux_host = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
     linux_platform = "//fortran/private:linux_x86_64",
     target = ":calc_test",
     upstream = "calc_test_upstream",

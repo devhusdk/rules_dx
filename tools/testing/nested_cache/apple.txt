@@ -454,7 +454,7 @@ https://github.com/bazel-contrib/rules_nodejs/releases/download/v6.7.7/rules_nod
 https://github.com/bazel-contrib/rules_oci/releases/download/v2.3.0/rules_oci-v2.3.0.tar.gz e987cab7a35475cb9c9060fc3f338a1fc8896c240295a3272968b217acefd0cb
 https://github.com/bazel-contrib/rules_perl/releases/download/2.1.0/rules_perl-2.1.0.tar.gz ee64c308f69b28668d69f165b4e4d39c445d986b7f173f782d21b166bb6d42ae
 https://github.com/bazel-contrib/rules_python/releases/download/2.4.6/rules_python-2.4.6.tar.gz 4765b9a4a9c6e0fb89f465aac5b5b0ac06589c9477144340859310777ad801a7
-https://github.com/bazel-contrib/rules_ruby/archive/2192f552bad57e8444930de2704c2ac6f6214022.tar.gz 7464e30662fd00289a85ee6237e20ed90658bb5c237c82b6f33ee2e1c58bb89e
+https://github.com/bazel-contrib/rules_ruby/archive/81a3c0abd2da6dd7ca8bc5c676aa138ea4ea4955.tar.gz fe8b5388b6057e5a289bf4d04c8633460c0d063ca96a108f7ed05520edf0e9be
 https://github.com/bazel-contrib/rules_scala/releases/download/v7.4.1/rules_scala-v7.4.1.tar.gz 1f8eb60ae5bd6d7ad08c8e54edcb1492eaf08cceaa9579152d06d2033b4a689d
 https://github.com/bazel-contrib/rules_shell/releases/download/v0.10.0/rules_shell-v0.10.0.tar.gz 12edf8c13d46c4408a860da4fd109b58e56f68cd1eb757746291f89e9ea6c17c
 https://github.com/bazel-contrib/supply-chain/releases/download/package_metadata-0.0.15/package_metadata-0.0.15.tar.gz 20122816cf2d09988e26f1a0c32d8cc9497df4e56e2fac6b2e3ab271f190c2f7
@@ -481,13 +481,13 @@ https://github.com/hermeticbuild/hermetic-llvm/releases/download/v0.8.27/hermeti
 https://github.com/hermeticbuild/rules_zig/releases/download/v0.17.0/rules_zig-0.17.0.tar.gz 3c1314f4cb90f55372068fb19aa2a5f8724d94240da45504db35f48d7a88c2a9
 https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz 98fa582e4cce11509c78f760e8ac74abf755872b3ba90dd25427024d2e53a890
 https://github.com/jvolkman/toml.bzl/releases/download/v0.5.0/toml.bzl-v0.5.0.tar.gz b5bfdd5c5488ad37d60db188d2d17bc093f719b88b20886ce9fb092bff6b0e67
-https://github.com/miinso/rules_fortran/archive/f0cac73ebdcbda7bc01b38b8a4ee33869416c220.tar.gz ca07c12300ade0a7e5fff92eb95cc27e4618af993841b92a9784d239c34c7557
+https://github.com/miinso/rules_fortran/archive/7c42e69265f27de5b7dbc7acfc9c1ea2a35240dc.tar.gz 63e5468dce5e681be1fccbd77b297b71fd4623ff82ebea995ad6d973c3af44df
 https://github.com/nlohmann/json/releases/download/v3.12.0/include.zip b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372
-https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz 298424f537350d37142f1f056375a3c3cd65a3058ee4b7dcd555ed1c87df8684
+https://github.com/periareon/rules_julia/archive/632e1237a56d718446e3ddfca3526c0cc93b2c23.tar.gz fb9a4bf8f7485dccbade72a7c5bbaab0dafce1f6971ae045fad8b308e7894fea
 https://github.com/periareon/rules_powershell/releases/download/0.3.1/rules_powershell-0.3.1.tar.gz 8ef875aa1dad8dc0f8f568547d2283f3d4b686b8e50374d6cdda4c5688fe6b7f
 https://github.com/protocolbuffers/protobuf/releases/download/v37.0-rc3/protobuf-37.0-rc3.bazel.tar.gz e55e3380c67ae237c806e9ce9490d0b98ac3ea7d43283a9c1c1051d6647e2662
 https://github.com/protocolbuffers/protobuf/releases/download/v37.0-rc3/protoc-37.0-rc-3-osx-aarch_64.zip 97fd50d07133b517683ef2d7dff2716c408516d68287737b2c9f832c09fe3177
-https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz 86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1
+https://github.com/tweag/rules_haskell/archive/cf02dbfce5165e9b310aebe5a9241c47d72cbb6a.tar.gz 9c7b3f3afb26b0e705ab613ec24bcd44dc2b03e6983f318bd668f212e4f2982a
 https://github.com/uutils/coreutils/releases/download/0.12.0/coreutils-0.12.0-aarch64-apple-darwin.tar.gz 7caea447564405b3eb50cce2a89d314df07d1b7a67090dc4cc7c82eba7014052
 https://static.crates.io/crates/Inflector/0.11.4/download fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3
 https://static.crates.io/crates/adler2/2.0.1/download 320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa

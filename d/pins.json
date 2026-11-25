@@ -94,11 +94,11 @@
       ]
     },
     "rules_d": {
-      "version": "0.12.1",
-      "sha256": "87aaf9bc99f0635df22efcbea67a95bce2d8b4fad172012e0314e2cb79149816",
-      "strip_prefix": "rules_d-0.12.1",
+      "version": "0.13.1",
+      "sha256": "537cb099e1daec4ddb18e9c39d5be2b80d1cbbdad6dde62e09f3f7ee2a0f8bee",
+      "strip_prefix": "rules_d-0.13.1",
       "urls": [
-        "https://github.com/bazel-contrib/rules_d/archive/refs/tags/v0.12.1.tar.gz"
+        "https://github.com/bazel-contrib/rules_d/archive/refs/tags/v0.13.1.tar.gz"
       ]
     }
   }

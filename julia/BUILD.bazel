@@ -1,5 +1,9 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
+# Upstream: periareon/rules_julia#48
+# Upstream: periareon/rules_julia#49
+# Upstream: periareon/rules_julia#51
+# Upstream: periareon/rules_julia#52
 exports_files([
     "README.md",
     "defs.bzl",

@@ -534,7 +534,7 @@ fn split_tests(
         };
         let candidates = if whole_repo {
             let excludes = exclude::load(workspace)?;
-            let mut tests = graph.tests_of(&graph.selected(&plan.tests));
+            let mut tests = graph.tests_of(&graph.own_sources(&plan.tests));
             tests.retain(|test| !exclude::covered(&excludes, test));
             tests
         } else {

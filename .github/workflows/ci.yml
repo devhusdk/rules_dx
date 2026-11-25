@@ -75,6 +75,7 @@ jobs:
         with:
           cache-save: ${{ runner.os == 'Windows' && env.BUILDBUDDY_API_KEY != '' }}
           disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
+          free-disk: true
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
         run: |

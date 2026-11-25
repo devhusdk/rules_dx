@@ -1,5 +1,5 @@
-using Archive
-using Test
+using Archive: compress, decompress
+using Test: @test, @test_throws, @testset
 
 @testset "archive" begin
     data = Vector{UInt8}(repeat("sensor,reading\n", 200))

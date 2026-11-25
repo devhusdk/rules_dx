@@ -1,3 +1,3 @@
-using Greet
+using Greet: greeting
 
 println(greeting("julia"))

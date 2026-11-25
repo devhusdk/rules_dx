@@ -1,5 +1,5 @@
-using DxBench
-using Test
+using DxBench: run_benchmarks
+using Test: @test, @testset
 
 @testset "report" begin
     dir = mktempdir()

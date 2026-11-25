@@ -1,4 +1,4 @@
-using Stats
+using Stats: histogram, mean, quantile, variance
 
 function expect(name, got, want)
     got == want || error("$name: got $(repr(got)), want $(repr(want))")

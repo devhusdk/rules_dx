@@ -36,147 +36,147 @@ load("//swift/private/quality:swift.bzl", "real_swift_format_aspect", "real_swif
 load("//terraform/private/quality:terraform.bzl", "real_terraform_format_aspect", "real_terraform_lint_aspect")
 load("//zig/private/quality:zig.bzl", "real_zig_format_aspect", "real_zig_lint_aspect")
 
-ansible_format_subject = config_subject_rule([real_ansible_format_aspect], [OutputGroupInfo])
+ansible_format_subject = config_subject_rule([real_ansible_format_aspect])
 
-ansible_lint_subject = config_subject_rule([real_ansible_lint_aspect], [OutputGroupInfo])
+ansible_lint_subject = config_subject_rule([real_ansible_lint_aspect])
 
-api_spec_format_subject = config_subject_rule([real_protobuf_format_aspect], [OutputGroupInfo])
+api_spec_format_subject = config_subject_rule([real_protobuf_format_aspect])
 
-api_spec_lint_subject = config_subject_rule([real_protobuf_lint_aspect], [OutputGroupInfo])
+api_spec_lint_subject = config_subject_rule([real_protobuf_lint_aspect])
 
-avro_lint_subject = config_subject_rule([real_avro_lint_aspect], [OutputGroupInfo])
+avro_lint_subject = config_subject_rule([real_avro_lint_aspect])
 
-bicep_format_subject = config_subject_rule([real_bicep_format_aspect], [OutputGroupInfo])
+bicep_format_subject = config_subject_rule([real_bicep_format_aspect])
 
-bicep_lint_subject = config_subject_rule([real_bicep_lint_aspect], [OutputGroupInfo])
+bicep_lint_subject = config_subject_rule([real_bicep_lint_aspect])
 
-capnproto_lint_subject = config_subject_rule([real_capnp_lint_aspect], [OutputGroupInfo])
+capnproto_lint_subject = config_subject_rule([real_capnp_lint_aspect])
 
-cc_format_subject = config_subject_rule([real_cc_format_aspect], [OutputGroupInfo])
+cc_format_subject = config_subject_rule([real_cc_format_aspect])
 
-cc_lint_subject = config_subject_rule([real_cc_lint_aspect], [OutputGroupInfo])
+cc_lint_subject = config_subject_rule([real_cc_lint_aspect])
 
-cloudformation_lint_subject = config_subject_rule([real_cloudformation_lint_aspect], [OutputGroupInfo])
+cloudformation_lint_subject = config_subject_rule([real_cloudformation_lint_aspect])
 
-cmake_format_subject = config_subject_rule([real_cmake_format_aspect], [OutputGroupInfo])
+cmake_format_subject = config_subject_rule([real_cmake_format_aspect])
 
-cmake_lint_subject = config_subject_rule([real_cmake_lint_aspect], [OutputGroupInfo])
+cmake_lint_subject = config_subject_rule([real_cmake_lint_aspect])
 
-d_format_subject = config_subject_rule([real_d_format_aspect], [OutputGroupInfo])
+d_format_subject = config_subject_rule([real_d_format_aspect])
 
-d_lint_subject = config_subject_rule([real_d_lint_aspect], [OutputGroupInfo])
+d_lint_subject = config_subject_rule([real_d_lint_aspect])
 
-dart_format_subject = config_subject_rule([real_dart_format_aspect], [OutputGroupInfo])
+dart_format_subject = config_subject_rule([real_dart_format_aspect])
 
-dart_lint_subject = config_subject_rule([real_dart_lint_aspect], [OutputGroupInfo])
+dart_lint_subject = config_subject_rule([real_dart_lint_aspect])
 
-dockerfile_lint_subject = config_subject_rule([real_dockerfile_lint_aspect], [OutputGroupInfo])
+dockerfile_lint_subject = config_subject_rule([real_dockerfile_lint_aspect])
 
-dotnet_format_subject = config_subject_rule([real_dotnet_format_aspect], [OutputGroupInfo])
+dotnet_format_subject = config_subject_rule([real_dotnet_format_aspect])
 
-dotnet_lint_subject = config_subject_rule([real_dotnet_lint_aspect], [OutputGroupInfo])
+dotnet_lint_subject = config_subject_rule([real_dotnet_lint_aspect])
 
-elixir_format_subject = config_subject_rule([real_elixir_format_aspect], [OutputGroupInfo])
+elixir_format_subject = config_subject_rule([real_elixir_format_aspect])
 
-elixir_lint_subject = config_subject_rule([real_elixir_lint_aspect], [OutputGroupInfo])
+elixir_lint_subject = config_subject_rule([real_elixir_lint_aspect])
 
-erlang_format_subject = config_subject_rule([real_erlang_format_aspect], [OutputGroupInfo])
+erlang_format_subject = config_subject_rule([real_erlang_format_aspect])
 
-erlang_lint_subject = config_subject_rule([real_erlang_lint_aspect], [OutputGroupInfo])
+erlang_lint_subject = config_subject_rule([real_erlang_lint_aspect])
 
-flatbuffers_lint_subject = config_subject_rule([real_flatbuffers_lint_aspect], [OutputGroupInfo])
+flatbuffers_lint_subject = config_subject_rule([real_flatbuffers_lint_aspect])
 
-fortran_format_subject = config_subject_rule([real_fortran_format_aspect], [OutputGroupInfo])
+fortran_format_subject = config_subject_rule([real_fortran_format_aspect])
 
-fortran_lint_subject = config_subject_rule([real_fortran_lint_aspect], [OutputGroupInfo])
+fortran_lint_subject = config_subject_rule([real_fortran_lint_aspect])
 
-go_format_subject = config_subject_rule([real_go_format_aspect], [OutputGroupInfo])
+go_format_subject = config_subject_rule([real_go_format_aspect])
 
-go_lint_subject = config_subject_rule([real_go_lint_aspect], [OutputGroupInfo])
+go_lint_subject = config_subject_rule([real_go_lint_aspect])
 
-haskell_format_subject = config_subject_rule([real_haskell_format_aspect], [OutputGroupInfo])
+haskell_format_subject = config_subject_rule([real_haskell_format_aspect])
 
-haskell_lint_subject = config_subject_rule([real_haskell_lint_aspect], [OutputGroupInfo])
+haskell_lint_subject = config_subject_rule([real_haskell_lint_aspect])
 
-java_format_subject = config_subject_rule([real_jvm_format_aspect], [OutputGroupInfo])
+java_format_subject = config_subject_rule([real_jvm_format_aspect])
 
-java_lint_subject = config_subject_rule([real_jvm_lint_aspect, real_pkl_lint_aspect], [OutputGroupInfo])
+java_lint_subject = config_subject_rule([real_jvm_lint_aspect, real_pkl_lint_aspect])
 
-javascript_format_subject = config_subject_rule([real_js_format_aspect], [OutputGroupInfo])
+javascript_format_subject = config_subject_rule([real_js_format_aspect])
 
-javascript_lint_subject = config_subject_rule([real_js_lint_aspect], [OutputGroupInfo])
+javascript_lint_subject = config_subject_rule([real_js_lint_aspect])
 
-julia_format_subject = config_subject_rule([real_julia_format_aspect], [OutputGroupInfo])
+julia_format_subject = config_subject_rule([real_julia_format_aspect])
 
-julia_lint_subject = config_subject_rule([real_julia_lint_aspect], [OutputGroupInfo])
+julia_lint_subject = config_subject_rule([real_julia_lint_aspect])
 
-kotlin_format_subject = config_subject_rule([real_kotlin_format_aspect], [OutputGroupInfo])
+kotlin_format_subject = config_subject_rule([real_kotlin_format_aspect])
 
-kotlin_lint_subject = config_subject_rule([real_kotlin_lint_aspect], [OutputGroupInfo])
+kotlin_lint_subject = config_subject_rule([real_kotlin_lint_aspect])
 
-kubernetes_format_subject = config_subject_rule([real_kubernetes_format_aspect], [OutputGroupInfo])
+kubernetes_format_subject = config_subject_rule([real_kubernetes_format_aspect])
 
-kubernetes_lint_subject = config_subject_rule([real_kubernetes_lint_aspect], [OutputGroupInfo])
+kubernetes_lint_subject = config_subject_rule([real_kubernetes_lint_aspect])
 
-lua_format_subject = config_subject_rule([real_lua_format_aspect], [OutputGroupInfo])
+lua_format_subject = config_subject_rule([real_lua_format_aspect])
 
-lua_lint_subject = config_subject_rule([real_lua_lint_aspect], [OutputGroupInfo])
+lua_lint_subject = config_subject_rule([real_lua_lint_aspect])
 
-make_format_subject = config_subject_rule([real_make_format_aspect], [OutputGroupInfo])
+make_format_subject = config_subject_rule([real_make_format_aspect])
 
-make_lint_subject = config_subject_rule([real_make_lint_aspect], [OutputGroupInfo])
+make_lint_subject = config_subject_rule([real_make_lint_aspect])
 
-ocaml_format_subject = config_subject_rule([real_ocaml_format_aspect], [OutputGroupInfo])
+ocaml_format_subject = config_subject_rule([real_ocaml_format_aspect])
 
-ocaml_lint_subject = config_subject_rule([real_ocaml_lint_aspect], [OutputGroupInfo])
+ocaml_lint_subject = config_subject_rule([real_ocaml_lint_aspect])
 
-perl_format_subject = config_subject_rule([real_perl_format_aspect], [OutputGroupInfo])
+perl_format_subject = config_subject_rule([real_perl_format_aspect])
 
-perl_lint_subject = config_subject_rule([real_perl_lint_aspect], [OutputGroupInfo])
+perl_lint_subject = config_subject_rule([real_perl_lint_aspect])
 
-php_lint_subject = config_subject_rule([real_php_lint_aspect], [OutputGroupInfo])
+php_lint_subject = config_subject_rule([real_php_lint_aspect])
 
-powershell_format_subject = config_subject_rule([real_powershell_format_aspect], [OutputGroupInfo])
+powershell_format_subject = config_subject_rule([real_powershell_format_aspect])
 
-powershell_lint_subject = config_subject_rule([real_powershell_lint_aspect], [OutputGroupInfo])
+powershell_lint_subject = config_subject_rule([real_powershell_lint_aspect])
 
-python_format_subject = config_subject_rule([real_python_format_aspect], [OutputGroupInfo])
+python_format_subject = config_subject_rule([real_python_format_aspect])
 
-python_lint_subject = config_subject_rule([real_python_lint_aspect], [OutputGroupInfo])
+python_lint_subject = config_subject_rule([real_python_lint_aspect])
 
-rego_format_subject = config_subject_rule([real_rego_format_aspect], [OutputGroupInfo])
+rego_format_subject = config_subject_rule([real_rego_format_aspect])
 
-rego_lint_subject = config_subject_rule([real_rego_lint_aspect], [OutputGroupInfo])
+rego_lint_subject = config_subject_rule([real_rego_lint_aspect])
 
-ruby_format_subject = config_subject_rule([real_ruby_format_aspect], [OutputGroupInfo])
+ruby_format_subject = config_subject_rule([real_ruby_format_aspect])
 
-ruby_lint_subject = config_subject_rule([real_ruby_lint_aspect], [OutputGroupInfo])
+ruby_lint_subject = config_subject_rule([real_ruby_lint_aspect])
 
-rust_format_subject = config_subject_rule([real_rust_format_aspect], [OutputGroupInfo])
+rust_format_subject = config_subject_rule([real_rust_format_aspect])
 
-rust_lint_subject = config_subject_rule([real_rust_lint_aspect], [OutputGroupInfo])
+rust_lint_subject = config_subject_rule([real_rust_lint_aspect])
 
-scala_format_subject = config_subject_rule([real_scala_format_aspect], [OutputGroupInfo])
+scala_format_subject = config_subject_rule([real_scala_format_aspect])
 
-scala_lint_subject = config_subject_rule([real_scala_lint_aspect], [OutputGroupInfo])
+scala_lint_subject = config_subject_rule([real_scala_lint_aspect])
 
-sql_format_subject = config_subject_rule([real_sql_format_aspect], [OutputGroupInfo])
+sql_format_subject = config_subject_rule([real_sql_format_aspect])
 
-sql_lint_subject = config_subject_rule([real_sql_lint_aspect], [OutputGroupInfo])
+sql_lint_subject = config_subject_rule([real_sql_lint_aspect])
 
-swift_format_subject = config_subject_rule([real_swift_format_aspect], [OutputGroupInfo])
+swift_format_subject = config_subject_rule([real_swift_format_aspect])
 
-swift_lint_subject = config_subject_rule([real_swift_lint_aspect], [OutputGroupInfo])
+swift_lint_subject = config_subject_rule([real_swift_lint_aspect])
 
-terraform_format_subject = config_subject_rule([real_terraform_format_aspect], [OutputGroupInfo])
+terraform_format_subject = config_subject_rule([real_terraform_format_aspect])
 
-terraform_lint_subject = config_subject_rule([real_terraform_lint_aspect], [OutputGroupInfo])
+terraform_lint_subject = config_subject_rule([real_terraform_lint_aspect])
 
-thrift_lint_subject = config_subject_rule([real_thrift_lint_aspect], [OutputGroupInfo])
+thrift_lint_subject = config_subject_rule([real_thrift_lint_aspect])
 
-zig_format_subject = config_subject_rule([real_zig_format_aspect], [OutputGroupInfo])
+zig_format_subject = config_subject_rule([real_zig_format_aspect])
 
-zig_lint_subject = config_subject_rule([real_zig_lint_aspect], [OutputGroupInfo])
+zig_lint_subject = config_subject_rule([real_zig_lint_aspect])
 
 QUALITY_SUBJECTS = {
     "ansible": {

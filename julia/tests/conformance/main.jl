@@ -1,9 +1,9 @@
-using Greet
+using Greet: greet
 
 function rlocation(path)
     dir = get(ENV, "RUNFILES_DIR", "")
     isempty(dir) || return joinpath(dir, path)
-    key = path * " "
+    key = "$path "
     for line in eachline(ENV["RUNFILES_MANIFEST_FILE"])
         startswith(line, key) && return rstrip(chopprefix(line, key), '\r')
     end

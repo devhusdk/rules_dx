@@ -28,7 +28,7 @@ def _checks():
         expect_contains("a windows cross toolchain runs on the host", hub, 'name = "dx_d_toolchains__windows_x86_64_to_windows_arm64",\n    exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", "@llvm//constraints/windows/abi:msvc"],\n    target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", "@llvm//constraints/windows/abi:msvc"],'),
         expect_contains("a cross toolchain runs on the host", hub, 'name = "dx_d_toolchains__linux_x86_64_to_linux_arm64",\n    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],\n    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),
         expect_true("hub constraints are the cell constraints", all([repr(cell.exec_compatible_with) in hub for cell in LDC_CELLS.values()])),
-        expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
+        expect_equal("rules_d version", RULES_D_VERSION, "0.13.1"),
         expect_equal("ldc version", LDC_VERSION, "1.43.0"),
         expect_equal("pinned cells", sorted(LDC_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("arm64 linux archive", LDC_CELLS["linux_arm64"].archive, "ldc2-1.43.0-linux-aarch64.tar.xz"),

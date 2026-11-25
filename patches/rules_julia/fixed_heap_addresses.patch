@@ -2,7 +2,7 @@ Upstream: none (not yet sent upstream)
 diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
 --- a/julia/private/precompile.jl
 +++ b/julia/private/precompile.jl
-@@ -37,6 +37,7 @@ function fixed_slug!(compiled)
+@@ -28,6 +28,7 @@
  end
  
  function main()
@@ -167,7 +167,7 @@ diff -ruN a/julia/private/standalone.bzl b/julia/private/standalone.bzl
 diff -ruN a/julia/private/sysimage.jl b/julia/private/sysimage.jl
 --- a/julia/private/sysimage.jl
 +++ b/julia/private/sysimage.jl
-@@ -57,6 +57,7 @@ function run_precompile_statements(files::Vector{String})
+@@ -57,6 +57,7 @@
  end
  
  function main()

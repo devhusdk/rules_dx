@@ -653,7 +653,7 @@ https://github.com/bazel-contrib/rules_nodejs/releases/download/v6.7.7/rules_nod
 https://github.com/bazel-contrib/rules_oci/releases/download/v2.3.0/rules_oci-v2.3.0.tar.gz e987cab7a35475cb9c9060fc3f338a1fc8896c240295a3272968b217acefd0cb
 https://github.com/bazel-contrib/rules_perl/releases/download/2.1.0/rules_perl-2.1.0.tar.gz ee64c308f69b28668d69f165b4e4d39c445d986b7f173f782d21b166bb6d42ae
 https://github.com/bazel-contrib/rules_python/releases/download/2.4.6/rules_python-2.4.6.tar.gz 4765b9a4a9c6e0fb89f465aac5b5b0ac06589c9477144340859310777ad801a7
-https://github.com/bazel-contrib/rules_ruby/archive/2192f552bad57e8444930de2704c2ac6f6214022.tar.gz 7464e30662fd00289a85ee6237e20ed90658bb5c237c82b6f33ee2e1c58bb89e
+https://github.com/bazel-contrib/rules_ruby/archive/81a3c0abd2da6dd7ca8bc5c676aa138ea4ea4955.tar.gz fe8b5388b6057e5a289bf4d04c8633460c0d063ca96a108f7ed05520edf0e9be
 https://github.com/bazel-contrib/rules_shell/releases/download/v0.10.0/rules_shell-v0.10.0.tar.gz 12edf8c13d46c4408a860da4fd109b58e56f68cd1eb757746291f89e9ea6c17c
 https://github.com/bazel-contrib/supply-chain/releases/download/package_metadata-0.0.15/package_metadata-0.0.15.tar.gz 20122816cf2d09988e26f1a0c32d8cc9497df4e56e2fac6b2e3ab271f190c2f7
 https://github.com/bazel-contrib/tar.bzl/releases/download/v0.10.9/tar.bzl-v0.10.9.tar.gz 8a3b78120510962fc74b577aaaf52412537cfbc25c88a596a375bd409e66b98a
@@ -695,7 +695,7 @@ https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/window
 https://github.com/jvolkman/toml.bzl/releases/download/v0.5.0/toml.bzl-v0.5.0.tar.gz b5bfdd5c5488ad37d60db188d2d17bc093f719b88b20886ce9fb092bff6b0e67
 https://github.com/keith/buildifier-prebuilt/archive/refs/tags/8.2.1.1.tar.gz 0a9ea71b0fee1f85c0f7971a036521938aeb68b2e41bf2b5c079e8549fd91cb1
 https://github.com/mingw-w64/mingw-w64/archive/refs/tags/v14.0.0.tar.gz d71cc644cd5a37c337f2719f3e0c79d89e8d8d5fb9e2952a62d3fa23623dc137
-https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz 298424f537350d37142f1f056375a3c3cd65a3058ee4b7dcd555ed1c87df8684
+https://github.com/periareon/rules_julia/archive/632e1237a56d718446e3ddfca3526c0cc93b2c23.tar.gz fb9a4bf8f7485dccbade72a7c5bbaab0dafce1f6971ae045fad8b308e7894fea
 https://github.com/periareon/rules_powershell/releases/download/0.3.1/rules_powershell-0.3.1.tar.gz 8ef875aa1dad8dc0f8f568547d2283f3d4b686b8e50374d6cdda4c5688fe6b7f
 https://github.com/protocolbuffers/protobuf/releases/download/v37.0-rc3/protobuf-37.0-rc3.bazel.tar.gz e55e3380c67ae237c806e9ce9490d0b98ac3ea7d43283a9c1c1051d6647e2662
 https://github.com/scottpledger/yaml.bzl/releases/download/v0.1.2/yaml.bzl-v0.1.2.tar.gz 8262749910722af6c943b30ae16ba48f12abd8c00eeab525783892ca531dd8ab

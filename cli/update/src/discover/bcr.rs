@@ -89,9 +89,10 @@ pub fn newest_snapshot(
             .map_err(|error| DxError::failure(format!("{name}: {error}")))?;
         newest.insert(name.to_owned(), version);
     }
-    let text =
+    let mut text =
         serde_json::to_string_pretty(&newest).map_err(|e| DxError::failure(e.to_string()))?;
-    Ok(text + "\n")
+    text.push('\n');
+    Ok(text)
 }
 
 fn repo(body: &str) -> Option<String> {

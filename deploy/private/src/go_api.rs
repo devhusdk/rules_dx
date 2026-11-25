@@ -20,12 +20,25 @@ pub(crate) enum GoApiError {
         exit: String,
         output: String,
     },
-    Git { source: RunError },
-    Work { source: io::Error },
-    NoModuleLine { module: String },
-    ApiCheck { source: ApiCheckError },
-    ProxyMissing { url: String },
-    Extract { url: String, source: io::Error },
+    Git {
+        source: RunError,
+    },
+    Work {
+        source: io::Error,
+    },
+    NoModuleLine {
+        module: String,
+    },
+    ApiCheck {
+        source: ApiCheckError,
+    },
+    ProxyMissing {
+        url: String,
+    },
+    Extract {
+        url: String,
+        source: io::Error,
+    },
 }
 
 impl fmt::Display for GoApiError {

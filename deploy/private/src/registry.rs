@@ -144,7 +144,26 @@ impl std::error::Error for RegistryError {
             Self::MalformedToken { source } | Self::MalformedLayout { source, .. } => Some(source),
             Self::BlobOpen { source, .. } | Self::BlobStat { source, .. } => Some(source),
             Self::ReadLayout { source } => Some(source),
-            _ => None,
+            Self::BadHost { .. }
+            | Self::BadRepository { .. }
+            | Self::BadTag { .. }
+            | Self::BadDigest { .. }
+            | Self::UnsupportedChallenge
+            | Self::NoRealm
+            | Self::MalformedChallenge
+            | Self::NoChallenge
+            | Self::RefusedRealm
+            | Self::BadCredentials
+            | Self::Status { .. }
+            | Self::NoToken
+            | Self::NoLocation
+            | Self::RelativeLocation
+            | Self::NonHttpLocation
+            | Self::WeakerScheme
+            | Self::DigestMismatch { .. }
+            | Self::ManifestMismatch { .. }
+            | Self::MediaType { .. }
+            | Self::ManifestCount { .. } => None,
         }
     }
 }

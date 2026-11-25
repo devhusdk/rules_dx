@@ -154,7 +154,10 @@ pub fn parse_board(text: &str) -> Result<Vec<Task>, ParseError> {
 }
 
 pub fn format_board(tasks: &[Task]) -> String {
-    tasks.iter().map(|task| task.line() + "\n").collect()
+    tasks
+        .iter()
+        .map(|task| format!("{}\n", task.line()))
+        .collect()
 }
 
 #[cfg(test)]

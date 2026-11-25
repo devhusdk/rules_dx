@@ -277,10 +277,7 @@ rust_binary(
     crate_name = "deploy_tool",
     crate_root = "src/bin_deploy_tool.rs",
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    deps = [":dx_deploy_tools"],
 )
 
 rust_binary(
@@ -293,10 +290,10 @@ rust_binary(
     crate_name = "nfpm_stage",
     crate_root = "src/bin_nfpm_stage.rs",
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    deps = [
+        ":dx_deploy_tools",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(

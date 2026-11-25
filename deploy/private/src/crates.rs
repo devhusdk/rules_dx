@@ -496,7 +496,11 @@ fn check_crate_members(
         };
         pinned.insert(key, digest);
     }
-    let generated = [manifest_name(), Ecosystem::Cargo.lockfile(), ".cargo_vcs_info.json"];
+    let generated = [
+        manifest_name(),
+        Ecosystem::Cargo.lockfile(),
+        ".cargo_vcs_info.json",
+    ];
     let open = std::fs::File::open(path).map_err(invalid)?;
     let mut foreign: Option<(String, &'static str)> = None;
     dx_archive::visit(

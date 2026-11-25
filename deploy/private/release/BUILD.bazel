@@ -98,10 +98,7 @@ rust_binary(
     ),
     crate_name = "release_tool",
     crate_root = "src/bin_release_tool.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [":dx_release_tools"],
+    deps = [":dx_release_tools"],
 )
 
 rust_test(
@@ -260,10 +257,7 @@ rust_binary(
     ),
     crate_name = "publish_dry_run_check",
     crate_root = "src/bin_publish_dry_run_check.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [":dx_release_tools"],
+    deps = [":dx_release_tools"],
 )
 
 rust_binary(
@@ -275,10 +269,7 @@ rust_binary(
     ),
     crate_name = "release_cell",
     crate_root = "src/bin_release_cell.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//cli/process:dx_process",
     ],
@@ -293,10 +284,7 @@ rust_binary(
     ),
     crate_name = "bcr_ledger",
     crate_root = "src/bin_bcr_ledger.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [":dx_release_tools"],
+    deps = [":dx_release_tools"],
 )
 
 rust_binary(
@@ -308,10 +296,7 @@ rust_binary(
     ),
     crate_name = "release_driver",
     crate_root = "src/bin_release_driver.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
@@ -327,10 +312,7 @@ rust_binary(
     ),
     crate_name = "source_archive",
     crate_root = "src/bin_source_archive.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//cli/atomic_fs:dx_atomic_fs",
     ],
@@ -345,11 +327,7 @@ rust_binary(
     ),
     crate_name = "bump_version",
     crate_root = "src/bin_bump_version.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
-        ":dx_release_tools",
+    deps = [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
@@ -775,10 +753,7 @@ rust_binary(
     crate_name = "release_deploy_tool",
     crate_root = "src/bin_release_deploy_tool.rs",
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [":dx_release_tools"],
+    deps = [":dx_release_tools"],
 )
 
 filegroup(

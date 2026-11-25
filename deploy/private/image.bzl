@@ -145,7 +145,7 @@ MainClassInfo = provider(
     fields = {"main_class": "Main class name, or empty."},
 )
 
-def _main_class_aspect_impl(target, ctx):
+def _main_class_aspect_impl(_target, ctx):
     main_class = getattr(ctx.rule.attr, "main_class", "")
     if main_class:
         return [MainClassInfo(main_class = main_class)]

@@ -1,6 +1,6 @@
 """Validators for the octopus deploy rule."""
 
-load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "charset_error", "https_url_error", "only_chars", "suffix_error")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "charset_error", "https_url_error", "suffix_error")
 
 _VALID_PROJECT_CHARS = NAME_CHARS
 

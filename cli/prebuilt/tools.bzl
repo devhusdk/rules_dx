@@ -89,6 +89,28 @@ def _library(tool, file, source, ext = ".dll", role = "exec", platforms = ["wind
         library = file,
     )
 
+DX_SUBCOMMANDS = {
+    "ansible_lock": "@rules_dx//ansible/private/tools/lock:ansible_lock",
+    "apple_ops": "@rules_dx//apple/private/tools/ops:apple_ops",
+    "bicep_lock": "@rules_dx//bicep/private/tools/lock:bicep_lock",
+    "csharp_lock": "@rules_dx//csharp/private/tools/lock:csharp_lock",
+    "d_lock": "@rules_dx//d/private/tools/lock:d_lock",
+    "dart_lock": "@rules_dx//dart/private/tools/lock:dart_lock",
+    "elixir_lock": "@rules_dx//elixir/private/tools/lock:elixir_lock",
+    "fortran_lock": "@rules_dx//fortran/private/tools/lock:fortran_lock",
+    "haskell_lock": "@rules_dx//haskell/private/tools/lock:haskell_lock",
+    "java_lock": "@rules_dx//java/private/tools/lock:java_lock",
+    "lua_lock": "@rules_dx//lua/private/tools/lock:lua_lock",
+    "ocaml_lock": "@rules_dx//ocaml/private/tools/lock:ocaml_lock",
+    "perl_lock": "@rules_dx//perl/private/tools/lock:perl_lock",
+    "php_lock": "@rules_dx//php/private/tools/lock:php_lock",
+    "powershell_lock": "@rules_dx//powershell/private/tools/lock:powershell_lock",
+    "ruby_lock": "@rules_dx//ruby/private/tools/lock:ruby_lock",
+    "swift_lock": "@rules_dx//swift/private/tools/lock:swift_lock",
+    "terraform_lock": "@rules_dx//terraform/private/tools/lock:terraform_lock",
+    "zig_lock": "@rules_dx//zig/private/tools/lock:zig_lock",
+}
+
 TOOLS = {
     "dx": struct(
         asset = "dx-{os}-{cpu}",

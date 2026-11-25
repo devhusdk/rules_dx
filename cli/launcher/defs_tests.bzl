@@ -12,7 +12,7 @@ def _subcommand_descriptor_impl(ctx):
             lines = action.content.splitlines()
     asserts.equals(env, 2 + len(ctx.attr.extra_lines), len(lines), str(lines))
     if len(lines) >= 2:
-        asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("/dx"), str(lines))
+        asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("/" + ctx.attr.program), str(lines))
         asserts.equals(env, "arg=" + ctx.attr.subcommand, lines[1])
         asserts.equals(env, ctx.attr.extra_lines, lines[2:])
     return analysistest.end(env)
@@ -21,6 +21,7 @@ dx_subcommand_test = analysistest.make(
     _subcommand_descriptor_impl,
     attrs = {
         "extra_lines": attr.string_list(doc = "The descriptor lines after the subcommand."),
+        "program": attr.string(default = "dx", doc = "The file name of the program the descriptor runs."),
         "subcommand": attr.string(doc = "The subcommand the descriptor must pass."),
     },
 )

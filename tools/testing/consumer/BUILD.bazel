@@ -127,6 +127,7 @@ nested_bazel_test(
     data = COLD_START_LISTS + [
         "prebuilt_guard_allowlist.txt",
         "//:module_srcs",
+        "//cli/prebuilt:dx_hub_targets",
         "//cli/prebuilt:go_hub_targets",
         "//cli/prebuilt:python_hub_targets",
         "//cli/prebuilt:registry",
@@ -138,6 +139,7 @@ nested_bazel_test(
         "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
         "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
+        "DX_PREBUILT_DX_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:dx_hub_targets)",
         "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
         "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
         "DX_PREBUILT_PYTHON_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:python_hub_targets)",

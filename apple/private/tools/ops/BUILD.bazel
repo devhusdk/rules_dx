@@ -1,6 +1,6 @@
 load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//apple:__subpackages__"])
 
@@ -43,6 +43,18 @@ rust_library(
         "@crates//:serde_json",
         "@crates//:tempfile",
     ],
+)
+
+rust_binary(
+    name = "apple_ops",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [":ops"],
 )
 
 dx_subcommand(

@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: hermeticbuild/hermetic-llvm#1000
 
 diff --git a/tests/runtime_reset/BUILD.bazel b/tests/runtime_reset/BUILD.bazel
 new file mode 100644

@@ -70,6 +70,7 @@ jobs:
       - name: Check out files in parallel
         run: |
           git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" config maintenance.auto false
           git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=2 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD

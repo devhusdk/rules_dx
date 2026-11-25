@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn rejects_bad_arguments_before_running_git() {
         let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
-        let root = Some(PathBuf::from("/nonexistent-checkout"));
+        let root = Some(std::env::temp_dir().join("nonexistent-checkout"));
         let error = run(&args(&["1.2.3", "--workflow-ref"]), root.clone()).unwrap_err();
         assert!(matches!(error, BumpError::WorkflowRefValue));
         assert_eq!(error.to_string(), "--workflow-ref needs a commit");

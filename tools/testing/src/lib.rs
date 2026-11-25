@@ -1341,7 +1341,7 @@ mod tests {
             let actual = dir.join("actual.txt");
             let err = snapshot_diff(&golden, &actual, Some("pkg/golden.txt"))
                 .expect_err("a staged-only refresh must fail");
-            let staged = dir.join("out/golden.txt.expected.update");
+            let staged = dir.join("out").join("golden.txt.expected.update");
             assert!(err.contains(&staged.display().to_string()), "{err}");
             assert!(err.contains("pkg/golden.txt"), "{err}");
             assert_eq!(read(&staged), "new\n");

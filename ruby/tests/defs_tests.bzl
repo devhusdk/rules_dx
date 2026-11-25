@@ -1,10 +1,10 @@
 """Wrapper conformance tests for Ruby."""
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
-load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//ruby/private:defs.bzl", "ruby_coverage_lib_dirs")
+load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
 
 _GEMS_ROOT = "../+ruby_coverage+dx_ruby_coverage_gems"
 

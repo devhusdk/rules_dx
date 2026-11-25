@@ -1,7 +1,7 @@
 """Tests for the warning root-only module extensions print for non-root tags."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:root_only.bzl", "dropped_tag_warnings")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _mod(name, is_root, accept = [], toolchain = []):
     return struct(name = name, is_root = is_root, tags = struct(accept = accept, toolchain = toolchain))

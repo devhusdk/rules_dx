@@ -1,0 +1,6 @@
+cli/roots/BUILD.bazel genquery 1
+core/quality/BUILD.bazel genquery 1
+deploy/private/BUILD.bazel genquery 2
+tools/testing/BUILD.bazel genquery 1
+tools/testing/hermetic/BUILD.bazel genquery 1
+tools/workspace/BUILD.bazel genquery 1

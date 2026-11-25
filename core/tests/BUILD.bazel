@@ -344,6 +344,14 @@ real_source_target(
     tags = ["corpus"],
 )
 
+exports_files(
+    ["hub_order_test.rs"],
+    visibility = [
+        "//dotnet/tests:__pkg__",
+        "//ruby/tests:__pkg__",
+    ],
+)
+
 starlark_test(
     name = "resource_set_wiring",
     file_checks = {

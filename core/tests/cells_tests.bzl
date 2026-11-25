@@ -1,13 +1,13 @@
 """Shared cell setting tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("//core:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
+load("//core/modules:cuda.bzl", "CUDA_CELLS")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load("//erlang/private/toolchain:pins.bzl", erlang_cells = "CELLS")
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/private/toolchain:pins.bzl", haskell_cells = "CELLS")
-load("//core:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load("//core/modules:cuda.bzl", "CUDA_CELLS")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
 load("//qt/private/toolchain:pins.bzl", qt_cells = "CELLS")

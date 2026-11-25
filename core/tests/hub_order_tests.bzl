@@ -1,27 +1,20 @@
 """Toolchain count and registration order of a toolchain hub built by an upstream rule set."""
 
-load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//rust:defs.bzl", "rust_test")
 
-def hub_order_test(name, hub, names, size = "small"):
-    """Asserts that hub//:all holds exactly the toolchains in names, which are in registration order."""
+def hub_order_test(name, build, names, size = "small"):
+    """Asserts that the hub BUILD file declares exactly the toolchains in names, which are in registration order."""
     if names != sorted(names):
         fail("hub_order_test: names must be sorted, which is the registration order of //:all")
-    labels = ["{}//:{}".format(hub, n) for n in names]
-    native.genquery(
-        name = name + "_query",
-        expression = "kind(toolchain, {}//:all)".format(hub),
-        opts = ["--output=label"],
-        scope = labels,
-    )
-    native.genquery(
-        name = name + "_expected_query",
-        expression = " + ".join(labels),
-        opts = ["--output=label"],
-        scope = labels,
-    )
-    diff_test(
+    rust_test(
         name = name,
         size = size,
-        file1 = ":" + name + "_expected_query",
-        file2 = ":" + name + "_query",
+        srcs = [Label("//core/tests:hub_order_test.rs")],
+        crate_root = Label("//core/tests:hub_order_test.rs"),
+        data = [build],
+        env = {
+            "DX_HUB_BUILD": "$(rlocationpath {})".format(build),
+            "DX_HUB_NAMES": " ".join(names),
+        },
+        deps = [Label("//tools/testing:dx_testing")],
     )

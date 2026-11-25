@@ -1,0 +1,2503 @@
+[
+  {
+    "label": "//android/tests/consumer:my_project",
+    "kind": "android_library",
+    "function": "android_java_library",
+    "attrs": [
+      "custom_package",
+      "srcs",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//appimage/tests/consumer:hello_appimage",
+    "kind": "_appimage_package",
+    "function": "appimage_package",
+    "attrs": [
+      "app_name",
+      "binary",
+      "desktop",
+      "icon",
+      "notice",
+      "target_compatible_with",
+      "version"
+    ]
+  },
+  {
+    "label": "//appimage/tests/consumer:my_project",
+    "kind": "_go_binary_forward",
+    "function": "go_binary",
+    "attrs": [
+      "cgo",
+      "srcs",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//appimage/tests/consumer:my_project_upstream",
+    "kind": "go_binary",
+    "function": "go_binary",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk",
+    "kind": "_swift_library_forward",
+    "function": "swift_library",
+    "attrs": [
+      "platforms",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app",
+    "kind": "_macos_app_check",
+    "function": "apple_macos_app",
+    "attrs": [
+      "app",
+      "deployment",
+      "frameworks",
+      "hdrs",
+      "plugins",
+      "resources",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "version",
+      "xcode_version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app_bundle",
+    "kind": "macos_application",
+    "function": "apple_macos_app",
+    "attrs": [
+      "additional_contents",
+      "bundle_id",
+      "bundle_name",
+      "deps",
+      "features",
+      "frameworks",
+      "infoplists",
+      "minimum_os_version",
+      "resources",
+      "tags",
+      "target_compatible_with",
+      "version",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app_entry",
+    "kind": "objc_library",
+    "function": "apple_macos_app",
+    "attrs": [
+      "deps",
+      "hdrs",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app_infoplist",
+    "kind": "_write_file",
+    "function": "apple_macos_app",
+    "attrs": [
+      "content",
+      "newline",
+      "out",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app_selection",
+    "kind": "_macos_selection",
+    "function": "apple_macos_app",
+    "attrs": [
+      "bundle_id",
+      "deployment",
+      "entitlements",
+      "entry",
+      "framework_imports",
+      "library",
+      "plugins",
+      "provisioning_profile",
+      "resources",
+      "srcs",
+      "tags",
+      "version",
+      "visibility",
+      "xcode_version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_app_version",
+    "kind": "apple_bundle_version",
+    "function": "apple_macos_app",
+    "attrs": [
+      "build_version",
+      "short_version_string",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/desk:desk_upstream",
+    "kind": "swift_library",
+    "function": "swift_library",
+    "attrs": [
+      "copts",
+      "features",
+      "module_name",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone",
+    "kind": "_swift_library_forward",
+    "function": "swift_library",
+    "attrs": [
+      "platforms",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app",
+    "kind": "_simulator_app",
+    "function": "apple_ios_app",
+    "attrs": [
+      "arch",
+      "bundle",
+      "deployment",
+      "environment",
+      "hdrs",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "xcode_version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app_bundle",
+    "kind": "ios_application",
+    "function": "apple_ios_app",
+    "attrs": [
+      "bundle_id",
+      "deps",
+      "families",
+      "infoplists",
+      "minimum_os_version",
+      "resources",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app_infoplist",
+    "kind": "_write_file",
+    "function": "apple_ios_app",
+    "attrs": [
+      "content",
+      "newline",
+      "out",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app_library",
+    "kind": "_library_cell",
+    "function": "apple_ios_app",
+    "attrs": [
+      "arch",
+      "environment",
+      "frameworks",
+      "tags",
+      "testonly",
+      "visibility",
+      "xcode_version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app_selection",
+    "kind": "_app_selection",
+    "function": "apple_ios_app",
+    "attrs": [
+      "arch",
+      "bundle_id",
+      "deployment",
+      "entitlements",
+      "entry",
+      "environment",
+      "framework_imports",
+      "library",
+      "provisioning_profile",
+      "resources",
+      "srcs",
+      "tags",
+      "testonly",
+      "version",
+      "visibility",
+      "xcode_version"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_app_version",
+    "kind": "apple_bundle_version",
+    "function": "apple_ios_app",
+    "attrs": [
+      "build_version",
+      "short_version_string",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//apple/tests/consumer/phone:phone_upstream",
+    "kind": "swift_library",
+    "function": "swift_library",
+    "attrs": [
+      "copts",
+      "features",
+      "module_name",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//astro/tests/consumer:greeting",
+    "kind": "_astro_library_forward",
+    "function": "astro_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//astro/tests/consumer:greeting_upstream",
+    "kind": "js_library",
+    "function": "astro_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//bcr_test_module:hello_test",
+    "kind": "_rust_forward_test",
+    "function": "rust_test",
+    "attrs": [
+      "crt_static",
+      "libstdcxx",
+      "msvc",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//bcr_test_module:hello_test_upstream",
+    "kind": "rust_test",
+    "function": "rust_test",
+    "attrs": [
+      "compile_data",
+      "crate_name",
+      "edition",
+      "link_deps",
+      "rustc_flags",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cc/tests/consumer:greet_test",
+    "kind": "_cc_forward_test",
+    "function": "cc_test",
+    "attrs": [
+      "env",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//cc/tests/consumer:greet_test_upstream",
+    "kind": "cc_test",
+    "function": "cc_test",
+    "attrs": [
+      "copts",
+      "deps",
+      "features",
+      "linkstatic",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cc/tests/consumer:my_project",
+    "kind": "_cc_library_forward",
+    "function": "cc_library",
+    "attrs": [
+      "hdrs",
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cc/tests/consumer:my_project_upstream",
+    "kind": "cc_library",
+    "function": "cc_library",
+    "attrs": [
+      "copts",
+      "features",
+      "hdrs",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//csharp/tests/consumer:greet_test",
+    "kind": "_csharp_forward_test",
+    "function": "csharp_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//csharp/tests/consumer:greet_test_upstream",
+    "kind": "csharp_test",
+    "function": "csharp_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "target_frameworks",
+      "treat_warnings_as_errors",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//csharp/tests/consumer:my_project",
+    "kind": "_csharp_library_forward",
+    "function": "csharp_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//csharp/tests/consumer:my_project_upstream",
+    "kind": "csharp_library",
+    "function": "csharp_library",
+    "attrs": [
+      "out",
+      "srcs",
+      "tags",
+      "target_frameworks",
+      "treat_warnings_as_errors",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cuda/tests/consumer:my_project_cuda",
+    "kind": "_cuda_library_forward",
+    "function": "cuda_library",
+    "attrs": [
+      "check",
+      "hdrs",
+      "host_compiler",
+      "srcs",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cuda/tests/consumer:my_project_cuda_cuda_check",
+    "kind": "cuda_check",
+    "function": "cuda_library",
+    "attrs": [
+      "archs",
+      "copts",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//cuda/tests/consumer:my_project_cuda_upstream",
+    "kind": "cuda_library",
+    "function": "cuda_library",
+    "attrs": [
+      "archs",
+      "copts",
+      "features",
+      "hdrs",
+      "rdc",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//d/tests/consumer:my_project",
+    "kind": "_d_library_forward",
+    "function": "d_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//d/tests/consumer:my_project_test",
+    "kind": "_d_forward_test",
+    "function": "d_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//d/tests/consumer:my_project_test_upstream",
+    "kind": "d_test",
+    "function": "d_test",
+    "attrs": [
+      "dopts",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//d/tests/consumer:my_project_upstream",
+    "kind": "d_library",
+    "function": "d_library",
+    "attrs": [
+      "dopts",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//dart/tests/consumer:consumer",
+    "kind": "_dart_library_forward",
+    "function": "dart_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//dart/tests/consumer:consumer_upstream",
+    "kind": "dart_library",
+    "function": "dart_library",
+    "attrs": [
+      "package",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//dart/tests/consumer:greet_test",
+    "kind": "_dart_forward_test",
+    "function": "dart_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//dart/tests/consumer:greet_test_upstream",
+    "kind": "dart_test",
+    "function": "dart_test",
+    "attrs": [
+      "deps",
+      "main",
+      "size",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project",
+    "kind": "_elixir_app_forward",
+    "function": "elixir_app",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_test",
+    "kind": "_ex_unit_forward_test",
+    "function": "elixir_test",
+    "attrs": [
+      "apps",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_test_upstream",
+    "kind": "ex_unit_test",
+    "function": "elixir_test",
+    "attrs": [
+      "deps",
+      "elixir_opts",
+      "is_windows",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_upstream",
+    "kind": "erlang_app_info",
+    "function": "elixir_app",
+    "attrs": [
+      "app_name",
+      "beam",
+      "deps",
+      "extra_apps",
+      "hdrs",
+      "license_files",
+      "priv",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_upstream_app_file",
+    "kind": "app_file",
+    "function": "elixir_app",
+    "attrs": [
+      "app_file_tool",
+      "app_name",
+      "app_version",
+      "deps",
+      "extra_apps",
+      "modules",
+      "out",
+      "private_stamp_detect",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_upstream_beam_files",
+    "kind": "elixir_bytecode",
+    "function": "elixir_app",
+    "attrs": [
+      "data",
+      "deps",
+      "dest",
+      "elixirc_opts",
+      "ez_deps",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_upstream_ebin",
+    "kind": "elixir_ebin_dir",
+    "function": "elixir_app",
+    "attrs": [
+      "app_file",
+      "beam_files_dir",
+      "dest",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//elixir/tests/consumer:my_project_upstream_elixir_without_app_overlap",
+    "kind": "erlang_app_filter_module_conflicts",
+    "function": "elixir_app",
+    "attrs": [
+      "dest",
+      "src",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "without"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:app_file",
+    "kind": "app_file",
+    "function": "erlang_app",
+    "attrs": [
+      "app_description",
+      "app_env",
+      "app_extra_keys",
+      "app_file_tool",
+      "app_module",
+      "app_name",
+      "app_registered",
+      "app_src",
+      "app_version",
+      "deps",
+      "extra_apps",
+      "modules",
+      "out",
+      "private_stamp_detect",
+      "stamp",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:beam_files",
+    "kind": "erlang_bytecode",
+    "function": "erlang_app",
+    "attrs": [
+      "app_name",
+      "compile_first",
+      "deps",
+      "dest",
+      "erlc_opts",
+      "hdrs",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:erlang_app",
+    "kind": "_erlang_app_forward",
+    "function": "erlang_app",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:erlang_app_upstream",
+    "kind": "erlang_app_info",
+    "function": "erlang_app",
+    "attrs": [
+      "app",
+      "app_name",
+      "beam",
+      "deps",
+      "extra_apps",
+      "hdrs",
+      "license_files",
+      "priv",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:my_project_test",
+    "kind": "_erlang_forward_test",
+    "function": "erlang_eunit_test",
+    "attrs": [
+      "apps",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:my_project_test_upstream",
+    "kind": "eunit_test",
+    "function": "erlang_eunit_test",
+    "attrs": [
+      "compiled_suites",
+      "coverdata_to_lcov",
+      "is_windows",
+      "size",
+      "tags",
+      "target",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_beam_files",
+    "kind": "erlang_bytecode",
+    "function": "erlang_test_app",
+    "attrs": [
+      "app_name",
+      "compile_first",
+      "deps",
+      "dest",
+      "erlc_opts",
+      "hdrs",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_erlang_app",
+    "kind": "_erlang_app_forward",
+    "function": "erlang_test_app",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_erlang_app_upstream",
+    "kind": "erlang_app_info",
+    "function": "erlang_test_app",
+    "attrs": [
+      "app",
+      "app_name",
+      "beam",
+      "deps",
+      "extra_apps",
+      "hdrs",
+      "license_files",
+      "priv",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_erlc_opts",
+    "kind": "erlc_opts",
+    "function": "erlc_opts",
+    "attrs": [
+      "values"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_modules",
+    "kind": "_erlang_bytecode_forward",
+    "function": "erlang_bytecode",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_modules_erlc_opts",
+    "kind": "_warning_erlc_opts",
+    "function": "erlang_bytecode",
+    "attrs": [
+      "base",
+      "tags",
+      "testonly",
+      "values",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//erlang/tests/consumer:test_modules_upstream",
+    "kind": "erlang_bytecode",
+    "function": "erlang_bytecode",
+    "attrs": [
+      "deps",
+      "erlc_opts",
+      "outs",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//flutter/tests/consumer:consumer",
+    "kind": "_flutter_library_forward",
+    "function": "flutter_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//flutter/tests/consumer:consumer_upstream",
+    "kind": "flutter_library",
+    "function": "flutter_library",
+    "attrs": [
+      "package",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//fortran/tests/consumer:fortran",
+    "kind": "_library_forward",
+    "function": "fortran_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//fortran/tests/consumer:fortran_upstream",
+    "kind": "fortran_library",
+    "function": "fortran_library",
+    "attrs": [
+      "copts",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//fsharp/tests/consumer:greet_test",
+    "kind": "_fsharp_forward_test",
+    "function": "fsharp_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "target_frameworks",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//fsharp/tests/consumer:greet_test_upstream",
+    "kind": "fsharp_test",
+    "function": "fsharp_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "target_frameworks",
+      "treat_warnings_as_errors",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//fsharp/tests/consumer:my_project",
+    "kind": "_fsharp_library_forward",
+    "function": "fsharp_library",
+    "attrs": [
+      "srcs",
+      "target_frameworks",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//fsharp/tests/consumer:my_project_upstream",
+    "kind": "fsharp_library",
+    "function": "fsharp_library",
+    "attrs": [
+      "deps",
+      "srcs",
+      "tags",
+      "target_frameworks",
+      "treat_warnings_as_errors",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//go/tests/consumer:my_project",
+    "kind": "_go_library_forward",
+    "function": "go_library",
+    "attrs": [
+      "cgo",
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//go/tests/consumer:my_project_test",
+    "kind": "_go_forward_test",
+    "function": "go_test",
+    "attrs": [
+      "cgo",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//go/tests/consumer:my_project_test_upstream",
+    "kind": "go_test",
+    "function": "go_test",
+    "attrs": [
+      "embed",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//go/tests/consumer:my_project_upstream",
+    "kind": "go_library",
+    "function": "go_library",
+    "attrs": [
+      "importpath",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//haskell/tests/consumer/src:src",
+    "kind": "_haskell_library_forward",
+    "function": "haskell_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//haskell/tests/consumer/src:src_upstream",
+    "kind": "_haskell_library",
+    "function": "haskell_library",
+    "attrs": [
+      "data",
+      "deps",
+      "exports",
+      "extra_srcs",
+      "ghcopts",
+      "hidden_modules",
+      "label_string",
+      "linkstatic",
+      "modules",
+      "narrowed_deps",
+      "non_default_plugins",
+      "package_name",
+      "plugins",
+      "reexported_modules",
+      "repl_ghci_args",
+      "runcompile_flags",
+      "src_strip_prefix",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "tools",
+      "version",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//haskell/tests/consumer/src:src_upstream@repl",
+    "kind": "_haskell_repl",
+    "function": "haskell_library",
+    "attrs": [
+      "collect_data",
+      "data",
+      "deps",
+      "experimental_from_binary",
+      "experimental_from_source",
+      "multi",
+      "repl_ghci_args",
+      "repl_ghci_commands",
+      "tags",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//haskell/tests/consumer/src:src_upstream@repl@bios",
+    "kind": "sh_binary",
+    "function": "haskell_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//haskell/tests/consumer/src:src_upstream@repl@bios-script",
+    "kind": "_hie_bios",
+    "function": "haskell_library",
+    "attrs": [
+      "collect_data",
+      "data",
+      "deps",
+      "experimental_from_binary",
+      "experimental_from_source",
+      "multi",
+      "repl_ghci_args",
+      "repl_ghci_commands",
+      "tags",
+      "testonly"
+    ]
+  },
+  {
+    "label": "//java/tests/consumer:greet_test",
+    "kind": "_java_forward_test",
+    "function": "java_test",
+    "attrs": [
+      "main_class",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//java/tests/consumer:greet_test_upstream",
+    "kind": "java_test",
+    "function": "java_test",
+    "attrs": [
+      "deps",
+      "javacopts",
+      "launcher",
+      "size",
+      "srcs",
+      "tags",
+      "test_class",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//java/tests/consumer:my_project",
+    "kind": "_java_library_forward",
+    "function": "java_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//java/tests/consumer:my_project_upstream",
+    "kind": "java_library",
+    "function": "java_library",
+    "attrs": [
+      "javacopts",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:greet",
+    "kind": "_javascript_library_forward",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:greet_upstream",
+    "kind": "js_library",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:main",
+    "kind": "_javascript_library_forward",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:main_bin",
+    "kind": "_javascript_binary_forward",
+    "function": "javascript_binary",
+    "attrs": [
+      "srcs",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:main_bin_upstream",
+    "kind": "js_binary",
+    "function": "javascript_binary",
+    "attrs": [
+      "data",
+      "enable_runfiles",
+      "entry_point",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:main_upstream",
+    "kind": "js_library",
+    "function": "javascript_library",
+    "attrs": [
+      "deps",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:package_json",
+    "kind": "_javascript_library_forward",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//javascript/tests/consumer:package_json_upstream",
+    "kind": "js_library",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//julia/tests/consumer:Greet",
+    "kind": "_julia_library_forward",
+    "function": "julia_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//julia/tests/consumer:Greet_test",
+    "kind": "_julia_forward_test",
+    "function": "julia_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//julia/tests/consumer:Greet_test_upstream",
+    "kind": "julia_test",
+    "function": "julia_test",
+    "attrs": [
+      "deps",
+      "julia_flags",
+      "main",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//julia/tests/consumer:Greet_upstream",
+    "kind": "julia_library",
+    "function": "julia_library",
+    "attrs": [
+      "data",
+      "entry",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//kotlin/tests/consumer:greet_test",
+    "kind": "_kotlin_forward_test",
+    "function": "kotlin_test",
+    "attrs": [
+      "main_class",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//kotlin/tests/consumer:greet_test_upstream",
+    "kind": "kt_jvm_test",
+    "function": "kotlin_test",
+    "attrs": [
+      "deps",
+      "kotlinc_opts",
+      "main_class",
+      "size",
+      "srcs",
+      "tags",
+      "test_class",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//kotlin/tests/consumer:my_project",
+    "kind": "_kotlin_library_forward",
+    "function": "kotlin_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//kotlin/tests/consumer:my_project_upstream",
+    "kind": "kt_jvm_library",
+    "function": "kotlin_library",
+    "attrs": [
+      "kotlinc_opts",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//lua/tests/consumer:hello_test",
+    "kind": "_lua_forward_test",
+    "function": "lua_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//lua/tests/consumer:hello_test_upstream",
+    "kind": "lua_test",
+    "function": "lua_test",
+    "attrs": [
+      "deps",
+      "main",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//lua/tests/consumer:my_project",
+    "kind": "_lua_library_forward",
+    "function": "lua_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//lua/tests/consumer:my_project_upstream",
+    "kind": "lua_library",
+    "function": "lua_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//mdx/tests/consumer:greeting",
+    "kind": "_mdx_library_forward",
+    "function": "mdx_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//mdx/tests/consumer:greeting_upstream",
+    "kind": "js_library",
+    "function": "mdx_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//msix/tests/consumer:my_project",
+    "kind": "_go_binary_forward",
+    "function": "go_binary",
+    "attrs": [
+      "cgo",
+      "srcs",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//msix/tests/consumer:my_project_msix",
+    "kind": "_msix_package",
+    "function": "msix_package",
+    "attrs": [
+      "binary",
+      "display_name",
+      "identity_name",
+      "logo",
+      "notice",
+      "publisher",
+      "target_compatible_with",
+      "version"
+    ]
+  },
+  {
+    "label": "//msix/tests/consumer:my_project_upstream",
+    "kind": "go_binary",
+    "function": "go_binary",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ocaml/tests/consumer/src:greet",
+    "kind": "_module_forward",
+    "function": "ocaml_module",
+    "attrs": [
+      "instrument_coverage",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ocaml/tests/consumer/src:greet_upstream",
+    "kind": "ocaml_module",
+    "function": "ocaml_module",
+    "attrs": [
+      "deps",
+      "module_name",
+      "opts",
+      "ppx",
+      "ppx_args",
+      "struct",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ocaml/tests/consumer/test:greet_test",
+    "kind": "_module_forward",
+    "function": "ocaml_module",
+    "attrs": [
+      "instrument_coverage",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ocaml/tests/consumer/test:greet_test_upstream",
+    "kind": "ocaml_module",
+    "function": "ocaml_module",
+    "attrs": [
+      "deps",
+      "module_name",
+      "opts",
+      "ppx",
+      "ppx_args",
+      "struct",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:greet_test",
+    "kind": "_perl_forward_test",
+    "function": "perl_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:greet_test_dx_pod",
+    "kind": "perl_pod_dep",
+    "function": "perl_test",
+    "attrs": [
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:greet_test_upstream",
+    "kind": "perl_test",
+    "function": "perl_test",
+    "attrs": [
+      "deps",
+      "main",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:my_project",
+    "kind": "_perl_library_forward",
+    "function": "perl_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:my_project_dx_pod",
+    "kind": "perl_pod_dep",
+    "function": "perl_library",
+    "attrs": [
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//perl/tests/consumer:my_project_upstream",
+    "kind": "perl_library",
+    "function": "perl_library",
+    "attrs": [
+      "deps",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//php/tests/consumer:greet_test",
+    "kind": "_php_forward_test",
+    "function": "php_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//php/tests/consumer:greet_test_upstream",
+    "kind": "php_test",
+    "function": "php_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//php/tests/consumer:my_project",
+    "kind": "_php_library_forward",
+    "function": "php_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//php/tests/consumer:my_project_upstream",
+    "kind": "php_library",
+    "function": "php_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//powershell/tests/consumer:hello_test",
+    "kind": "_pwsh_forward_test",
+    "function": "powershell_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//powershell/tests/consumer:hello_test_upstream",
+    "kind": "pwsh_test",
+    "function": "powershell_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//powershell/tests/consumer:my_project",
+    "kind": "_pwsh_library_forward",
+    "function": "powershell_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//powershell/tests/consumer:my_project_upstream",
+    "kind": "pwsh_library",
+    "function": "powershell_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//python/tests/consumer:greet",
+    "kind": "_python_library_forward",
+    "function": "python_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//python/tests/consumer:greet_upstream",
+    "kind": "py_library",
+    "function": "python_library",
+    "attrs": [
+      "imports",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test",
+    "kind": "_qt_forward_test",
+    "function": "qt_cc_test",
+    "attrs": [
+      "deps",
+      "fonts",
+      "hdrs",
+      "moc_hdrs",
+      "platform_plugins",
+      "platforms",
+      "plugins",
+      "size",
+      "srcs",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test_qt",
+    "kind": "qt_generate",
+    "function": "qt_cc_test",
+    "attrs": [
+      "base",
+      "copts",
+      "defines",
+      "deps",
+      "forms",
+      "hdrs",
+      "metatypes",
+      "moc",
+      "moc_hdrs",
+      "qml_depends",
+      "qml_srcs",
+      "rcc",
+      "resource_prefix",
+      "resources",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "translations",
+      "uic",
+      "uri",
+      "version",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test_qt_frameworks",
+    "kind": "qt_frameworks",
+    "function": "qt_cc_test",
+    "attrs": [
+      "deps",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test_qt_hdrs",
+    "kind": "filegroup",
+    "function": "qt_cc_test",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test_qt_srcs",
+    "kind": "filegroup",
+    "function": "qt_cc_test",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//qt/tests/consumer:my_project_test_upstream",
+    "kind": "cc_test",
+    "function": "qt_cc_test",
+    "attrs": [
+      "copts",
+      "deps",
+      "linkopts",
+      "linkstatic",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//rego/tests/consumer:greet_test",
+    "kind": "_rego_test",
+    "function": "rego_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs"
+    ]
+  },
+  {
+    "label": "//ruby/tests/consumer:greet_test",
+    "kind": "_ruby_forward_test",
+    "function": "ruby_test",
+    "attrs": [
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//ruby/tests/consumer:greet_test_upstream",
+    "kind": "rb_test",
+    "function": "ruby_test",
+    "attrs": [
+      "deps",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ruby/tests/consumer:my_project",
+    "kind": "_ruby_library_forward",
+    "function": "ruby_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//ruby/tests/consumer:my_project_upstream",
+    "kind": "rb_library",
+    "function": "ruby_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//rust/tests/consumer:my_project",
+    "kind": "_rust_forward",
+    "function": "rust_library",
+    "attrs": [
+      "crt_static",
+      "libstdcxx",
+      "msvc",
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//rust/tests/consumer:my_project_test",
+    "kind": "_rust_forward_test",
+    "function": "rust_test",
+    "attrs": [
+      "crate",
+      "crt_static",
+      "libstdcxx",
+      "msvc",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//rust/tests/consumer:my_project_test_upstream",
+    "kind": "rust_test",
+    "function": "rust_test",
+    "attrs": [
+      "compile_data",
+      "crate",
+      "crate_name",
+      "edition",
+      "link_deps",
+      "rustc_flags",
+      "size",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//rust/tests/consumer:my_project_upstream",
+    "kind": "rust_library",
+    "function": "rust_library",
+    "attrs": [
+      "crate_name",
+      "crate_root",
+      "edition",
+      "rustc_flags",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//scala/tests/consumer:greet_test",
+    "kind": "_scala_forward_test",
+    "function": "scala_test",
+    "attrs": [
+      "main_class",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//scala/tests/consumer:greet_test_upstream",
+    "kind": "scala_test",
+    "function": "scala_test",
+    "attrs": [
+      "deps",
+      "scalacopts",
+      "size",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//scala/tests/consumer:my_project",
+    "kind": "_scala_library_forward",
+    "function": "scala_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//scala/tests/consumer:my_project_upstream",
+    "kind": "scala_library",
+    "function": "scala_library",
+    "attrs": [
+      "scalacopts",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//svelte/tests/consumer:greeting",
+    "kind": "_svelte_library_forward",
+    "function": "svelte_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//svelte/tests/consumer:greeting_upstream",
+    "kind": "js_library",
+    "function": "svelte_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//swift/tests/consumer:greet_tests",
+    "kind": "_swift_forward_test",
+    "function": "swift_test",
+    "attrs": [
+      "data",
+      "platforms",
+      "runtime_dlls",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//swift/tests/consumer:greet_tests_upstream",
+    "kind": "swift_test",
+    "function": "swift_test",
+    "attrs": [
+      "copts",
+      "deps",
+      "features",
+      "linkopts",
+      "size",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//swift/tests/consumer:my_project",
+    "kind": "_swift_library_forward",
+    "function": "swift_library",
+    "attrs": [
+      "platforms",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//swift/tests/consumer:my_project_upstream",
+    "kind": "swift_library",
+    "function": "swift_library",
+    "attrs": [
+      "copts",
+      "features",
+      "module_name",
+      "srcs",
+      "tags",
+      "target_compatible_with",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet",
+    "kind": "_typescript_library_forward",
+    "function": "typescript_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream",
+    "kind": "ts_project",
+    "function": "typescript_library",
+    "attrs": [
+      "allow_js",
+      "args",
+      "assets",
+      "composite",
+      "data",
+      "declaration",
+      "declaration_map",
+      "declaration_transpile",
+      "deps",
+      "emit_declaration_only",
+      "extends",
+      "incremental",
+      "isolated_typecheck",
+      "js_outs",
+      "map_outs",
+      "no_emit",
+      "preserve_jsx",
+      "source_map",
+      "srcs",
+      "supports_workers",
+      "tags",
+      "transpile",
+      "tsc",
+      "tsc_worker",
+      "tsconfig",
+      "typing_maps_outs",
+      "typings_outs",
+      "validate",
+      "validator",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_transitive_typecheck",
+    "kind": "filegroup",
+    "function": "typescript_library",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_transitive_typecheck_test",
+    "kind": "_build_test",
+    "function": "typescript_library",
+    "attrs": [
+      "size",
+      "tags",
+      "targets",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_tsc",
+    "kind": "alias",
+    "function": "typescript_library",
+    "attrs": [
+      "actual",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_tsc_windows",
+    "kind": "windows_js_tool_launcher",
+    "function": "typescript_library",
+    "attrs": [
+      "tags",
+      "testonly",
+      "tool",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_typecheck",
+    "kind": "filegroup",
+    "function": "typescript_library",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_typecheck_test",
+    "kind": "_build_test",
+    "function": "typescript_library",
+    "attrs": [
+      "size",
+      "tags",
+      "targets",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_types",
+    "kind": "filegroup",
+    "function": "typescript_library",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_validator",
+    "kind": "alias",
+    "function": "typescript_library",
+    "attrs": [
+      "actual",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:greet_upstream_validator_windows",
+    "kind": "windows_js_tool_launcher",
+    "function": "typescript_library",
+    "attrs": [
+      "tags",
+      "testonly",
+      "tool",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin",
+    "kind": "_typescript_binary_forward",
+    "function": "typescript_binary",
+    "attrs": [
+      "srcs",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts",
+    "kind": "ts_project",
+    "function": "typescript_binary",
+    "attrs": [
+      "allow_js",
+      "args",
+      "assets",
+      "composite",
+      "data",
+      "declaration",
+      "declaration_map",
+      "declaration_transpile",
+      "deps",
+      "emit_declaration_only",
+      "extends",
+      "incremental",
+      "isolated_typecheck",
+      "js_outs",
+      "map_outs",
+      "no_emit",
+      "preserve_jsx",
+      "source_map",
+      "srcs",
+      "supports_workers",
+      "tags",
+      "transpile",
+      "tsc",
+      "tsc_worker",
+      "tsconfig",
+      "typing_maps_outs",
+      "typings_outs",
+      "validate",
+      "validator",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_transitive_typecheck",
+    "kind": "filegroup",
+    "function": "typescript_binary",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_transitive_typecheck_test",
+    "kind": "_build_test",
+    "function": "typescript_binary",
+    "attrs": [
+      "size",
+      "tags",
+      "targets",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_tsc",
+    "kind": "alias",
+    "function": "typescript_binary",
+    "attrs": [
+      "actual",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_tsc_windows",
+    "kind": "windows_js_tool_launcher",
+    "function": "typescript_binary",
+    "attrs": [
+      "tags",
+      "testonly",
+      "tool",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_typecheck",
+    "kind": "filegroup",
+    "function": "typescript_binary",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_typecheck_test",
+    "kind": "_build_test",
+    "function": "typescript_binary",
+    "attrs": [
+      "size",
+      "tags",
+      "targets",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_types",
+    "kind": "filegroup",
+    "function": "typescript_binary",
+    "attrs": [
+      "output_group",
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_validator",
+    "kind": "alias",
+    "function": "typescript_binary",
+    "attrs": [
+      "actual",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_ts_validator_windows",
+    "kind": "windows_js_tool_launcher",
+    "function": "typescript_binary",
+    "attrs": [
+      "tags",
+      "testonly",
+      "tool",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_typecheck",
+    "kind": "tsc_gate",
+    "function": "typescript_binary",
+    "attrs": [
+      "project",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_typecheck_test",
+    "kind": "_empty_test",
+    "function": "typescript_binary",
+    "attrs": [
+      "data",
+      "size",
+      "tags"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_typecheck_test_0__deps",
+    "kind": "genrule",
+    "function": "typescript_binary",
+    "attrs": [
+      "cmd",
+      "cmd_bat",
+      "outs",
+      "srcs",
+      "tags",
+      "testonly",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:main_bin_upstream",
+    "kind": "js_binary",
+    "function": "typescript_binary",
+    "attrs": [
+      "data",
+      "enable_runfiles",
+      "entry_point",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:package_json",
+    "kind": "_javascript_library_forward",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:package_json_upstream",
+    "kind": "js_library",
+    "function": "javascript_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:tsconfig",
+    "kind": "ts_config",
+    "function": "typescript_config",
+    "attrs": [
+      "src",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:tsconfig_greet",
+    "kind": "_dx_tsconfig",
+    "function": "typescript_library",
+    "attrs": [
+      "declaration",
+      "extends",
+      "files",
+      "out",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//typescript/tests/consumer:tsconfig_main_bin_ts",
+    "kind": "_dx_tsconfig",
+    "function": "typescript_binary",
+    "attrs": [
+      "declaration",
+      "extends",
+      "files",
+      "out",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//vue/tests/consumer:greeting",
+    "kind": "_vue_library_forward",
+    "function": "vue_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//vue/tests/consumer:greeting_upstream",
+    "kind": "js_library",
+    "function": "vue_library",
+    "attrs": [
+      "srcs",
+      "tags",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//zig/tests/consumer:greet_test",
+    "kind": "_zig_forward_test",
+    "function": "zig_test",
+    "attrs": [
+      "allow_release_fast",
+      "deps",
+      "size",
+      "srcs",
+      "testonly",
+      "upstream"
+    ]
+  },
+  {
+    "label": "//zig/tests/consumer:greet_test_upstream",
+    "kind": "zig_test",
+    "function": "zig_test",
+    "attrs": [
+      "deps",
+      "main",
+      "size",
+      "tags",
+      "test_runner",
+      "visibility",
+      "zigopts"
+    ]
+  },
+  {
+    "label": "//zig/tests/consumer:my_project",
+    "kind": "_zig_library_forward",
+    "function": "zig_library",
+    "attrs": [
+      "srcs",
+      "upstream",
+      "visibility"
+    ]
+  },
+  {
+    "label": "//zig/tests/consumer:my_project_upstream",
+    "kind": "zig_library",
+    "function": "zig_library",
+    "attrs": [
+      "import_name",
+      "main",
+      "tags",
+      "visibility"
+    ]
+  }
+]

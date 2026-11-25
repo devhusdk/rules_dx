@@ -1,7 +1,7 @@
 """Unit tests for the repository rule helpers."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:repo.bzl", "crlf_text", "digest_error", "gem_extract")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _fake_rctx(gem_files):
     calls = []

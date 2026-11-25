@@ -271,9 +271,6 @@ filegroup(
     srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
 )
 
-# Fixtures whose forwards genquery does not build on every host. A genquery loads every select branch of its scope.
-_FORWARDS_PENDING = {}
-
 _FORWARDS_SUBPACKAGES = {
     "apple": [
         "desk",
@@ -286,35 +283,11 @@ _FORWARDS_SUBPACKAGES = {
     ],
 }
 
-_FORWARDS_PACKAGES = {
-    lang: ["%s/tests/consumer" % lang] + ["%s/tests/consumer/%s" % (lang, sub) for sub in _FORWARDS_SUBPACKAGES.get(lang, [])]
+_FORWARDS_PACKAGES = [
+    package
     for lang in CONSUMER_FIXTURES
-    if lang not in _FORWARDS_PENDING
-} | {"bcr_test_module": ["bcr_test_module"]}
-
-[fail("_FORWARDS_PENDING names %s, which is not in CONSUMER_FIXTURES" % lang) for lang in _FORWARDS_PENDING if lang not in CONSUMER_FIXTURES]
-
-[
-    genquery(
-        name = "forwards_" + name,
-        expression = "attr(generator_function, '.', deps(%s, 1))" % " + ".join([
-            "@dx_api_fixtures//%s:dx_api_forwards_scope" % package
-            for package in packages
-        ]),
-        opts = [
-            "--output=streamed_jsonproto",
-            "--proto:default_values=false",
-            "--proto:rule_inputs_and_outputs=false",
-        ],
-        scope = ["@dx_api_fixtures//%s:dx_api_forwards_scope" % package for package in packages],
-    )
-    for name, packages in _FORWARDS_PACKAGES.items()
-]
-
-filegroup(
-    name = "forwards",
-    srcs = [":forwards_" + name for name in _FORWARDS_PACKAGES],
-)
+    for package in ["%s/tests/consumer" % lang] + ["%s/tests/consumer/%s" % (lang, sub) for sub in _FORWARDS_SUBPACKAGES.get(lang, [])]
+] + ["bcr_test_module"]
 
 # Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
 rust_binary(
@@ -328,15 +301,21 @@ rust_binary(
     crate_name = "update",
     crate_root = "update.rs",
     data = [
-        ":forwards",
         ":public_builds",
         ":starlark_docs",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {
-        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_FORWARDS_PACKAGES": " ".join(_FORWARDS_PACKAGES),
         "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
     },
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
+)
+
+rust_test(
+    name = "update_test",
+    size = "small",
+    crate = ":update",
+    deps = ["//tools/testing:dx_testing"],
 )
 
 rust_test(
@@ -351,15 +330,15 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
-        ":forwards",
         ":public_builds",
         ":public_bzl",
         ":starlark_docs",
+        "//api:forwards.json",
         "//api:snapshot",
         "//docs:supported-surface.md",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {
-        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_FORWARDS": "$(rlocationpath //api:forwards.json)",
         "DX_API_EXTRACTED": " ".join(_STARLARK_SRCS),
         "DX_API_NOT_EXTRACTED": " ".join(_NOT_EXTRACTED),
         "DX_API_PUBLIC_BZL": "$(rootpaths :public_bzl)",

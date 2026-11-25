@@ -57,7 +57,7 @@ real_source_target(
 hub_order_test(
     name = "hub_order_test",
     size = "small",
-    hub = "@dx_ruby_toolchains",
+    build = "@dx_hub_builds//:ruby.txt",
     names = [
         "toolchain_arm64_darwin",
         "toolchain_arm64_linux",

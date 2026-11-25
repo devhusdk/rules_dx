@@ -34,6 +34,22 @@ def _without_executable_suffix(name):
             return name[:-len(suffix)]
     return name
 
+def _dep_keys(crate):
+    """Returns the crate's dependency crates by label, then how many dependencies carry no crate.
+
+    A label, not a provider, names each crate: an upstream analyzed outside its wrapper's transition
+    reaches a crate both in its own configuration and, through a forwarded crate attribute, in the
+    transitioned one, and the depset keeps both providers.
+    """
+    owners = {}
+    others = 0
+    for dep in crate.deps.to_list():
+        if dep.crate_info:
+            owners[_label_text(dep.crate_info.owner)] = True
+        else:
+            others += 1
+    return sorted(owners.keys()) + [str(others)]
+
 def _wrapper_fields(ctx, crate, ucrate):
     wrapper = ctx.attr.wrapper
     upstream = ctx.attr.upstream
@@ -55,7 +71,7 @@ def _wrapper_fields(ctx, crate, ucrate):
         "crate_srcs": ",".join(_sorted_basenames(crate.srcs.to_list())),
         "crate_type": crate.type,
         "direct_sources": _render_direct_sources(wrapper[QualitySourcesInfo]),
-        "preserved_deps": str(len(crate.deps.to_list()) == len(ucrate.deps.to_list())),
+        "preserved_deps": str(_dep_keys(crate) == _dep_keys(ucrate)),
         "preserved_edition": str(crate.edition == ucrate.edition),
         "preserved_name": str(crate.name == ucrate.name),
         "preserved_root": str(crate.root.path == ucrate.root.path),

@@ -627,7 +627,10 @@ fn every_gate_query_passes_its_labels_as_one_expression() {
         .flat_map(str::lines)
         .filter(|line| line.contains("bazel cquery") || line.contains("bazel query"))
         .collect();
-    assert!(!queries.is_empty(), "the gate must find its tools with a query");
+    assert!(
+        !queries.is_empty(),
+        "the gate must find its tools with a query"
+    );
     for line in queries {
         assert!(!line.contains("[@]}"), "{line}");
     }

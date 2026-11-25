@@ -95,6 +95,24 @@ fn the_check_job_verifies_every_generated_file_on_one_platform() {
 }
 
 #[test]
+fn the_check_job_verifies_api_forwards_on_pull_requests() {
+    let step = steps(WORKFLOW, JOB)
+        .unwrap()
+        .into_iter()
+        .find(|step| {
+            step["run"].as_str().is_some_and(|run| {
+                run.contains("//tools/api:update -- --bazel \"$(command -v bazel)\" --check")
+            })
+        })
+        .expect("api/forwards.json check step");
+    assert_eq!(
+        step["if"].as_str(),
+        Some("${{ !cancelled() && matrix.platform == 'linux_x86_64' }}"),
+        "the forwards check runs on linux_x86_64 for every event, pull_request included"
+    );
+}
+
+#[test]
 fn the_coverage_platform_uploads_the_lcov() {
     let steps = steps(WORKFLOW, JOB).unwrap();
     let scan = steps

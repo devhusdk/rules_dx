@@ -9,8 +9,8 @@ def hub_order_test(name, build, names, size = "small"):
     rust_test(
         name = name,
         size = size,
-        srcs = [Label("//core/tests:hub_order_test.rs")],
-        crate_root = Label("//core/tests:hub_order_test.rs"),
+        srcs = [Label("//tools/testing:hub_order_test.rs")],
+        crate_root = Label("//tools/testing:hub_order_test.rs"),
         data = [build],
         env = {
             "DX_HUB_BUILD": "$(rlocationpath {})".format(build),

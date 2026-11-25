@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core/tests:hub_order_tests.bzl", "hub_order_test")
 load("//core/tests:toolchain_tests.bzl", "toolchain_tests")
 load("//deploy/private:nuget_tests.bzl", "nuget_unit_tests")
+load("//tools/testing:hub_order_tests.bzl", "hub_order_test")
 load(":fsc_tests.bzl", "fsc_unit_tests")
 
 toolchain_tests(

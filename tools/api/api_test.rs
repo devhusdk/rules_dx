@@ -59,7 +59,7 @@ fn checked_in_snapshot_matches_the_code() {
     }
     assert!(
         stale.is_empty(),
-        "the public API changed: {}. If the change is intended, run `bazel run //tools/api:update` and commit the result",
+        "the public API changed: {}. If the change is intended, run `bazel run //tools/api:update -- --bazel \"$(command -v bazel)\"` and commit the result",
         stale.join(", ")
     );
 }

@@ -11,8 +11,8 @@ fn scan(path: &str, source: &str, counts: &mut Counts) {
     }
     let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     for expr in exprs(module.statement()) {
-        if let ExprP::Call(callee, _) = &expr.node
-            && callee_name(callee) == "genquery"
+        if matches!(expr.node, ExprP::Identifier(_) | ExprP::Dot(..))
+            && callee_name(expr) == "genquery"
         {
             hit(counts, path, "genquery");
         }
@@ -51,6 +51,23 @@ fn genquery_counts_as_a_rule_and_as_a_native_call() {
     assert_eq!(
         counts.get(&("pkg/defs.bzl".to_owned(), "genquery".to_owned())),
         Some(&2)
+    );
+}
+
+#[test]
+fn an_aliased_native_genquery_counts() {
+    let counts = scan_one(
+        "pkg/defs.bzl",
+        "q = native.genquery\n\ndef m(name):\n    q(name = name, expression = \"//x\", scope = [\"//x\"])\n",
+    );
+    assert_eq!(
+        counts.get(&("pkg/defs.bzl".to_owned(), "genquery".to_owned())),
+        Some(&1)
+    );
+    let counts = scan_one("pkg/defs.bzl", "rules = {\"query\": native.genquery}\n");
+    assert_eq!(
+        counts.get(&("pkg/defs.bzl".to_owned(), "genquery".to_owned())),
+        Some(&1)
     );
 }
 

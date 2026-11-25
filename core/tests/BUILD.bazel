@@ -339,17 +339,8 @@ real_source_target(
         "hermetic_launcher_tests.bzl",
         "platform_subject.bzl",
         "platform_tests.bzl",
-        "hub_order_tests.bzl",
     ],
     tags = ["corpus"],
-)
-
-exports_files(
-    ["hub_order_test.rs"],
-    visibility = [
-        "//dotnet/tests:__pkg__",
-        "//ruby/tests:__pkg__",
-    ],
 )
 
 starlark_test(

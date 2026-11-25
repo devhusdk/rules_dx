@@ -395,7 +395,7 @@ pub fn consumer_fixture(snapshot: &str, lang: &str) -> Result<BTreeMap<String, S
 /// # Errors
 ///
 /// Returns `Err` when the snapshot is not a JSON object of path to text, a language has no
-/// fixture files, or a later language's module has lines the workspace module would need.
+/// fixture files, or a later language's module has lines other than its license accepts.
 pub fn consumer_fixtures(
     snapshot: &str,
     langs: &[&str],
@@ -412,10 +412,26 @@ pub fn consumer_fixtures(
         }
         for (rel, text) in fixture {
             if rel == "consumer.MODULE.bazel" {
-                if !module_body(&text).trim().is_empty() {
+                let body = module_body(&text);
+                let (accepts, rest): (Vec<&str>, Vec<&str>) = body
+                    .lines()
+                    .filter(|line| *line != LICENSE_EXTENSION)
+                    .partition(|line| line.starts_with(LICENSE_ACCEPT));
+                if rest.iter().any(|line| !line.trim().is_empty()) {
                     return Err(format!(
                         "{lang}/tests/consumer/consumer.MODULE.bazel has module lines; only the first language may"
                     ));
+                }
+                if !accepts.is_empty() {
+                    let module = files.entry("consumer.MODULE.bazel".to_owned()).or_default();
+                    if !module.lines().any(|line| line == LICENSE_EXTENSION) {
+                        module.push_str(LICENSE_EXTENSION);
+                        module.push('\n');
+                    }
+                    for accept in accepts {
+                        module.push_str(accept);
+                        module.push('\n');
+                    }
                 }
                 continue;
             }
@@ -424,6 +440,11 @@ pub fn consumer_fixtures(
     }
     Ok(files)
 }
+
+const LICENSE_EXTENSION: &str =
+    "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")";
+
+const LICENSE_ACCEPT: &str = "dx_licenses.accept(";
 
 /// The fixture module without its comments, `module` and `bazel_dep` lines, which the nested consumer writes.
 #[must_use]
@@ -763,6 +784,21 @@ mod tests {
             "{error}"
         );
         assert!(consumer_fixtures(snapshot, &["go", "java"]).is_ok());
+    }
+
+    #[test]
+    fn consumer_fixtures_carry_the_license_accepts_of_a_later_language() {
+        let snapshot = r#"{
+            "go/tests/consumer/BUILD.bazel": "g",
+            "go/tests/consumer/consumer.MODULE.bazel": "module(name = \"m\")\n",
+            "cc/tests/consumer/BUILD.bazel": "c",
+            "cc/tests/consumer/consumer.MODULE.bazel": "module(name = \"m\")\ndx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"vs\"])\n"
+        }"#;
+        let files = consumer_fixtures(snapshot, &["go", "cc"]).expect("composes");
+        assert_eq!(
+            module_body(&files["consumer.MODULE.bazel"]),
+            format!("{LICENSE_EXTENSION}\ndx_licenses.accept(ids = [\"vs\"])\n")
+        );
     }
 
     #[test]

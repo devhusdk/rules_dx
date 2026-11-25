@@ -26,7 +26,7 @@ fn install_fake_dx(path: &Path) {
 fn install_fake_dx(path: &Path) {
     std::fs::write(
         path,
-        "@echo off\r\n> \"%FAKE_DX_LOG%\" echo %CD%\r\n>> \"%FAKE_DX_LOG%\" echo %*\r\n>> \"%FAKE_DX_LOG%\" echo %RUNFILES_DIR%^|%RUNFILES_MANIFEST_FILE%^|%BUILD_WORKING_DIRECTORY%\r\nexit /b 7\r\n",
+        "@echo off\r\nfor %%V in (RUNFILES_DIR RUNFILES_MANIFEST_FILE BUILD_WORKING_DIRECTORY) do if not defined %%V set \"%%V=unset\"\r\n> \"%FAKE_DX_LOG%\" echo %CD%\r\n>> \"%FAKE_DX_LOG%\" echo %*\r\n>> \"%FAKE_DX_LOG%\" echo %RUNFILES_DIR%^|%RUNFILES_MANIFEST_FILE%^|%BUILD_WORKING_DIRECTORY%\r\nexit /b 7\r\n",
     )
     .expect("fake dx");
 }
@@ -75,6 +75,11 @@ fn recorded(setup: &Setup) -> Vec<String> {
         .collect()
 }
 
+// Rust quotes batch-file arguments that hold `=`, and `echo %*` keeps the quotes.
+fn recorded_args(setup: &Setup) -> String {
+    recorded(setup)[1].replace('"', "")
+}
+
 fn assert_code(output: &Output, code: i32) {
     assert_eq!(output.status.code(), Some(code), "{output:?}");
 }
@@ -96,9 +101,8 @@ fn dx_runs_in_the_workspace_with_the_outer_output_base() {
         PathBuf::from(&lines[0]).canonicalize().expect("cwd"),
         setup.workspace.canonicalize().expect("workspace")
     );
-    // Rust quotes batch-file arguments that hold `=`, and `echo %*` keeps the quotes.
     assert_eq!(
-        lines[1].replace('"', ""),
+        recorded_args(&setup),
         format!(
             "update --bazel-startup-option=--output_base={} --extra",
             output_base.display()
@@ -121,7 +125,7 @@ fn no_execroot_adds_no_startup_option() {
     let setup = setup(scratch_tmp.path());
     let output = wrapper(&setup, &["--extra"]).output().expect("runs");
     assert_code(&output, 7);
-    assert_eq!(recorded(&setup)[1], "update --extra");
+    assert_eq!(recorded_args(&setup), "update --extra");
 }
 
 #[test]
@@ -136,7 +140,7 @@ fn user_output_base_is_not_overridden() {
         .expect("runs");
     assert_code(&output, 7);
     assert_eq!(
-        recorded(&setup)[1],
+        recorded_args(&setup),
         "update --bazel-startup-option=--output_base=/u"
     );
 }

@@ -653,6 +653,7 @@ apple_hook_test(
         "arg=apple_ops",
         "arg=create-test-simulator",
     ],
+    program = "apple_ops",
     target_under_test = "//apple/private/tools/ops:create_test_simulator",
 )
 
@@ -663,6 +664,7 @@ apple_hook_test(
         "arg=apple_ops",
         "arg=delete-test-simulator",
     ],
+    program = "apple_ops",
     target_under_test = "//apple/private/tools/ops:delete_test_simulator",
 )
 

@@ -25,6 +25,8 @@ def dx_forwarder_checks():
         expect_equal("test kwargs forward env", dx_forwarded_test_kwargs({"env": {"K": "1"}}), {"env": {"K": "1"}}),
         expect_equal("test kwargs forward env_inherit", dx_forwarded_test_kwargs({"env_inherit": ["HOME"]}), {"env_inherit": ["HOME"]}),
         expect_equal("test kwargs forward data with env", dx_forwarded_test_kwargs({"env": {"K": "1"}, "data": [":d"]}), {"env": {"K": "1"}, "data": [":d"]}),
+        expect_equal("test kwargs forward toolchains with args", dx_forwarded_test_kwargs({"args": ["$(JAVA)"], "toolchains": [":t"]}), {"args": ["$(JAVA)"], "toolchains": [":t"]}),
+        expect_equal("test kwargs keep toolchains upstream without args or env", dx_forwarded_test_kwargs({"toolchains": [":t"]}), {}),
         expect_equal(
             "run environment: wrapper env wins, inherited names union in order",
             dx_merge_run_environment({"A": "1", "B": "1"}, ["X", "Y"], {"B": "2"}, ["Y", "Z"]),
@@ -41,6 +43,7 @@ def dx_forwarder_checks():
         expect_equal("test kwargs keep local False", dx_forwarded_test_kwargs({"local": False}), {"local": False}),
         expect_equal("binary kwargs forward testonly", dx_binary_forward_kwargs({"testonly": True}), {"testonly": True}),
         expect_equal("binary kwargs forward args with data", dx_binary_forward_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),
+        expect_equal("binary kwargs forward toolchains with args", dx_binary_forward_kwargs({"args": ["$(JAVA)"], "toolchains": [":t"]}), {"args": ["$(JAVA)"], "toolchains": [":t"]}),
         expect_equal("binary kwargs keep data upstream without args", dx_binary_forward_kwargs({"data": [":d"]}), {}),
         expect_equal("binary kwargs drop none args", dx_binary_forward_kwargs({"args": None}), {}),
         expect_equal("test kwargs empty stays empty", dx_forwarded_test_kwargs({}), {}),

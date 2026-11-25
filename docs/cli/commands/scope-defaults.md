@@ -88,7 +88,7 @@ Other patch edits do not widen.
 
 dx prints `dx: affected: resolving changes since <sha>` and then a summary on stderr. It names each widening and its reason, for example `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`. `--quiet`, `--diff`, and `--output=json` print neither.
 
-`--output=json` adds `affected` to `command_started` with `base`, `changed_files`, `targets`, and `widened` (a list of `scope` and `reason`). `check --affected` adds `tests`.
+`--output=json` adds `affected` to `command_started` with `base`, `changed_files`, `targets`, and `widened` (a list of `scope` and `reason`). `check --affected` adds `tests`. With `--coverage`, `tests` lists the tests of the `test` phase and `coverage_tests` the tests of the `coverage` phase.
 
 ### Errors
 

@@ -1,2 +1,2 @@
-events.schema.json 4.1 sha256:5056325a7f3477b25d2f6680d649c84d3c13d1439f526f0339866d06cc5e384f
+events.schema.json 4.2 sha256:e7713fe065f5cfea040f7381be2b3c88dde0dc1a0b422c9097e5da6d202d5ecc
 dx.schema.json 1.2 sha256:61061fb35808fdfec5f4a5cd0bf31c23e7fbba3e57b2de3746cfe60774fca4fa

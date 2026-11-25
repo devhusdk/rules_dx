@@ -173,6 +173,7 @@ pub(crate) struct Flags {
     pub(crate) files: bool,
     pub(crate) timings: bool,
     pub(crate) no_retry: bool,
+    pub(crate) coverage: bool,
     pub(crate) budget: Option<String>,
     pub(crate) jobs: Option<u16>,
     pub(crate) max_regression: Option<u32>,
@@ -886,6 +887,14 @@ flag_group! {
 }
 
 flag_group! {
+    /// With --affected, run the tests that take coverage under coverage.
+    CoverageFlag, {
+        #[arg(long, overrides_with = "coverage")]
+        coverage: bool,
+    }
+}
+
+flag_group! {
     /// Print where build time went.
     TimingsFlag, {
         #[arg(long = "timings", overrides_with = "timings")]
@@ -1200,6 +1209,7 @@ command_args! {
         affected: AffectedFlag,
         since: SinceFlag,
         base: BaseFlag,
+        coverage: CoverageFlag,
     };
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Clean => 13, NoScopeTail, {

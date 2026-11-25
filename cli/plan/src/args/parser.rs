@@ -383,6 +383,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         files,
         timings,
         no_retry,
+        coverage,
         budget,
         jobs,
         max_regression,
@@ -451,6 +452,21 @@ fn parse_inner<S: AsRef<OsStr>>(
     }
     if affected && here {
         return Err(ArgsError::AffectedWithHere);
+    }
+    if coverage && !affected {
+        return Err(ArgsError::CoverageNeedsAffected);
+    }
+    if coverage && apply {
+        return Err(ArgsError::CoverageWithApply);
+    }
+    if let Some(report) = reports.iter().find(|report| {
+        !coverage
+            && command == Command::Check
+            && matches!(report.format.as_str(), "lcov" | "sources")
+    }) {
+        return Err(ArgsError::ReportNeedsCoverage {
+            format: report.format.clone(),
+        });
     }
     if affected && !targets.is_empty() && !affected_narrows_by_scope(command) {
         return Err(ArgsError::ConflictingAffected);
@@ -825,6 +841,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         files,
         timings,
         no_retry,
+        coverage,
         budget,
         jobs,
         bench_regression: max_regression,

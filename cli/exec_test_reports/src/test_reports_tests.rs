@@ -354,6 +354,7 @@ fn an_outcome_that_fails_to_build_ends_the_stream_once() {
         &mut err,
         &[outcome],
         &[],
+        &super::Streamed::default(),
     );
     assert_eq!(ended.err(), Some(dx_process::operational_code()));
     let events: Vec<serde_json::Value> = String::from_utf8(out)
@@ -367,4 +368,167 @@ fn an_outcome_that_fails_to_build_ends_the_stream_once() {
         .collect();
     assert_eq!(kinds, ["error", "command_finished"], "{events:?}");
     assert_eq!(events[0]["code"], "invalid_result");
+}
+
+struct EmptyReports;
+
+impl dx_bep::ArtifactReader for EmptyReports {
+    fn read_artifact(&self, _path: &Path) -> std::io::Result<Vec<u8>> {
+        Ok(b"\n".to_vec())
+    }
+}
+
+fn coverage_run(statuses: &[(&str, &str)]) -> dx_bep::TestEvents {
+    dx_bep::TestEvents {
+        results: statuses
+            .iter()
+            .map(|(label, status)| dx_bep::TestResultRecord {
+                label: (*label).to_owned(),
+                configuration: None,
+                run: 1,
+                shard: 0,
+                attempt: 1,
+                status: Some((*status).to_owned()),
+                cached_locally: None,
+                duration_millis: None,
+                strategy: None,
+                files: vec![dx_bep::TestResultFile {
+                    name: "coverage.dat".to_owned(),
+                    exec_path: Path::new("bazel-testlogs")
+                        .join(label.trim_start_matches("//"))
+                        .join("coverage.dat"),
+                }],
+            })
+            .collect(),
+        ended: true,
+        ..dx_bep::TestEvents::default()
+    }
+}
+
+#[test]
+fn passing_tests_with_only_empty_coverage_reports_are_complete() {
+    let events = coverage_run(&[("//a:sh_test", "PASSED"), ("//b:bench", "PASSED")]);
+    let collected = super::collect_lcov(
+        &events,
+        &super::summary_statuses(&events),
+        &EmptyReports,
+        super::Evidence::default(),
+        super::Sources::default(),
+    );
+    assert_eq!(collected.gap, None);
+    assert_eq!(collected.empty_coverage, 2);
+    assert!(collected.lcov_documents.is_empty());
+    let mut err = Vec::new();
+    super::announce_empty_coverage(
+        dx_output::OutputMode::Text { quiet: false },
+        &mut Vec::new(),
+        &mut err,
+        collected.empty_coverage,
+    )
+    .expect("notice");
+    assert_eq!(
+        String::from_utf8_lossy(&err),
+        "dx: coverage_empty: 2 tests passed and wrote only empty coverage reports\n"
+    );
+    let failed = coverage_run(&[("//a:sh_test", "PASSED"), ("//b:bench", "FAILED")]);
+    let collected = super::collect_lcov(
+        &failed,
+        &super::summary_statuses(&failed),
+        &EmptyReports,
+        super::Evidence::default(),
+        super::Sources::default(),
+    );
+    assert_eq!(collected.empty_coverage, 0);
+    assert_eq!(
+        collected.gap.as_deref(),
+        Some("no coverage.dat artifacts were reported")
+    );
+}
+
+fn bep_line(event: &serde_json::Value) -> String {
+    format!("{event}\n")
+}
+
+#[test]
+fn a_live_run_streams_finished_failures_and_lists_unfinished_tests_on_interrupt() {
+    let dir = dx_test_scratch::scratch("dx-exec-test-reports-live-").expect("scratch");
+    let bep = dir.path().join("bep.json");
+    let xml = dir.path().join("test.xml");
+    std::fs::write(
+        &xml,
+        r#"<testsuites><testsuite name="s" tests="1"><testcase name="breaks"><failure message="no"/></testcase></testsuite></testsuites>"#,
+    )
+    .expect("xml");
+    let configured = |label: &str| {
+        bep_line(&serde_json::json!({
+            "id": {"targetConfigured": {"label": label}},
+            "configured": {"testSize": "SMALL"},
+        }))
+    };
+    let mut stream = configured("//a:t");
+    stream.push_str(&configured("//b:t"));
+    std::fs::write(&bep, &stream).expect("bep");
+    let start = std::time::Instant::now();
+    let mut live = super::LiveTests::new(
+        dir.path(),
+        &bep,
+        dx_plan::plan::WorkflowVerb::Test,
+        dx_output::OutputMode::Json,
+        start,
+    );
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    live.poll(&mut out, &mut err, start, false);
+    stream.push_str(&bep_line(&serde_json::json!({
+        "id": {"testResult": {"label": "//a:t", "run": 1, "shard": 1, "attempt": 1}},
+        "testResult": {
+            "status": "FAILED",
+            "testActionOutput": [{"name": "test.xml", "uri": format!("file://{}", xml.display())}],
+        },
+    })));
+    stream.push_str(&bep_line(&serde_json::json!({
+        "id": {"testSummary": {"label": "//a:t"}},
+        "testSummary": {"overallStatus": "FAILED"},
+    })));
+    std::fs::write(&bep, &stream).expect("bep");
+    live.poll(
+        &mut out,
+        &mut err,
+        start + super::live::PROGRESS_EVERY,
+        false,
+    );
+    let events: Vec<serde_json::Value> = String::from_utf8(out.clone())
+        .expect("utf-8")
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("event"))
+        .collect();
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(events[0]["event"], "test_outcome");
+    assert_eq!(events[0]["target"], "//a:t");
+    assert_eq!(
+        String::from_utf8_lossy(&err),
+        "dx: test: 1/2 tests finished, 1 failed, 1m00s\n"
+    );
+    live.poll(
+        &mut out,
+        &mut err,
+        start + super::live::PROGRESS_EVERY,
+        true,
+    );
+    assert!(
+        String::from_utf8_lossy(&err).ends_with(
+            "dx: test: 1/2 tests finished, 1 failed, 1m00s (interrupted)\ndx: test: not finished: //b:t\n"
+        ),
+        "{}",
+        String::from_utf8_lossy(&err)
+    );
+    let streamed = live.streamed();
+    let failed = dx_output::TestOutcome {
+        target: "//a:t".to_owned(),
+        outcome: "failed".to_owned(),
+        run: Some(1),
+        shard: Some(1),
+        attempt: Some(1),
+        ..dx_output::TestOutcome::default()
+    };
+    assert!(streamed.contains(&failed));
 }

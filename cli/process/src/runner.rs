@@ -151,6 +151,24 @@ impl Runner for BinaryRunner {
         self.spawn_streamed(argv, cwd, env, false)
     }
 
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<ChildStatus> {
+        let spec = stream_spec(argv, cwd, env, false, self.inherit_stdout, Vec::new(), true);
+        let outcome = lifecycle::run_streamed_until(spec, STREAM_CLEANUP, &self.stop, &|| {
+            watch();
+            false
+        })?;
+        watch();
+        Ok(self
+            .child_status(outcome)
+            .unwrap_or(ChildStatus::signalled(None)))
+    }
+
     fn run_app(
         &self,
         argv: &[String],
@@ -202,6 +220,16 @@ impl<'a> Holding<'a> {
 impl Runner for Holding<'_> {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         self.inner.run(argv, cwd, env)
+    }
+
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<ChildStatus> {
+        self.inner.run_watched(argv, cwd, env, watch)
     }
 
     fn run_hermetic(

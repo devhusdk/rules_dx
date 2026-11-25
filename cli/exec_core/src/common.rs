@@ -209,6 +209,7 @@ pub const CODE_VERIFICATION_FAILED: &str = "verification_failed";
 pub const CODE_NOT_CONVERGED: &str = "not_converged";
 pub const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
 pub const CODE_NO_COVERAGE_COLLECTOR: &str = "no_coverage_collector";
+pub const CODE_COVERAGE_EMPTY: &str = "coverage_empty";
 pub const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
 pub const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
 pub const CODE_CHANGED_LINE_BELOW_MINIMUM: &str = "changed_line_coverage_below_minimum";
@@ -869,6 +870,27 @@ pub fn run_bazel_output(
     warn_low_disk(output, out, err, runner, workspace, argv)?;
     let status = runner.run(argv, workspace, env);
     bazel_exit(output, out, err, runner, workspace, argv, status)
+}
+
+pub fn run_bazel_watched(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    watch: &mut dyn FnMut(&mut dyn Write, &mut dyn Write),
+) -> Result<i32, i32> {
+    warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
+    let status = {
+        let streams = std::cell::RefCell::new((&mut *out, &mut *err, watch));
+        runner.run_watched(argv, workspace, &[], &|| {
+            let mut streams = streams.borrow_mut();
+            let (out, err, watch) = &mut *streams;
+            watch(&mut **out, &mut **err);
+        })
+    };
+    bazel_exit(invocation.output, out, err, runner, workspace, argv, status)
 }
 
 pub fn run_bazel_withdrawable(

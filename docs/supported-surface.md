@@ -382,6 +382,7 @@ Exit codes: `0`, `1`, `2`.
 | `--build-slots` |  |  |  |
 | `--build-slots-wait` |  |  |  |
 | `--color` |  | `auto`, `always`, `never` |  |
+| `--coverage` |  |  |  |
 | `--diff` |  |  |  |
 | `--fail-on` |  | `info`, `warning`, `error` |  |
 | `--here` |  |  |  |
@@ -7590,5 +7591,5 @@ Run these with `bazel run <target>`.
 
 | Schema | Version |
 | --- | --- |
-| `events.schema.json` | `4.1` |
+| `events.schema.json` | `4.2` |
 | `dx.schema.json` | `1.2` |

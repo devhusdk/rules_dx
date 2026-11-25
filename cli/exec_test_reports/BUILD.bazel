@@ -12,6 +12,7 @@ rust_library(
         "src/collect.rs",
         "src/coverage_candidate.rs",
         "src/lib.rs",
+        "src/live.rs",
         "src/report.rs",
     ],
     aliases = {},  # keep
@@ -43,6 +44,7 @@ rust_test(
         "src/collect.rs",
         "src/coverage_candidate.rs",
         "src/lib.rs",
+        "src/live.rs",
         "src/report.rs",
         "src/test_reports_tests.rs",
     ],

@@ -1169,91 +1169,108 @@ fn widen_impact(
     }
 }
 
-fn widen_repo_users(
-    workspace: &Path,
-    aspect_labels: &[String],
-    graph: &RuleGraph,
-    seeds: &[String],
-    what: &str,
-    widened: &mut Vec<WidenedScope>,
-) {
-    if seeds.is_empty() {
-        return;
-    }
-    if let Some(toolchain) = graph
-        .reached_of_kind(seeds, |kind| kind == "toolchain")
-        .first()
-    {
-        push_widened(
-            widened,
-            "//...".to_owned(),
-            format!("{what} reach toolchain {toolchain}"),
-        );
-    }
-    let implicit = match dx_adopt::implicit_dependencies(workspace, aspect_labels) {
-        Ok(implicit) => implicit,
-        Err(detail) => {
-            push_widened(
-                widened,
-                "//...".to_owned(),
-                format!("cannot read load graph: {detail}"),
-            );
-            return;
-        }
-    };
-    if let Some(used) = graph
-        .reached_rules(seeds)
-        .iter()
-        .find(|label| implicit.contains(label.as_str()))
-    {
-        push_widened(
-            widened,
-            "//...".to_owned(),
-            format!("{what} reach {used}, which aspects or bazelrc flags use"),
-        );
-    }
+struct Users<'a> {
+    workspace: &'a Path,
+    aspect_labels: &'a [String],
+    graph: &'a RuleGraph,
 }
 
-fn widen_implicit_users(
-    workspace: &Path,
-    aspect_labels: &[String],
-    graph: &RuleGraph,
-    labels: &[String],
-    owners: &[String],
-    widened: &mut Vec<WidenedScope>,
-) {
-    if let Some(toolchain) = graph
-        .reached_of_kind(owners, |kind| kind == "toolchain")
-        .first()
-    {
-        push_widened(
+impl Users<'_> {
+    fn widen_repo_users(
+        &self,
+        seeds: &[String],
+        what: &str,
+        widened: &mut Vec<WidenedScope>,
+        targets: &mut Vec<String>,
+    ) {
+        if seeds.is_empty() {
+            return;
+        }
+        self.widen(
+            seeds,
+            &self.graph.reached_rules(seeds),
+            what,
             widened,
-            "//...".to_owned(),
-            format!("changed files reach toolchain {toolchain}"),
+            targets,
         );
     }
-    let implicit = match dx_adopt::implicit_dependencies(workspace, aspect_labels) {
-        Ok(implicit) => implicit,
-        Err(detail) => {
+
+    fn widen_implicit_users(
+        &self,
+        labels: &[String],
+        owners: &[String],
+        widened: &mut Vec<WidenedScope>,
+        targets: &mut Vec<String>,
+    ) {
+        let reached: Vec<String> = labels
+            .iter()
+            .cloned()
+            .chain(self.graph.reached_rules(owners))
+            .collect();
+        self.widen(owners, &reached, "changed files", widened, targets);
+    }
+
+    fn widen(
+        &self,
+        seeds: &[String],
+        reached: &[String],
+        what: &str,
+        widened: &mut Vec<WidenedScope>,
+        targets: &mut Vec<String>,
+    ) {
+        self.widen_toolchain(seeds, what, widened);
+        let implicit = match dx_adopt::implicit_dependencies(self.workspace, self.aspect_labels) {
+            Ok(implicit) => implicit,
+            Err(detail) => {
+                push_widened(
+                    widened,
+                    "//...".to_owned(),
+                    format!("cannot read load graph: {detail}"),
+                );
+                return;
+            }
+        };
+        if let Some(used) = reached
+            .iter()
+            .find(|label| implicit.global.contains(label.as_str()))
+        {
             push_widened(
                 widened,
                 "//...".to_owned(),
-                format!("cannot read load graph: {detail}"),
+                format!("{what} reach {used}, which aspects or bazelrc flags use"),
             );
             return;
         }
-    };
-    let reached = graph.reached_rules(owners);
-    if let Some(used) = labels
-        .iter()
-        .chain(&reached)
-        .find(|label| implicit.contains(label.as_str()))
-    {
-        push_widened(
-            widened,
-            "//...".to_owned(),
-            format!("changed files reach {used}, which aspects or bazelrc flags use"),
-        );
+        let reached: BTreeSet<&str> = reached.iter().map(String::as_str).collect();
+        for (value, settings) in implicit
+            .settings
+            .iter()
+            .filter(|(value, _)| reached.contains(value.as_str()))
+        {
+            let settings: Vec<String> = settings.iter().cloned().collect();
+            let readers = self.graph.readers_of(&settings);
+            self.widen_toolchain(&readers, &format!("readers of {value}"), widened);
+            targets.extend(readers);
+            widened.push(WidenedScope {
+                scope: rdeps_scope(&settings),
+                reason: format!("{what} reach {value}, the value of {}", settings.join(", ")),
+                repos: settings,
+            });
+        }
+    }
+
+    fn widen_toolchain(&self, seeds: &[String], what: &str, widened: &mut Vec<WidenedScope>) {
+        if let Some(toolchain) = self
+            .graph
+            .reached_of_kind(seeds, |kind| kind == "toolchain")
+            .first()
+        {
+            push_widened(
+                widened,
+                "//...".to_owned(),
+                format!("{what} reach toolchain {toolchain}"),
+            );
+        }
     }
 }
 
@@ -1452,18 +1469,21 @@ pub fn resolve_affected(
     if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() || !extensions.is_empty()
     {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
+        let users = Users {
+            workspace,
+            aspect_labels,
+            graph: &loaded,
+        };
         for (name, files) in &extensions {
             let scope = Scope::extension(extension_scope::ROOT, name);
             let seeds =
                 extension_scope::seeds(loaded.external_inputs(), &BTreeSet::from([scope.clone()]));
             let files: Vec<&str> = files.iter().map(String::as_str).collect();
-            widen_repo_users(
-                workspace,
-                aspect_labels,
-                &loaded,
+            users.widen_repo_users(
                 &seeds,
                 &format!("repos of module extension {name}"),
                 &mut widened,
+                &mut targets,
             );
             targets.extend(seeds);
             let repos = vec![scope.display()];
@@ -1483,13 +1503,11 @@ pub fn resolve_affected(
                 loaded.external_inputs(),
                 &update.scopes,
             ));
-            widen_repo_users(
-                workspace,
-                aspect_labels,
-                &loaded,
+            users.widen_repo_users(
                 &seeds,
                 &format!("changed modules in {}", update.path),
                 &mut widened,
+                &mut targets,
             );
             targets.extend(seeds);
             let repos: Vec<String> = update
@@ -1568,13 +1586,11 @@ pub fn resolve_affected(
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
                 repos.extend(aliases.iter().map(|name| format!("@{hub}//:{name}")));
             }
-            widen_repo_users(
-                workspace,
-                aspect_labels,
-                &loaded,
+            users.widen_repo_users(
                 &seeds,
                 &format!("changed crates in {path}"),
                 &mut widened,
+                &mut targets,
             );
             targets.extend(seeds);
             if !repos.is_empty() {
@@ -1598,14 +1614,12 @@ pub fn resolve_affected(
             .map(|(_, label, _)| label.clone())
             .collect();
         let owners = loaded.owners_of(&labels);
-        widen_implicit_users(
+        let users = Users {
             workspace,
             aspect_labels,
-            loaded,
-            &labels,
-            &owners,
-            &mut widened,
-        );
+            graph: loaded,
+        };
+        users.widen_implicit_users(&labels, &owners, &mut widened, &mut targets);
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
                 if let Some((scope, reason)) = unowned(workspace, path, fallback) {
@@ -4157,9 +4171,15 @@ use_repo(pip, \"pypi\")\n"
     }
 
     #[test]
-    fn changes_that_reach_a_bazelrc_flag_value_widen() {
+    fn changes_that_reach_a_native_flag_value_widen() {
         let scratch = implicit_workspace("dx-changed-implicit-flag-");
         let workspace = scratch.path();
+        write(
+            workspace,
+            ".bazelrc",
+            "build --extra_toolchains=//cfg:policy\n",
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![implicit_graph()]);
         let selection = bzl_resolve(
             workspace,
@@ -4174,6 +4194,163 @@ use_repo(pip, \"pypi\")\n"
                 "//...",
                 "changed files reach //cfg:policy, which aspects or bazelrc flags use"
             )])
+        );
+    }
+
+    fn policy_workspace(prefix: &str, module: &str) -> tempfile::TempDir {
+        let scratch = dx_test_scratch::scratch(prefix).unwrap();
+        let workspace = scratch.path();
+        write(
+            workspace,
+            "MODULE.bazel",
+            &format!("module(name = \"{module}\")\n"),
+        )
+        .unwrap();
+        write(
+            workspace,
+            "core/quality/aspects.bzl",
+            "lint_aspect = aspect(attrs = {\"_policy\": attr.label(default = \"//config:workspace\")})\n",
+        )
+        .unwrap();
+        write(
+            workspace,
+            ".bazelrc",
+            "common --@rules_dx//config:workspace=//.dx:policy\n",
+        )
+        .unwrap();
+        write(workspace, ".dx/BUILD.bazel", "").unwrap();
+        write(workspace, ".dx/config/typos/base.toml", "\n").unwrap();
+        write(workspace, "app/BUILD.bazel", "").unwrap();
+        write(workspace, "app/main.py", "x = 1\n").unwrap();
+        scratch
+    }
+
+    #[test]
+    fn tool_config_reaching_the_policy_setting_selects_its_readers() {
+        let scratch = policy_workspace("dx-changed-policy-root-", "rules_dx");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![graph(&[
+            ("//.dx:typos", &["//.dx:config/typos/base.toml"]),
+            ("//.dx:policy", &["//.dx:typos"]),
+            ("//.dx:typos_base_test", &["//.dx:config/typos/base.toml"]),
+            ("//config:workspace", &["//config:default_workspace_policy"]),
+            ("//config:policy_subject", &["//config:workspace"]),
+            ("//app:lib", &["//app:main.py"]),
+            ("//app:lib_test", &["//app:lib"]),
+        ])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change(
+                ".dx/config/typos/base.toml",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            &query,
+            &["@rules_dx//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(
+            selection.targets,
+            strings(&[
+                "//.dx:typos",
+                "//.dx:typos_base_test",
+                "//config:policy_subject",
+                "//config:workspace",
+            ])
+        );
+        assert_eq!(
+            selection.widened,
+            vec![WidenedScope {
+                scope: "rdeps(//..., //config:workspace)".to_owned(),
+                reason: "changed files reach //.dx:policy, the value of //config:workspace"
+                    .to_owned(),
+                repos: strings(&["//config:workspace"]),
+            }]
+        );
+        let affected = selection.graph.expect("graph").affected(&selection.targets);
+        assert!(
+            affected.contains(&"//.dx:policy".to_owned()),
+            "{affected:?}"
+        );
+        assert!(
+            !affected.iter().any(|label| label.starts_with("//app:")),
+            "{affected:?}"
+        );
+    }
+
+    #[test]
+    fn tool_config_in_a_consumer_selects_the_readers_of_the_external_setting() {
+        let scratch = policy_workspace("dx-changed-policy-consumer-", "demo");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![graph(&[
+            ("//.dx:typos", &["//.dx:config/typos/base.toml"]),
+            ("//.dx:policy", &["//.dx:typos"]),
+            ("//.dx:typos_base_test", &["//.dx:config/typos/base.toml"]),
+            ("//lint:policy_subject", &["@@rules_dx+//config:workspace"]),
+            ("//lint:policy_test", &["//lint:policy_subject"]),
+            ("//app:lib", &["//app:main.py"]),
+            ("//app:lib_test", &["//app:lib"]),
+        ])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change(
+                ".dx/config/typos/base.toml",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            &query,
+            &["@rules_dx//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(
+            selection.targets,
+            strings(&[
+                "//.dx:typos",
+                "//.dx:typos_base_test",
+                "//lint:policy_subject",
+                "//lint:policy_test",
+            ])
+        );
+        assert_eq!(
+            selection.widened,
+            vec![WidenedScope {
+                scope: "rdeps(//..., @rules_dx//config:workspace)".to_owned(),
+                reason:
+                    "changed files reach //.dx:policy, the value of @rules_dx//config:workspace"
+                        .to_owned(),
+                repos: strings(&["@rules_dx//config:workspace"]),
+            }]
+        );
+    }
+
+    #[test]
+    fn a_toolchain_reading_the_setting_widens() {
+        let scratch = policy_workspace("dx-changed-policy-toolchain-", "demo");
+        let workspace = scratch.path();
+        let query = FakeQuery::new(vec![graph_with_kinds(&[
+            (
+                "//.dx:typos",
+                "typos_config",
+                &["//.dx:config/typos/base.toml"],
+            ),
+            ("//.dx:policy", "dx_generated_policy", &["//.dx:typos"]),
+            (
+                "//tc:linter",
+                "toolchain",
+                &["@@rules_dx+//config:workspace"],
+            ),
+        ])]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change(
+                ".dx/config/typos/base.toml",
+                dx_adopt::ChangeKind::Modified,
+            )],
+            &query,
+            &["@rules_dx//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert!(selection.targets.contains(&"//...".to_owned()));
+        assert!(
+            selection.widened.iter().any(|entry| entry.scope == "//..."
+                && entry.reason == "readers of //.dx:policy reach toolchain //tc:linter"),
+            "{:?}",
+            selection.widened
         );
     }
 

@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust/private:rust.bzl", "rust_binary_without_process_wrapper", "rust_library_without_process_wrapper")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust/private:defs.bzl", "MSVC_LINK_FLAGS")
 load(":exec_tool.bzl", "exec_tool")
@@ -8,7 +9,7 @@ _RUSTC_FLAGS = select({
     "//conditions:default": [],
 })
 
-# keep: only msvc_link and msvc_lib depend on it
+# keep: only msvc_lib depends on it
 rust_library(
     name = "msvc_paths",
     srcs = ["src/lib.rs"],
@@ -18,13 +19,27 @@ rust_library(
     visibility = ["//visibility:private"],
 )
 
-rust_binary(
+# msvc_link's copy: process_wrapper links through msvc_link, so neither can use it.
+rust_library_without_process_wrapper(
+    name = "msvc_paths_bootstrap",
+    srcs = ["src/lib.rs"],
+    crate_name = "msvc_paths",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    visibility = ["//visibility:private"],
+)
+
+# rust-lld links it, so it writes no PDB, whose paths would vary.
+rust_binary_without_process_wrapper(
     name = "msvc_link",
     srcs = ["src/msvc_link.rs"],
     edition = "2024",
-    rustc_flags = _RUSTC_FLAGS,
+    rustc_flags = select({
+        "//core/platforms:msvc": MSVC_LINK_FLAGS + ["-Clink-arg=/DEBUG:NONE", "-Clink-arg=/Brepro"],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
-    deps = [":msvc_paths"],
+    deps = [":msvc_paths_bootstrap"],
 )
 
 exec_tool(
@@ -35,7 +50,7 @@ exec_tool(
 
 filegroup(name = "no_linker")
 
-# The rules_rust toolchain linker on Windows; exec config resets the flag, so msvc_link links with rust-lld.
+# The rules_rust toolchain linker on Windows, in every configuration except msvc_link's own.
 alias(
     name = "toolchain_linker",
     actual = select({

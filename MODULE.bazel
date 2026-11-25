@@ -3085,6 +3085,26 @@ crate.annotation(
     gen_binaries = ["deadnix"],
     repositories = ["dx_quality_crates"],
 )
+
+# cc-rs archives objects under absolute paths; msvc_lib makes them relative.
+crate.annotation_select(
+    build_script_env = {
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
+    },
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
+    crate = "tree-sitter",
+    repositories = ["dx_quality_crates"],
+    triples = ["x86_64-pc-windows-msvc"],
+)
+crate.annotation_select(
+    build_script_env = {
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
+    },
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
+    crate = "tree-sitter-ocaml",
+    repositories = ["dx_quality_crates"],
+    triples = ["x86_64-pc-windows-msvc"],
+)
 crate.from_cargo(
     name = "dx_quality_crates",
     cargo_lockfile = "//rust/private/quality/tools:Cargo.lock",

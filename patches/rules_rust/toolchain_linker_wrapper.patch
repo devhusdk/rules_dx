@@ -59,18 +59,19 @@ diff --git a/rust/settings/BUILD.bazel b/rust/settings/BUILD.bazel
 diff --git a/rust/settings/settings.bzl b/rust/settings/settings.bzl
 --- a/rust/settings/settings.bzl
 +++ b/rust/settings/settings.bzl
-@@ -300,6 +300,17 @@
+@@ -300,6 +300,18 @@
      )
  
  # buildifier: disable=unnamed-macro
 +def toolchain_linker_wrapper():
-+    """A flag naming the linker that `rust_toolchain` passes to rustc instead of `rust_toolchain.linker`."""
++    """A flag naming the linker that `rust_toolchain` passes to rustc instead of `rust_toolchain.linker`, kept in exec configurations."""
 +    native.filegroup(
 +        name = "no_toolchain_linker_wrapper",
 +    )
 +    native.label_flag(
 +        name = "toolchain_linker_wrapper",
 +        build_setting_default = ":no_toolchain_linker_wrapper",
++        scope = "universal",
 +    )
 +
 +# buildifier: disable=unnamed-macro

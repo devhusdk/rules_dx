@@ -69,21 +69,6 @@ runs:
       shell: bash
       run: |
         "${RUNNER_TEMP:-/tmp}/dx-bin/gate_base_bin"
-    - name: Wait for the background disk cleanup
-      shell: bash
-      run: |
-        # setup-bazel with free-disk starts the deletes in the background; the
-        # affected check below needs the space they free.
-        state="$RUNNER_TEMP/dx-free-disk"
-        [ -f "$state/pid" ] || exit 0
-        pid="$(cat "$state/pid")"
-        while kill -0 "$pid" 2>/dev/null; do sleep 1; done
-        cat "$state/log"
-        status="$(cat "$state/status" 2>/dev/null || echo "no status")"
-        if [ "$status" != 0 ]; then
-          echo "::error::the background disk cleanup ended with $status"
-          exit 1
-        fi
     - name: dx ${{ inputs.command }} --affected
       id: check
       env:

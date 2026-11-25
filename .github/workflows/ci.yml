@@ -131,6 +131,19 @@ jobs:
           path: ${{ runner.temp }}/coverage
           retention-days: 7
           if-no-files-found: ignore
+      - name: Report the background disk cleanup
+        if: ${{ !cancelled() }}
+        run: |
+          state="$RUNNER_TEMP/dx-free-disk"
+          [ -f "$state/pid" ] || exit 0
+          pid="$(cat "$state/pid")"
+          while kill -0 "$pid" 2>/dev/null; do sleep 1; done
+          cat "$state/log"
+          status="$(cat "$state/status" 2>/dev/null || echo "no status")"
+          if [ "$status" != 0 ]; then
+            echo "::error::the background disk cleanup ended with $status"
+            exit 1
+          fi
   dogfood:
     name: dogfood (self-call reusable consumer workflow)
     # Dogfoods the reusable file end to end on the working tree.

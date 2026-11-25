@@ -29,12 +29,15 @@ def _hook_impl(ctx):
             lines = action.content.splitlines()
     asserts.equals(env, 1 + len(ctx.attr.prefixes), len(lines), str(lines))
     if len(lines) == 1 + len(ctx.attr.prefixes):
-        asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("/dx"), str(lines))
+        asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("/" + ctx.attr.program), str(lines))
         for prefix, line in zip(ctx.attr.prefixes, lines[1:]):
             asserts.true(env, line.startswith(prefix), "{} does not start with {}".format(line, prefix))
     return analysistest.end(env)
 
 apple_hook_test = analysistest.make(
     _hook_impl,
-    attrs = {"prefixes": attr.string_list(doc = "The prefix of each descriptor line after the program, in order.")},
+    attrs = {
+        "prefixes": attr.string_list(doc = "The prefix of each descriptor line after the program, in order."),
+        "program": attr.string(default = "dx", doc = "Basename of the program the descriptor runs."),
+    },
 )

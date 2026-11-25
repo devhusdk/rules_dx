@@ -86,6 +86,8 @@ pub(crate) struct ScriptQuery {
     pub(crate) git_calls: RefCell<Vec<Vec<String>>>,
     pub(crate) checkout_git_outputs: RefCell<Vec<QueryResult>>,
     pub(crate) images_outputs: RefCell<Vec<QueryResult>>,
+    pub(crate) test_support_outputs: RefCell<Vec<QueryResult>>,
+    pub(crate) test_support_expressions: RefCell<Vec<String>>,
 }
 
 impl ScriptQuery {
@@ -127,6 +129,14 @@ impl ScriptQuery {
 
     pub(crate) fn script_images(&self, stdout: &str) {
         self.images_outputs.borrow_mut().push(QueryResult {
+            code: Some(0),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
+    pub(crate) fn script_test_support(&self, stdout: &str) {
+        self.test_support_outputs.borrow_mut().push(QueryResult {
             code: Some(0),
             stdout: stdout.as_bytes().to_vec(),
             stderr: Vec::new(),
@@ -176,6 +186,18 @@ impl QueryRunner for ScriptQuery {
             Some(path) => std::fs::read_to_string(path)?,
             None => argv.last().cloned().unwrap_or_default(),
         };
+        if expression.contains("attr(testonly, 1, $s)") {
+            self.test_support_expressions.borrow_mut().push(expression);
+            let mut outputs = self.test_support_outputs.borrow_mut();
+            if outputs.is_empty() {
+                return Ok(QueryResult {
+                    code: Some(0),
+                    stdout: Vec::new(),
+                    stderr: Vec::new(),
+                });
+            }
+            return Ok(outputs.remove(0));
+        }
         self.expressions.borrow_mut().push(expression.clone());
         self.calls.borrow_mut().push(argv.to_vec());
         if expression.contains("\"_oci_config\"")
@@ -253,6 +275,8 @@ impl Harness {
                 git_calls: RefCell::new(Vec::new()),
                 checkout_git_outputs: RefCell::new(Vec::new()),
                 images_outputs: RefCell::new(Vec::new()),
+                test_support_outputs: RefCell::new(Vec::new()),
+                test_support_expressions: RefCell::new(Vec::new()),
             },
             intended: None,
             patch: None,

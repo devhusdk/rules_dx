@@ -98,7 +98,7 @@ fn has_tag(rule: &Value, wanted: &str) -> bool {
         })
 }
 
-fn is_pattern(scope: &str) -> bool {
+pub(crate) fn is_pattern(scope: &str) -> bool {
     scope.ends_with("/...") || scope.ends_with(":all") || scope.ends_with(":*")
 }
 

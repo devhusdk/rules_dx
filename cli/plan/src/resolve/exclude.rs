@@ -2,7 +2,7 @@ use std::path::Path;
 
 use dx_config::conventions::pattern_covers;
 
-use super::{ResolveError, ResolvedScope, quote_set};
+use super::{ResolveError, ResolvedScope, quote_set, rule_graph::is_pattern};
 
 pub fn load(workspace: &Path) -> Result<Vec<String>, ResolveError> {
     match dx_config::load(workspace) {
@@ -100,6 +100,34 @@ pub fn query_set(resolved: &ResolvedScope) -> String {
         expression = format!("({expression} + set({}))", quote_set(&resolved.kept));
     }
     expression
+}
+
+#[must_use]
+pub fn test_support_query(resolved: &ResolvedScope) -> Option<String> {
+    let (patterns, labels): (Vec<String>, Vec<String>) = resolved
+        .targets
+        .iter()
+        .filter(|target| !resolved.kept.contains(target))
+        .cloned()
+        .partition(|target| is_pattern(target));
+    if patterns.is_empty() {
+        return None;
+    }
+    let mut scope = format!("set({})", quote_set(&patterns));
+    if !resolved.excluded.is_empty() {
+        scope = format!("({scope} except set({}))", quote_set(&resolved.excluded));
+    }
+    let mut expression = format!(
+        "let s = {scope} in ((attr(testonly, 1, $s) except tests($s)) except kind(\"^test_suite rule$\", $s))"
+    );
+    let named: Vec<String> = labels
+        .into_iter()
+        .chain(resolved.kept.iter().cloned())
+        .collect();
+    if !named.is_empty() {
+        expression = format!("({expression} except set({}))", quote_set(&named));
+    }
+    Some(expression)
 }
 
 #[cfg(test)]

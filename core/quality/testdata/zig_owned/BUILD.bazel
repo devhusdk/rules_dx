@@ -1,9 +1,12 @@
 load("//zig:defs.bzl", "zig_binary")
 
-package(default_visibility = [
-    "//core/quality:__pkg__",
-    "//core/quality/testdata:__pkg__",
-])
+package(
+    default_testonly = True,
+    default_visibility = [
+        "//core/quality:__pkg__",
+        "//core/quality/testdata:__pkg__",
+    ],
+)
 
 zig_binary(
     name = "clean_bin",

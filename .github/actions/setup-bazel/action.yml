@@ -71,9 +71,10 @@ runs:
         fi
         # Nested Bazel tests reserve 2560 MB each. On the 16 GB Linux and Windows
         # runners .33 leaves about 5.2 GB, room for the 2 that nested_bazel=2 allows.
-        # The 7 GB macOS runners run 1 at a time (nested_bazel=1), which .5 covers.
+        # The 7 GB macOS runners keep heap and actions within 75% of memory, so .25
+        # leaves 1.75 GB and the 1 nested test (nested_bazel=1) runs when nothing else does.
         case "$RUNNER_OS" in
-          macOS) heap=50 memory=.5 ;;
+          macOS) heap=50 memory=.25 ;;
           *) heap=50 memory=.33 ;;
         esac
         {

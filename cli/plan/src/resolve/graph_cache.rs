@@ -123,7 +123,7 @@ mod tests {
     use dx_test_scratch::write;
 
     fn graph_argv() -> Vec<String> {
-        crate::resolve::rule_graph::query_argv(&[])
+        crate::resolve::rule_graph::query_argv(Path::new("/w"), &[])
     }
 
     fn workspace() -> tempfile::TempDir {

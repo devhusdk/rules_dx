@@ -9,6 +9,8 @@ use crate::args::{TagFilter, takes_coverage};
 
 const EXPRESSION: &str = "kind('rule', //...)";
 
+const ROOT_EXPRESSION: &str = "kind('rule', //... + @dx_prebuilt//:all)";
+
 #[derive(Debug)]
 pub struct RuleGraph {
     inputs: BTreeMap<String, Vec<String>>,
@@ -37,7 +39,7 @@ const SOURCE_EDGES: [&str; 6] = [
 
 const FORWARDING_KINDS: [&str; 2] = ["filegroup", "genrule"];
 
-const QUERY_FLAGS: [&str; 9] = [
+const QUERY_FLAGS: [&str; 8] = [
     "query",
     "--keep_going",
     "--output=streamed_jsonproto",
@@ -46,19 +48,33 @@ const QUERY_FLAGS: [&str; 9] = [
     "--noproto:locations",
     "--noproto:instantiation_stack",
     "--",
-    EXPRESSION,
 ];
 
+/// When rules_dx is the root module, `@dx_prebuilt` aliases its tools to their main-repo sources,
+/// so the query reads that hub too; in a consumer it selects downloaded assets and stays out.
+fn expression(workspace: &Path) -> &'static str {
+    if dx_adopt::is_rules_dx_root(workspace) {
+        ROOT_EXPRESSION
+    } else {
+        EXPRESSION
+    }
+}
+
 #[expect(clippy::disallowed_methods, reason = "query takes no build settings")]
-pub(crate) fn query_argv(startup_options: &[String]) -> Vec<String> {
+pub(crate) fn query_argv(workspace: &Path, startup_options: &[String]) -> Vec<String> {
     let mut argv = dx_process::startup_argv(startup_options);
     argv.extend(QUERY_FLAGS.iter().map(|flag| (*flag).to_owned()));
+    argv.push(expression(workspace).to_owned());
     argv
 }
 
 pub(crate) fn is_graph_query(argv: &[String]) -> bool {
-    argv.len() >= QUERY_FLAGS.len()
-        && argv
+    let Some((last, flags)) = argv.split_last() else {
+        return false;
+    };
+    [EXPRESSION, ROOT_EXPRESSION].contains(&last.as_str())
+        && flags.len() >= QUERY_FLAGS.len()
+        && flags
             .iter()
             .rev()
             .zip(QUERY_FLAGS.iter().rev())
@@ -193,11 +209,12 @@ impl RuleGraph {
         runner: &dyn QueryRunner,
         startup_options: &[String],
     ) -> Result<RuleGraph, ResolveError> {
-        let argv = query_argv(startup_options);
-        let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
+        let expression = expression(workspace);
+        let argv = query_argv(workspace, startup_options);
+        let result = ResolveError::run(runner, &argv, workspace, expression)?;
         let text = String::from_utf8(result.stdout).ok().ok_or_else(|| {
             ResolveError::query(
-                EXPRESSION,
+                expression,
                 super::QueryFailure::Output {
                     detail: "query output is not UTF-8".to_owned(),
                 },
@@ -217,7 +234,7 @@ impl RuleGraph {
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: Value = serde_json::from_str(line).map_err(|error| {
                 ResolveError::query(
-                    EXPRESSION,
+                    expression,
                     super::QueryFailure::Output {
                         detail: format!("query output is not JSON: {error}"),
                     },
@@ -240,6 +257,10 @@ impl RuleGraph {
                         .collect()
                 })
                 .unwrap_or_default();
+            if name.starts_with('@') {
+                graph.link_back_into_main_repo(name, &inputs);
+                continue;
+            }
             let produced: Vec<String> = rule
                 .get("ruleOutput")
                 .and_then(Value::as_array)
@@ -308,6 +329,17 @@ impl RuleGraph {
             }
         }
         Ok(graph)
+    }
+
+    /// A rule from an external repo is never selected or followed into its own repo; only its
+    /// edges from main-repo inputs stay, so their users reach the main-repo rules that use it.
+    fn link_back_into_main_repo(&mut self, name: &str, inputs: &[String]) {
+        for input in inputs.iter().filter(|input| input.starts_with("//")) {
+            self.users
+                .entry(input.clone())
+                .or_default()
+                .push(name.to_owned());
+        }
     }
 
     pub(crate) fn owners_of(&self, labels: &[String]) -> Vec<String> {
@@ -1170,6 +1202,87 @@ mod tests {
                 .affected(&strings(&["//d:lone"]))
                 .contains(&"//d:lone".to_owned())
         );
+    }
+
+    const HUB_DX: &str = "@@+dx_prebuilt+dx_prebuilt//:dx";
+
+    fn load_in(module: &str, lines: &[String]) -> (RuleGraph, Vec<String>) {
+        let scratch = dx_test_scratch::scratch("dx-resolve-rule-graph-").expect("scratch");
+        dx_test_scratch::write(scratch.path(), "MODULE.bazel", module).expect("MODULE.bazel");
+        let answer = Answer {
+            code: Some(0),
+            stdout: graph_stdout(lines),
+            argv: RefCell::new(Vec::new()),
+        };
+        let graph = RuleGraph::load(scratch.path(), &answer, &[]).expect("graph");
+        let argv = answer.argv.borrow()[0].clone();
+        assert!(is_graph_query(&argv), "{argv:?}");
+        (graph, argv)
+    }
+
+    #[test]
+    fn a_rules_dx_root_follows_the_dx_prebuilt_alias_back_to_the_source_built_dx() {
+        let (graph, argv) = load_in(
+            "module(name = \"rules_dx\")\n",
+            &[
+                graph_rule_of_kind("//cli/cli:dx", "rust_binary", &["//cli/cli:main.rs"], &[]),
+                graph_rule_of_kind("//cli/prebuilt:guard_stub", "cc_binary", &[], &[]),
+                graph_rule_of_kind("//go:lint_test", "sh_test", &[HUB_DX], &[]),
+                graph_rule_of_kind("//other:t", "sh_test", &["//other:o.txt"], &[]),
+                graph_rule_of_kind(
+                    HUB_DX,
+                    "alias",
+                    &[
+                        "//cli/prebuilt:guard_stub",
+                        "//cli/cli:dx",
+                        "@@+dx_prebuilt+dx_prebuilt//:helper",
+                    ],
+                    &[],
+                ),
+                graph_rule_of_kind(
+                    "@@+dx_prebuilt+dx_prebuilt//:helper",
+                    "alias",
+                    &["@@other+//:tool"],
+                    &[],
+                ),
+            ],
+        );
+        assert_eq!(argv.last().map(String::as_str), Some(ROOT_EXPRESSION));
+        assert_eq!(
+            graph.affected(&strings(&["//cli/cli:main.rs"])),
+            ["//cli/cli:dx", "//go:lint_test"]
+        );
+        assert_eq!(
+            graph.affected_tests(&strings(&["//cli/cli:dx"]), &strings(&["//go:lint_test"])),
+            ["//go:lint_test"]
+        );
+        assert_eq!(
+            graph.affected(&strings(&["@@other+//:tool"])),
+            Vec::<String>::new()
+        );
+        assert!(
+            !graph.inputs.keys().any(|rule| rule.starts_with('@')),
+            "{:?}",
+            graph.inputs.keys()
+        );
+    }
+
+    #[test]
+    fn a_consumer_neither_queries_nor_follows_the_dx_prebuilt_hub() {
+        let (graph, argv) = load_in(
+            "module(name = \"w\")\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n",
+            &[graph_rule_of_kind("//app:t", "sh_test", &[HUB_DX], &[])],
+        );
+        assert_eq!(argv.last().map(String::as_str), Some(EXPRESSION));
+        assert!(
+            !argv.iter().any(|arg| arg.contains("dx_prebuilt")),
+            "{argv:?}"
+        );
+        assert_eq!(
+            graph.affected(&strings(&["//cli/cli:dx"])),
+            Vec::<String>::new()
+        );
+        assert_eq!(graph.affected(&strings(&[HUB_DX])), ["//app:t"]);
     }
 
     #[test]

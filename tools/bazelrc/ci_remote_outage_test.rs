@@ -76,7 +76,9 @@ fn a_stalled_remote_cache_trips_the_breaker_and_the_build_fetches_and_runs_local
     case.write("stamp.bzl", STAMP_BZL);
     case.write("stamp.sh", STAMP_SH);
     let script = case.join("stamp.sh");
-    let mut permissions = std::fs::metadata(&script).expect("stat stamp.sh").permissions();
+    let mut permissions = std::fs::metadata(&script)
+        .expect("stat stamp.sh")
+        .permissions();
     std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
     std::fs::set_permissions(&script, permissions).expect("chmod stamp.sh");
     let mut build = format!(
@@ -107,9 +109,14 @@ fn a_stalled_remote_cache_trips_the_breaker_and_the_build_fetches_and_runs_local
         output.contains("Call not executed due to a high failure rate."),
         "the circuit breaker never tripped:\n{output}"
     );
+    let last = format!("+c{}:", CHAIN - 1);
     assert!(
-        output.contains("Remote repo contents cache lookup failed for"),
-        "no repository went through the remote repo contents cache:\n{output}"
+        output.lines().any(|line| {
+            line.contains("Remote repo contents cache lookup failed for")
+                && line.contains(&last)
+                && line.contains("Call not executed due to a high failure rate.")
+        }),
+        "the breaker never rejected the last chained lookup, so every lookup waited on the network:\n{output}"
     );
     for index in 0..ACTIONS {
         let stamp = dx_testing::read_text(&case.join(format!("bazel-bin/s{index}.txt")));

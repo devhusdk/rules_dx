@@ -22,6 +22,7 @@ single_version_override(
         "//patches/rules_rust:crate_universe_module_labels.patch",
         "//patches/rules_rust:rust_analyzer_rustc_lib.patch",
         "//patches/rules_rust:msvc_stdlib_ntdll.patch",
+        "//patches/rules_rust:build_script_sorted_cfgs.patch",
     ],
     version = "0.75.0",
 )

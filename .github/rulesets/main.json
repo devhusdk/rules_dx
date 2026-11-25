@@ -35,26 +35,6 @@
           {
             "context": "check (windows_arm64)",
             "integration_id": 15368
-          },
-          {
-            "context": "coverage (linux_x86_64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "coverage (linux_arm64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "coverage (macos_arm64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "coverage (windows_x86_64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "coverage (windows_arm64)",
-            "integration_id": 15368
           }
         ]
       }

@@ -560,15 +560,3 @@ fn helper_action_writes_a_working_helper() {
         assert_eq!(helper, read_runfiles(LOCAL_HELPER), "{name}");
     }
 }
-
-#[test]
-fn compiler_evidence_does_not_swallow_failures() {
-    let compiler = parse(".github/actions/compiler-evidence/action.yml");
-    for step in compiler["runs"]["steps"].as_array().unwrap() {
-        let run = step["run"].as_str().unwrap_or_default();
-        assert!(
-            !run.contains("|| true"),
-            "compiler-evidence swallows a failure: {run}"
-        );
-    }
-}

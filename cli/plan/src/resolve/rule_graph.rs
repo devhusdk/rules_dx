@@ -354,6 +354,11 @@ impl RuleGraph {
         owners
     }
 
+    /// Whether the label or pattern `scope` names at least one rule of the graph.
+    pub(crate) fn selects_any_rule(&self, scope: &str) -> bool {
+        self.inputs.keys().any(|rule| matches_scope(scope, rule))
+    }
+
     pub(crate) fn inputs_of(&self, rules: &[String]) -> HashSet<&str> {
         rules
             .iter()
@@ -368,6 +373,14 @@ impl RuleGraph {
             .keys()
             .map(String::as_str)
             .filter(|label| label.starts_with("@@"))
+    }
+
+    /// The inputs from other repositories, by canonical or apparent name.
+    pub(crate) fn external_labels(&self) -> impl Iterator<Item = &str> {
+        self.users
+            .keys()
+            .map(String::as_str)
+            .filter(|label| label.starts_with('@'))
     }
 
     #[must_use]

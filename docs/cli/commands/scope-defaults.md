@@ -54,8 +54,8 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | --- | --- |
 | `BUILD` or `BUILD.bazel` | Every target in its package plus reverse dependencies. |
 | An added or deleted `BUILD`, or a deleted file outside any package | `//...`. |
-| A deleted file | The targets that still name it, else its package plus reverse dependencies. |
-| An unowned file | The package tree around it, such as `//pkg/...`. |
+| A deleted file | The targets that still name it, else its package plus reverse dependencies, or `//...` when the package has no targets. |
+| An unowned file | The package tree around it, such as `//pkg/...`. `//...` when that tree has no targets, such as a directory that `.bazelignore` lists or a nested workspace, because only a repository rule can read the file there. |
 | A file outside any package | `//...`. |
 | A file that reaches a target a `.bazelrc` passes to a build setting, such as `.dx/config/typos/base.toml` through `--@rules_dx//config:workspace=//.dx:policy` | Its owning targets and the targets that read the setting, plus reverse dependencies. Lint and format aspects that read the setting do not widen. `//...` when a toolchain reads the setting. |
 | A file that reaches a target another `.bazelrc` flag names, such as a toolchain, platform, or an attribute of a `--aspects` aspect | `//...`. |

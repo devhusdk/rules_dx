@@ -109,8 +109,3 @@ build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 build --//ruby/private/quality:rubocop=@gems//bin:rubocop
 
 try-import %workspace%/user.bazelrc
-
-build:scalac_cold --noremote_accept_cached --disk_cache=
-build:scalac_diag --config=scalac_cold --worker_extra_flag=Scalac=--wrapper_script_flag=--jvm_flag=-XX:+DisplayVMOutputToStderr --worker_extra_flag=Scalac=--wrapper_script_flag=--jvm_flag=-XX:+ErrorFileToStderr
-build:scalac_local --config=scalac_cold --strategy=Scalac=local
-build:scalac_noshare --config=scalac_cold --worker_extra_flag=Scalac=--wrapper_script_flag=--jvm_flag=-Xshare:off

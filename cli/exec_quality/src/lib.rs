@@ -39,7 +39,7 @@ use dx_exec_core::common::{
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
-use dx_exec_reports::build_failures::report_build_failures;
+use dx_exec_reports::build_failures::{report_build_failures, report_own_build_failures};
 use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
@@ -292,7 +292,7 @@ fn read_probe_shards(bep: &Path, workspace: &Path, build_failed: bool) -> Option
 
 pub(crate) fn read_skip_notes(
     bep: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
     workspace: &Path,
 ) -> Vec<String> {
     let Ok(account) = collect_own_account(bep, SKIP_OUTPUT_GROUP, workspace, foreign) else {
@@ -331,7 +331,7 @@ struct Settled {
 
 struct BepRead {
     path: PathBuf,
-    foreign: BTreeSet<String>,
+    foreign: dx_bep::Foreign,
     owned: bool,
 }
 
@@ -439,7 +439,7 @@ fn run_quality_request(
                 run,
                 BepRead {
                     path: bep.clone(),
-                    foreign: BTreeSet::new(),
+                    foreign: dx_bep::Foreign::default(),
                     owned: true,
                 },
             ),
@@ -572,7 +572,13 @@ fn shared_build_run(
     let (compile_only, build_stage) = if read.code == 0 {
         (false, false)
     } else {
-        let reported = report_build_failures(&read.bep, request.common.output, env.out, env.err)?;
+        let reported = report_own_build_failures(
+            &read.bep,
+            &read.foreign,
+            request.common.output,
+            env.out,
+            env.err,
+        )?;
         (reported.compile_only, reported.build_stage)
     };
     Ok(BuildRun {

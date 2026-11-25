@@ -1,5 +1,5 @@
 use crate::{probe_shards, probe_stop_exit};
-use dx_bep::aspect_key;
+use dx_bep::{Foreign, aspect_key, target_key};
 use dx_exec_core::common::{
     BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
     server_died,
@@ -7,7 +7,7 @@ use dx_exec_core::common::{
 use dx_output::ActionCounts;
 use dx_plan::args::{Command, QualityRequest, UmbrellaRequest};
 use dx_plan::plan::{Consumer, OUTPUT_GROUP, Selection, command_aspects, plan_shared_build};
-use dx_plan::resolve::ResolvedScope;
+use dx_plan::resolve::{ResolvedScope, resolve, widen_config_scopes};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
@@ -18,17 +18,24 @@ pub struct SharedChecks {
 
 struct SharedBuild {
     bep: PathBuf,
-    members: Vec<(Command, BTreeSet<String>)>,
+    members: Vec<Member>,
     bazel_options: Vec<String>,
-    resolved: ResolvedScope,
     code: i32,
-    failing: Option<BTreeSet<Option<String>>>,
+    failing: Option<BTreeSet<Failing>>,
     unread: usize,
 }
 
+struct Member {
+    command: Command,
+    aspects: BTreeSet<String>,
+    resolved: ResolvedScope,
+}
+
+type Failing = (Option<String>, Option<String>);
+
 pub(crate) struct SharedRead {
     pub(crate) bep: PathBuf,
-    pub(crate) foreign: BTreeSet<String>,
+    pub(crate) foreign: Foreign,
     pub(crate) code: i32,
     pub(crate) actions: Option<ActionCounts>,
 }
@@ -37,6 +44,7 @@ impl SharedChecks {
     pub fn new(request: &UmbrellaRequest) -> Self {
         let pending = [Command::Format, Command::Lint, Command::Typecheck]
             .into_iter()
+            .filter(|phase| !request.selects_nothing(*phase))
             .filter_map(|phase| request.phase_quality_request(phase, Vec::new()).ok())
             .collect();
         SharedChecks {
@@ -63,14 +71,17 @@ impl SharedChecks {
             .is_some_and(|build| build.serves(request, resolved));
         if !joins {
             self.discard();
-            let mut commands = vec![raw.command];
-            commands.extend(
+            let mut members = vec![(raw.command, resolved.clone())];
+            members.extend(
                 self.pending
                     .iter()
                     .filter(|pending| same_build(pending, raw))
-                    .map(|pending| pending.command),
+                    .filter_map(|pending| {
+                        let scope = member_scope(pending, request, env)?;
+                        shares_build(&scope, resolved).then_some((pending.command, scope))
+                    }),
             );
-            match SharedBuild::run(&commands, request, resolved, consumer, env, kind)? {
+            match SharedBuild::run(&members, request, consumer, env, kind)? {
                 Some((build, counts)) => {
                     self.build = Some(build);
                     actions = counts;
@@ -110,22 +121,75 @@ impl Drop for SharedChecks {
 
 fn same_build(a: &QualityRequest, b: &QualityRequest) -> bool {
     a.mode == b.mode
-        && a.targets == b.targets
         && a.bazel_options == b.bazel_options
         && a.bazel_startup_options == b.bazel_startup_options
         && a.unsafe_fixes == b.unsafe_fixes
         && a.online == b.online
 }
 
+fn member_scope(
+    pending: &QualityRequest,
+    request: &QualityRequest,
+    env: &Env<'_>,
+) -> Option<ResolvedScope> {
+    let startup = &request.bazel_startup_options;
+    let widened = widen_config_scopes(&pending.targets, env.workspace, env.query_runner, startup);
+    let targets = widened.as_deref().unwrap_or(&pending.targets);
+    resolve(targets, env.workspace, env.query_runner, startup).ok()
+}
+
+fn shares_build(scope: &ResolvedScope, leader: &ResolvedScope) -> bool {
+    scope == leader || (target_keys(scope).is_some() && target_keys(leader).is_some())
+}
+
+fn target_keys(resolved: &ResolvedScope) -> Option<BTreeSet<String>> {
+    if !resolved.excluded.is_empty() {
+        return None;
+    }
+    resolved
+        .targets
+        .iter()
+        .map(|target| target_key(target))
+        .collect()
+}
+
+fn union_scope(members: &[(Command, ResolvedScope)]) -> Option<ResolvedScope> {
+    let (_, first) = members.first()?;
+    if members.iter().all(|(_, resolved)| resolved == first) {
+        return Some(first.clone());
+    }
+    let mut targets: Vec<String> = members
+        .iter()
+        .flat_map(|(_, resolved)| resolved.targets.iter().cloned())
+        .collect();
+    targets.sort();
+    targets.dedup();
+    let mut kept: Vec<String> = members
+        .iter()
+        .flat_map(|(_, resolved)| resolved.kept.iter().cloned())
+        .collect();
+    kept.sort();
+    kept.dedup();
+    Some(ResolvedScope {
+        scope: dx_process::Scope::Labels(targets.clone()),
+        targets,
+        excluded: Vec::new(),
+        kept,
+    })
+}
+
 impl SharedBuild {
     fn run(
-        commands: &[Command],
+        members: &[(Command, ResolvedScope)],
         request: &QualityRequest,
-        resolved: &ResolvedScope,
         consumer: Option<Consumer<'_>>,
         env: &mut Env<'_>,
         kind: &mut PhaseKind,
     ) -> Result<Option<(SharedBuild, Option<ActionCounts>)>, i32> {
+        let commands: Vec<Command> = members.iter().map(|(command, _)| *command).collect();
+        let Some(scope) = union_scope(members) else {
+            return Ok(None);
+        };
         let bep = env
             .temp_dir
             .join(format!("dx-bep-{}-{}-shared.json", env.pid, env.nonce));
@@ -134,9 +198,9 @@ impl SharedBuild {
         };
         let mut probe_counts = None;
         let shards = match probe_shards(
-            commands,
+            &commands,
             request,
-            resolved,
+            &scope,
             env.workspace,
             env.runner,
             env.temp_dir,
@@ -156,8 +220,8 @@ impl SharedBuild {
             online: request.online,
         };
         let Ok(plan) = plan_shared_build(
-            commands,
-            resolved,
+            &commands,
+            &scope,
             &request.bazel_options,
             bep_text,
             &request.bazel_startup_options,
@@ -185,22 +249,22 @@ impl SharedBuild {
             (Some(probe), Some(build)) => Some(probe + build),
             (probe, build) => probe.or(build),
         };
-        let failing = failing_aspects(&bep, code, env);
-        let members = commands
+        let failing = failing_targets(&bep, code, env);
+        let members = members
             .iter()
-            .map(|command| {
-                let aspects = command_aspects(*command, consumer)
+            .map(|(command, resolved)| Member {
+                command: *command,
+                aspects: command_aspects(*command, consumer)
                     .into_iter()
                     .map(str::to_owned)
-                    .collect();
-                (*command, aspects)
+                    .collect(),
+                resolved: resolved.clone(),
             })
             .collect();
         let build = SharedBuild {
             bep,
             members,
             bazel_options: request.bazel_options.clone(),
-            resolved: resolved.clone(),
             code,
             failing,
             unread: commands.len(),
@@ -211,28 +275,36 @@ impl SharedBuild {
     fn serves(&self, request: &QualityRequest, resolved: &ResolvedScope) -> bool {
         self.members
             .iter()
-            .any(|(command, _)| *command == request.command)
+            .any(|member| member.command == request.command && member.resolved == *resolved)
             && self.bazel_options == request.bazel_options
-            && self.resolved == *resolved
     }
 
-    fn own(&self, command: Command) -> BTreeSet<String> {
-        self.members
+    fn foreign(&self, command: Command) -> Foreign {
+        let (own, others): (Vec<&Member>, Vec<&Member>) = self
+            .members
             .iter()
-            .filter(|(member, _)| *member == command)
-            .flat_map(|(_, aspects)| aspects.iter().cloned())
-            .collect()
-    }
-
-    fn foreign(&self, command: Command) -> BTreeSet<String> {
-        let own = self.own(command);
-        self.members
+            .partition(|member| member.command == command);
+        let own_aspects: BTreeSet<&String> = own
             .iter()
-            .filter(|(member, _)| *member != command)
-            .flat_map(|(_, aspects)| aspects.iter())
-            .filter(|aspect| !own.contains(*aspect))
-            .cloned()
-            .collect()
+            .flat_map(|member| member.aspects.iter())
+            .collect();
+        let own_labels: BTreeSet<String> = own
+            .iter()
+            .flat_map(|member| target_keys(&member.resolved).unwrap_or_default())
+            .collect();
+        Foreign {
+            aspects: others
+                .iter()
+                .flat_map(|member| member.aspects.iter())
+                .filter(|aspect| !own_aspects.contains(aspect))
+                .cloned()
+                .collect(),
+            labels: others
+                .iter()
+                .flat_map(|member| target_keys(&member.resolved).unwrap_or_default())
+                .filter(|label| !own_labels.contains(label))
+                .collect(),
+        }
     }
 
     fn phase_code(&self, command: Command) -> i32 {
@@ -240,11 +312,7 @@ impl SharedBuild {
             return 0;
         }
         let foreign = self.foreign(command);
-        let owns = |aspect: &Option<String>| {
-            aspect
-                .as_ref()
-                .is_none_or(|aspect| !foreign.contains(aspect))
-        };
+        let owns = |(label, aspect): &Failing| !foreign.covers(label.as_deref(), aspect.as_deref());
         match &self.failing {
             Some(failing) if !failing.iter().any(owns) => 0,
             Some(_) | None => self.code,
@@ -252,11 +320,7 @@ impl SharedBuild {
     }
 }
 
-fn failing_aspects(
-    bep: &std::path::Path,
-    code: i32,
-    env: &Env<'_>,
-) -> Option<BTreeSet<Option<String>>> {
+fn failing_targets(bep: &std::path::Path, code: i32, env: &Env<'_>) -> Option<BTreeSet<Failing>> {
     if code == 0 {
         return Some(BTreeSet::new());
     }
@@ -267,20 +331,25 @@ fn failing_aspects(
     if account.problem.is_some() || !account.ended {
         return None;
     }
-    let key = |aspect: Option<&String>| aspect.map(|aspect| aspect_key(aspect).to_owned());
+    let key = |label: Option<&String>, aspect: Option<&String>| {
+        (
+            label.cloned(),
+            aspect.map(|aspect| aspect_key(aspect).to_owned()),
+        )
+    };
     let missing =
         |gap: &&dx_bep::EventGap| !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD");
-    let failing: BTreeSet<Option<String>> = account
+    let failing: BTreeSet<Failing> = account
         .targets
         .iter()
         .filter(|target| !target.success)
-        .map(|target| key(target.aspect.as_ref()))
+        .map(|target| key(Some(&target.label), target.aspect.as_ref()))
         .chain(
             account
                 .gaps
                 .iter()
                 .filter(missing)
-                .map(|gap| key(gap.aspect.as_ref())),
+                .map(|gap| key(gap.label.as_ref(), gap.aspect.as_ref())),
         )
         .collect();
     (!failing.is_empty()).then_some(failing)

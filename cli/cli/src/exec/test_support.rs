@@ -1307,10 +1307,24 @@ impl<R: Runner> Runner for AspectRunner<R> {
         };
         self.builds.borrow_mut().push(argv.to_vec());
         let passed: BTreeSet<&str> = aspects.split(',').map(dx_bep::aspect_key).collect();
+        let scope = build_labels(argv);
+        let built = |line: &str| {
+            let event: serde_json::Value = serde_json::from_str(line).unwrap_or_default();
+            let label = ["targetCompleted", "actionCompleted"]
+                .iter()
+                .find_map(|kind| event["id"][kind]["label"].as_str());
+            scope.is_empty()
+                || label.is_none_or(|label| {
+                    scope.iter().any(|arg| {
+                        dx_bep::target_key(arg)
+                            .is_none_or(|key| Some(key) == dx_bep::target_key(label))
+                    })
+                })
+        };
         let mut lines = Vec::new();
         let mut failed = false;
         for (owner, line) in &self.events {
-            if owner.is_none_or(|owner| passed.contains(dx_bep::aspect_key(owner))) {
+            if owner.is_none_or(|owner| passed.contains(dx_bep::aspect_key(owner))) && built(line) {
                 failed |= line.contains(r#""success":false"#);
                 lines.push(line.clone());
             }
@@ -1326,30 +1340,53 @@ impl<R: Runner> Runner for AspectRunner<R> {
     }
 }
 
+pub(crate) fn build_labels(argv: &[String]) -> Vec<String> {
+    argv.iter()
+        .filter(|arg| !arg.starts_with('-') && arg.contains("//"))
+        .cloned()
+        .collect()
+}
+
 pub(crate) fn aspect_events(
     harness: &Harness,
     aspect: &'static str,
     finding: &str,
     success: bool,
 ) -> Vec<(Option<&'static str>, String)> {
-    let name = dx_bep::aspect_key(aspect)
+    target_aspect_events(harness, "//test:corpus", aspect, finding, success)
+}
+
+pub(crate) fn target_aspect_events(
+    harness: &Harness,
+    label: &str,
+    aspect: &'static str,
+    finding: &str,
+    success: bool,
+) -> Vec<(Option<&'static str>, String)> {
+    let tool = dx_bep::aspect_key(aspect)
         .rsplit('%')
         .next()
         .expect("aspect name");
+    let slug: String = label
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let name = format!("{tool}{slug}");
+    let name = name.as_str();
     let result = if finding.is_empty() {
         harness.valid_result(vec![], vec![])
     } else {
         harness.valid_result(vec![Harness::diagnostic(finding, false)], vec![])
     };
     let result_uri = write_bep_artifact(harness, &format!("{name}.pb"), &result);
-    let note = format!("{name}-tool: skipped, not pinned for this platform\n");
+    let note = format!("{tool}-tool: skipped, not pinned for this platform\n");
     let skip_uri = write_bep_artifact(harness, &format!("{name}.skip"), note.as_bytes());
     let set = |id: String, uri: &str| {
         serde_json::json!({"id": {"namedSet": {"id": id}}, "namedSetOfFiles": {"files": [{"uri": uri}]}})
             .to_string()
     };
     let completed = serde_json::json!({
-        "id": {"targetCompleted": {"label": "//test:corpus", "aspect": aspect}},
+        "id": {"targetCompleted": {"label": label, "aspect": aspect}},
         "completed": {"success": success, "outputGroup": [
             {"name": "dx_results", "fileSets": [{"id": format!("{name}-r")}]},
             {"name": "dx_skips", "fileSets": [{"id": format!("{name}-s")}]},
@@ -1364,7 +1401,7 @@ pub(crate) fn aspect_events(
     if !success {
         let stderr = stderr_file(harness, name, "error: the tool failed\n");
         events.push(failed_action(
-            "//test:corpus",
+            label,
             "c1",
             "Lint",
             "out/corpus.lint",

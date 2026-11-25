@@ -10,7 +10,6 @@ use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
 use dx_process::{Runner, broken_pipe_code, operational_code, pre_exec_code, stdout_io_code};
 use std::cell::Cell;
-use std::collections::BTreeSet;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
@@ -462,20 +461,20 @@ pub fn collect_output_account(
     group: &str,
     workspace: &Path,
 ) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
-    collect_own_account(bep, group, workspace, &BTreeSet::new())
+    collect_own_account(bep, group, workspace, &dx_bep::Foreign::default())
 }
 
 pub fn collect_own_account(
     bep: &Path,
     group: &str,
     workspace: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
 ) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
     let file = std::fs::File::open(bep)
         .map_err(|err| dx_error::DxError::failure(format!("{UNREADABLE_BEP_PREFIX}{err}")))?;
     let config = dx_bep::CollectorConfig::new(group)
         .map_err(|err| dx_error::DxError::failure(format!("invalid BEP config: {err}")))?
-        .without_aspects(foreign.clone());
+        .without(foreign.clone());
     dx_bep::collect_account(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
         .map_err(|err| dx_error::DxError::failure(format!("invalid build events: {err}")))
 }

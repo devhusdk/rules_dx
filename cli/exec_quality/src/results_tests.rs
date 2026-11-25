@@ -7,7 +7,7 @@ use dx_exec_quality_testing::{LAST_EVENT, QualityWorkspace, diagnostic, result_f
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::decode_validated;
 use quality_result::{encode_validated, proto};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 #[test]
@@ -191,7 +191,9 @@ fn invalid_output_group_rejected() {
     let dir = temp_dir("group-tmp");
     let bep = dir.path().join("empty.json");
     std::fs::write(&bep, "").expect("bep");
-    let Err(error) = collect_results_in(&bep, &BTreeSet::new(), "", dir.path(), &|| None) else {
+    let Err(error) =
+        collect_results_in(&bep, &dx_bep::Foreign::default(), "", dir.path(), &|| None)
+    else {
         panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     };
     assert!(error.message().contains("invalid BEP config"));
@@ -242,7 +244,7 @@ fn collect(harness: &QualityWorkspace, lines: &[String]) -> Collected {
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     collect_results_in(
         &bep,
-        &BTreeSet::new(),
+        &dx_bep::Foreign::default(),
         "dx_results",
         &harness.workspace,
         &|| None,
@@ -479,7 +481,7 @@ fn a_bad_line_mid_stream_is_reported_not_fatal() {
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     let collected = collect_results_in(
         &bep,
-        &BTreeSet::new(),
+        &dx_bep::Foreign::default(),
         "dx_results",
         &harness.workspace,
         &|| None,

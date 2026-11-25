@@ -369,6 +369,7 @@ fn local_policy() -> RcPolicy {
         slot_idle_secs: None,
         rc_color: RcColor::NONE,
         remote_cache_read_only: false,
+        profile_dir: None,
     }
 }
 
@@ -1261,6 +1262,50 @@ fn read_only_remote_cache_turns_uploads_off() {
             .contains(&"--noremote_upload_local_results".to_owned())
     );
     assert!(!Machine::local().policy().remote_cache_read_only);
+}
+
+#[test]
+fn profile_dir_gives_each_build_call_its_own_trace() {
+    let policy = Machine::local().env("DX_PROFILE_DIR", "/traces").policy();
+    let traces: Vec<String> = ["build", "test"]
+        .iter()
+        .flat_map(|verb| policy.verb_options(verb, None, &[]))
+        .filter_map(|option| option.strip_prefix("--profile=").map(str::to_owned))
+        .collect();
+    assert_eq!(traces.len(), 2, "{traces:?}");
+    assert_ne!(traces[0], traces[1]);
+    for (trace, verb) in traces.iter().zip(["build", "test"]) {
+        let trace = Path::new(trace);
+        assert_eq!(trace.parent(), policy.profile_dir.as_deref());
+        let name = trace.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+        assert!(name.ends_with(&format!("-{verb}.json.gz")), "{name}");
+    }
+    let user = ["--profile=/mine.json".to_owned()];
+    let options = policy.verb_options("build", None, &user);
+    assert!(!options.iter().any(|option| option.starts_with("--profile")));
+    assert!(policy.verb_options("query", None, &[]).is_empty());
+    assert_eq!(Machine::local().policy().profile_dir, None);
+}
+
+#[test]
+fn ensure_profile_dir_creates_the_directory_or_reports_why_not() {
+    let scratch = dx_test_scratch::scratch("dx-rc-profile-").unwrap();
+    let nested = scratch.path().join("a").join("b");
+    let policy = RcPolicy {
+        profile_dir: Some(nested.clone()),
+        ..RcPolicy::hermetic()
+    };
+    assert_eq!(policy.ensure_profile_dir(), Ok(()));
+    assert!(nested.is_dir());
+    let file = scratch.path().join("file");
+    std::fs::write(&file, "").unwrap();
+    let blocked = RcPolicy {
+        profile_dir: Some(file.join("sub")),
+        ..RcPolicy::hermetic()
+    };
+    let error = blocked.ensure_profile_dir().unwrap_err();
+    assert!(error.starts_with("cannot create DX_PROFILE_DIR directory "), "{error}");
+    assert_eq!(RcPolicy::hermetic().ensure_profile_dir(), Ok(()));
 }
 
 #[test]

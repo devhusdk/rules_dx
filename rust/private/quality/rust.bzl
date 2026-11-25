@@ -144,16 +144,16 @@ def _rust_sources(target, ctx):
     return upstream_files(getattr(ctx.rule.files, "srcs", None), "rust")
 
 def harness_sources(target, capability, direct_sources):
-    """Adds the sources of a Rust test crate's harness to a typecheck's direct sources."""
+    """Returns a typecheck's direct sources plus its Rust test crate harness sources, or None when there is no harness."""
     if not inherits_test_crate_sources(capability):
-        return direct_sources
+        return None
     harness = None
     if _rust_common.test_crate_info in target:
         harness = target[_rust_common.test_crate_info].crate
     elif _rust_common.crate_info in target and target[_rust_common.crate_info].is_test:
         harness = target[_rust_common.crate_info]
     if harness == None:
-        return direct_sources
+        return None
     return merge_inherited_sources(direct_sources, harness.srcs.to_list(), "rust")
 
 def _toolchain_file(ctx, name):

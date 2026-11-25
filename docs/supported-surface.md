@@ -7590,5 +7590,5 @@ Run these with `bazel run <target>`.
 
 | Schema | Version |
 | --- | --- |
-| `events.schema.json` | `4.0` |
+| `events.schema.json` | `4.1` |
 | `dx.schema.json` | `1.2` |

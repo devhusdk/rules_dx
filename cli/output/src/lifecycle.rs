@@ -3,7 +3,7 @@ use crate::validation::{OutputError, check_correlation, check_path, parse_digest
 use serde_json::{Value, json};
 
 pub const SCHEMA_MAJOR: u64 = 4;
-pub const SCHEMA_MINOR: u64 = 0;
+pub const SCHEMA_MINOR: u64 = 1;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -1817,8 +1817,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 4);
-        assert_eq!(SCHEMA_MINOR, 0);
-        assert_eq!(schema(), serde_json::json!({"major": 4, "minor": 0}));
+        assert_eq!(SCHEMA_MINOR, 1);
+        assert_eq!(schema(), serde_json::json!({"major": 4, "minor": 1}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1868,7 +1868,7 @@ mod tests {
             read_event(&line).expect("current")["event"],
             "command_started"
         );
-        let newer = r#"{"schema":{"major":4,"minor":1},"event":"future","added":1}"#;
+        let newer = r#"{"schema":{"major":4,"minor":2},"event":"future","added":1}"#;
         assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
         assert_eq!(
             read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
@@ -2332,7 +2332,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 4, "minor": 0},
+                "schema": {"major": 4, "minor": 1},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2371,7 +2371,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 4, "minor": 0},
+                "schema": {"major": 4, "minor": 1},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

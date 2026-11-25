@@ -892,6 +892,7 @@ pub(crate) fn build_metrics_line(
                 {"name": "total", "count": executed_raw},
                 {"name": "disk cache hit", "count": disk, "execKind": "Remote"},
                 {"name": "remote cache hit", "count": remote, "execKind": "Remote"},
+                {"name": "linux-sandbox", "count": executed_raw.saturating_sub(disk).saturating_sub(remote), "execKind": "Local"},
             ],
             "actionCacheStatistics": {"hits": local},
         }},

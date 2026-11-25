@@ -160,7 +160,7 @@ dx sets these Bazel flags. If you pass another value after `--`, dx exits `2` be
 
 ## Output
 
-Text output ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr. `--quiet` hides it.
+Text output ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr. `<executed>` counts processes Bazel ran, locally or remotely. `--quiet` hides it.
 
 Each Bazel failure prints a `dx: build failure:` line with its compiler diagnostics. dx reads rustc, clippy, and the gcc-style output of cc, javac, go, kotlinc, scalac, tsc, csc and swiftc. JSON adds a `build_failure` event per failure.
 

@@ -1854,44 +1854,36 @@ swiftpm.lock(
 use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
-bazel_dep(name = "rules_dart", version = "0.9.1")
+bazel_dep(name = "rules_dart", version = "0.10.0")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = [
-        "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
         "//patches/rules_dart:windows_copy_links.patch",
-        "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
-        "//patches/rules_dart:dx_bzl_srcs.patch",
-        "//patches/rules_dart:windows_arm64_host.patch",
     ],
-    version = "0.9.1",
+    version = "0.10.0",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
-dart.toolchain(dart_version = "3.13.7")
+dart.toolchain(dart_version = "3.14.1")
 
 # floor: equals tested
-bazel_dep(name = "rules_flutter", version = "0.1.0")
+bazel_dep(name = "rules_flutter", version = "0.2.0")
 single_version_override(
     module_name = "rules_flutter",
     patch_strip = 1,
     patches = [
         "//patches/rules_flutter:lock_extension.patch",
-        "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_flutter:windows_golden_comparator.patch",
-        "//patches/rules_flutter:dx_bzl_srcs.patch",
-        "//patches/rules_flutter:deterministic_web_compile.patch",
         "//patches/rules_flutter:flutter_extension_loads.patch",
-        "//patches/rules_flutter:no_swift_packages.patch",
     ],
-    version = "0.1.0",
+    version = "0.2.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
-flutter.toolchain(flutter_version = "3.47.9")
+flutter.toolchain(flutter_version = "3.50.0")
 use_repo(
     flutter,
     "flutter_dev_root",

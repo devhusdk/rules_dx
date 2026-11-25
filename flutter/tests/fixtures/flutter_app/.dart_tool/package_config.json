@@ -39,21 +39,21 @@
     },
     {
       "name": "flutter",
-      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root/packages/flutter",
+      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/3c66b9bf737b46a0c9925bc81b29358f/external/rules_flutter++flutter+flutter_dev_root_src/packages/flutter",
       "packageUri": "lib/",
-      "languageVersion": "3.11"
+      "languageVersion": "3.13"
     },
     {
       "name": "flutter_localizations",
-      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root/packages/flutter_localizations",
+      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/3c66b9bf737b46a0c9925bc81b29358f/external/rules_flutter++flutter+flutter_dev_root_src/packages/flutter_localizations",
       "packageUri": "lib/",
-      "languageVersion": "3.11"
+      "languageVersion": "3.13"
     },
     {
       "name": "flutter_test",
-      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root/packages/flutter_test",
+      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/3c66b9bf737b46a0c9925bc81b29358f/external/rules_flutter++flutter+flutter_dev_root_src/packages/flutter_test",
       "packageUri": "lib/",
-      "languageVersion": "3.11"
+      "languageVersion": "3.13"
     },
     {
       "name": "intl",
@@ -78,6 +78,12 @@
       "rootUri": "file:///home/trapsterdk/.pub-cache/hosted/pub.dev/leak_tracker_testing-3.0.2",
       "packageUri": "lib/",
       "languageVersion": "3.2"
+    },
+    {
+      "name": "listen",
+      "rootUri": "file:///home/trapsterdk/.pub-cache/hosted/pub.dev/listen-1.0.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.10"
     },
     {
       "name": "matcher",
@@ -105,9 +111,9 @@
     },
     {
       "name": "sky_engine",
-      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root/bin/cache/pkg/sky_engine",
+      "rootUri": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/3c66b9bf737b46a0c9925bc81b29358f/external/rules_flutter++flutter+flutter_dev_root_src/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",
-      "languageVersion": "3.11"
+      "languageVersion": "3.13"
     },
     {
       "name": "source_span",
@@ -141,9 +147,9 @@
     },
     {
       "name": "test_api",
-      "rootUri": "file:///home/trapsterdk/.pub-cache/hosted/pub.dev/test_api-0.7.12",
+      "rootUri": "file:///home/trapsterdk/.pub-cache/hosted/pub.dev/test_api-0.7.14",
       "packageUri": "lib/",
-      "languageVersion": "3.10"
+      "languageVersion": "3.11"
     },
     {
       "name": "vector_math",
@@ -165,8 +171,8 @@
     }
   ],
   "generator": "pub",
-  "generatorVersion": "3.13.7",
-  "flutterRoot": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root",
-  "flutterVersion": "3.47.9",
+  "generatorVersion": "3.14.0",
+  "flutterRoot": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/3c66b9bf737b46a0c9925bc81b29358f/external/rules_flutter++flutter+flutter_dev_root_src",
+  "flutterVersion": "3.50.0",
   "pubCache": "file:///home/trapsterdk/.pub-cache"
 }

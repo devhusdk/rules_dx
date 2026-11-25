@@ -816,11 +816,8 @@ fn module_change(
             .any(|scope| scope.owner() != extension_scope::ROOT)
     {
         let read = module_cache(workspace, startup_options);
-        let graph = module_inputs::module_graph(
-            &module_inputs::registry_files(&head_lock)?,
-            &read,
-            &names.multiple,
-        )?;
+        let head_registry = module_inputs::registry_files(&head_lock)?;
+        let graph = module_inputs::module_graph(&head_registry, &read, &names.multiple)?;
         let old: Vec<_> = module_inputs::registry_files(&base_lock)?
             .into_iter()
             .filter(|file| modules.contains(&file.name))
@@ -873,8 +870,9 @@ fn module_change(
             patched.extend(graph.deps.keys().cloned());
         }
         let read_patch = |rel: &str| read_head(rel).ok();
+        let original = module_inputs::module_file_of(&head_registry, &read);
         if let Some(reason) =
-            module_inputs::overrides_that_widen(&head_files, &patched, &read_patch)
+            module_inputs::overrides_that_widen(&head_files, &patched, &read_patch, &original)
         {
             return Err(dx_error::DxError::failure(reason));
         }
@@ -997,11 +995,8 @@ fn lock_repos(
     {
         let lock = read_head(ROOT_LOCK).map_err(dx_error::DxError::failure)?;
         let read = module_cache(workspace, startup_options);
-        let graph = module_inputs::module_graph(
-            &module_inputs::registry_files(&lock)?,
-            &read,
-            &names.multiple,
-        )?;
+        let registry = module_inputs::registry_files(&lock)?;
+        let graph = module_inputs::module_graph(&registry, &read, &names.multiple)?;
         for scope in &scopes {
             if let Some(reason) = module_inputs::shared_scope(&graph, scope, &BTreeSet::new()) {
                 return Err(dx_error::DxError::failure(reason));
@@ -1009,7 +1004,10 @@ fn lock_repos(
         }
         let every: BTreeSet<String> = graph.deps.keys().cloned().collect();
         let read_patch = |rel: &str| read_head(rel).ok();
-        if let Some(reason) = module_inputs::overrides_that_widen(&files, &every, &read_patch) {
+        let original = module_inputs::module_file_of(&registry, &read);
+        if let Some(reason) =
+            module_inputs::overrides_that_widen(&files, &every, &read_patch, &original)
+        {
             return Err(dx_error::DxError::failure(reason));
         }
     }
@@ -2791,6 +2789,31 @@ mod tests {
             );
             assert_eq!(query.calls().len(), 2);
         }
+    }
+
+    #[test]
+    fn dev_deps_and_dev_registrations_of_registry_modules_do_not_widen() {
+        let fixture = edit_workspace(
+            "dx-changed-update-dev-",
+            Update {
+                user_extra: "register_toolchains(\"//:t\", dev_dependency = True)\n",
+                other_extra: "bazel_dep(name = \"leaf\", version = \"1.0\", dev_dependency = True)\nregister_toolchains(\"//:t\")\n",
+                ..UPDATE
+            },
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            update_graph(),
+        ]);
+        let selection = resolve_edit(&fixture, &query);
+        assert_eq!(
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        let seeds = strings(&["@@leaf+//:lib", "@@user+//:lib"]);
+        assert_eq!(graph.affected(&seeds), ["//d:lib", "//u:lib"]);
     }
 
     #[test]

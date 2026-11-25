@@ -715,13 +715,13 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" @rules_dx//:dx -- fuzz --time "${FUZZ_TIME:-300s}" //...
       - name: Check the upload holds no secret
-        id: scan-fuzz
-        if: ${{ !cancelled() }}
+        id: scan-corpus
+        if: ${{ !cancelled() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
         with:
           path: .dx/local/fuzz
       - name: Upload the fuzz corpus
-        if: ${{ !cancelled() && steps.scan-fuzz.outcome == 'success' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        if: ${{ always() && steps.scan-corpus.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-fuzz-corpus${{ needs.validate.outputs.artifact_suffix }}
@@ -729,8 +729,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
           overwrite: true
+      - name: Check the upload holds no secret
+        id: scan-crashes
+        if: ${{ failure() }}
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
+        with:
+          path: .dx/local/fuzz
       - name: Upload the crashes
-        if: ${{ failure() && steps.scan-fuzz.outcome == 'success' }}
+        if: ${{ always() && steps.scan-crashes.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dx-fuzz-crashes

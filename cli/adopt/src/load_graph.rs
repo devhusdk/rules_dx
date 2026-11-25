@@ -777,6 +777,7 @@ struct ImpactGraph<'a> {
     input_repos: BTreeSet<String>,
     extensions: Vec<ExtensionClosure>,
     aspect_inputs: BTreeSet<String>,
+    bazelrc_aspect_inputs: BTreeSet<String>,
     toolchain_inputs: BTreeSet<String>,
     loaders: BTreeMap<String, Vec<String>>,
     packages: BTreeMap<String, String>,
@@ -800,7 +801,7 @@ fn impact_graph<'a>(
     let mut aspect_roots = Vec::new();
     let bazelrc = bazelrc_roots(workspace)?;
     let mut aspects = aspect_labels.to_vec();
-    aspects.extend(bazelrc.aspects);
+    aspects.extend(bazelrc.aspects.iter().cloned());
     let mut global_repos = roots.referenced.clone();
     global_repos.extend(bazelrc.repos.iter().cloned());
     global_repos.extend(
@@ -812,8 +813,7 @@ fn impact_graph<'a>(
             .map(str::to_owned),
     );
     for aspect in &aspects {
-        let file = aspect.split('%').next().unwrap_or(aspect);
-        if let Some((rel, package)) = label_path(file, "", &roots.names) {
+        if let Some((rel, package)) = label_path(aspect_file(aspect), "", &roots.names) {
             graph.add(&rel, &package)?;
             aspect_roots.push(rel);
         }
@@ -838,6 +838,13 @@ fn impact_graph<'a>(
     }
     toolchain_roots.extend(implementation_roots(&mut graph, &toolchain_roots.clone())?);
     let aspect_inputs = graph.closure(&aspect_roots);
+    let bazelrc_aspect_roots: Vec<String> = bazelrc
+        .aspects
+        .iter()
+        .filter_map(|aspect| label_path(aspect_file(aspect), "", &graph.names))
+        .map(|(rel, _)| rel)
+        .collect();
+    let bazelrc_aspect_inputs = graph.closure(&bazelrc_aspect_roots);
     let mut aspect_repos = BTreeSet::new();
     for rel in &aspect_inputs {
         let Some(text) = read(workspace, rel)? else {
@@ -911,10 +918,15 @@ fn impact_graph<'a>(
         input_repos,
         extensions,
         aspect_inputs,
+        bazelrc_aspect_inputs,
         toolchain_inputs,
         loaders,
         packages,
     })
+}
+
+fn aspect_file(aspect: &str) -> &str {
+    aspect.split('%').next().unwrap_or(aspect)
 }
 
 fn string_literals(source: &str) -> Vec<&str> {
@@ -1125,6 +1137,7 @@ pub fn bzl_impact(
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ImplicitDependencies {
     pub global: BTreeSet<String>,
+    pub aspect_tools: BTreeSet<String>,
     pub settings: BTreeMap<String, BTreeSet<String>>,
 }
 
@@ -1152,15 +1165,21 @@ pub fn implicit_dependencies(
         let Some(text) = read(workspace, rel)? else {
             continue;
         };
-        implicit.global.extend(
-            string_literals(&text)
-                .into_iter()
-                .filter(|literal| literal.starts_with("//") || literal.starts_with('@'))
-                .filter(|literal| !is_starlark_file(literal))
-                .filter_map(|literal| main_repo_label(literal, names)),
-        );
+        let labels = string_literals(&text)
+            .into_iter()
+            .filter(|literal| literal.starts_with("//") || literal.starts_with('@'))
+            .filter(|literal| !is_starlark_file(literal))
+            .filter_map(|literal| main_repo_label(literal, names));
+        if graph.bazelrc_aspect_inputs.contains(rel) {
+            implicit.global.extend(labels);
+        } else {
+            implicit.aspect_tools.extend(labels);
+        }
     }
     let global = &implicit.global;
+    implicit
+        .aspect_tools
+        .retain(|value| !global.contains(value));
     implicit.settings.retain(|value, _| !global.contains(value));
     Ok(implicit)
 }
@@ -1967,6 +1986,7 @@ override_repo(other, tool = \"overridden\")\n";
             super::implicit_dependencies(root, &[]).unwrap(),
             super::ImplicitDependencies {
                 global: BTreeSet::from(["//tc:all".to_owned(), "//tc:shared".to_owned()]),
+                aspect_tools: BTreeSet::new(),
                 settings: BTreeMap::from([
                     (
                         "//.dx:policy".to_owned(),
@@ -1982,7 +2002,7 @@ override_repo(other, tool = \"overridden\")\n";
     }
 
     #[test]
-    fn aspect_closure_labels_are_global_but_provider_loads_add_none() {
+    fn aspect_closure_labels_are_aspect_tools_but_provider_loads_add_none() {
         let scratch = dx_test_scratch::scratch("dx-load-implicit-aspects-").unwrap();
         let root = scratch.path();
         write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
@@ -2019,7 +2039,51 @@ override_repo(other, tool = \"overridden\")\n";
         assert_eq!(
             super::implicit_dependencies(root, &["//lint:aspect.bzl%lint".to_owned()]).unwrap(),
             super::ImplicitDependencies {
-                global: BTreeSet::from(["//tools:runner".to_owned()]),
+                global: BTreeSet::new(),
+                aspect_tools: BTreeSet::from(["//tools:runner".to_owned()]),
+                settings: BTreeMap::new(),
+            }
+        );
+    }
+
+    #[test]
+    fn bazelrc_aspect_closure_labels_are_global() {
+        let scratch = dx_test_scratch::scratch("dx-load-implicit-rc-aspects-").unwrap();
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(
+            root,
+            ".bazelrc",
+            "build --aspects=//rc:aspect.bzl%rc_aspect\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "rc/aspect.bzl",
+            "load(\"//lint:runner.bzl\", \"RUNNER\")\nRC = attr.label(default = \"//tools:rc\")\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "lint/aspect.bzl",
+            "load(\"//lint:runner.bzl\", \"RUNNER\")\nLINT = attr.label(default = \"//tools:lint\")\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "lint/runner.bzl",
+            "RUNNER = attr.label(default = \"//tools:runner\")\n",
+        )
+        .unwrap();
+        assert_eq!(
+            super::implicit_dependencies(root, &["//lint:aspect.bzl%lint".to_owned()]).unwrap(),
+            super::ImplicitDependencies {
+                global: BTreeSet::from([
+                    "//rc:aspect.bzl%rc_aspect".to_owned(),
+                    "//tools:rc".to_owned(),
+                    "//tools:runner".to_owned(),
+                ]),
+                aspect_tools: BTreeSet::from(["//tools:lint".to_owned()]),
                 settings: BTreeMap::new(),
             }
         );

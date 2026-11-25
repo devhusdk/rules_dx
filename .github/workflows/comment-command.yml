@@ -1,8 +1,5 @@
 name: comment-command
 
-# One workflow for every slash command, so a comment starts one run, not one per
-# command. Each job filters on the comment's first line, so a plain comment
-# starts no job.
 on:
   issue_comment:
     types: [created]
@@ -83,9 +80,6 @@ jobs:
 
   lock-refresh:
     name: dispatch lock-refresh
-    # The first line is `/lock-refresh` alone or followed by a space; the newline
-    # and carriage return come from fromJSON because expression strings have no
-    # escapes.
     if: >-
       ${{
         github.event.issue.pull_request != null
@@ -108,8 +102,6 @@ jobs:
           set -euo pipefail
           reply() { gh pr comment "$DX_NUMBER" --body "$1"; }
           line=$(printf '%s\n' "$DX_BODY" | head -n 1 | tr -d '\r')
-          # Expression comparisons ignore case, so the job also starts on
-          # `/Lock-Refresh`; only the exact command dispatches.
           case "$line" in
             /lock-refresh | "/lock-refresh "*) ;;
             *) exit 0 ;;

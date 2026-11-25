@@ -25,7 +25,10 @@ fn problems(pending_body: &str, manifest: &Value) -> Vec<String> {
     let platforms = manifest["platforms"].as_object().expect("platforms map");
     let entries = manifest["entries"].as_array().expect("entries list");
 
-    let lines: Vec<&str> = pending_body.lines().filter(|l| !l.trim().is_empty()).collect();
+    let lines: Vec<&str> = pending_body
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .collect();
     let mut sorted = lines.clone();
     sorted.sort_unstable();
     sorted.dedup();
@@ -102,7 +105,10 @@ mod unit {
 
     #[test]
     fn valid_lines_pass() {
-        assert_eq!(problems("\ngo pass_test linux_x86_64\n", &manifest()).len(), 0);
+        assert_eq!(
+            problems("\ngo pass_test linux_x86_64\n", &manifest()).len(),
+            0
+        );
     }
 
     #[test]
@@ -117,8 +123,12 @@ mod unit {
 
     #[test]
     fn invalid_lines_fail() {
-        assert!(bad("\ngo pass_test macos_arm64\ngo pass_test linux_x86_64\n"));
-        assert!(bad("\ngo pass_test linux_x86_64\ngo pass_test linux_x86_64\n"));
+        assert!(bad(
+            "\ngo pass_test macos_arm64\ngo pass_test linux_x86_64\n"
+        ));
+        assert!(bad(
+            "\ngo pass_test linux_x86_64\ngo pass_test linux_x86_64\n"
+        ));
         assert!(bad("\nzig pass_test *\n"));
         assert!(bad("\ngo run_test *\n"));
         assert!(bad("\ngo pass_test windows_x86_64\n"));

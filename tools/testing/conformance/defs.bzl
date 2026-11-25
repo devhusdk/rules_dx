@@ -70,9 +70,9 @@ def quality_config(lang, kind):
         return config.get(kind, _QUALITY_CONFIG)
     return config
 
-_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect, real_docstrfmt_format_aspect], [OutputGroupInfo])
+_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect, real_docstrfmt_format_aspect])
 
-_core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect], [OutputGroupInfo])
+_core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect])
 
 _JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
 
@@ -136,6 +136,15 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
+def _coverage_off_transition_impl(_settings, _attr):
+    return {"//command_line_option:collect_code_coverage": False, str(_FLAG): True}
+
+_coverage_off_transition = transition(
+    implementation = _coverage_off_transition_impl,
+    inputs = [],
+    outputs = ["//command_line_option:collect_code_coverage", str(_FLAG)],
+)
+
 WINDOWS_GCC_COVERAGE_OFF = ["-gcc_coverage_map_format"]
 
 def coverage_subject_settings(features, windows, instrumentation_filter):
@@ -194,6 +203,12 @@ dx_conformance_subject = _subject_rule(
     subject_transition,
     {},
     "Forwards the executable, runfiles and run environment of a subject built with the subject flag on.",
+)
+
+_coverage_off_subject = _subject_rule(
+    _coverage_off_transition,
+    {},
+    "Forwards a subject built with the subject flag on and code coverage off.",
 )
 
 _coverage_subject = _subject_rule(
@@ -333,7 +348,7 @@ dx_conformance_manifest = rule(
 def dx_coverage_test(name, subject, covered_source, args = [], instrumented_packages = [], size = "small", **kwargs):
     """Declares a coverage test that requires covered_source to be fully executed."""
     args_env = {"DX_CONFORMANCE_ARGS": " ".join(args)} if args else {}
-    dx_conformance_subject(
+    _coverage_off_subject(
         name = name + "_off_subject",
         subject = subject,
         testonly = True,
@@ -515,6 +530,13 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         target_compatible_with = _compatible_with(lang, "fail_test", not_applicable),
         visibility = ["//visibility:private"],
     )
+    _coverage_off_subject(
+        name = prefix + "coverage_off_subject",
+        subject = passing_test,
+        testonly = True,
+        target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
+        visibility = ["//visibility:private"],
+    )
     _coverage_subject(
         name = prefix + "coverage_subject",
         subject = passing_test,
@@ -564,9 +586,9 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     rust_test(
         name = prefix + "coverage_off_test",
         srcs = [Label("//tools/testing/conformance:runner_test.rs")],
-        data = [":" + prefix + "pass_subject"],
+        data = [":" + prefix + "coverage_off_subject"],
         deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
-        env = _env("coverage_off", ":" + prefix + "pass_subject", covered_source, failing_pattern),
+        env = _env("coverage_off", ":" + prefix + "coverage_off_subject", covered_source, failing_pattern),
         size = size,
         target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
         **kwargs

@@ -1,4 +1,4 @@
-using DxBench
+import DxBench
 
 numbers = collect(1:1000)
 

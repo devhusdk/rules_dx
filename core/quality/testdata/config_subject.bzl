@@ -22,8 +22,20 @@ def config_attr():
         values = sorted(TEST_CONFIGS.keys()),
     )
 
+SubjectResultsInfo = provider(
+    doc = "Real aspect results of a subject's target, kept out of its output groups so dx check skips dirty fixtures.",
+    fields = {
+        "results": "depset of File: the dx_results output group of the target.",
+    },
+)
+
+def _subject_results(subject):
+    if SubjectResultsInfo in subject:
+        return subject[SubjectResultsInfo].results
+    return subject[OutputGroupInfo].dx_results
+
 def _config_results_impl(ctx):
-    files = depset(transitive = [subject[OutputGroupInfo].dx_results for subject in ctx.attr.subject])
+    files = depset(transitive = [_subject_results(subject) for subject in ctx.attr.subject])
     if not ctx.attr.allow_empty and not files.to_list():
         fail("%s: no result files" % ctx.label)
     return [DefaultInfo(files = files, runfiles = ctx.runfiles(transitive_files = files))]
@@ -53,7 +65,9 @@ def config_subject_rule(aspects = [], providers = [], cfg = None):
     def _impl(ctx):
         target = ctx.attr.target[0]
         forwarded = [target[provider] for provider in providers if provider in target]
-        return [DefaultInfo(files = target[DefaultInfo].files)] + forwarded
+        groups = target[OutputGroupInfo] if OutputGroupInfo in target else {}
+        results = SubjectResultsInfo(results = groups["dx_results"] if "dx_results" in groups else depset())
+        return [DefaultInfo(files = target[DefaultInfo].files), results] + forwarded
 
     return rule(
         implementation = _impl,

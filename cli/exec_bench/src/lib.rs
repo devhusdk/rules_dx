@@ -27,6 +27,8 @@ use std::path::{Path, PathBuf};
 
 const SCHEMA: &str = "dx-bench/v1";
 const BENCH_FILE: &str = "dx-bench.json";
+// Bazel lists each undeclared output on its own under --nozip_undeclared_test_outputs.
+const UNZIPPED_BENCH_FILE: &str = "test.outputs/dx-bench.json";
 const CODE_BENCH_RESULTS: &str = "bench_results";
 const CODE_BENCH_COMPARE: &str = "bench_compare";
 const CODE_BENCH_REGRESSION: &str = "bench_regression";
@@ -223,13 +225,35 @@ fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, DxError> {
 
 const MAX_BENCH_BYTES: u64 = 16 << 20;
 
+fn read_unzipped(path: &Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)?;
+    let mut bytes = Vec::new();
+    file.take(MAX_BENCH_BYTES.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_BENCH_BYTES {
+        return Err(std::io::Error::other(format!(
+            "{BENCH_FILE} exceeds {MAX_BENCH_BYTES} bytes"
+        )));
+    }
+    Ok(bytes)
+}
+
 fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, DxError> {
     let zip = result
         .files
         .iter()
-        .find(|file| file.name.ends_with("outputs.zip"))
-        .ok_or_else(|| DxError::failure(format!("{BENCH_FILE} was not written")))?;
-    let bytes = dx_archive::read_zip_member(&zip.exec_path, BENCH_FILE, MAX_BENCH_BYTES)
+        .find(|file| file.name.ends_with("outputs.zip"));
+    let unzipped = result
+        .files
+        .iter()
+        .find(|file| file.name == UNZIPPED_BENCH_FILE);
+    let read = match (zip, unzipped) {
+        (Some(zip), _) => dx_archive::read_zip_member(&zip.exec_path, BENCH_FILE, MAX_BENCH_BYTES),
+        (None, Some(file)) => read_unzipped(&file.exec_path).map(Some),
+        (None, None) => Ok(None),
+    };
+    let bytes = read
         .map_err(|error| DxError::infra(format!("cannot read the test outputs: {error}")))?
         .ok_or_else(|| DxError::failure(format!("{BENCH_FILE} was not written")))?;
     parse_bench_file(&bytes)
@@ -569,6 +593,42 @@ mod tests {
             stddev: 0.5,
             iterations: 10,
         }
+    }
+
+    fn passed(files: Vec<dx_bep::TestResultFile>) -> TestResultRecord {
+        TestResultRecord {
+            label: "//b:bench".to_owned(),
+            configuration: None,
+            run: 1,
+            shard: 1,
+            attempt: 1,
+            status: Some("PASSED".to_owned()),
+            cached_locally: None,
+            duration_millis: None,
+            strategy: None,
+            files,
+        }
+    }
+
+    #[test]
+    fn an_unzipped_bench_file_is_read_directly() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let document = r#"{"schema":"dx-bench/v1","results":[{"name":"parse","unit":"ns/iter","mean":1200.0,"stddev":100.0,"iterations":0}]}"#;
+        dx_atomic_fs::write_atomic(&dir.path().join(BENCH_FILE), document.as_bytes())
+            .expect("write");
+        let result = passed(vec![dx_bep::TestResultFile {
+            name: UNZIPPED_BENCH_FILE.to_owned(),
+            exec_path: dir.path().join(BENCH_FILE),
+        }]);
+        let rows = read_result(&result).expect("read");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows.first().map(|row| row.name.as_str()), Some("parse"));
+    }
+
+    #[test]
+    fn no_outputs_means_the_bench_file_was_not_written() {
+        let error = read_result(&passed(Vec::new())).expect_err("no outputs");
+        assert!(error.to_string().contains("was not written"), "{error}");
     }
 
     #[test]

@@ -507,16 +507,10 @@ fn write_packages(root: &Path) {
     }
 }
 
-fn add_cargo_set(root: &Path, source: &Path) {
-    let version = read_text(&source.join("MODULE.bazel"))
-        .split("bazel_dep(name = \"rules_rust\", version = \"")
-        .nth(1)
-        .and_then(|rest| rest.split('"').next())
-        .map(str::to_owned)
-        .expect("rules_rust version in MODULE.bazel");
+fn add_cargo_set(root: &Path) {
     let module_path = root.join("MODULE.bazel");
     let mut module = read_text(&module_path);
-    module.push_str(&format!("\nbazel_dep(name = \"rules_rust\", version = \"{version}\")\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//deps:Cargo.lock\",\n    manifests = [\"//deps:Cargo.toml\"],\n)\nuse_repo(crate, \"crates\")\n"));
+    module.push_str("\ncargo = use_extension(\"@rules_dx//rust:extensions.bzl\", \"cargo\")\ncargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//deps:Cargo.lock\",\n    manifests = [\"//deps:Cargo.toml\"],\n)\nuse_repo(cargo, \"crates\")\n");
     write_text(&module_path, &module);
 }
 
@@ -565,7 +559,7 @@ fn every_dx_command_runs_in_a_consumer() {
     }
     write_packages(case.root());
     init_consumer(&case, &source, &dx, &init_args, TEST);
-    add_cargo_set(case.root(), &source);
+    add_cargo_set(case.root());
     case.use_lock("release_commands");
     let scratch = dx_testing::scratch_dir("dx_commands");
     let mut env = nested_env();

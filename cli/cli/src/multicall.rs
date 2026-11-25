@@ -84,6 +84,7 @@ pub enum Tool {
     SymbolsPdb,
     OcamlCcDriver,
     OcamlDune,
+    GhcMusl,
     ApplePostAction,
 }
 
@@ -104,6 +105,8 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         }
         #[cfg(not(windows))]
         "file" => Some(Tool::AppimageFile),
+        "ghc" | "ghc-iserv" | "ghc-iserv-dyn" | "ghc-iserv-prof" | "ghc-pkg" | "haddock"
+        | "hp2ps" | "hpc" | "hsc2hs" | "runghc" | "runhaskell" | "unlit" => Some(Tool::GhcMusl),
         _ => None,
     }
 }
@@ -213,6 +216,9 @@ mod tests {
             ("deploy_tool.exe", Tool::DeployTool),
             ("conda-ocaml-cc", Tool::OcamlCcDriver),
             ("x/bin/conda-ocaml-ranlib.exe", Tool::OcamlCcDriver),
+            ("x/musl_tools/ghc", Tool::GhcMusl),
+            ("x/musl_tools/ghc-iserv-prof", Tool::GhcMusl),
+            ("hsc2hs", Tool::GhcMusl),
             #[cfg(not(windows))]
             ("work/path/file", Tool::AppimageFile),
         ] {
@@ -245,6 +251,8 @@ mod tests {
             "quality",
             "conda-ocaml",
             "conda-ocaml-strip",
+            "ghc-9.10.3",
+            "ghc-toolchain-bin",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

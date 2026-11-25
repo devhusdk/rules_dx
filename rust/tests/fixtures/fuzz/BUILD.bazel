@@ -1,6 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_fuzz_test")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 
 package(
     default_testonly = True,

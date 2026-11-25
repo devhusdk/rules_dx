@@ -107,7 +107,7 @@ def dx_forwarded_test_kwargs(kwargs):
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
-    if "env" in out and kwargs.get("toolchains", None) != None:
+    if ("args" in out or "env" in out) and kwargs.get("toolchains", None) != None:
         out["toolchains"] = kwargs["toolchains"]
     if kwargs.get("exec_properties", None) != None:
         props = _dx_test_exec_properties(kwargs["exec_properties"])
@@ -644,14 +644,14 @@ def dx_wrap_forward_kwargs(kwargs):
     return out
 
 def dx_binary_run_kwargs(kwargs):
-    """Returns args, env and env_inherit, plus data only when args or env is set, for a binary forwarder."""
+    """Returns args, env and env_inherit, plus data and toolchains only when args or env is set, for a binary forwarder."""
     out = {}
     for key in ("args",) + _RUN_ENV_KEYS:
         if kwargs.get(key, None) != None:
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
         out["data"] = kwargs["data"]
-    if "env" in out and kwargs.get("toolchains", None) != None:
+    if ("args" in out or "env" in out) and kwargs.get("toolchains", None) != None:
         out["toolchains"] = kwargs["toolchains"]
     return out
 

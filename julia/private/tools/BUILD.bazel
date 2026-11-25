@@ -86,7 +86,6 @@ rust_binary(
     srcs = ["julia_src_gen.rs"],
     crate_name = "julia_src_gen",
     crate_root = "julia_src_gen.rs",
-    visibility = ["//visibility:public"],
 )
 
 # keep

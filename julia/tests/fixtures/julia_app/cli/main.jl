@@ -1,5 +1,5 @@
 import Runfiles
-using Report
+using Report: run_report
 
 function main(args)
     digits = parse(Int, get(ENV, "JULIA_APP_DIGITS", "2"))

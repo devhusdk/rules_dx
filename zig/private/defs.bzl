@@ -1,12 +1,12 @@
 """Minimal Zig wrappers."""
 
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_configure_binary = "zig_configure_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load("//tools/coverage/sancov:sancov.bzl", "dx_sancov_attrs", "dx_sancov_test_coverage")
 load(":mode.bzl", "ZigOptsInfo", "ZigReleaseFastInfo", "zig_opts_aspect")

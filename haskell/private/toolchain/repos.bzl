@@ -191,7 +191,7 @@ SETTINGS = {
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 {cc_loads}load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
-
+{musl_loads}
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["{version_file}"])
@@ -206,7 +206,7 @@ haskell_toolchain(
     libraries = toolchain_libraries,{llvm}
     locale = "{locale}",
     static_runtime = {static_runtime},
-    tools = [":bin"],
+    tools = [":{tools}"],
     version = "{version}",
 )
 
@@ -214,7 +214,7 @@ filegroup(
     name = "bin",
     srcs = glob(["bin/*"]),
 )
-
+{musl}
 filegroup(
     name = "lib",
     srcs = glob(["{libdir}/**", "{closure}/**"{host_closure}]),
@@ -227,12 +227,12 @@ filegroup(
 
 filegroup(
     name = "ghc_exe",
-    srcs = ["bin/ghc{exe_suffix}"],
+    {ghc_exe}
 )
 
 filegroup(
     name = "ghc_files",
-    srcs = [":bin", ":lib"],
+    srcs = [":{tools}", ":lib"],
 )
 
 {gmp}
@@ -242,6 +242,24 @@ filegroup(
     srcs = glob(["{closure}/licenses/*"]),
 )
 {cc}"""
+
+_MUSL_LOADS = """load("{musl_bzl}", "musl_tools")
+"""
+
+_MUSL_BUILD = """
+musl_tools(
+    name = "musl_tools",
+    srcs = [
+        ":bin",
+        "{config}",
+    ] + glob([
+        "{closure}/lib/**",
+        "{libdir}/template-hsc.h",
+        "{ghclib}/*.so*",
+    ]),
+    tools = {tools},
+)
+"""
 
 _MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
@@ -397,35 +415,41 @@ def _drop_import_libs(rctx):
     for path in dropped_import_libs(found):
         rctx.delete(path)
 
-MUSL_TOOL_ARGS = {
-    "ghc-{version}": "-B\"$root/{libdir}\"",
-    "ghc-pkg-{version}": "--global-package-db=\"$root/{libdir}/package.conf.d\"",
-    "haddock-ghc-{version}": "-B\"$root/{libdir}\"",
-    "hsc2hs-ghc-{version}": "--template=\"$root/{libdir}/template-hsc.h\"",
-    "runghc-{version}": "-f \"$root/bin/ghc\"",
-}
+MUSL_CONFIG = "dx_ghc_musl.json"
 
-MUSL_SUFFIX = ".musl"
+MUSL_TOOL_ARGS = {
+    "ghc": ["-B{root}/" + LIBDIR, "-pgmL{bin}/unlit", "-pgmi{bin}/ghc-iserv"],
+    "ghc-iserv": [],
+    "ghc-iserv-dyn": [],
+    "ghc-iserv-prof": [],
+    "ghc-pkg": ["--global-package-db={root}/" + LIBDIR + "/package.conf.d"],
+    "haddock": ["-B{root}/" + LIBDIR, "--optghc=-pgmL{bin}/unlit", "--optghc=-pgmi{bin}/ghc-iserv"],
+    "hp2ps": [],
+    "hpc": [],
+    "hsc2hs": ["--template={root}/" + LIBDIR + "/template-hsc.h"],
+    "runghc": ["-f", "{bin}/ghc"],
+    "runhaskell": ["-f", "{bin}/ghc"],
+    "unlit": [],
+}
 
 HOST_CXX_LIBRARY_DIR = "/usr/lib/gcc/"
 
-def musl_wrapper(cell, name):
-    """Returns the shell wrapper that runs one bindist executable under the shipped musl loader."""
-    extra = MUSL_TOOL_ARGS.get(name.replace(GHC_VERSION, "{version}"), "").format(libdir = LIBDIR)
-    return "\n".join([
-        "#!/bin/sh",
-        "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac",
-        "root=\"$(cd \"$bin/..\" && pwd)\"",
-        "exec \"$root/{closure}/lib/{loader}\" --library-path \"$root/{closure}/lib:$root/{ghclib}\" \"$root/bin/{name}{suffix}\" {extra} \"$@\"".format(
-            closure = CLOSURE_DIR,
-            extra = extra,
-            ghclib = ghc_library_dir(cell),
-            loader = ALL_CELLS[cell].loader,
-            name = name,
-            suffix = MUSL_SUFFIX,
-        ).replace("  ", " "),
-        "",
-    ])
+def musl_config(cell):
+    """Returns the dx ghc_musl config of one musl cell."""
+    return {
+        "library_path": [CLOSURE_DIR + "/lib", ghc_library_dir(cell)],
+        "loader": CLOSURE_DIR + "/lib/" + ALL_CELLS[cell].loader,
+        "tools": MUSL_TOOL_ARGS,
+    }
+
+def musl_argv(config, root, bin, name):
+    """Returns the argv dx ghc_musl runs for one tool of the repository at root."""
+    return [
+        root + "/" + config["loader"],
+        "--library-path",
+        ":".join([root + "/" + directory for directory in config["library_path"]]),
+        root + "/bin/" + name,
+    ] + [arg.replace("{root}", root).replace("{bin}", bin) for arg in config["tools"][name]]
 
 def host_cxx_library_dirs(conf, closure):
     """Returns the package .conf text with the host gcc library dirs replaced by the closure lib directory."""
@@ -455,25 +479,15 @@ def _apk_closure(rctx, cell):
     for alias, target in cell.loader_aliases.items():
         rctx.symlink(CLOSURE_DIR + "/lib/" + target, CLOSURE_DIR + "/lib/" + alias)
 
-def musl_wrapped(entries):
-    """Returns the sorted bin names to wrap, given (basename, realpath basename) pairs; symlinks are skipped."""
-    return sorted([name for name, real in entries if name == real])
-
-def _musl_wrappers(rctx, cell_name):
+def _musl_config(rctx, cell_name):
     if not rctx.path(LIBDIR + "/template-hsc.h").exists:
         fail("musl bindist ships no {}/template-hsc.h".format(LIBDIR))
-    bin_dir = rctx.path("bin")
-    names = musl_wrapped([(entry.basename, entry.realpath.basename) for entry in bin_dir.readdir()])
-    for name in names:
-        rctx.rename(bin_dir.get_child(name), bin_dir.get_child(name + MUSL_SUFFIX))
-        rctx.file(bin_dir.get_child(name), musl_wrapper(cell_name, name), executable = True)
-    for name in names:
-        if not bin_dir.get_child(name + MUSL_SUFFIX).exists:
-            fail("musl wrapper bin/{} has no bin/{}{}".format(name, name, MUSL_SUFFIX))
-    for key in MUSL_TOOL_ARGS:
-        name = key.format(version = GHC_VERSION)
-        if name not in names:
-            fail("musl bindist ships no regular file bin/{}".format(name))
+    for name in MUSL_TOOL_ARGS:
+        if not rctx.path("bin/" + name).exists:
+            fail("musl bindist ships no bin/" + name)
+    config = musl_config(cell_name)
+    rctx.file(MUSL_CONFIG, json.encode(config), executable = False)
+    return config
 
 def _cross_libdir(rctx, target):
     rctx.download_and_extract(
@@ -528,7 +542,6 @@ def _ghc_repo_impl(rctx):
     apks = getattr(cell, "apks", [])
     if apks:
         _apk_closure(rctx, cell)
-        _musl_wrappers(rctx, rctx.attr.cell)
     if cell.runtime:
         _runtime_closure(rctx, target_name, CLOSURE_DIR)
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings"), rctx.attr.cc_target), executable = False)
@@ -546,8 +559,16 @@ def _ghc_repo_impl(rctx):
                 stripped = closure_library_dirs(stripped, CLOSURE_DIR)
             if stripped != conf:
                 rctx.file(entry, stripped, executable = False)
-    _execute(rctx, ["bin/ghc-pkg" + host.exe_suffix, "recache", "--global"])
-    version = _execute(rctx, ["bin/ghc" + host.exe_suffix, "--numeric-version"]).stdout.strip()
+    if apks:
+        config = _musl_config(rctx, rctx.attr.cell)
+        bin_dir = rctx.path("bin")
+        ghc_pkg = musl_argv(config, str(bin_dir.dirname), str(bin_dir), "ghc-pkg")
+        ghc = musl_argv(config, str(bin_dir.dirname), str(bin_dir), "ghc")
+    else:
+        ghc_pkg = ["bin/ghc-pkg" + host.exe_suffix]
+        ghc = ["bin/ghc" + host.exe_suffix]
+    _execute(rctx, ghc_pkg + ["recache", "--global"])
+    version = _execute(rctx, ghc + ["--numeric-version"]).stdout.strip()
     if version != GHC_VERSION:
         fail("GHC bindist reports {}, not {}".format(version, GHC_VERSION))
     python = rctx.path(rctx.attr.python)
@@ -565,6 +586,7 @@ def _ghc_repo_impl(rctx):
         cc_loads = _MINGW_CC_LOADS if mingw_cc else "",
         closure = CLOSURE_DIR,
         exe_suffix = host.exe_suffix,
+        ghc_exe = "srcs = [\":musl_tools\"],\n    output_group = \"ghc\"," if apks else "srcs = [\"bin/ghc{}\"],".format(host.exe_suffix),
         host_closure = ", \"{}/**\"".format(HOST_CLOSURE_DIR) if rctx.attr.target and host.runtime else "",
         gmp = (_GMP_IMPORT if cell.runtime or apks else _GMP_EMPTY).format(
             closure = CLOSURE_DIR,
@@ -574,7 +596,15 @@ def _ghc_repo_impl(rctx):
         libraries = result["file_content"],
         llvm = llvm_toolchain_attrs(rctx.attr.llvm_backend),
         locale = host.locale,
-        # musl hsc2hs helpers run on the exec host, which may lack the musl loader.
+        musl = _MUSL_BUILD.format(
+            closure = CLOSURE_DIR,
+            config = MUSL_CONFIG,
+            ghclib = ghc_library_dir(rctx.attr.cell),
+            libdir = LIBDIR,
+            tools = repr(sorted(MUSL_TOOL_ARGS.keys())),
+        ) if apks else "",
+        musl_loads = _MUSL_LOADS.format(musl_bzl = str(Label("//haskell/private/toolchain:musl.bzl"))) if apks else "",
+        tools = "musl_tools" if apks else "bin",
         fully_static_link = bool(apks),
         static_runtime = cell.exe_suffix == ".exe",
         version = GHC_VERSION,

@@ -1,6 +1,6 @@
 module HelloApp
 
-using Greet
+using Greet: greeting
 
 function julia_main()::Cint
     println(greeting("julia"))

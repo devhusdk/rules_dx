@@ -1,8 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//haskell:defs.bzl", "haskell_bench")
 load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -65,6 +65,8 @@ dx_runner_attr_test(
         "tags": [
             "dx-bench",
             "extra",
+            "resources:cpu:2",
+            "resources:memory:2048",
         ],
         "timeout": "long",
     },

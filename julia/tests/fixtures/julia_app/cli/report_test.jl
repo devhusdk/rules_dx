@@ -1,4 +1,4 @@
-using Report
+using Report: run_report
 
 function capture(path, digits)
     out = IOBuffer()

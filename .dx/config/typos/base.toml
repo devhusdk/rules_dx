@@ -6,16 +6,16 @@ check-file = true
 [files]
 ignore-hidden = false
 extend-exclude = [
-    ".git/",
-    "*.lock",
-    "*.min.css",
-    "*.min.js",
-    "*.map",
-    "*.pb.go",
-    "*.svg",
-    "*_pb2.py",
-    "go.sum",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock",
+  ".git/",
+  "*.lock",
+  "*.min.css",
+  "*.min.js",
+  "*.map",
+  "*.pb.go",
+  "*.svg",
+  "*_pb2.py",
+  "go.sum",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
 ]

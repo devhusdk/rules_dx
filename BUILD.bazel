@@ -756,6 +756,7 @@ filegroup(
         "//haskell:extension_srcs",
         "//haskell/private/coverage:module_srcs",
         "//haskell/private/quality:module_srcs",
+        "//haskell/private/tools/ghc_musl:module_srcs",
         "//haskell/private/tools/hlint:module_srcs",
         "//haskell/private/tools/lock:module_srcs",
         "//haskell/private/tools/ormolu:module_srcs",

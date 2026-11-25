@@ -11,19 +11,6 @@ fn pins_version(pins: &str) -> String {
 }
 
 #[test]
-fn the_prebuilt_pins_are_schema_1_and_empty_on_main() {
-    let pins = read_runfiles(PINS);
-    assert!(
-        pins.lines().any(|line| line == "SCHEMA = 1"),
-        "{PINS} is not SCHEMA = 1"
-    );
-    assert!(
-        pins.lines().any(|line| line == "PINS = {}"),
-        "{PINS} has pins on main"
-    );
-}
-
-#[test]
 fn the_prebuilt_version_matches_the_module_and_the_cli() {
     let version = pins_version(&read_runfiles(PINS));
     let module = read_runfiles("MODULE.bazel");

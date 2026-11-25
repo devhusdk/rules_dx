@@ -36,8 +36,6 @@ rust_test(
     crate_name = "consumer_deps_test",
     crate_root = "consumer_deps_test.rs",
     data = [
-        "bazel_dep_allowlist.txt",
-        "bcr_newest.json",
         ":consumer_deps_json",
         "//:MODULE.bazel",
         "//:MODULE.bazel.lock",
@@ -54,40 +52,6 @@ rust_test(
         "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-    ],
-)
-
-rust_test(
-    name = "cargo_manifests_test",
-    srcs = ["cargo_manifests_test.rs"],
-    crate_name = "cargo_manifests_test",
-    crate_root = "cargo_manifests_test.rs",
-    data = ["//:module_srcs"],
-    deps = [
-        "//cli/module_bazel:dx_module_bazel",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
-    name = "oci_pins_test",
-    size = "small",
-    srcs = ["oci_pins_test.rs"],
-    aliases = aliases(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "oci_pins_test",
-    crate_root = "oci_pins_test.rs",
-    data = ["//:MODULE.bazel"],
-    deps = all_crate_deps(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//cli/module_bazel:dx_module_bazel",
-        "//tools/testing:dx_testing",
     ],
 )
 
@@ -186,56 +150,12 @@ write_source_files(
     visibility = ["//visibility:private"],
 )
 
-rust_test(
-    name = "npm_hub_test",
-    srcs = ["npm_hub_test.rs"],
-    crate_name = "npm_hub_test",
-    crate_root = "npm_hub_test.rs",
-    data = ["//:MODULE.bazel"],
-    deps = [
-        "//cli/module_bazel:dx_module_bazel",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
-    name = "python_budget_test",
-    size = "small",
-    srcs = ["python_budget_test.rs"],
-    aliases = aliases(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "python_budget_test",
-    crate_root = "python_budget_test.rs",
-    data = [
-        ":python_budget.json",
-        "//:MODULE.bazel.lock",
-    ],
-    env = {
-        "DX_PYTHON_BUDGET": "$(rootpath :python_budget.json)",
-    },
-    deps = all_crate_deps(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
-        "@crates//:serde_json",
-    ],
-)
-
 test_suite(
     name = "all",
     tests = [
-        ":cargo_manifests_test",
         ":consumer_deps_test",
         ":lang_json_test",
         ":lang_projections_test",
-        ":npm_hub_test",
-        ":python_budget_test",
         ":versions_contract",
     ],
 )
@@ -249,7 +169,6 @@ exports_files([
     "langs.bzl",
     "lock.schema.json",
     "lock_registry.bzl",
-    "python_budget.json",
     "python_consumer_budget.json",
     "versions.bzl",
 ])

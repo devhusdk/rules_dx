@@ -10,10 +10,6 @@ BOOK_INTRO = (
     "Install Bazel via Bazelisk, then run `dx` through Bazel:"
 )
 
-BOOK_EXCLUDED_DOCS = [
-    "docs/AGENTS.md",
-]
-
 INDEX_LINK_LIST = "```sh" + "\n" + "bazel run @rules_dx//:dx -- --help" + "\n" + "```"
 
 USER_BOOK = [

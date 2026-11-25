@@ -279,34 +279,6 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           bazel mod show_repo --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates >/dev/null
-      - name: Check the direct zip and tar dependents match the allowlist (#13357)
-        if: ${{ matrix.platform == 'linux_x86_64' }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          allowlist=tools/ci/archive_crates_allowlist.txt
-          crates='crates//((zip|tar)-[0-9][^:]*)?:(zip|tar)(-[0-9][^,]*)?(,|\]|$)'
-          bazel query --noshow_progress --output=label "$@" "attr(deps, \"$crates\", //...)" > "$RUNNER_TEMP/archive-all"
-          if ! grep -qx '//cli/archive:dx_archive_upstream' "$RUNNER_TEMP/archive-all"; then
-            echo "::error::The zip and tar dependents query did not find //cli/archive:dx_archive_upstream"
-            exit 1
-          fi
-          awk '!/^\/\/cli\/archive[:\/]/' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents"
-          LC_ALL=C sort -u -o "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-dependents"
-          LC_ALL=C sort -u "$allowlist" > "$RUNNER_TEMP/archive-allowlist"
-          new="$(LC_ALL=C comm -23 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"
-          stale="$(LC_ALL=C comm -13 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"
-          if [ -n "$new" ]; then
-            echo "::error::These targets depend on the zip or tar crate directly; use //cli/archive:dx_archive instead:"
-            printf '%s\n' "$new"
-          fi
-          if [ -n "$stale" ]; then
-            echo "::error::These ${allowlist} lines no longer depend on zip or tar; delete them:"
-            printf '%s\n' "$stale"
-          fi
-          if [ -n "$new" ] || [ -n "$stale" ]; then
-            exit 1
-          fi
       - name: Record the Windows rmeta diagnostics (#4850)
         if: ${{ failure() && steps.bootstrap-build.outcome == 'failure' && runner.os == 'Windows' }}
         env:
@@ -379,25 +351,20 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
+          bazel test --noshow_progress --test_output=errors --test_timeout=300 //tools/ci:actionlint_test //tools/docs/rule_names:rule_names_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
-      - name: Fail when a public rust library is missing from PUBLIC_RUST_CRATES
-        run: |
-          # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
-          tools/docs/site/public_rust_crates_guard.sh "$@"
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### workflow-check — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; no expressions in run blocks; bazel mod tidy; PUBLIC_RUST_CRATES covers every public rust library." >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
     if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}

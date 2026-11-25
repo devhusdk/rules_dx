@@ -303,7 +303,6 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
         return;
     }
     let (case, _) = locked_consumer("internal_load");
-    // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
     case.write(
         "BUILD.bazel",
         "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"TAXONOMY\")\n\nfilegroup(name = \"all\", tags = [str(len(TAXONOMY))])\n",

@@ -106,17 +106,6 @@ rust_test(
     ],
 )
 
-rust_test(
-    name = "gazelle_ignore_test",
-    size = "small",
-    srcs = ["gazelle_ignore_test.rs"],
-    data = ["//%s/tests/conformance:BUILD.bazel" % lang for lang in suite_langs()],
-    env = {
-        "DX_CONFORMANCE_BUILD_FILES": " ".join(["$(rlocationpath //%s/tests/conformance:BUILD.bazel)" % lang for lang in suite_langs()]),
-    },
-    deps = ["//tools/testing:dx_testing"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

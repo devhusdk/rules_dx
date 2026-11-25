@@ -13,9 +13,8 @@ This repository uses Bazel.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`. Keep them user-facing; still no rationale, history, or issue numbers.
 - No comments in any language, Rust `///`/`//!` and Go doc comments included. Use names and tests instead. Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
 - Kept: tool directives, shebangs, license headers, lines tools parse (`# Why:`, `# Upstream:`, `# dx:`), `LCOV_EXCL_*`, `# floor:`, `// SAFETY:`, one Starlark docstring line per item, one clap `--help` line per flag.
-- `//tools/ci:comment_budget_test` caps comments per file. Never raise a budget; `tools/dx run //tools/ci:comment_budget_update` lowers it.
-- `//tools/ci:sleep_budget_test` caps fixed sleeps per test file. Wait on the event with a deadline instead; never raise a budget; `tools/dx run //tools/ci:sleep_budget_update` lowers it.
-- Nothing is released, so write no compatibility code: no deprecated attr, in-module `alias`, re-export `.bzl` file, version conditional, or name that says so. `//tools/ci:zero_compat_test` checks it.
+- Nothing is released, so write no compatibility code: no deprecated attr, in-module `alias`, re-export `.bzl` file, version conditional, or name that says so.
+- No tests that scan the repo for forbidden text or assert code doesn't contain something: no grep guards, budgets, source-scanning allowlists, or tests that pin workflow text.
 - Rules that choose what to build for take `platforms`, a string list; `target_compatible_with` only marks compatibility.
 - Write plain and human, like you are showing a colleague. Short sentences, everyday words, commands first. In docs, one line on what a thing does and when to use it is welcome. Leave out design backstory, except the "What rules_dx replaces" section in `README.md`.
 - Don't wait on upstream. Patch it here, or fetch the fixed rule set in rules_dx's own module extension, so consumers get the fix now. Then fix it upstream too: open an upstream issue first, then a small PR that follows that repo's contributing guide and style and includes a regression test. Link both from the rules_dx issue. Delete our patch once a release carries the fix.

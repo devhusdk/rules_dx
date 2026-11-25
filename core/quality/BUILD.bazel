@@ -658,14 +658,6 @@ clang_syntax_analysis_tests(name = "clang_syntax_analysis")
 compile_check_unit_tests(name = "compile_check_unit")
 
 rust_test(
-    name = "unavailable_rows_test",
-    srcs = ["unavailable_rows_test.rs"],
-    data = ["//rust/private/quality/tools:BUILD.bazel"] + glob(["families/*_tools.bzl"]),
-    tags = ["no-coverage"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "buildifier_config_test",
     srcs = ["buildifier_config_test.rs"],
     data = [
@@ -748,8 +740,6 @@ test_suite(
 test_suite(
     name = "rust_policy",
     tests = [
-        ":jvm_classpath_policy_test",
-        ":jvm_classpath_policy_test_upstream",
         ":preset_settings_test",
         ":preset_settings_test_upstream",
     ],
@@ -761,8 +751,6 @@ test_suite(
         ":buildifier_config_test",
         ":buildifier_config_test_upstream",
         ":suite_membership_test",
-        ":unavailable_rows_test",
-        ":unavailable_rows_test_upstream",
     ],
 )
 
@@ -854,25 +842,6 @@ real_source_target(
         "wrapper_owners.bzl",
     ] + glob(["families/*.bzl"]),
     tags = ["corpus"],
-)
-
-rust_test(
-    name = "jvm_classpath_policy_test",
-    srcs = ["jvm_classpath_policy_test.rs"],
-    data = glob([
-        "*.bzl",
-        "families/*.bzl",
-    ]) + [
-        "//java/private/quality:jvm.bzl",
-        "//java/private/quality:jvm_check.bzl",
-        "//java/private/quality:jvm_info.bzl",
-        "//kotlin/private/quality:kotlin.bzl",
-        "//kotlin/private/quality:kotlinc_check.bzl",
-        "//scala/private/quality:scala.bzl",
-        "//scala/private/quality:scalac_check.bzl",
-    ],
-    tags = ["no-coverage"],
-    deps = ["//tools/testing:dx_testing"],
 )
 
 rust_test(

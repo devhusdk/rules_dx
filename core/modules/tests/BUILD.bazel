@@ -1,6 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
 load(":cuda_redistrib_tests.bzl", "cuda_redistrib_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -10,41 +8,10 @@ cuda_redistrib_tests(
     size = "small",
 )
 
-rust_test(
-    name = "loaders_test",
-    size = "small",
-    srcs = ["loaders_test.rs"],
-    aliases = aliases(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "loaders_test",
-    crate_root = "loaders_test.rs",
-    data = [
-        "//:MODULE.bazel",
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-    },
-    deps = all_crate_deps(
-        package_name = "core/modules_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//cli/module_bazel:dx_module_bazel",
-        "//tools/testing:dx_testing",
-    ],
-)
-
 test_suite(
     name = "all",
     tests = [
         ":cuda_redistrib",
-        ":loaders_test",
     ],
 )
 

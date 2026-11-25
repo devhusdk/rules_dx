@@ -2,11 +2,10 @@
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
 )]
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use dx_testing::{read_runfiles, runfiles_root};
+use dx_testing::runfiles_root;
 
 const CONFIG: &str = ".github/actionlint.yaml";
 
@@ -26,10 +25,6 @@ const OVERSIZED_HEADER: &str =
 const OVERSIZED_SCRIPT_LINES: usize = 2048;
 
 const LARGEST_PIPE_BUFFER: usize = 64 * 1024;
-
-const PLATFORM_RUNNERS: &str = "tools/ci/input_validation/src/lib.rs";
-
-const SUPPORTED_PLATFORMS: usize = 5;
 
 const EXPECTED_FIXTURE_FINDINGS: [&str; 5] = [
     "input \"runner\" is required by \"./.github/workflows/reusable.yml\" reusable workflow [workflow-call]",
@@ -194,146 +189,5 @@ fn a_run_script_larger_than_a_pipe_buffer_reaches_shellcheck() {
         ),
         "shellcheck must report only the unquoted expansion at the end of the oversized script:\n{}",
         reported.join("\n")
-    );
-}
-
-fn configured_runners() -> Vec<String> {
-    let text = read_runfiles(CONFIG);
-    let document: serde_json::Value = yaml_serde::from_str(&text)
-        .unwrap_or_else(|error| panic!("{CONFIG} is not valid YAML: {error}"));
-    let labels = document["self-hosted-runner"]["labels"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{CONFIG} declares no self-hosted-runner labels"));
-    let mut runners: Vec<String> = labels
-        .iter()
-        .map(|label| {
-            label
-                .as_str()
-                .unwrap_or_else(|| panic!("{CONFIG} holds a label that is not a string"))
-                .to_owned()
-        })
-        .collect();
-    runners.sort();
-    runners
-}
-
-fn platform_table() -> BTreeMap<String, String> {
-    let text = read_runfiles(PLATFORM_RUNNERS);
-    let start = text
-        .find("PLATFORMS: [")
-        .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} declares no PLATFORMS table"));
-    let table = text.get(start..).expect("string slice within bounds");
-    let end = table
-        .find("\n];")
-        .unwrap_or_else(|| panic!("{PLATFORM_RUNNERS} leaves the PLATFORMS table open"));
-    table
-        .get(..end)
-        .expect("string slice within bounds")
-        .lines()
-        .filter_map(|line| {
-            let (key, value) = line.trim().strip_prefix("(\"")?.split_once("\", \"")?;
-            Some((key.to_owned(), value.trim_end_matches("\"),").to_owned()))
-        })
-        .collect()
-}
-
-fn platform_runners() -> Vec<String> {
-    let mut runners: Vec<String> = platform_table().into_values().collect();
-    runners.sort();
-    runners
-}
-
-fn matrix_runner_problems(
-    name: &str,
-    document: &serde_json::Value,
-    table: &BTreeMap<String, String>,
-) -> (Vec<String>, usize) {
-    let mut problems = Vec::new();
-    let mut checked = 0;
-    let Some(jobs) = document["jobs"].as_object() else {
-        return (problems, checked);
-    };
-    for (job, body) in jobs {
-        let Some(include) = body["strategy"]["matrix"]["include"].as_array() else {
-            continue;
-        };
-        for entry in include {
-            let Some(runner) = entry["runner"].as_str() else {
-                continue;
-            };
-            if runner.starts_with("${{") {
-                continue;
-            }
-            checked += 1;
-            match entry["platform"].as_str() {
-                Some(platform) => match table.get(platform) {
-                    Some(expected) if expected == runner => {}
-                    Some(expected) => problems.push(format!(
-                        "{name} job {job}: {platform} runs on {runner}, but {PLATFORM_RUNNERS} maps it to {expected}"
-                    )),
-                    None => problems.push(format!(
-                        "{name} job {job}: {platform} is not a platform in {PLATFORM_RUNNERS}"
-                    )),
-                },
-                None if table.values().any(|label| label == runner) => {}
-                None => problems.push(format!(
-                    "{name} job {job}: runner {runner} is not a runner in {PLATFORM_RUNNERS}"
-                )),
-            }
-        }
-    }
-    (problems, checked)
-}
-
-#[test]
-fn every_matrix_runner_is_a_platform_runner() {
-    let table = platform_table();
-    let mut problems = Vec::new();
-    let mut checked = 0;
-    for (workflow, document) in ci_workflow::all().unwrap() {
-        let (found, count) = matrix_runner_problems(&workflow, &document, &table);
-        problems.extend(found);
-        checked += count;
-    }
-    assert!(
-        checked > 0,
-        "no workflow matrix names a literal runner; the parity check checked nothing"
-    );
-    assert!(
-        problems.is_empty(),
-        "workflow matrix runners drifted from {PLATFORM_RUNNERS}:\n{}",
-        problems.join("\n")
-    );
-}
-
-#[test]
-fn a_retired_matrix_runner_is_caught() {
-    let text = "jobs:\n  build:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-13\n          - name: dx-macos-arm64\n            runner: macos-13\n";
-    let document = ci_workflow::parse("retired.yml", text).unwrap();
-    let (problems, checked) = matrix_runner_problems("retired.yml", &document, &platform_table());
-    assert_eq!(checked, 2);
-    assert_eq!(problems.len(), 2, "{problems:?}");
-    assert!(
-        problems[0].contains("macos_arm64 runs on macos-13"),
-        "{problems:?}"
-    );
-    assert!(
-        problems[1].contains("runner macos-13 is not a runner"),
-        "{problems:?}"
-    );
-}
-
-#[test]
-fn the_actionlint_config_names_every_platform_runner() {
-    let runners = platform_runners();
-    assert_eq!(
-        runners.len(),
-        SUPPORTED_PLATFORMS,
-        "{PLATFORM_RUNNERS} must map every supported platform"
-    );
-    assert_eq!(
-        configured_runners(),
-        runners,
-        "{CONFIG} must accept every runner the matrix runs on"
     );
 }

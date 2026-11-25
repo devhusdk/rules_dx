@@ -1,5 +1,5 @@
 {
-  "checksum": "89a930f9a55d4f8850e9658f124f271826bffdebb236d9bc8898e05650c56bf1",
+  "checksum": "1eaff669e9b0b974f5ea6617d6dc0ae9e4a32ad95e8b742418d66d13942d67f9",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1300,19 +1300,6 @@
         "Apache-2.0"
       ],
       "name": "appimage_tests",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
-    "apple_tests 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "apple_tests",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -21601,19 +21588,6 @@
       "targets": [],
       "version": "0.0.0"
     },
-    "quality_tiers 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "quality_tiers",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
     "quality_tools_jvm 0.0.0": {
       "common_attrs": {
         "edition": "2024"
@@ -33594,7 +33568,6 @@
     "api_spec_tests 0.0.0": "api_spec/api_spec_tests",
     "appimage_packer 0.0.0": "appimage/private/tools/appimage_packer",
     "appimage_tests 0.0.0": "appimage/appimage_tests",
-    "apple_tests 0.0.0": "apple/apple_tests",
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "beam_extract 0.0.0": "tools/docs/beam/beam_extract",
@@ -33762,7 +33735,6 @@
     "quality_result 0.0.0": "core/quality/quality_result",
     "quality_runner 0.0.0": "core/quality/quality_runner",
     "quality_tests 0.0.0": "core/quality/quality_tests",
-    "quality_tiers 0.0.0": "core/quality/quality_tiers",
     "quality_tools_jvm 0.0.0": "java/quality_tools_jvm",
     "rego_tests 0.0.0": "rego/rego_tests",
     "repin_all 0.0.0": "tools/repin_all",

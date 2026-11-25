@@ -6,12 +6,11 @@ This page fixes the repository layout.
 
 - The repo is one Bazel module, `rules_dx`. Users add one `bazel_dep`.
 - Language rule sets are `bazel_dep`s of `rules_dx` at their `# floor:` versions. Bazel fetches a rule set only when a loaded `.bzl` file needs it.
-- Core never loads a language `.bzl` file, except `core/quality/tools.bzl`, which loads the `_tools.bzl` files. A test enforces it.
+- Core never loads a language `.bzl` file, except `core/quality/tools.bzl`, which loads the `_tools.bzl` files.
 - dx loads a language's quality aspects only when the workspace has that language's files.
 - `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends back as a normal `bazel_dep`.
 - A rule-set module holds the build rules: toolchain, `<lang>_library`, `<lang>_binary`, `<lang>_test`, `<lang>_bench`, providers, runtime pins and the dependency hub. Its public API is `@rules_<lang>//<lang>:defs.bzl` and `@rules_<lang>//<lang>:extensions.bzl`.
 - `<lang>/` in rules_dx keeps the dx layer: `lang.json`, quality, coverage, docs, Gazelle and CLI ecosystem code; `<lang>/private/defs.bzl` wraps the rule-set macros.
-- A rule-set module loads from rules_dx only `@rules_dx//rust:defs.bzl` and the files in `RULES_DX_ALLOW` of `tools/ci/rule_set_loads_test.rs`.
 - `NativeRuntimeInfo`, `native_runtime` and every `consumer_archive` wrapper stay in rules_dx `deploy/`. A rule-set module ships no runtime metadata; `deploy/` wraps its outputs.
 - rules_dx's floor on each rule-set module is `equals tested` and moves with each rules_dx release.
 - There are no family modules. A family is a grouping label in the language manifest, used for CI sharding and docs.
@@ -55,7 +54,6 @@ This rule covers every public `<lang>_binary`, `<lang>_test`, `<lang>_bench` and
 - `srcs` defaults to `None` in binary and test macros. A bench or fuzz macro may require it.
 - `main` names the entry file, follows `srcs` and defaults to `None`.
 - No macro takes `entry_point`. JVM macros take `main_class` or `target_class`.
-- `tools/testing/signatures/macro_signatures.py` checks the parameter order, the defaults and the absence of `entry_point`. It lists the macros that require `srcs` or `main`.
 
 ## Shared directories
 
@@ -82,8 +80,8 @@ examples/   tested examples
 - `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
 - `patches/` holds upstream patches and the rules_dx registry; the patch table is generated from them.
-- The root holds only language directories with a `lang.json` and the directories above. A test enforces this list, with no pending entries.
-- Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
+- The root holds only language directories with a `lang.json` and the directories above.
+- Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package.
 
 ## Quality code
 
@@ -131,7 +129,6 @@ examples/   tested examples
 - `dx update` rewrites the files. Nobody edits them by hand.
 - The manifest `pins` field names the language's pin files.
 - A rule-set module reads its own `pins.json` with its own extension, and `dx update` rewrites it in that module's repo.
-- `//tools/ci:pin_locations_test` guards this. `tools/ci/pin_locations_allowlist.txt` lists what is left and only shrinks.
 
 ## Generated files
 

@@ -116,15 +116,6 @@ Name | Holds
 - Any other topic is a `###` heading under one of them.
 - It has no `Install`, `Start` or `Rules` section.
 
-## Structure lint
-
-- `//tools/testing:language_skeleton_test` is a `rust_test` that reads the snapshots that `docs/design/test-guards.md` names.
-- `paths.json` gives it entries, pin files, `private/` names and fixture directories. `files.json` gives it README text.
-- It checks the Entries, Private directories, Public names, Toolchains and README rules, the test and fixture locations, and the two decidable Platforms rules: the type of each `platforms` attr and the option name under `private/`.
-- `tools/testing/language_skeleton_allowlist.txt` holds one line per violation: `<rule> <path>`. Lines are sorted.
-- The lint fails on a violation with no line and on a line with no violation.
-- The allowlist only shrinks. A new language directory needs no line.
-
 ## New language
 
 A new language takes these steps only.

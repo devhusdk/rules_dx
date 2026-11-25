@@ -1,6 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//python:defs.bzl", "python_test")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":facts.bzl", "support_matrix_facts")
@@ -140,21 +139,6 @@ rust_binary(
         "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:serde_json",
     ],
-)
-
-python_test(
-    name = "macro_rows_test",
-    srcs = ["macro_rows.py"],
-    data = [
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-    },
-    main = "macro_rows.py",
-    runner = "plain",
 )
 
 real_source_target(

@@ -1,8 +1,0 @@
-android/tests/fixtures/rust_apk/device_run.sh sleep 4
-cli/cli/src/exec/stream_probe_tests.rs sleep 1
-elixir/tests/fixtures/elixir_app/stock/test/ledger_test.exs sleep 1
-erlang/tests/fixtures/erlang_app/store/test/kv_store_SUITE.erl sleep 1
-flutter/tests/fixtures/flutter_app/apk/interaction_test.rs sleep 2
-flutter/tests/fixtures/flutter_app/ios/simulator_smoke_test.rs sleep 2
-tools/testing/hermetic/appcontainer/user.rs sleep 3
-tools/testing/process_probe/src/main.rs sleep 1

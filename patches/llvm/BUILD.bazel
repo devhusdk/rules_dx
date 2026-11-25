@@ -11,6 +11,7 @@ exports_files([
     "msvc_fuzzer.patch",
     "mingw_coff_no_timestamp.patch",
     "msvc_coverage.patch",
+    "internal_symbolizer_linkmode.patch",
 ])
 
 real_source_target(

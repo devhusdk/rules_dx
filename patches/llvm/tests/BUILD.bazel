@@ -114,6 +114,11 @@ rust_test(
 )
 
 test_suite(
+    name = "internal_symbolizer_linkmode_test",
+    tests = ["@llvm//tests/internal_symbolizer_linkmode:internal_symbolizer_linkmode_test"],
+)
+
+test_suite(
     name = "stage0_features_test",
     tests = ["@llvm//tests/stage0_features:stage0_features_test"],
 )

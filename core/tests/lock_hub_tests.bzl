@@ -1,7 +1,7 @@
 """The checks on the shared lock hub."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:pins.bzl", "hub_name", "lock_problems")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 
 _DIGEST = "a" * 64
 

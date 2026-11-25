@@ -26,10 +26,7 @@ fn checked_in_snapshot_matches_the_code() {
             std::fs::read(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
         })
         .collect();
-    let forwards: Vec<String> = dx_testing::env_files("DX_API_FORWARDS")
-        .iter()
-        .map(|path| dx_testing::read_text(path))
-        .collect();
+    let forwards = dx_testing::read_text(&dx_testing::env_file("DX_API_FORWARDS"));
     let files = snapshot::render(&builds, &starlark, &forwards).expect("snapshot renders");
     let paths = dx_testing::env_text("DX_API_SNAPSHOT");
     let mut stale = Vec::new();
@@ -62,7 +59,7 @@ fn checked_in_snapshot_matches_the_code() {
     }
     assert!(
         stale.is_empty(),
-        "the public API changed: {}. If the change is intended, run `bazel run //tools/api:update` and commit the result",
+        "the public API changed: {}. If the change is intended, run `bazel run //tools/api:update -- --bazel \"$(command -v bazel)\"` and commit the result",
         stale.join(", ")
     );
 }

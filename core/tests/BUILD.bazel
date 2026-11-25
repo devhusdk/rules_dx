@@ -339,7 +339,6 @@ real_source_target(
         "hermetic_launcher_tests.bzl",
         "platform_subject.bzl",
         "platform_tests.bzl",
-        "hub_order_tests.bzl",
     ],
     tags = ["corpus"],
 )

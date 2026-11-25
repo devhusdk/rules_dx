@@ -96,6 +96,12 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           "$RUNNER_TEMP/dx-bin/dx" generate -- "$@" < /dev/null
+      - name: Check api/forwards.json against the consumer fixtures
+        if: ${{ !cancelled() && matrix.platform == 'linux_x86_64' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/api:update -- --bazel "$(command -v bazel)" --check
       - name: Check the upload holds no secret
         id: scan-results
         if: ${{ always() }}

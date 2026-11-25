@@ -1,9 +1,9 @@
 """Unit tests for the shared packaging helpers."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:packaging.bzl", "claim_dest", "data_path")
 load("//core:platform.bzl", "prepend_toolchains", "single_platform_error")
 load("//core:rlocation.bzl", "external_path", "repo_relative_path", "rlocation_path", "runfiles_path")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _data_path_checks():
     root = struct(repo_name = "", package = "")

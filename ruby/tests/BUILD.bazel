@@ -1,7 +1,7 @@
 load("//core/modules:versions.bzl", "RUBY_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core/tests:hub_order_tests.bzl", "hub_order_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/testing:hub_order_tests.bzl", "hub_order_test")
 load(":defs_tests.bzl", "ruby_wrapper_contract_tests")
 load(":toolchain_tests.bzl", "ruby_crlf_tests", "ruby_gems_frozen_tests", "ruby_metadata_tests", "ruby_toolchain_contract_tests")
 
@@ -57,7 +57,7 @@ real_source_target(
 hub_order_test(
     name = "hub_order_test",
     size = "small",
-    hub = "@dx_ruby_toolchains",
+    build = "@dx_hub_builds//:ruby.txt",
     names = [
         "toolchain_arm64_darwin",
         "toolchain_arm64_linux",

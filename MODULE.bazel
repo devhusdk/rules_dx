@@ -3302,6 +3302,17 @@ _api_fixtures(
     dev_dependency = True,
 )
 
+_hub_builds = use_repo_rule("//tools/ci:repos.bzl", "hub_builds")
+
+_hub_builds(
+    name = "dx_hub_builds",
+    builds = {
+        "dotnet.txt": "@dx_dotnet_toolchains//:BUILD.bazel",
+        "ruby.txt": "@dx_ruby_toolchains//:BUILD",
+    },
+    dev_dependency = True,
+)
+
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_arm64", "nested_bazel_windows_x86_64")
 

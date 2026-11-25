@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_module_bazel::{ModuleFile, Value as Arg};
 use dx_plan::args::{help_environment, help_surface};
 use prost::Message;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use stardoc_output_proto::stardoc_output::{
     AttributeInfo, FunctionParamInfo, FunctionParamRole, ModuleInfo, StarlarkFunctionInfo,
@@ -35,7 +36,7 @@ pub struct Builds {
 pub fn render(
     builds: &Builds,
     starlark: &[Vec<u8>],
-    forwards: &[String],
+    forwards: &str,
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
     labels.push_str(&target_labels_txt(builds)?);
@@ -50,7 +51,7 @@ pub fn render(
 
 fn starlark_json(
     modules: &[Vec<u8>],
-    forwards: &[String],
+    forwards: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let modules = modules
         .iter()
@@ -230,50 +231,25 @@ fn has_kwargs(params: &[FunctionParamInfo]) -> bool {
 
 type Forwards = BTreeMap<String, BTreeSet<String>>;
 
+#[derive(Deserialize)]
+struct Forward {
+    kind: String,
+    function: String,
+    attrs: BTreeSet<String>,
+}
+
 fn forwards_by_function(
-    outputs: &[String],
+    forwards_json: &str,
 ) -> Result<BTreeMap<String, Forwards>, Box<dyn std::error::Error>> {
+    let records: Vec<Forward> = serde_json::from_str(forwards_json)?;
     let mut forwards: BTreeMap<String, Forwards> = BTreeMap::new();
-    for line in outputs.iter().flat_map(|text| text.lines()) {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let target: Value = serde_json::from_str(line)?;
-        let Some(rule) = target.get("rule") else {
-            continue;
-        };
-        let attrs = rule["attribute"]
-            .as_array()
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        let Some(function) = attrs
-            .iter()
-            .find(|attr| attr["name"] == "generator_function")
-            .and_then(|attr| attr["stringValue"].as_str())
-            .filter(|function| !function.is_empty())
-        else {
-            continue;
-        };
-        let kind = rule["ruleClass"]
-            .as_str()
-            .ok_or_else(|| format!("{} has no ruleClass", rule["name"]))?;
-        let set = forwards
-            .entry(function.to_owned())
+    for record in records {
+        forwards
+            .entry(record.function)
             .or_default()
-            .entry(kind.to_owned())
-            .or_default();
-        set.extend(
-            attrs
-                .iter()
-                .filter(|attr| attr["explicitlySpecified"] == true)
-                .filter_map(|attr| attr["name"].as_str())
-                .filter(|name| {
-                    !name.starts_with(['$', ':'])
-                        && *name != "name"
-                        && !name.starts_with("generator_")
-                })
-                .map(str::to_owned),
-        );
+            .entry(record.kind)
+            .or_default()
+            .extend(record.attrs);
     }
     Ok(forwards)
 }
@@ -666,14 +642,14 @@ mod tests {
 
     #[test]
     fn starlark_json_keeps_signatures_and_drops_docs() {
-        let text = starlark_json(&[module("[]", "Old docs.")], &[]).expect("module decodes");
+        let text = starlark_json(&[module("[]", "Old docs.")], "[]").expect("module decodes");
         assert_eq!(
             text,
-            starlark_json(&[module("[]", "New docs.")], &[]).expect("module decodes")
+            starlark_json(&[module("[]", "New docs.")], "[]").expect("module decodes")
         );
         assert_ne!(
             text,
-            starlark_json(&[module("[\"a.txt\"]", "Old docs.")], &[]).expect("module decodes")
+            starlark_json(&[module("[\"a.txt\"]", "Old docs.")], "[]").expect("module decodes")
         );
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
         let entry = &json[0];
@@ -702,43 +678,26 @@ mod tests {
         assert!(!text.contains("docs"), "{text}");
     }
 
-    fn target(function: &str, kind: &str, edition: &str) -> String {
+    fn target(function: &str, kind: &str, attr: &str) -> serde_json::Value {
         serde_json::json!({
-            "type": "RULE",
-            "rule": {
-                "name": "//pkg:lib",
-                "ruleClass": kind,
-                "attribute": [
-                    {"name": "name", "type": "STRING", "stringValue": "lib", "explicitlySpecified": true},
-                    {"name": "generator_function", "type": "STRING", "stringValue": function, "explicitlySpecified": true},
-                    {"name": "generator_name", "type": "STRING", "stringValue": "lib", "explicitlySpecified": true},
-                    {"name": "edition", "type": "STRING", "stringValue": edition, "explicitlySpecified": true},
-                    {"name": "srcs", "type": "LABEL_LIST", "explicitlySpecified": true},
-                    {"name": "crate_root", "type": "LABEL", "explicitlySpecified": false},
-                    {"name": "$toolchain", "type": "LABEL", "explicitlySpecified": true},
-                    {"name": ":host", "type": "LABEL", "explicitlySpecified": true},
-                ],
-            },
+            "label": "//pkg:lib",
+            "kind": kind,
+            "function": function,
+            "attrs": [attr, "srcs"],
         })
-        .to_string()
+    }
+
+    fn forwards(targets: &[serde_json::Value]) -> String {
+        serde_json::Value::Array(targets.to_vec()).to_string()
     }
 
     #[test]
     fn forwards_record_each_kind_and_its_set_attrs() {
-        let unrelated = serde_json::json!({
-            "type": "RULE",
-            "rule": {"name": "//pkg:plain", "ruleClass": "filegroup", "attribute": [
-                {"name": "srcs", "type": "LABEL_LIST", "explicitlySpecified": true},
-            ]},
-        })
-        .to_string();
-        let output = [
-            target("demo_test", "rust_test", "2024"),
-            target("demo_test", "rust_library", "2024"),
-            unrelated,
-        ]
-        .join("\n");
-        let text = starlark_json(&[module("[]", "Docs.")], &[output]).expect("module decodes");
+        let output = forwards(&[
+            target("demo_test", "rust_test", "edition"),
+            target("demo_test", "rust_library", "edition"),
+        ]);
+        let text = starlark_json(&[module("[]", "Docs.")], &output).expect("module decodes");
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
         assert_eq!(
             json[0]["functions"][0]["forwards"],
@@ -747,25 +706,30 @@ mod tests {
                 {"kind": "rust_test", "attrs": ["edition", "srcs"]},
             ])
         );
-        let mut changed = target("demo_test", "rust_test", "2024");
-        changed = changed.replace("\"edition\"", "\"crate_name\"");
+        let changed = forwards(&[target("demo_test", "rust_test", "crate_name")]);
         assert_ne!(
             text,
-            starlark_json(&[module("[]", "Docs.")], &[changed]).expect("module decodes")
+            starlark_json(&[module("[]", "Docs.")], &changed).expect("module decodes")
         );
+    }
+
+    #[test]
+    fn forwards_json_must_be_a_list_of_records() {
+        starlark_json(&[module("[]", "Docs.")], r#"[{"kind": "rust_test"}]"#)
+            .expect_err("the record has no function");
     }
 
     #[test]
     fn a_generator_function_without_a_public_macro_is_an_error() {
         let error = starlark_json(
             &[module("[]", "Docs.")],
-            &[target("hidden_macro", "rust_test", "2024")],
+            &forwards(&[target("hidden_macro", "rust_test", "edition")]),
         )
         .expect_err("hidden_macro is not public");
         assert!(error.to_string().contains("hidden_macro"), "{error}");
         let error = starlark_json(
             &[module("[]", "Docs."), module("[]", "Docs.")],
-            &[target("demo_test", "rust_test", "2024")],
+            &forwards(&[target("demo_test", "rust_test", "edition")]),
         )
         .expect_err("demo_test is in two modules");
         assert!(error.to_string().contains("demo_test"), "{error}");
@@ -782,7 +746,7 @@ mod tests {
         }
         let text = starlark_json(
             &[info.encode_to_vec()],
-            &[target("demo_test", "rust_test", "2024")],
+            &forwards(&[target("demo_test", "rust_test", "edition")]),
         )
         .expect("demo_test is public");
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
@@ -802,7 +766,7 @@ mod tests {
         }
         let text = starlark_json(
             &[info.encode_to_vec()],
-            &[target("upstream_test", "rust_test", "2024")],
+            &forwards(&[target("upstream_test", "rust_test", "edition")]),
         )
         .expect("upstream_test is the declared name of demo_test");
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
@@ -813,7 +777,7 @@ mod tests {
         );
         starlark_json(
             &[info.encode_to_vec()],
-            &[target("demo_test", "rust_test", "2024")],
+            &forwards(&[target("demo_test", "rust_test", "edition")]),
         )
         .expect_err("demo_test is not a declared name");
     }
@@ -1042,7 +1006,7 @@ filegroup(name = "srcs", visibility = ["//visibility:public"])
                 packages: Vec::new(),
             },
             &[module("[]", "Docs.")],
-            &[],
+            "[]",
         )
         .expect("snapshot renders");
         assert_eq!(files.keys().copied().collect::<Vec<_>>(), {

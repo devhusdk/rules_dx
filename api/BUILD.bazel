@@ -12,6 +12,11 @@ filegroup(
 )
 
 exports_files(
+    ["forwards.json"],
+    visibility = ["//tools/api:__pkg__"],
+)
+
+exports_files(
     ["deprecations.txt"],
     visibility = ["//tools/ci:__pkg__"],
 )

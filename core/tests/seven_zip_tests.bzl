@@ -1,7 +1,7 @@
 """Shared 7-Zip extractor pin tests."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:host.bzl", "host_cell_of")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extractors")
 
 _SHA256 = "0" * 64

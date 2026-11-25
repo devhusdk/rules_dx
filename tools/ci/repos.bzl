@@ -228,3 +228,17 @@ api_fixtures = repository_rule(
     implementation = _api_fixtures_impl,
     doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel, and the top-level files of bcr_test_module but MODULE.bazel, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a public macro created, watching each directory and file it reads.",
 )
+
+def _hub_builds_impl(rctx):
+    for name, build in rctx.attr.builds.items():
+        rctx.file(name, rctx.read(build))
+    rctx.file("BUILD.bazel", "exports_files(%s)\n" % repr(sorted(rctx.attr.builds.keys())))
+    return rctx.repo_metadata(reproducible = True)
+
+hub_builds = repository_rule(
+    implementation = _hub_builds_impl,
+    attrs = {
+        "builds": attr.string_keyed_label_dict(mandatory = True, doc = "Hub BUILD file of each exported file name."),
+    },
+    doc = "Copies the BUILD file of each toolchain hub into one repo that exports the copies.",
+)

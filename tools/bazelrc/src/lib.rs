@@ -265,7 +265,7 @@ const RESOURCE_FLAGS: [Flag; 12] = [
     ),
 ];
 
-const CI_PERFORMANCE_FLAGS: [Flag; 10] = [
+const CI_PERFORMANCE_FLAGS: [Flag; 12] = [
     (
         "common:ci --jobs=64",
         "Under --config=ci, run 64 actions at once, since remote cache hits hold job slots.",
@@ -287,8 +287,16 @@ const CI_PERFORMANCE_FLAGS: [Flag; 10] = [
         "Under --config=ci, build locally when the remote cache fails.",
     ),
     (
+        "common:ci --incompatible_remote_local_fallback_for_remote_cache",
+        "Under --config=ci, build locally when the remote cache cannot be reached, instead of failing the action.",
+    ),
+    (
         "common:ci --remote_retries=5",
         "Under --config=ci, retry a failed remote cache call 5 times.",
+    ),
+    (
+        "common:ci --experimental_circuit_breaker_strategy=failure",
+        "Under --config=ci, stop calling the remote cache for the rest of the command once its calls keep failing, so lookups fall back to local builds and fetches.",
     ),
     (
         "common:ci --experimental_remote_cache_eviction_retries=5",
@@ -861,7 +869,9 @@ mod tests {
                 "common:ci --experimental_remote_cache_compression_threshold=100",
                 "common:ci --remote_timeout=10m",
                 "common:ci --remote_local_fallback",
+                "common:ci --incompatible_remote_local_fallback_for_remote_cache",
                 "common:ci --remote_retries=5",
+                "common:ci --experimental_circuit_breaker_strategy=failure",
                 "common:ci --experimental_remote_cache_eviction_retries=5",
                 "common:ci --loading_phase_threads=32",
                 "common:ci --remote_max_connections=200",
@@ -948,8 +958,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 65);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 65);
+        assert_eq!(total, 67);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 67);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1059,7 +1069,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 65);
+        assert_eq!(flags.len(), 67);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

@@ -28,26 +28,12 @@ fn server_pid(case: &nested::Case, version: &str) -> Result<(String, bool), Stri
     Ok((info.stdout.trim().to_owned(), extracted))
 }
 
-fn locked_deps(lock: &str) -> String {
-    lock.lines()
-        .filter_map(|line| {
-            let url = line.trim().strip_prefix('"')?.split('"').next()?;
-            let path = url.strip_suffix("/source.json")?;
-            let (rest, version) = path.rsplit_once('/')?;
-            let (_, name) = rest.rsplit_once("/modules/")?;
-            Some(format!(
-                "bazel_dep(name = \"{name}\", version = \"{version}\")\n"
-            ))
-        })
-        .collect()
-}
-
 fn fetched(case: &nested::Case) -> Result<Vec<String>, String> {
     let lock = nested::checked_in_lock("harness");
     case.write("MODULE.bazel.lock", &lock);
     std::fs::write(
         case.join("MODULE.bazel"),
-        format!("{MODULE}{}", locked_deps(&lock)),
+        format!("{MODULE}{}", nested::locked_deps(&lock)),
     )
     .map_err(|error| format!("write MODULE.bazel: {error}"))?;
     let log = case.join("rules.log");

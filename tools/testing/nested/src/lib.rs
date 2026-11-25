@@ -1907,6 +1907,21 @@ pub fn checked_in_lock(stem: &str) -> String {
     panic!("{LOCKS_ENV} has no {name}");
 }
 
+#[must_use]
+pub fn locked_deps(lock: &str) -> String {
+    lock.lines()
+        .filter_map(|line| {
+            let url = line.trim().strip_prefix('"')?.split('"').next()?;
+            let path = url.strip_suffix("/source.json")?;
+            let (rest, version) = path.rsplit_once('/')?;
+            let (_, name) = rest.rsplit_once("/modules/")?;
+            Some(format!(
+                "bazel_dep(name = \"{name}\", version = \"{version}\")\n"
+            ))
+        })
+        .collect()
+}
+
 impl Case {
     /// Puts the checked-in lock `stem` into the workspace; in record mode removes it and records the workspace.
     ///

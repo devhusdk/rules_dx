@@ -2635,15 +2635,8 @@ rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
     extra_target_triples = [
-        "aarch64-apple-ios",
-        "aarch64-apple-ios-sim",
-        "aarch64-pc-windows-msvc",
-        "aarch64-unknown-linux-gnu",
         "wasm32-unknown-unknown",
         "wasm32-wasip1",
-        "x86_64-apple-ios",
-        "x86_64-pc-windows-msvc",
-        "x86_64-unknown-linux-gnu",
     ],
     rustfmt_version = "1.99.1",
     target_settings = ["//config:toolchains_on"],

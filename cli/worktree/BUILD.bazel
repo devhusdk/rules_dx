@@ -70,6 +70,8 @@ rust_test(
     coverage_lib = ":dx_worktree",
     crate_name = "dx_worktree",
     crate_root = "src/lib.rs",
+    shard_count = 4,
+    tags = ["resources:cpu:4"],
     deps = all_crate_deps(
         package_name = "cli/dx_worktree",
         normal = True,

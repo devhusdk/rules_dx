@@ -1,4 +1,4 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//core:sh_test.bzl", "sh_test")
 load("//go:defs.bzl", "go_bench", "go_library")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
@@ -45,7 +45,7 @@ dx_runner_attr_test(
     expected = {
         "args": ["$(rootpath :sized_bench_bin)", "-test.bench=.", "-test.run=^$$", "-test.benchmem", "-test.count=1", "-test.short"],
         "size": "large",
-        "tags": ["dx-bench", "extra"],
+        "tags": ["dx-bench", "extra", "resources:cpu:2", "resources:memory:2048"],
         "timeout": "long",
     },
     runner = "sized_bench",

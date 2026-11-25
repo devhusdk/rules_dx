@@ -2,9 +2,9 @@
 
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_rust_apk", "android_sign")
 load("//cc:defs.bzl", "cc_library")
+load("//core:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_static_library", "rust_test")
 load(":adapter_tests.bzl", "adapter_case")

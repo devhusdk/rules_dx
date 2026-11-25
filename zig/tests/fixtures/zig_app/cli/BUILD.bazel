@@ -1,7 +1,8 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 # gazelle:ignore
 load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//zig/tests/fixtures/zig_app:__subpackages__"])
 
@@ -55,5 +56,6 @@ sh_test(
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

@@ -1,6 +1,6 @@
 load("@rules_dx//core:defs.bzl", "dx_generated_policy", "latexindent_config", "vale_config")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//core:sh_test.bzl", "sh_test")
 
 _PUBLIC = ["//visibility:public"]
 

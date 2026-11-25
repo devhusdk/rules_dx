@@ -86,7 +86,8 @@ pub fn gcov_problem(stderr: &str) -> Option<String> {
 }
 
 fn wanted(source: &str) -> bool {
-    !Path::new(source).is_absolute() && !source.starts_with("external/")
+    let rooted = source.starts_with(['/', '\\']) || Path::new(source).is_absolute();
+    !rooted && !source.starts_with("external/")
 }
 
 pub fn add_gcov_json(report: &mut Report, json: &str) -> Result<(), String> {

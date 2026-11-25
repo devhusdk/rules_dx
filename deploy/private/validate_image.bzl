@@ -1,5 +1,7 @@
 """Validators for the image deploy rule."""
 
+load("//core/modules:versions.bzl", "DOTNET_VERSION")
+
 IMAGE_BASES = {
     "cc": {
         "linux/amd64": "@distroless_cc_linux_amd64",
@@ -29,8 +31,8 @@ IMAGE_BASES = {
 
 IMAGE_RUNTIMES = {
     "dotnet": {
-        "linux/amd64": "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
-        "linux/arm64": "@dx_dotnet_arm64-unknown-linux-gnu//:runtime",
+        "linux/amd64": "@dotnet_sdk." + DOTNET_VERSION + "_x86_64-unknown-linux-gnu//:runtime",
+        "linux/arm64": "@dotnet_sdk." + DOTNET_VERSION + "_arm64-unknown-linux-gnu//:runtime",
     },
     "java": {
         "linux/amd64": "@remotejdk21_linux//:jdk",

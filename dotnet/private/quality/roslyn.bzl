@@ -11,7 +11,7 @@ load("//core/quality:sources.bzl", "forwarded_upstream", "single_target")
 
 visibility("public")
 
-_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 RoslynInfo = provider(
     doc = "SARIF logs from compiling one C# target with the SDK analyzers, one per target framework.",
@@ -96,7 +96,7 @@ def _roslyn_impl(target, ctx):
 
     assembly_name = getattr(attrs, "out", "") or target.label.name
     exports = getattr(attrs, "exports", [])
-    (refs, _, analyzers, analyzers_csharp, _, _, compile_data, framework_files, _) = collect_compile_info(
+    (refs, _, analyzers, analyzers_csharp, _, _, compile_data, framework_files, _, _) = collect_compile_info(
         assembly_name,
         attrs.deps,
         single_target(attrs._targeting_pack),
@@ -145,7 +145,7 @@ def _roslyn_impl(target, ctx):
     args.add("/langversion:" + (attrs.langversion if attrs.langversion != "" else toolchain.dotnetinfo.csharp_default_version))
     configuration = "DEBUG" if ctx.var["COMPILATION_MODE"] in ["dbg", "fastbuild"] else "RELEASE"
     args.add_all(["TRACE", configuration] + framework_preprocessor_symbols(tfm) + list(attrs.defines), format_each = "/d:%s")
-    args.add_all(depset(framework_files, transitive = [refs]), format_each = "/r:%s")
+    args.add_all(depset(transitive = [framework_files, refs]), format_each = "/r:%s")
     args.add_all(analyzers, format_each = "/analyzer:%s")
     args.add_all(analyzers_csharp, format_each = "/analyzer:%s")
     args.add(sdk_analyzers + "/Microsoft.CodeAnalysis.NetAnalyzers.dll", format = "/analyzer:%s")
@@ -171,9 +171,10 @@ def _roslyn_impl(target, ctx):
     args.use_param_file("@%s", use_always = True)
 
     inputs = depset(
-        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + framework_files + [runtime, csc, declared, assembly_info] + trimmer + worker,
+        direct = ctx.rule.files.srcs + ctx.rule.files.additionalfiles + ctx.rule.files.analyzer_configs + [runtime, csc, declared, assembly_info] + trimmer + worker,
         transitive = [
             config_closure,
+            framework_files,
             refs,
             analyzers,
             analyzers_csharp,

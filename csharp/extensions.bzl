@@ -1,6 +1,6 @@
 """Public C# module extensions."""
 
-load("@rules_dotnet//dotnet/private/rules/nuget:nuget_repo.bzl", "nuget_repo")
+load("@rules_dotnet//dotnet/private/rules/nuget:nuget_repo.bzl", "nuget_archives", "nuget_hub_repo")
 load("//core:pins.bzl", "lock_tag")
 load("//csharp/private/lock:hub.bzl", "lock_hubs")
 
@@ -8,13 +8,15 @@ def _nuget_impl(mctx):
     direct = []
     dev = []
     seen = {}
+    declared = {}
     for module in mctx.modules:
         for tag in module.tags.lock:
             if tag.name in seen:
                 fail("nuget hub %r is declared by both %s and %s" % (tag.name, seen[tag.name], module.name))
             seen[tag.name] = module.name
             for name, packages in sorted(lock_hubs(tag.name, json.decode(mctx.read(tag.lock))).items()):
-                nuget_repo(name = name, packages = packages)
+                nuget_archives(packages, declared)
+                nuget_hub_repo(name = name, packages = packages)
                 if module.is_root:
                     if mctx.is_dev_dependency(tag):
                         dev.append(name)

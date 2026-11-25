@@ -3808,12 +3808,18 @@ Rule.
 
 Module extension.
 
+Tag `dotnet.bootstrap_toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `dotnet_version` | `string` | yes |  |
+
 Tag `dotnet.toolchain`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `dotnet_version` | `string` | no | `""` |
-| `name` | `name` | no | `"dotnet"` |
+| `global_json` | `label` | no | `None` |
 
 ### `@rules_dx//elixir:defs.bzl`
 

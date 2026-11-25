@@ -508,32 +508,31 @@ use_repo(terraform, "dx_terraform_providers")
 bazel_dep(name = "bazel_lib", version = "3.8.0")
 
 dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(
-    name = "dx_dotnet",
-    dotnet_version = "10.0.403",
-)
-dotnet.toolchain(
-    name = "dotnet_apphost",
-    dotnet_version = "10.0.403",
-)
+dotnet.toolchain(dotnet_version = "10.0.403")
+dotnet.bootstrap_toolchain(dotnet_version = "11.0.100")
 use_repo(
     dotnet,
-    "dotnet_apphost_aarch64-apple-darwin",
-    "dotnet_apphost_arm64-pc-windows-msvc",
-    "dotnet_apphost_arm64-unknown-linux-gnu",
-    "dotnet_apphost_x86_64-apple-darwin",
-    "dotnet_apphost_x86_64-pc-windows-msvc",
-    "dotnet_apphost_x86_64-unknown-linux-gnu",
-    "dx_dotnet_aarch64-apple-darwin",
-    "dx_dotnet_arm64-pc-windows-msvc",
-    "dx_dotnet_arm64-unknown-linux-gnu",
-    "dx_dotnet_toolchains",
-    "dx_dotnet_x86_64-apple-darwin",
-    "dx_dotnet_x86_64-pc-windows-msvc",
-    "dx_dotnet_x86_64-unknown-linux-gnu",
+    "dotnet.apphost_packs",
+    "dotnet.crossgen2_packs",
+    "dotnet.ilcompiler_packs",
+    "dotnet.nativeaot_packs",
+    "dotnet.runtime_packs",
+    "dotnet.targeting_packs",
+    "dotnet.wasm_packs",
+    "dotnet_bootstrap_toolchains",
+    "dotnet_sdk.10.0.403_aarch64-apple-darwin",
+    "dotnet_sdk.10.0.403_arm64-pc-windows-msvc",
+    "dotnet_sdk.10.0.403_arm64-unknown-linux-gnu",
+    "dotnet_sdk.10.0.403_x86_64-apple-darwin",
+    "dotnet_sdk.10.0.403_x86_64-pc-windows-msvc",
+    "dotnet_sdk.10.0.403_x86_64-unknown-linux-gnu",
+    "dotnet_toolchains",
 )
 
-register_toolchains("@dx_dotnet_toolchains//:all")
+register_toolchains(
+    "@dotnet_toolchains//:all",
+    "@dotnet_bootstrap_toolchains//:all",
+)
 
 nuget = use_extension("//csharp:extensions.bzl", "nuget")
 nuget.lock(
@@ -550,13 +549,12 @@ use_repo(
 )
 
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
-use_repo(
-    paket,
-    "dotnet.apphost_packs",
-    "dotnet.runtime_packs",
-    "dotnet.targeting_packs",
-    "paket.rules_dotnet_nuget_packages",
+paket.parse(
+    dependencies = "@rules_dotnet//:paket.dependencies",
+    groups = ["rules_dotnet_nuget_packages"],
+    lock = "@rules_dotnet//:paket.lock",
 )
+use_repo(paket, "paket.rules_dotnet_nuget_packages")
 
 # floor: equals tested
 bazel_dep(name = "rules_jvm_external", version = "7.2")
@@ -987,12 +985,7 @@ dx_pins.archive(
     name = "rules_dotnet",
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_dotnet:reproducible.patch",
-        "//patches/rules_dotnet:fsharp_signature.patch",
-        "//patches/rules_dotnet:launcher_args.patch",
-        "//patches/rules_dotnet:nuget_group_prefix.patch",
-        "//patches/rules_dotnet:sdk_versions.patch",
-        "//patches/rules_dotnet:canonical_labels.patch",
+        "//patches/rules_dotnet:bootstrap_module.patch",
         "//patches/rules_dotnet:toolchains_gate.patch",
         "//patches/rules_dotnet:target_runtime.patch",
         "//patches/rules_dotnet:fsharp_pdb_path.patch",
@@ -3300,7 +3293,7 @@ _hub_builds = use_repo_rule("//tools/ci:repos.bzl", "hub_builds")
 _hub_builds(
     name = "dx_hub_builds",
     builds = {
-        "dotnet.txt": "@dx_dotnet_toolchains//:BUILD.bazel",
+        "dotnet.txt": "@dotnet_toolchains//:BUILD.bazel",
         "ruby.txt": "@dx_ruby_toolchains//:BUILD",
     },
     dev_dependency = True,

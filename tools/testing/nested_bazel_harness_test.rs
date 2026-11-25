@@ -463,6 +463,7 @@ fn probe_within(shared: &str, limit: &str) -> dx_testing::Run {
             (nested::SHARED_ENV, shared),
             (nested::CACHES_ENV, ""),
             (nested::SHARED_LIMIT_ENV, limit),
+            ("DX_NESTED_BAZEL_NETWORK", ""),
         ],
     )
     .unwrap_or_else(|error| panic!("run probe: {error}"));

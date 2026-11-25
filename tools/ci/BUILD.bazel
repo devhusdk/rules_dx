@@ -241,6 +241,8 @@ rust_test(
         "//:license.toml",
         "//:pnpm-workspace.yaml",
         "//:ruff.toml",
+        "//.github:workflows",
+        "//ci/gitlab:dx.gitlab-ci.yml",
         "//cli/cli:BUILD.bazel",
         "//cli/cli:clippy.toml",
         "//cli/exec_audit:clippy.toml",
@@ -272,19 +274,63 @@ rust_test(
         "//core/quality/tiers/scalafmt:strict.conf",
         "//deploy/private:config.bzl",
         "//deploy/private/offline/bootstrap:src/lib.rs",
+        "//docs:github-ci.md",
+        "//tools/bazelisk:pin.env",
         "//tools/platforms/no_winsdk:BUILD.bazel",
         "//tools/platforms/no_winsdk:REPO.bazel",
         "//tools/platforms/no_winsdk:toolchains.bzl",
         "//tools/workspace:clippy.toml",
     ],
+    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
     ) + [
+        "//tools/bazelrc:dx_preset",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
+)
+
+rust_test(
+    name = "release_assets_test",
+    size = "small",
+    srcs = ["release_assets_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "release_assets_test",
+    crate_root = "release_assets_test.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//cli/adopt:src/version.rs",
+        "//cli/prebuilt:pins.bzl",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "workflow_pins_test",
+    size = "small",
+    srcs = ["workflow_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "workflow_pins_test",
+    crate_root = "workflow_pins_test.rs",
+    data = [
+        "starter_pin.sha256",
+        "//.github:workflows/reusable-consumer.yml",
+        "//.github:workflows/reusable-docs.yml",
+        "//.github:workflows/reusable-release.yml",
+    ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

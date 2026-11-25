@@ -6,7 +6,7 @@ This page fixes the repository layout.
 
 - The repo is one Bazel module, `rules_dx`. Users add one `bazel_dep`.
 - Language rule sets are `bazel_dep`s of `rules_dx` at their `# floor:` versions. Bazel fetches a rule set only when a loaded `.bzl` file needs it.
-- Core never loads a language `.bzl` file, except `core/quality/tools.bzl`, which loads the `_tools.bzl` files. A test enforces it.
+- Core never loads a language `.bzl` file, except `core/quality/tools.bzl`, which loads the `_tools.bzl` files.
 - dx loads a language's quality aspects only when the workspace has that language's files.
 - `rules_php`, `rules_lua` and `rules_qt` are rule-set modules that rules_dx owns. rules_dx depends on each like any upstream rule set, and each depends back as a normal `bazel_dep`.
 - A rule-set module holds the build rules: toolchain, `<lang>_library`, `<lang>_binary`, `<lang>_test`, `<lang>_bench`, providers, runtime pins and the dependency hub. Its public API is `@rules_<lang>//<lang>:defs.bzl` and `@rules_<lang>//<lang>:extensions.bzl`.
@@ -80,7 +80,7 @@ examples/   tested examples
 - `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
 - `patches/` holds upstream patches and the rules_dx registry; the patch table is generated from them.
-- The root holds only language directories with a `lang.json` and the directories above. A test enforces this list, with no pending entries.
+- The root holds only language directories with a `lang.json` and the directories above.
 - Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package.
 
 ## Quality code

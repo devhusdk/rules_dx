@@ -678,3 +678,222 @@ fn the_cli_clippy_configs_extend_the_workspace_one() {
         );
     }
 }
+
+fn workflow_values() -> Vec<(String, String)> {
+    let found: Vec<(String, String)> = dx_testing::workflow_files()
+        .into_iter()
+        .map(|name| {
+            let text = ci_workflow::strings(&name).unwrap().join("\n");
+            (name, text)
+        })
+        .collect();
+    assert!(!found.is_empty(), "DX_WORKFLOWS names no workflow");
+    found
+}
+
+fn label_chars(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
+}
+
+fn preset_layers() -> Vec<(String, String)> {
+    dx_preset::Layer::ALL
+        .iter()
+        .map(|layer| {
+            let strict = (*layer == dx_preset::Layer::Correctness).then_some(true);
+            (
+                layer.file_name().to_owned(),
+                dx_preset::render_layer_with(*layer, "rules_dx", strict),
+            )
+        })
+        .collect()
+}
+
+fn preset_text() -> String {
+    preset_layers().into_iter().map(|(_, text)| text).collect()
+}
+
+fn coverage_floors(text: &str) -> Vec<String> {
+    let mut found: Vec<String> = Vec::new();
+    for line in text.lines() {
+        if !line.contains("coverage") {
+            continue;
+        }
+        let mut rest = line;
+        while let Some(start) = rest.find("--min-coverage") {
+            let tail = rest
+                .get(start + "--min-coverage".len()..)
+                .expect("string slice within bounds")
+                .trim_start_matches([' ', '=']);
+            let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+            if end > 0 {
+                found.push(
+                    tail.get(..end)
+                        .expect("string slice within bounds")
+                        .to_owned(),
+                );
+            }
+            rest = tail.get(end..).expect("string slice within bounds");
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn required_coverage_floor() -> String {
+    const CI: &str = ".github/workflows/ci.yml";
+    let floors: Vec<String> = ci_workflow::jobs(CI)
+        .unwrap()
+        .into_iter()
+        .filter_map(|(_, job)| job["with"]["min_coverage"].as_str().map(str::to_owned))
+        .collect();
+    assert_eq!(
+        floors.len(),
+        1,
+        "{CI} passes one coverage floor to the required check: {floors:?}"
+    );
+    floors[0].clone()
+}
+
+#[test]
+fn every_workflow_coverage_floor_matches_the_required_check() {
+    let expected = required_coverage_floor();
+    let mut floors = 0;
+    for (workflow, text) in workflow_values() {
+        for floor in coverage_floors(&text) {
+            assert_eq!(
+                floor, expected,
+                "{workflow} enforces a coverage floor the required check does not"
+            );
+            floors += 1;
+        }
+    }
+    assert!(floors > 0, "no workflow runs dx coverage with a floor");
+}
+
+fn workflow_bazel_configs(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("--config=") {
+        let tail = rest
+            .get(start + "--config=".len()..)
+            .expect("string slice within bounds");
+        let end = tail.find(|ch: char| !label_chars(ch)).unwrap_or(tail.len());
+        if end > 0 {
+            found.push(
+                tail.get(..end)
+                    .expect("string slice within bounds")
+                    .to_owned(),
+            );
+        }
+        rest = tail.get(end..).expect("string slice within bounds");
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn bazelrc_configs(rc: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for line in rc.lines() {
+        let trimmed = line.trim();
+        let Some((command, rest)) = trimmed.split_once(':') else {
+            continue;
+        };
+        if command.is_empty() || !command.chars().all(|ch| ch.is_ascii_lowercase()) {
+            continue;
+        }
+        let name = rest.split(' ').next().unwrap_or_default();
+        if !name.is_empty() {
+            found.push(name.to_owned());
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool, String> {
+    if bazelrc_configs(preset).iter().any(|name| name == config) {
+        return Ok(false);
+    }
+    if bazelrc_configs(rc).iter().any(|name| name == config) {
+        return Ok(true);
+    }
+    Err(format!(
+        "no .bazelrc or .dx/bazelrc preset layer line defines --config={config}"
+    ))
+}
+
+const STARTER_CONFIGS: &[&str] = &["android"];
+
+const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
+
+#[test]
+fn every_workflow_bazel_config_is_defined_and_documented() {
+    let rc = read_runfiles(".bazelrc");
+    let preset = preset_text();
+    let page = read_runfiles("docs/github-ci.md");
+    let mut passes = 0;
+    for (workflow, text) in workflow_values() {
+        for config in workflow_bazel_configs(&text) {
+            if STARTER_CONFIGS.contains(&config.as_str()) {
+                continue;
+            }
+            let needs_stanza = config_needs_doc_stanza(&config, &rc, &preset)
+                .unwrap_or_else(|err| panic!("{workflow} runs --config={config}; {err}"));
+            assert!(
+                !needs_stanza
+                    || REPO_ONLY_CONFIGS.contains(&config.as_str())
+                    || page.contains(&format!("common:{config} ")),
+                "docs/github-ci.md never shows the common:{config} stanza --config={config} \
+                 needs; only preset configs are exempt"
+            );
+            passes += 1;
+        }
+    }
+    assert!(passes > 0, "no workflow passes a Bazel config");
+}
+
+fn pin_value(key: &str) -> String {
+    let prefix = format!("{key}=");
+    read_runfiles("tools/bazelisk/pin.env")
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix.as_str()))
+        .unwrap_or_else(|| panic!("pin.env sets no {key}"))
+        .trim()
+        .to_owned()
+}
+
+fn yaml_assignments(text: &str, key: &str) -> Vec<String> {
+    let prefix = format!("{key}:");
+    text.lines()
+        .filter_map(|line| line.trim().strip_prefix(prefix.as_str()))
+        .map(|value| value.trim().trim_matches('"').to_owned())
+        .collect()
+}
+
+#[test]
+fn bazelisk_pins_match_pin_env() {
+    let version = pin_value("BAZELISK_VERSION");
+    let sha = pin_value("BAZELISK_SHA256_LINUX_AMD64");
+    let mut seen = 0;
+    for name in dx_testing::workflow_files() {
+        for value in yaml_assignments(&read_runfiles(&name), "BAZELISK_VERSION") {
+            seen += 1;
+            assert_eq!(value, version, "{name} pins BAZELISK_VERSION {value}");
+        }
+    }
+    assert!(seen > 0, "no workflow sets BAZELISK_VERSION");
+    let gitlab = read_runfiles("ci/gitlab/dx.gitlab-ci.yml");
+    assert_eq!(
+        yaml_assignments(&gitlab, "BAZELISK_VERSION"),
+        [version],
+        "dx.gitlab-ci.yml BAZELISK_VERSION differs from pin.env"
+    );
+    assert_eq!(
+        yaml_assignments(&gitlab, "BAZELISK_SHA256"),
+        [sha],
+        "dx.gitlab-ci.yml BAZELISK_SHA256 differs from pin.env"
+    );
+}

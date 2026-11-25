@@ -42,5 +42,13 @@ name = "input_validation_test"
 path = "input_validation_test.rs"
 
 [[test]]
+name = "release_assets_test"
+path = "release_assets_test.rs"
+
+[[test]]
 name = "secret_flags_test"
 path = "secret_flags_test.rs"
+
+[[test]]
+name = "workflow_pins_test"
+path = "workflow_pins_test.rs"

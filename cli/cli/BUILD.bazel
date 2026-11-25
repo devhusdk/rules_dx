@@ -426,6 +426,7 @@ rust_test(
         "//cli/setup:dx_setup",
         "//cli/shim:dx_shim",
         "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//cli/tool_resolve:dx_tool_resolve",
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",

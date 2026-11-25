@@ -1,0 +1,70 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
+
+package(default_visibility = VIS_TOOLS_CLI_TEST)
+
+filegroup(
+    name = "fixtures",
+    srcs = glob(["fixtures/*.log.zst"]),
+)
+
+rust_library(
+    name = "dx_testing_exec_log",
+    testonly = True,
+    srcs = [
+        "src/allowlist.rs",
+        "src/lib.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/testing/dx_testing_exec_log",
+        normal = True,
+    ),
+    crate_name = "dx_testing_exec_log",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_testing_exec_log",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_testing_exec_log_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/testing/dx_testing_exec_log",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = [":fixtures"],
+    crate = ":dx_testing_exec_log",
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_testing_exec_log",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/digest:dx_digest"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = VIS_TOOLS_CLI_TEST,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

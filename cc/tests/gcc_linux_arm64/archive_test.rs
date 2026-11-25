@@ -3,7 +3,8 @@
     reason = "tests run local programs under the Bazel test timeout"
 )]
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{env_file, image_machine};
+use dx_testing::env_file;
+use dx_testing_image::machine;
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
@@ -38,7 +39,7 @@ fn gcc_archive_runs_on_a_clean_environment_without_toolchain_files() {
     assert!(meta.len() > 1000, "app is {} bytes", meta.len());
 
     let bytes = std::fs::read(&app).expect("read app");
-    assert_eq!(image_machine(&bytes).as_deref(), Some("aarch64"));
+    assert_eq!(machine(&bytes).as_deref(), Some("aarch64"));
 
     let ldd = Command::new("ldd").arg(&app).output().expect("ldd");
     let ldd = String::from_utf8_lossy(&ldd.stdout).to_string();

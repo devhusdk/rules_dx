@@ -401,7 +401,7 @@ fn timeout_kills_a_group_whose_leader_exits_on_term() {
         .trim()
         .parse()
         .expect("a pid");
-    dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(10)).unwrap();
+    dx_test_wait::pid_gone(pid, Duration::from_secs(10)).unwrap();
 }
 
 #[cfg(unix)]
@@ -1118,7 +1118,7 @@ fn counting_probe(scratch: &std::path::Path) -> (Probe, std::path::PathBuf) {
 #[cfg(unix)]
 fn sigints(log: &std::path::Path, expected: usize) -> usize {
     let count = || std::fs::read(log).map_or(0, |bytes| bytes.len());
-    dx_test_scratch::wait::watch_until(
+    dx_test_wait::watch_until(
         log,
         "the probe counting SIGINT",
         Duration::from_secs(5),
@@ -1454,7 +1454,7 @@ fn lease_free(path: &std::path::Path) -> bool {
 }
 
 fn wait_lease_free(path: &std::path::Path) {
-    dx_test_scratch::wait::lock_free(path, Duration::from_secs(20)).unwrap();
+    dx_test_wait::lock_free(path, Duration::from_secs(20)).unwrap();
 }
 
 fn wait_alive(lock: &std::path::Path) {
@@ -1957,7 +1957,7 @@ fn a_stop_seen_after_registering_sends_one_sigint() {
         if calls.fetch_add(1, Ordering::SeqCst) == 0 {
             return None;
         }
-        dx_test_scratch::wait::path_appears(&log, Duration::from_secs(10)).unwrap();
+        dx_test_wait::path_appears(&log, Duration::from_secs(10)).unwrap();
         Some(2)
     };
     assert_eq!(

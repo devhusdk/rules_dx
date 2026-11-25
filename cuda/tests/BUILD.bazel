@@ -43,7 +43,10 @@ rust_test(
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/saxpy:saxpy_app)",
     },
     target_compatible_with = CUDA_COMPATIBLE_WITH,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
+    ],
 )
 
 cuda_test(
@@ -81,7 +84,10 @@ rust_test(
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/rdc:rdc_app)",
     },
     target_compatible_with = CUDA_COMPATIBLE_WITH,
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
+    ],
 )
 
 dx_hello_output_test(
@@ -206,6 +212,7 @@ rust_test(
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
     ],
 )
 
@@ -246,7 +253,10 @@ rust_test(
         "DX_CUDA_MAJOR": CUDA_VERSION.split(".")[0],
     },
     target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
+    ],
 )
 
 cuda_test(

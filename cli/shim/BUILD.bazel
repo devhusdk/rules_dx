@@ -130,7 +130,7 @@ rust_test(
     deps = [
         ":dx_shim",
         "//cli/digest:dx_digest",
-        "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/testing:dx_testing",
         "@crates//:tempfile",
     ],

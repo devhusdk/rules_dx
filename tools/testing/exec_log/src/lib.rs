@@ -1,3 +1,7 @@
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
+
+mod allowlist;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Read;
 use std::rc::Rc;
@@ -538,7 +542,10 @@ impl<'a> Tracer<'a> {
                     (None, _) => format!("origin: {path}: only in the second log"),
                 }],
                 Some(at) => {
-                    let made_by = format!("origin: {path} made by {}", self.key(at));
+                    let made_by = format!(
+                        "origin: {path} made by {}",
+                        self.second.key(self.spawn(at)?)
+                    );
                     match self.why(at)? {
                         Why::NotInFirst => {
                             vec![format!("{made_by}, which the first log does not have")]
@@ -560,8 +567,11 @@ impl<'a> Tracer<'a> {
         Ok(out)
     }
 
-    fn key(&self, at: usize) -> String {
-        self.second.key(&self.second.spawns[at])
+    fn spawn(&self, at: usize) -> Result<&'a Spawn, String> {
+        self.second
+            .spawns
+            .get(at)
+            .ok_or_else(|| format!("no spawn {at} in the second log"))
     }
 
     fn why(&mut self, at: usize) -> Result<Why, String> {
@@ -569,8 +579,8 @@ impl<'a> Tracer<'a> {
             return Ok(why.clone());
         }
         self.memo.insert(at, Why::Inputs(Rc::default()));
-        let new = &self.second.spawns[at];
-        let why = match self.earlier.get(&self.key(at)).copied() {
+        let new = self.spawn(at)?;
+        let why = match self.earlier.get(&self.second.key(new)).copied() {
             None => Why::NotInFirst,
             Some(old) if old.args != new.args || old.env != new.env => Why::ArgsOrEnv,
             Some(old) if !old.digest.is_empty() && old.digest == new.digest => Why::SameInputs,
@@ -670,7 +680,7 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
 }
 
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
-    let (keys, problems) = crate::allowlist::parse_lines(text, |line| {
+    let (keys, problems) = allowlist::parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
         let label_ok = fields
             .first()
@@ -726,8 +736,8 @@ pub fn problems(first: &Log, second: &Log, allowlist: &BTreeSet<String>) -> Vec<
 mod tests {
     use super::*;
 
-    const FIRST: &[u8] = include_bytes!("../exec_log_fixtures/first.log.zst");
-    const SECOND: &[u8] = include_bytes!("../exec_log_fixtures/second.log.zst");
+    const FIRST: &[u8] = include_bytes!("../fixtures/first.log.zst");
+    const SECOND: &[u8] = include_bytes!("../fixtures/second.log.zst");
     const STABLE: &str = "//:stable Genrule bazel-out/k8-fastbuild/bin/stable.txt";
     const STAMPED: &str = "//:stamped Genrule bazel-out/k8-fastbuild/bin/stamped.txt";
 
@@ -875,8 +885,8 @@ mod tests {
         assert_eq!(log["//:d M out/d"], "bb cc");
     }
 
-    const CACHE_FIRST: &[u8] = include_bytes!("../exec_log_fixtures/cache_first.log.zst");
-    const CACHE_SECOND: &[u8] = include_bytes!("../exec_log_fixtures/cache_second.log.zst");
+    const CACHE_FIRST: &[u8] = include_bytes!("../fixtures/cache_first.log.zst");
+    const CACHE_SECOND: &[u8] = include_bytes!("../fixtures/cache_second.log.zst");
     const CHANGED: &str = "//:changed Genrule bazel-out/k8-fastbuild/bin/changed.out";
     const NOCACHE: &str = "//:nocache Genrule bazel-out/k8-fastbuild/bin/nocache.out";
     const SAME: &str = "//:same Genrule bazel-out/k8-fastbuild/bin/same.out";

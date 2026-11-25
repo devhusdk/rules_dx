@@ -103,6 +103,24 @@ _CORE_QUALITY_SUBJECTS = {
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
 
+_RUNFILES_MANIFEST = Label("//tools/testing/conformance:runfiles_manifest.rs")
+
+_RUNNER = Label("//tools/testing/conformance:runner_test.rs")
+
+_RUNNER_SRCS = [_RUNNER, _RUNFILES_MANIFEST]
+
+_RUNNER_DEPS = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")]
+
+_CROSS = Label("//tools/testing/conformance:cross_test.rs")
+
+_CROSS_SRCS = [_CROSS, _RUNFILES_MANIFEST]
+
+_CROSS_DEPS = [
+    Label("//tools/testing:dx_testing"),
+    Label("//tools/testing/image:dx_testing_image"),
+    Label("//tools/testing/msix:dx_testing_msix"),
+]
+
 _FLAG = Label("//tools/testing/conformance:subject")
 _PLATFORM_SETTINGS = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]
 
@@ -356,9 +374,10 @@ def dx_coverage_test(name, subject, covered_source, args = [], instrumented_pack
     )
     rust_test(
         name = name + "_off",
-        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        srcs = _RUNNER_SRCS,
+        crate_root = _RUNNER,
         data = [":" + name + "_off_subject"],
-        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        deps = _RUNNER_DEPS,
         env = dict(
             args_env,
             DX_CONFORMANCE_MODE = "coverage_off",
@@ -381,9 +400,10 @@ def dx_coverage_test(name, subject, covered_source, args = [], instrumented_pack
     )
     rust_test(
         name = name,
-        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        srcs = _RUNNER_SRCS,
+        crate_root = _RUNNER,
         data = [":" + name + "_subject"],
-        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        deps = _RUNNER_DEPS,
         env = dict(
             args_env,
             DX_CONFORMANCE_MODE = "coverage",
@@ -427,9 +447,10 @@ def _quality_case(name, lang, kind, mode, fixture, source, text, subject_rule, s
     )
     rust_test(
         name = name,
-        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        srcs = _RUNNER_SRCS,
+        crate_root = _RUNNER,
         data = [":" + name + "_results", source],
-        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        deps = _RUNNER_DEPS,
         env = {
             "DX_CONFORMANCE_MODE": mode,
             "DX_CONFORMANCE_SOURCE": "$(rlocationpath %s)" % source,
@@ -574,9 +595,10 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
             continue
         rust_test(
             name = prefix + test,
-            srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+            srcs = _CROSS_SRCS if mode == "cross" else _RUNNER_SRCS,
+            crate_root = _CROSS if mode == "cross" else _RUNNER,
             data = [subject],
-            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+            deps = _CROSS_DEPS if mode == "cross" else _RUNNER_DEPS,
             env = _cross_select(lambda target: _env(mode, subject, target, failing_pattern) | ({"DX_CONFORMANCE_CROSS_RUNFILE": cross_runfile} if cross_runfile else {})) if text == None else _env(mode, subject, text, failing_pattern),
             size = size,
             target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -585,9 +607,10 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
 
     rust_test(
         name = prefix + "coverage_off_test",
-        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        srcs = _RUNNER_SRCS,
+        crate_root = _RUNNER,
         data = [":" + prefix + "coverage_off_subject"],
-        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        deps = _RUNNER_DEPS,
         env = _env("coverage_off", ":" + prefix + "coverage_off_subject", covered_source, failing_pattern),
         size = size,
         target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
@@ -597,9 +620,10 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     if lock:
         rust_test(
             name = prefix + "lock_test",
-            srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+            srcs = _RUNNER_SRCS,
+            crate_root = _RUNNER,
             data = [lock["lockfile"], lock["manifest"], lock["stale"], Label("//cli/depcheck")] + ([lock["binary"]] if "binary" in lock else []),
-            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+            deps = _RUNNER_DEPS,
             env = {
                 "DX_CONFORMANCE_DEPCHECK": "$(rlocationpath %s)" % Label("//cli/depcheck"),
                 "DX_CONFORMANCE_ECOSYSTEM": lock["ecosystem"],
@@ -619,9 +643,10 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     if runfiles:
         rust_test(
             name = prefix + "runfiles_test",
-            srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+            srcs = _RUNNER_SRCS,
+            crate_root = _RUNNER,
             data = [runfiles["binary"]],
-            deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+            deps = _RUNNER_DEPS,
             env = {
                 "DX_CONFORMANCE_ARGS": "_main/%s/%s" % (native.package_name(), runfiles["data"]),
                 "DX_CONFORMANCE_MODE": "runfiles",

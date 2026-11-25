@@ -573,7 +573,7 @@ fn without_a_shared_root_a_test_extracts_fetches_and_stops_its_server() {
         .trim()
         .parse()
         .unwrap_or_else(|_| panic!("probe printed no server pid: {}", probe.combined()));
-    if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(3)) {
+    if let Err(error) = dx_test_wait::pid_gone(pid, Duration::from_secs(3)) {
         panic!("nested Bazel server {pid} outlived its test binary: {error}");
     }
 }

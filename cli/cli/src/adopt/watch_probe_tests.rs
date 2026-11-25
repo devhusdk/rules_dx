@@ -150,7 +150,7 @@ impl Probe {
         let mut exited = None;
         let waited = {
             let this = &mut *self;
-            dx_test_scratch::wait::watch_until(&log, what, Duration::from_secs(30), || {
+            dx_test_wait::watch_until(&log, what, Duration::from_secs(30), || {
                 if done(this) {
                     return true;
                 }
@@ -189,7 +189,7 @@ impl Probe {
     }
 
     fn exit(&mut self) -> ExitStatus {
-        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(30)) {
+        match dx_test_wait::child_exits(&mut self.child, Duration::from_secs(30)) {
             Ok(status) => {
                 self.exited = self.signalled.map(|at| at.elapsed());
                 status

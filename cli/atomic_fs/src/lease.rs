@@ -305,11 +305,11 @@ mod tests {
         drop(first);
         assert!(try_lock_file(&path, false).expect("probe").is_none());
         drop(second);
-        let exclusive = dx_test_scratch::wait::locked(&path, RELEASE)
+        let exclusive = dx_test_wait::locked(&path, RELEASE)
             .unwrap_or_else(|error| panic!("release of both shared holders: {error}"));
         assert!(try_lock_file_shared(&path, false).expect("probe").is_none());
         drop(exclusive);
-        dx_test_scratch::wait::locked_shared(&path, RELEASE)
+        dx_test_wait::locked_shared(&path, RELEASE)
             .unwrap_or_else(|error| panic!("release of the exclusive holder: {error}"));
         scratch.close().expect("cleanup");
     }
@@ -411,13 +411,11 @@ mod tests {
     const RELEASE: Duration = Duration::from_secs(30);
 
     fn wait_for(path: &Path, what: &str) {
-        dx_test_scratch::wait::path_appears(path, RELEASE)
-            .unwrap_or_else(|error| panic!("{what}: {error}"));
+        dx_test_wait::path_appears(path, RELEASE).unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
     fn free(path: &Path, what: &str) {
-        dx_test_scratch::wait::lock_free(path, RELEASE)
-            .unwrap_or_else(|error| panic!("{what}: {error}"));
+        dx_test_wait::lock_free(path, RELEASE).unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
     fn child_main(root: &Path, mode: &str) {

@@ -1065,7 +1065,7 @@ mod sh {
         repo.touch_build_file();
         let hold = repo.base.join("hold");
         let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
-        let started = dx_test_scratch::wait::path_appears(
+        let started = dx_test_wait::path_appears(
             &repo.base.join("hold.started"),
             std::time::Duration::from_secs(30),
         );
@@ -1507,7 +1507,7 @@ mod sh {
         }
         let hold = repo.base.join("hold");
         let child = spawn(repo.command().env("STUB_BUILD_HOLD", &hold));
-        let started = dx_test_scratch::wait::path_appears(
+        let started = dx_test_wait::path_appears(
             &repo.base.join("hold.started"),
             std::time::Duration::from_secs(30),
         );

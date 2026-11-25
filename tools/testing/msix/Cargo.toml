@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "dx_testing_msix"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_testing_msix"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tempfile = "3"

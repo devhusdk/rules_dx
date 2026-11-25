@@ -2226,6 +2226,13 @@ dependencies = [
 name = "dx_test_scratch"
 version = "0.0.0"
 dependencies = [
+ "tempfile",
+]
+
+[[package]]
+name = "dx_test_wait"
+version = "0.0.0"
+dependencies = [
  "notify",
  "tempfile",
 ]
@@ -2234,10 +2241,27 @@ dependencies = [
 name = "dx_testing"
 version = "0.0.0"
 dependencies = [
- "ruzstd 0.9.1",
  "serde_json",
  "tempfile",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "dx_testing_exec_log"
+version = "0.0.0"
+dependencies = [
+ "ruzstd 0.9.1",
+]
+
+[[package]]
+name = "dx_testing_image"
+version = "0.0.0"
+
+[[package]]
+name = "dx_testing_msix"
+version = "0.0.0"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]

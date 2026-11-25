@@ -2387,10 +2387,9 @@ fn reaper_waiting(reaper: &mut Child) -> std::thread::JoinHandle<String> {
 #[track_caller]
 fn exited_unreaped(pid: u32) {
     let raw = i32::try_from(pid).expect("pid");
-    let waited =
-        dx_test_scratch::wait::within("the child exiting", Duration::from_secs(10), move || {
-            dx_os_sys::process::await_exit_unreaped(raw)
-        });
+    let waited = dx_test_wait::within("the child exiting", Duration::from_secs(10), move || {
+        dx_os_sys::process::await_exit_unreaped(raw)
+    });
     match waited {
         Ok(Ok(())) => {}
         Ok(Err(error)) => panic!("waitid {pid}: {error}"),
@@ -3188,7 +3187,7 @@ mod tests {
 
     #[track_caller]
     fn gone(pid: u32) {
-        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(15)) {
+        if let Err(error) = dx_test_wait::pid_gone(pid, Duration::from_secs(15)) {
             panic!("{error}");
         }
     }
@@ -3606,7 +3605,7 @@ mod portable_tests {
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         let _: std::io::Result<std::process::ExitStatus> = owner.wait();
-        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30)) {
+        if let Err(error) = dx_test_wait::pid_gone(pid, Duration::from_secs(30)) {
             let status = reaper.try_wait();
             drop(reaper.kill());
             panic!(
@@ -3699,11 +3698,10 @@ mod suspend_tests {
         #[cfg(unix)]
         {
             let raw = i32::try_from(pid).expect("pid");
-            let stop = dx_test_scratch::wait::within(
-                "the child stopping",
-                Duration::from_secs(10),
-                move || dx_os_sys::process::await_stop(raw),
-            );
+            let stop =
+                dx_test_wait::within("the child stopping", Duration::from_secs(10), move || {
+                    dx_os_sys::process::await_stop(raw)
+                });
             assert!(
                 matches!(stop, Ok(Ok(Some(_)))),
                 "the child never stopped: {stop:?}"

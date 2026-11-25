@@ -4,11 +4,11 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _haskell_library = "haskell_library", _haskell_test = "haskell_test")
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:sh_test.bzl", "sh_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//haskell/private/coverage:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 load("//haskell/private/toolchain:transition.bzl", "ghc_mingw_transition")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _DEFAULT_LIBRARY_GHCOPTS = "DEFAULT_LIBRARY_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS", _STRICT_LIBRARY_GHCOPTS = "STRICT_LIBRARY_GHCOPTS")
 
 DEFAULT_GHCOPTS = _DEFAULT_GHCOPTS

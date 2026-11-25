@@ -1,7 +1,7 @@
-load("//core:sh_test.bzl", "sh_test")
+load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//d:defs.bzl", "d_bench")
 load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
-load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 
 package(
     default_testonly = True,

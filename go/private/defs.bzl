@@ -5,9 +5,9 @@ load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:sh_test.bzl", "sh_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 load(":cgo.bzl", "cgo_toolchain_error")
 
 _DX_GO_LIBRARY_PROVIDES = [

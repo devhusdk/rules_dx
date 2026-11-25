@@ -1,5 +1,5 @@
-load("//core:sh_test.bzl", "sh_test")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/coverage:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//:__subpackages__"])
 

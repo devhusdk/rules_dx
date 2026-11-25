@@ -18,6 +18,11 @@ fn consumer_manifest_matches_its_golden() {
     let golden = std::env::var("DX_GOLDEN").expect("DX_GOLDEN is set");
     let text = std::fs::read_to_string(dx_testing::resolve_runfiles(&rel)).expect("read manifest");
     let manifest: Value = serde_json::from_str(&text).expect("manifest is json");
+    assert_eq!(
+        manifest["dx"].as_str(),
+        Some(""),
+        "a golden consumer never runs dx, so its manifest names none"
+    );
 
     let mut lines = Vec::new();
     for language in list(&manifest, "languages") {

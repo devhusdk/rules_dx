@@ -1,7 +1,7 @@
 """The CUDA redistributable manifest lists every pinned component."""
 
-load("//core/private/testing:defs.bzl", "starlark_test")
 load("//core/modules:cuda.bzl", _CUDA_CELLS = "CUDA_CELLS")
+load("//core/private/testing:defs.bzl", "starlark_test")
 
 def cuda_redistrib_tests(name, size):
     """Fails when a pinned CUDA component is missing from the redistributable manifest."""

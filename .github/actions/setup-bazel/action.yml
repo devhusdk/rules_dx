@@ -6,7 +6,7 @@ inputs:
     required: false
     default: "false"
   free-disk:
-    description: Before Bazel starts, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one, the simulator runtimes and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK.
+    description: In the background, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one, the simulator runtimes and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK. The deletes keep running after this action ends; the gate action waits for them before its affected check, and any other step that needs the space must wait the same way.
     required: false
     default: "false"
 outputs:
@@ -69,9 +69,12 @@ runs:
           contents="$(cygpath -m "$contents")"
           nested="$(cygpath -m "$nested")"
         fi
+        # Nested Bazel tests reserve 2560 MB each. On the 16 GB Linux and Windows
+        # runners .33 leaves about 5.2 GB, room for the 2 that nested_bazel=2 allows.
+        # The 7 GB macOS runners run 1 at a time (nested_bazel=1), which .5 covers.
         case "$RUNNER_OS" in
           macOS) heap=50 memory=.5 ;;
-          *) heap=50 memory=.25 ;;
+          *) heap=50 memory=.33 ;;
         esac
         {
           echo "common --repository_cache=$cache"
@@ -85,29 +88,54 @@ runs:
       if: ${{ inputs.free-disk == 'true' && runner.os == 'macOS' }}
       shell: bash
       run: |
-        df -h /
-        keep="$(cd "$(xcode-select -p)/../.." && pwd -P)"
-        for app in /Applications/Xcode*.app; do
-          if [ ! -L "$app" ] && [ "$(cd "$app" && pwd -P)" != "$keep" ]; then
-            sudo rm -rf "$app" &
-          fi
-        done
-        if [ -n "${ANDROID_HOME:-}" ]; then
-          sudo rm -rf "$ANDROID_HOME" &
-        fi
-        xcrun simctl runtime list -j | jq -r 'keys[]' | while read -r runtime; do
-          xcrun simctl runtime delete "$runtime"
-        done
-        wait
-        find /Applications -maxdepth 1 -name 'Xcode*.app' -type l ! -exec test -e {} \; -exec sudo rm -f {} +
-        echo "kept $keep"
-        df -h /
+        # The deletes take minutes, so they run in the background. The gate action's
+        # "Wait for the background disk cleanup" step reads pid, log and status.
+        # The inner subshell keeps the step's errexit; the outer one turns it off so
+        # it can record the inner exit status.
+        state="$RUNNER_TEMP/dx-free-disk"
+        mkdir -p "$state"
+        (
+          set +e
+          (
+            set -e
+            df -h /
+            keep="$(cd "$(xcode-select -p)/../.." && pwd -P)"
+            for app in /Applications/Xcode*.app; do
+              if [ ! -L "$app" ] && [ "$(cd "$app" && pwd -P)" != "$keep" ]; then
+                sudo rm -rf "$app" &
+              fi
+            done
+            if [ -n "${ANDROID_HOME:-}" ]; then
+              sudo rm -rf "$ANDROID_HOME" &
+            fi
+            xcrun simctl runtime list -j | jq -r 'keys[]' | while read -r runtime; do
+              xcrun simctl runtime delete "$runtime"
+            done
+            wait
+            find /Applications -maxdepth 1 -name 'Xcode*.app' -type l ! -exec test -e {} \; -exec sudo rm -f {} +
+            echo "kept $keep"
+            df -h /
+          )
+          echo "$?" > "$state/status"
+        ) > "$state/log" 2>&1 < /dev/null &
+        echo "$!" > "$state/pid"
     - name: Free preinstalled Linux content rules_dx does not use
       if: ${{ inputs.free-disk == 'true' && runner.os == 'Linux' }}
       shell: bash
       run: |
-        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
-        df -h /
+        # Runs in the background like the macOS step above.
+        state="$RUNNER_TEMP/dx-free-disk"
+        mkdir -p "$state"
+        (
+          set +e
+          (
+            set -e
+            sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+            df -h /
+          )
+          echo "$?" > "$state/status"
+        ) > "$state/log" 2>&1 < /dev/null &
+        echo "$!" > "$state/pid"
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}

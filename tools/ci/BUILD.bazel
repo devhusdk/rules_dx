@@ -983,30 +983,6 @@ rust_test(
 )
 
 rust_test(
-    name = "genquery_test",
-    size = "small",
-    srcs = ["genquery_test.rs"],
-    crate_name = "genquery_test",
-    crate_root = "genquery_test.rs",
-    data = [
-        "genquery_allowlist.txt",
-        "@dx_test_tags_sources//:code.json",
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "ALLOWLIST": "$(rlocationpath genquery_allowlist.txt)",
-        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-    },
-    deps = [
-        ":dx_guard",
-        "@crates//:starlark_syntax",
-    ],
-)
-
-rust_test(
     name = "host_env_test",
     size = "small",
     srcs = ["host_env_test.rs"],

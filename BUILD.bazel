@@ -943,6 +943,7 @@ filegroup(
         "//tools/ci/gate_base:module_srcs",
         "//tools/ci/input_validation:module_srcs",
         "//tools/ci/producers:module_srcs",
+        "//tools/coverage:module_srcs",
         "//tools/coverage/collect:module_srcs",
         "//tools/coverage/kcov:module_srcs",
         "//tools/coverage/sancov:module_srcs",

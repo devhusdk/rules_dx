@@ -167,7 +167,7 @@ BUNDLED_FLAGS = ["C compiler flags", "C++ compiler flags", "C compiler link flag
 
 MINGW_ROOT = "$topdir/../mingw/"
 
-MINGW_LINK_FLAGS = "-Wl,--no-insert-timestamp"
+PE_LINK_FLAG = "-optl-Wl,--no-insert-timestamp"
 
 SETTINGS = {
     "C compiler command": NO_HOST_TOOL,
@@ -205,7 +205,7 @@ haskell_toolchain(
     docdir_path = "doc",
     fully_static_link = {fully_static_link},
     libdir = [":lib"],
-    libraries = toolchain_libraries,{llvm}
+    libraries = toolchain_libraries,{llvm}{pe_link}
     locale = "{locale}",
     static_runtime = {static_runtime},
     tools = [":{tools}"],
@@ -329,6 +329,12 @@ def llvm_toolchain_attrs(llvm_backend):
         return ""
     return "".join(["\n    {} = \"{}\",".format(name, tool) for name, tool in sorted(LLVM_TOOLS.items())])
 
+def pe_link_attrs(exe_suffix):
+    """Returns the haskell_toolchain attributes that keep the link time out of Windows PE headers."""
+    if exe_suffix != ".exe":
+        return ""
+    return "\n    ghcopts = [\"{flag}\"],\n    cabalopts = [\"--ghc-option={flag}\"],".format(flag = PE_LINK_FLAG)
+
 CC_TARGET_FLAGS = ["C compiler flags", "C++ compiler flags"]
 
 def ghc_settings(source, cc_target = ""):
@@ -343,11 +349,6 @@ def ghc_settings(source, cc_target = ""):
         key = stripped[2:stripped.index("\"", 2)]
         if key in SETTINGS:
             seen.append(key)
-            if key == "C compiler link flags" and MINGW_ROOT in source:
-                bundled = stripped[stripped.index(",") + 1:].strip().rstrip(")").strip().strip("\"")
-                line = line[:line.index("(")] + "(" + repr(key) + ", " + repr((bundled + " " + MINGW_LINK_FLAGS).strip()) + ")"
-                lines.append(line)
-                continue
             if (key in BUNDLED_FLAGS and MINGW_ROOT in source) or (key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped)):
                 lines.append(line)
                 continue
@@ -602,6 +603,7 @@ def _ghc_repo_impl(rctx):
         libdir = LIBDIR,
         libraries = result["file_content"],
         llvm = llvm_toolchain_attrs(rctx.attr.llvm_backend),
+        pe_link = pe_link_attrs(cell.exe_suffix),
         locale = host.locale,
         musl = _MUSL_BUILD.format(
             closure = CLOSURE_DIR,

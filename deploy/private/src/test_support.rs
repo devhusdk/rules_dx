@@ -52,6 +52,10 @@ pub(crate) fn scratch_dir() -> tempfile::TempDir {
     reason = "set_var and remove_var are unsafe in edition 2024"
 )]
 pub(crate) fn with_env<T>(vars: &[(&str, Option<&str>)], body: impl FnOnce() -> T) -> T {
+    assert!(
+        std::env::var_os(ENV_CHILD).is_some(),
+        "with_env changes the whole test process; start the test with env_test_in_child"
+    );
     let _guard = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
     let mut saved: Vec<(&str, Option<String>)> = Vec::new();
     for (key, value) in vars {

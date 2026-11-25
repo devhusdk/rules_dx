@@ -56,7 +56,6 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | An added or deleted `BUILD`, or a deleted file outside any package | `//...`. |
 | A deleted file | The targets that still name it, else its package plus reverse dependencies. |
 | An unowned file | The package tree around it, such as `//pkg/...`. |
-| A file that reaches a toolchain, a target an aspect names by default, or a target a `.bazelrc` flag names | `//...`. |
 | A file outside any package | `//...`. |
 | A file that reaches a target a `.bazelrc` passes to a build setting, such as `.dx/config/typos/base.toml` through `--@rules_dx//config:workspace=//.dx:policy` | Its owning targets and the targets that read the setting, plus reverse dependencies. Lint and format aspects that read the setting do not widen. `//...` when a toolchain reads the setting. |
 | A file that reaches a target another `.bazelrc` flag names, such as a toolchain or platform, or that an aspect attribute names | `//...`. |

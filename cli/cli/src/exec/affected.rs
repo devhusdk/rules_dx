@@ -1520,7 +1520,7 @@ mod tests {
     fn check_lints_everything_when_a_change_reaches_lint_config_or_a_toolchain() {
         let dir = repo();
         let root = dir.path();
-        write(root, ".bazelrc", "common --//a:policy=//a:policy\n").unwrap();
+        write(root, ".bazelrc", "build --extra_toolchains=//a:policy\n").unwrap();
         dx_test_scratch::git(root, root, &["add", "."]).unwrap();
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "policy"]).unwrap();
         dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
@@ -1639,8 +1639,7 @@ mod tests {
         )
     }
 
-    #[test]
-    fn json_reports_the_crates_a_cargo_lock_update_selects() {
+    fn bumped_cargo_lock() -> (tempfile::TempDir, &'static str) {
         let dir = repo();
         let root = dir.path();
         let lock = dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].as_str();
@@ -1676,6 +1675,13 @@ mod tests {
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]).unwrap();
         dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
         write(root, lock, &cargo_lock("1.0.2")).unwrap();
+        (dir, lock)
+    }
+
+    #[test]
+    fn json_reports_the_crates_a_cargo_lock_update_selects() {
+        let (dir, lock) = bumped_cargo_lock();
+        let root = dir.path();
         let graph = [
             json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
             json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
@@ -1713,21 +1719,8 @@ mod tests {
 
     #[test]
     fn check_lints_dependents_when_a_lock_update_changes_external_crates() {
-        let dir = repo();
+        let (dir, _) = bumped_cargo_lock();
         let root = dir.path();
-        let lock = dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].as_str();
-        write(
-            root,
-            "MODULE.bazel",
-            &format!(
-                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"
-            ),
-        ).unwrap();
-        write(root, lock, &cargo_lock("1.0.1")).unwrap();
-        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
-        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]).unwrap();
-        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
-        write(root, lock, &cargo_lock("1.0.2")).unwrap();
         write(root, "a/a.txt", "changed\n").unwrap();
         let graph = rules_graph(&[
             json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),

@@ -1982,6 +1982,50 @@ override_repo(other, tool = \"overridden\")\n";
     }
 
     #[test]
+    fn aspect_closure_labels_are_global_but_provider_loads_add_none() {
+        let scratch = dx_test_scratch::scratch("dx-load-implicit-aspects-").unwrap();
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(
+            root,
+            "lint/aspect.bzl",
+            "load(\"//lint:runner.bzl\", \"RUNNER\")\nload(\"//testing:providers.bzl\", \"SubjectInfo\")\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "lint/runner.bzl",
+            "RUNNER = {\"_runner\": attr.label(default = \"//tools:runner\")}\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "testing/providers.bzl",
+            "load(\"//core:canonical.bzl\", \"strip\")\nSubjectInfo = provider(fields = [\"fields\"])\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "testing/defs.bzl",
+            "HARNESS = attr.label(default = \"//tools:harness\")\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "core/canonical.bzl",
+            "def strip(text):\n    return text\n",
+        )
+        .unwrap();
+        assert_eq!(
+            super::implicit_dependencies(root, &["//lint:aspect.bzl%lint".to_owned()]).unwrap(),
+            super::ImplicitDependencies {
+                global: BTreeSet::from(["//tools:runner".to_owned()]),
+                settings: BTreeMap::new(),
+            }
+        );
+    }
+
+    #[test]
     fn toolchain_packages_from_module_widen() {
         let scratch = dx_test_scratch::scratch("dx-load-toolchains-").unwrap();
         let root = scratch.path();

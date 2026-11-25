@@ -1,81 +1,21 @@
-"""Fail-closed v1 parity gate."""
+"""Parity gate unit tests."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
-load(":tool_defs.bzl", "is_canonical_token")
+load(":adapters.bzl", "REAL_ADAPTERS")
+load(":parity.bzl", "PARITY_DEFERRED", "adapter_backed_classes", "deferred_classes", "deferred_pipeline_error", "double_claimed_classes", "malformed_deferrals", "parity_schema_error", "unclassified_adapter_classes", "undispositioned_classes")
 
-visibility(["//core/...", "//tools/..."])
+visibility("private")
 
-
-PARITY_DEFERRED = {}
-
-def _adapter_backed_classes():
+def _derived_backed_classes():
     backed = {}
     for tool in REAL_ADAPTERS:
         for capability in REAL_ADAPTERS[tool]:
             for class_id in REAL_ADAPTERS[tool][capability]:
                 backed[class_id] = True
-    return backed
-
-def adapter_backed_classes():
-    """Returns the sorted adapter-backed classes."""
-    return sorted(_adapter_backed_classes().keys())
-
-def deferred_classes():
-    """Returns the sorted explicitly deferred classes."""
-    return sorted(PARITY_DEFERRED.keys())
-
-def parity_schema_error():
-    """Validates the parity-gate schema."""
-    for class_id in PARITY_DEFERRED:
-        if not is_canonical_token(class_id):
-            return "parity gate: non-canonical deferred class '" + str(class_id) + "'"
-        entry = PARITY_DEFERRED[class_id]
-        if len(entry) != 2 or entry[0] == "" or entry[1] == "":
-            return "parity gate: deferred class '" + class_id + "' must name an owning decision and a frozen route"
-        owner = entry[0]
-        if not owner.startswith("O") and not owner.startswith("ADR"):
-            return "parity gate: deferred class '" + class_id + "' owner '" + owner + "' must start with O or ADR"
-    return ""
-
-def _unclassified_adapter_classes():
-    backed = _adapter_backed_classes()
-    return sorted([c for c in backed if c not in REAL_CLASS_TO_FAMILY])
-
-def _undispositioned_classes():
-    backed = _adapter_backed_classes()
-    return sorted([c for c in REAL_CLASS_TO_FAMILY if c not in backed and c not in PARITY_DEFERRED])
-
-def _double_claimed_classes():
-    backed = _adapter_backed_classes()
-    return sorted([c for c in PARITY_DEFERRED if c in backed])
-
-def _malformed_deferrals():
-    bad = []
-    for class_id in sorted(PARITY_DEFERRED):
-        entry = PARITY_DEFERRED[class_id]
-        if len(entry) != 2 or entry[0] == "" or entry[1] == "":
-            bad.append(class_id)
-            continue
-        owner = entry[0]
-        if not owner.startswith("O") and not owner.startswith("ADR"):
-            bad.append(class_id)
-    return bad
-
-def deferred_pipeline_error(target_classes, capability, registry = None):
-    """Returns a fail-closed error for deferred classes with sources."""
-    if registry == None:
-        registry = PARITY_DEFERRED
-    deferred = sorted([c for c in target_classes if c in registry])
-    if len(deferred) == 0:
-        return ""
-    details = []
-    for class_id in deferred:
-        entry = registry[class_id]
-        details.append(class_id + " (" + entry[0] + ": " + entry[1] + ")")
-    return "deferred " + capability + " pipeline for " + ", ".join(details) + ": no adapter claims these classes"
+    return sorted(backed.keys())
 
 def parity_unit_tests(name):
+    """Declares the parity gate unit test."""
     starlark_test(
         name = name,
         mode = "unit",
@@ -87,28 +27,28 @@ def parity_unit_tests(name):
             ),
             expect_equal(
                 "no adapter class is unclassified",
-                _unclassified_adapter_classes(),
+                unclassified_adapter_classes(),
                 [],
             ),
             expect_equal(
                 "no classified class lacks a disposition",
-                _undispositioned_classes(),
+                undispositioned_classes(),
                 [],
             ),
             expect_equal(
                 "no class is both adapter-backed and deferred",
-                _double_claimed_classes(),
+                double_claimed_classes(),
                 [],
             ),
             expect_equal(
                 "every deferral names an owning decision and a frozen route",
-                _malformed_deferrals(),
+                malformed_deferrals(),
                 [],
             ),
             expect_equal(
                 "adapter-backed query matches the registry derivation",
                 adapter_backed_classes(),
-                sorted(_adapter_backed_classes().keys()),
+                _derived_backed_classes(),
             ),
             expect_equal(
                 "deferred query matches the deferral registry",

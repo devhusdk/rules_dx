@@ -1,15 +1,8 @@
 """Project-owned Starlark testing facade."""
 
-load("//core:canonical.bzl", "strip_canonical")
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
-
-DxSubjectInfo = provider(
-    doc = "Analysis observations a subject rule exposes to starlark_test.",
-    fields = {
-        "fields": "Observations about the subject.",
-    },
-)
+load(":providers.bzl", "DxSubjectInfo", "display_label")
 
 DxAspectInfo = provider(
     doc = "Aspect observations derived without subject cooperation.",
@@ -29,7 +22,7 @@ def _dx_aspect_note_impl(target, ctx):
     """Derives one aspect note without subject cooperation."""
     fields = {
         "aspect_seen": "True",
-        "subject_label": _display_label(target.label),
+        "subject_label": display_label(target.label),
     }
     if DxSubjectInfo in target:
         fields["field_count"] = str(len(target[DxSubjectInfo].fields.keys()))
@@ -122,14 +115,6 @@ def expect_match(name, value, want):
         "want": want,
     })
 
-def _display_label(label):
-    """Renders a label for observations and diagnostics."""
-    return strip_canonical(str(label))
-
-def display_label(label):
-    """Renders a label with the canonical-repository marker stripped."""
-    return _display_label(label)
-
 def _require_keys(record, keys, raw):
     """Fails analysis when a check record lacks one of the required keys."""
     for key in keys:
@@ -214,7 +199,7 @@ def _harness_file_entries(ctx):
         for f in files:
             entries.append({
                 "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
+                "label": display_label(target.label),
                 "needles": required,
             })
             staged.append(f)
@@ -231,7 +216,7 @@ def _harness_file_entries(ctx):
         for f in files:
             entries.append({
                 "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
+                "label": display_label(target.label),
                 "needles": blocks,
             })
             staged.append(f)
@@ -242,7 +227,7 @@ def _harness_file_entries(ctx):
         for f in _file_check_files(target, "file_line_endings"):
             entries.append({
                 "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
+                "label": display_label(target.label),
                 "line_endings": kind,
                 "needles": [],
             })
@@ -258,7 +243,7 @@ def _write_harness(ctx, records, observations):
         json.encode({
             "checks": records,
             "files": entries,
-            "name": _display_label(ctx.label),
+            "name": display_label(ctx.label),
             "observations": observations,
             "version": _HARNESS_MANIFEST_VERSION,
         }) + "\n",
@@ -315,7 +300,7 @@ def _observe_subjects(subjects):
     """Renders one observation block per subject target."""
     lines = []
     for target in sorted(subjects, key = lambda t: str(t.label)):
-        lines.append("subject " + _display_label(target.label))
+        lines.append("subject " + display_label(target.label))
         info = target[DefaultInfo]
         for f in sorted(info.files.to_list(), key = lambda f: f.basename):
             lines.append("file " + _observed_basename(f.basename))

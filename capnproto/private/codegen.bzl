@@ -6,10 +6,10 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
-load("//core/private/testing:defs.bzl", "display_label")
 load("//core:stage.bzl", "check_import_paths")
 load("//core:wrapper.bzl", "dx_quality_sources")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
+load("//core/private/testing:providers.bzl", "display_label")
 load(":providers.bzl", "CapnprotoInfo")
 
 _PRIVATE_ATTRS = {

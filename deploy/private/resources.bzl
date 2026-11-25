@@ -1,7 +1,7 @@
 """Logical-path resource collections with optional declared processing."""
 
-load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
-load(":validate_resources.bzl", "resource_path_error", "resource_mapping_error")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo", "display_label")
+load(":validate_resources.bzl", "resource_mapping_error", "resource_path_error")
 
 DxResourcesInfo = provider(
     doc = "Staged resource identity for dx resource consumers.",

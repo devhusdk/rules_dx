@@ -1,8 +1,9 @@
 """Shared wrapper conformance checks for language rules."""
 
 load("//core:canonical.bzl", "strip_canonical")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
 
 visibility("public")

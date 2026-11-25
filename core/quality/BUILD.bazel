@@ -818,6 +818,7 @@ real_source_target(
         "native_config_tests.bzl",
         "overlap_tests.bzl",
         "overlaps.bzl",
+        "parity.bzl",
         "parity_tests.bzl",
         "pipeline.bzl",
         "pipeline_tests.bzl",

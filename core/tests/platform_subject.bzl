@@ -1,7 +1,7 @@
 """Subject that reports what platform_identity returns for a platform."""
 
 load("//core:platform.bzl", "DxProbePlatformInfo", "PLATFORM_ATTRS", "platform_identity", "platforms_transition")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 
 def _platform_subject_impl(ctx):
     """Reports the os and cpu seen for one platform."""

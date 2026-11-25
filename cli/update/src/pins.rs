@@ -548,7 +548,7 @@ mod tests {
         std::fs::remove_dir_all(&root).unwrap();
     }
 
-    #[cfg(unix)]
+    #[cfg(all(unix, not(target_os = "macos")))]
     #[test]
     fn listed_skips_directories_whose_names_are_not_utf8() {
         use std::os::unix::ffi::OsStrExt;

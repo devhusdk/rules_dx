@@ -423,7 +423,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("folder.yml")).unwrap();
         std::fs::write(dir.join("ci.yml"), "name: ci\n").unwrap();
         std::fs::write(dir.join("notes.txt"), "x").unwrap();
-        #[cfg(unix)]
+        #[cfg(all(unix, not(target_os = "macos")))]
         {
             use std::os::unix::ffi::OsStrExt;
             let odd = dir.join(std::ffi::OsStr::from_bytes(b"bad\xff.yml"));

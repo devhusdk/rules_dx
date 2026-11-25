@@ -1,11 +1,11 @@
 """Rust real quality aspects."""
 
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
-load("//rust/private/quality:rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
 load("//core/quality:family_hooks.bzl", "upstream_files")
 load("//core/quality:pipeline.bzl", "generated_source_paths", "prune_tool_generated_sources")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//rust/private:edition.bzl", "RUST_EDITION")
+load("//rust/private/quality:rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
 load("//rust/private/toolchain:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_runtime_files", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 TOOLS = {

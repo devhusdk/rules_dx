@@ -14,7 +14,7 @@ inputs:
     required: false
     default: "false"
   free-disk:
-    description: On macOS, delete the Xcode versions other than the selected one, the simulator runtimes and the Android SDK before Bazel starts. Whole-repo runs need the space; rules_dx fetches its own Android SDK.
+    description: Before Bazel starts, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one, the simulator runtimes and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK.
     required: false
     default: "false"
 outputs:
@@ -51,6 +51,15 @@ runs:
             fi
             [ -d "$dir" ] || mkdir -p "$dir" || { echo "::error::cannot create $dir"; exit 1; }
           done
+        fi
+        if [ "$RUNNER_OS" = Windows ]; then
+          bin="$(cygpath -w "$(dirname "${BAZEL_SH:-/usr/bin/bash.exe}")")"
+          root="${bin%\\usr\\bin}"
+          if [ "$root" != "$bin" ] && [ -f "$(cygpath -u "$root\\cmd\\git.exe")" ]; then
+            system="$(cygpath -w "${SYSTEMROOT:-C:\\Windows}")"
+            path="$bin;$root\\bin;$root\\cmd;$system;$system\\System32;$system\\System32\\WindowsPowerShell\\v1.0"
+            echo "test:windows '--test_env=PATH=${path//\\/\\\\}'" >> user.bazelrc
+          fi
         fi
         if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
           echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
@@ -104,10 +113,16 @@ runs:
         find /Applications -maxdepth 1 -name 'Xcode*.app' -type l ! -exec test -e {} \; -exec sudo rm -f {} +
         echo "kept $keep"
         df -h /
+    - name: Free preinstalled Linux content rules_dx does not use
+      if: ${{ inputs.free-disk == 'true' && runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+        df -h /
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}
-        bazelisk-cache: false
+        bazelisk-cache: ${{ runner.os == 'Windows' }}
         cache-save: ${{ inputs.cache-save }}
         disk-cache: ${{ inputs.disk-cache }}
     - name: Start the Bazel server

@@ -1,15 +1,15 @@
 name: gate
-description: Run dx check or dx coverage with --affected against the pinned base.
+description: Run dx check, dx coverage or both with --affected against the pinned base.
 inputs:
   command:
-    description: The dx command, check or coverage.
+    description: The dx command, check or coverage, or both separated by a space, which run in order.
     required: true
   lcov:
     description: Where dx coverage writes its lcov report.
     required: false
     default: ""
   baseline:
-    description: Name for this job's failing labels, such as check-linux_x86_64. A push reads and writes main-baseline-<name>; a pull request writes failing-<name>.
+    description: Name for this job's failing labels on main, such as check-linux_x86_64. A dispatched run on main reads and writes main-baseline-<name>.
     required: false
     default: ""
 runs:
@@ -47,6 +47,36 @@ runs:
         run-id: ${{ steps.previous.outputs.run }}
         github-token: ${{ github.token }}
         path: ${{ runner.temp }}/baseline-previous
+    - name: Key the dx rule graph
+      id: graph-key
+      env:
+        INPUTS: ${{ hashFiles('**/BUILD', '**/BUILD.bazel', '**/*.bzl', '**/*.scl', '**/MODULE.bazel', '**/*.MODULE.bazel', '**/MODULE.bazel.lock', '**/REPO.bazel', '**/WORKSPACE', '**/WORKSPACE.bazel', '**/WORKSPACE.bzlmod', '**/.bazelignore', '**/.bazelversion', '**/*bazelrc') }}
+      shell: bash
+      run: |
+        files="$(git ls-files | sha256sum)"
+        prefix="dx-graph-$RUNNER_OS-$RUNNER_ARCH-$INPUTS-"
+        { echo "prefix=$prefix"; echo "key=$prefix${files%% *}"; } >> "$GITHUB_OUTPUT"
+    - name: Restore the dx rule graph
+      id: graph
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .dx/local/rule_graph
+        key: ${{ steps.graph-key.outputs.key }}
+        restore-keys: ${{ steps.graph-key.outputs.prefix }}
+    - name: Build the gate tools
+      shell: bash
+      run: |
+        # shellcheck disable=SC2086
+        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        tools=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx @rules_dx//tools/ci/producers:producers_bin)
+        bazel build "$@" "${tools[@]}"
+        root="$(bazel info "$@" execution_root)"
+        bin="${RUNNER_TEMP:-/tmp}/dx-bin"
+        mkdir -p "$bin"
+        query="$(printf ' + %s' "${tools[@]}")"
+        bazel cquery "$@" --output=files "${query# + }" | grep -E '/(gate_base_bin|dx|producers_bin)(\.exe)?$' | while read -r built; do
+          cp -L "$root/$built" "$bin/${built##*/}"
+        done
     - name: Pin the affected base
       env:
         EVENT_NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'push' || github.event_name }}
@@ -54,48 +84,59 @@ runs:
         MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
       shell: bash
       run: |
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run "$@" @rules_dx//tools/ci/gate_base:gate_base_bin
+        "${RUNNER_TEMP:-/tmp}/dx-bin/gate_base_bin"
     - name: dx ${{ inputs.command }} --affected
       id: check
       env:
-        COMMAND: ${{ inputs.command }}
+        COMMANDS: ${{ inputs.command }}
         LCOV: ${{ inputs.lcov }}
       shell: bash
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-        tags=-manual,-resources:nested_bazel:1,-starter-consumer,-network-consumer
-        if [ "$COMMAND" = coverage ]; then
-          tags=-no-coverage,-dx-no-coverage-collector,$tags
-        fi
-        report=()
-        if [ "$COMMAND" = check ]; then
-          report=(--max-findings 0)
-        fi
-        if [ -n "$LCOV" ]; then
-          mkdir -p "$(dirname "$LCOV")"
-          report+=(--report "lcov=$LCOV")
-        fi
-        bazel build "$@" @rules_dx//:dx
-        built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
-        dx="${RUNNER_TEMP:-/tmp}/dx-bin/${built##*/}"
-        mkdir -p "${dx%/*}"
-        cp -L "$(bazel info "$@" execution_root)/$built" "$dx"
-        "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
+        pr_tags=-network-consumer,-audit
+        tags=-manual,-resources:nested_bazel:1,$pr_tags
+        dx="${RUNNER_TEMP:-/tmp}/dx-bin/dx"
+        out="${RUNNER_TEMP:-/tmp}/gate.json"
+        : > "$out"
+        status=0
+        for COMMAND in $COMMANDS; do
+          filters=()
+          report=()
+          case "$COMMAND" in
+            check)
+              report=(--max-findings 0)
+              if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+                filters=("--test_tag_filters=$pr_tags")
+              fi
+              ;;
+            coverage)
+              filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags")
+              if [ -n "$LCOV" ]; then
+                mkdir -p "$(dirname "$LCOV")"
+                report=(--report "lcov=$LCOV")
+              fi
+              ;;
+          esac
+          "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
+        done
+        exit "$status"
+    - name: Save the dx rule graph
+      if: ${{ !cancelled() && steps.check.outcome != 'skipped' && steps.graph.outputs.cache-hit != 'true' && hashFiles('.dx/local/rule_graph') != '' }}
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .dx/local/rule_graph
+        key: ${{ steps.graph.outputs.cache-primary-key }}
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash
       run: |
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
+        "${RUNNER_TEMP:-/tmp}/dx-bin/producers_bin" --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Record the failing labels
       id: failing
-      if: ${{ !cancelled() && inputs.baseline != '' }}
+      if: ${{ !cancelled() && inputs.baseline != '' && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
       env:
-        NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        NAME: main-baseline-${{ inputs.baseline }}
         OUTCOME: ${{ steps.check.outcome }}
       shell: bash
       run: |
@@ -113,9 +154,7 @@ runs:
         if [ -n "$previous" ]; then
           args+=(--previous "$previous")
         fi
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- "${args[@]}"
+        "$RUNNER_TEMP/dx-bin/producers_bin" "${args[@]}"
     - name: Check the failing labels hold no secret
       id: scan-failing
       if: ${{ !cancelled() && steps.failing.outcome == 'success' }}
@@ -123,12 +162,12 @@ runs:
       with:
         path: ${{ runner.temp }}/failing
     - name: Upload the failing labels
-      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && (github.event_name == 'pull_request' || ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure'))) }}
+      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}
+        name: main-baseline-${{ inputs.baseline }}
         path: ${{ runner.temp }}/failing
-        retention-days: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 30 || 7 }}
+        retention-days: 30
         overwrite: true
     - name: Verify the base dx compared against
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}

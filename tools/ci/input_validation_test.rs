@@ -251,7 +251,7 @@ fn include_of(document: &Value, job: &str) -> Vec<Value> {
 }
 
 fn preflight_pairs(document: &Value) -> Vec<(String, String)> {
-    include_of(document, "starter-consumer")
+    include_of(document, "preflight")
         .iter()
         .filter_map(|entry| {
             Some((

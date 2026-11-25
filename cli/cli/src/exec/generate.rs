@@ -16,7 +16,6 @@ use dx_plan::plan::{
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolvedScope, resolve_for_generate};
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -135,61 +134,61 @@ fn lock_sets(
         .iter()
         .map(|(name, value)| (name.as_str(), value.as_str()))
         .collect();
-    let mut runs_here = std::collections::BTreeMap::new();
-    let mut built: HashMap<&str, Option<String>> = HashMap::new();
+    let sets: Vec<_> = sets
+        .into_iter()
+        .filter(|set| {
+            !(set.dir == "." && unlocked.contains(&set.manifest))
+                && generate_scope_visits(resolved, &set.dir)
+        })
+        .collect();
+    let mut resolvers: Vec<&str> = sets.iter().map(|set| set.resolver).collect();
+    resolvers.sort_unstable();
+    resolvers.dedup();
+    let states = super::lock_tools::ready(
+        env.query_runner,
+        env.runner,
+        env.workspace,
+        &head,
+        &run_env,
+        &resolvers,
+    );
+    let done = if apply { "written" } else { "checked" };
     for set in sets {
-        if (set.dir == "." && unlocked.contains(&set.manifest))
-            || !generate_scope_visits(resolved, &set.dir)
-        {
-            continue;
-        }
-        if !*runs_here.entry(set.resolver).or_insert_with(|| {
-            resolver_runs_here(env.query_runner, env.workspace, &head, set.resolver)
-        }) {
-            wiring.info(
-                env.err,
-                format!(
-                    "lock of {} not {}: {} is incompatible with this platform",
-                    set.name,
-                    if apply { "written" } else { "checked" },
-                    set.resolver
-                ),
-            );
-            continue;
-        }
+        let launcher = match states.get(set.resolver) {
+            Some(super::lock_tools::Resolver::Incompatible) => {
+                wiring.info(
+                    env.err,
+                    format!(
+                        "lock of {} not {done}: {} is incompatible with this platform",
+                        set.name, set.resolver
+                    ),
+                );
+                continue;
+            }
+            Some(super::lock_tools::Resolver::Unbuilt(detail)) => {
+                wiring.failed(
+                    env.err,
+                    format!("lock of {} not {done}: {detail}", set.name),
+                );
+                continue;
+            }
+            Some(super::lock_tools::Resolver::Built(launcher)) => launcher.as_deref(),
+            None => None,
+        };
         let path = env.workspace.join(&set.dir);
-        let Some(dir) = path.to_str() else {
+        let (Some(dir), Some(workspace)) = (path.to_str(), env.workspace.to_str()) else {
             wiring.failed(
                 env.err,
-                format!("lock of {} not checked: non-UTF-8 path", set.name),
+                format!("lock of {} not {done}: non-UTF-8 path", set.name),
             );
             continue;
         };
-        let done = if apply { "written" } else { "checked" };
-        let unbuilt = built.entry(set.resolver).or_insert_with(|| {
-            let argv = dx_update::backend::resolver_build_argv(&head, set.resolver);
-            match env.runner.run(&argv, env.workspace, &run_env) {
-                Ok(status) if status.code == Some(0) => None,
-                Ok(status) => Some(format!(
-                    "{} did not build: bazel exited {}",
-                    set.resolver,
-                    exit_text(status.code)
-                )),
-                Err(error) => Some(format!("{} did not build: {error}", set.resolver)),
-            }
-        });
-        if let Some(detail) = unbuilt {
-            wiring.failed(
-                env.err,
-                format!("lock of {} not {done}: {detail}", set.name),
-            );
-            continue;
+        let argv = super::lock_tools::run_argv(&head, set.resolver, launcher, dir, !apply);
+        let mut set_env = run_env.clone();
+        if launcher.is_some() {
+            set_env.extend(super::lock_tools::launcher_env(workspace));
         }
-        let mut argv = dx_update::backend::resolver_run_argv(&head, set.resolver, dir);
-        if !apply {
-            argv.push("--check".to_owned());
-        }
-        match env.runner.run(&argv, env.workspace, &run_env) {
+        match env.runner.run(&argv, env.workspace, &set_env) {
             Ok(status) if status.code == Some(0) => {}
             Ok(status) if !apply && status.code == Some(1) => wiring.pending(
                 env.err,
@@ -212,27 +211,8 @@ fn lock_sets(
     }
 }
 
-fn exit_text(code: Option<i32>) -> String {
+pub(super) fn exit_text(code: Option<i32>) -> String {
     code.map_or_else(|| "by signal".to_owned(), |code| code.to_string())
-}
-
-/// False only when Bazel reports the resolver incompatible; any other answer lets the run report.
-fn resolver_runs_here(
-    query: &dyn dx_plan::resolve::QueryRunner,
-    workspace: &Path,
-    head: &dx_process::BazelHead,
-    resolver: &str,
-) -> bool {
-    let mut argv = head.argv("cquery");
-    argv.extend([
-        "--output=starlark".to_owned(),
-        "--starlark:expr='IncompatiblePlatformProvider' in (providers(target) or {})".to_owned(),
-        resolver.to_owned(),
-    ]);
-    !matches!(
-        query.run_query(&argv, workspace),
-        Ok(result) if result.code == Some(0) && result.stdout.trim_ascii() == b"True"
-    )
 }
 
 fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
@@ -1207,8 +1187,10 @@ mod tests {
     fn check_skips_a_resolver_that_is_incompatible_with_the_platform() {
         let (mut harness, hub) = composer_set("check-lock-incompatible");
         harness.app_code = Some(1);
-        harness.query.script_stdout("True\n");
         let resolver = hub.resolver.as_deref().expect("resolver");
+        harness
+            .query
+            .script_stdout(&format!("@{resolver}:lock incompatible\n"));
         let (code, out, err) = harness.run(&["check"]);
         assert!(resolver_runs(&harness, resolver).is_empty(), "{out}{err}");
         let calls = harness.query.calls.borrow();
@@ -1227,11 +1209,177 @@ mod tests {
     #[test]
     fn check_runs_a_resolver_that_bazel_reports_compatible() {
         let (harness, hub) = composer_set("check-lock-compatible");
-        harness.query.script_stdout("False\n");
         let resolver = hub.resolver.as_deref().expect("resolver");
+        harness
+            .query
+            .script_stdout(&format!("@{resolver}:lock {LAUNCHER}\n"));
         let (_, out, err) = harness.run(&["check"]);
         assert_eq!(resolver_runs(&harness, resolver).len(), 1, "{out}{err}");
         assert!(!err.contains("incompatible"), "{err}");
+    }
+
+    const LAUNCHER: &str = "bazel-out/k8-fastbuild/bin/php/private/tools/lock/lock";
+
+    fn launcher_path(resolver: &str) -> String {
+        format!(
+            "bazel-out/bin/{}",
+            resolver.trim_start_matches("@rules_dx//")
+        )
+    }
+
+    fn script_launchers(harness: &Harness, resolvers: &[&str]) {
+        let lines: String = resolvers
+            .iter()
+            .map(|resolver| format!("@{resolver}:lock {}\n", launcher_path(resolver)))
+            .collect();
+        harness.query.script_stdout(&lines);
+        *harness.query.info.borrow_mut() = Some(dx_plan::resolve::QueryResult {
+            code: Some(0),
+            stdout: b"/exec/root\n".to_vec(),
+            stderr: Vec::new(),
+        });
+    }
+
+    fn launcher_of(resolver: &str) -> String {
+        dx_tool_resolve::join_under("/exec/root", &launcher_path(resolver))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn check_runs_the_built_launcher_without_bazel_run() {
+        let (mut harness, hub) = composer_set("check-lock-launcher");
+        harness.app_code = Some(1);
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        script_launchers(&harness, &[resolver]);
+        let (code, out, err) = harness.run(&["check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("dx: lock of web is stale"), "{err}");
+        let dir = harness.workspace.join("php").to_string_lossy().into_owned();
+        let launcher = launcher_of(resolver);
+        let builds = harness.build_argv.borrow();
+        let at = builds
+            .iter()
+            .position(|argv| argv.first() == Some(&launcher))
+            .expect("launcher run");
+        assert_eq!(
+            builds[at],
+            [
+                launcher.clone(),
+                "--dir".to_owned(),
+                dir,
+                "--check".to_owned()
+            ]
+        );
+        drop(builds);
+        assert!(resolver_runs(&harness, resolver).is_empty());
+        let workspace = harness.workspace.to_string_lossy().into_owned();
+        let env = &harness.seen_env.borrow()[at];
+        assert!(
+            env.contains(&("BUILD_WORKSPACE_DIRECTORY".to_owned(), workspace)),
+            "{env:?}"
+        );
+    }
+
+    fn two_sets(name: &str) -> Harness {
+        let mut harness = Harness::new(name);
+        let mut module = String::new();
+        for (ecosystem, dir, set, manifest) in [
+            ("composer", "php", "web", "{}"),
+            ("pub", "dart", "app", "name: app\n"),
+        ] {
+            let hub = dx_families::hub(ecosystem).expect("setup.hubs entry");
+            module.push_str(&format!(
+                "{e} = use_extension(\"{x}\", \"{e}\")\n{e}.{tag}(name = \"{set}\", lock = \"//{dir}:{lock}\")\n",
+                e = hub.ecosystem,
+                x = hub.extension,
+                tag = hub.tag.as_deref().expect("tag"),
+                lock = hub.lock.as_deref().expect("lock"),
+            ));
+            harness.write_source(&format!("{dir}/{}", hub.manifest), manifest);
+        }
+        harness.write_source("MODULE.bazel", &module);
+        harness.write_source("BUILD.bazel", "");
+        harness.intended = Some(intended_witness("check", true, "", ""));
+        harness.generate_code = Some(0);
+        harness
+    }
+
+    fn two_resolvers() -> [&'static str; 2] {
+        let mut resolvers = ["composer", "pub"].map(|ecosystem| {
+            dx_families::hub(ecosystem)
+                .and_then(|hub| hub.resolver.as_deref())
+                .expect("resolver")
+        });
+        resolvers.sort_unstable();
+        resolvers
+    }
+
+    #[test]
+    fn check_builds_every_resolver_in_one_bazel_build() {
+        let harness = two_sets("check-lock-one-build");
+        let resolvers = two_resolvers();
+        script_launchers(&harness, &resolvers);
+        let (_, out, err) = harness.run(&["check"]);
+        let builds = harness.build_argv.borrow();
+        let resolver_builds: Vec<&Vec<String>> = builds
+            .iter()
+            .filter(|argv| argv.iter().any(|arg| arg == "build"))
+            .filter(|argv| {
+                resolvers
+                    .iter()
+                    .any(|resolver| argv.iter().any(|arg| arg == resolver))
+            })
+            .collect();
+        assert_eq!(resolver_builds.len(), 1, "{builds:?}\n{out}{err}");
+        assert!(
+            resolver_builds[0].ends_with(&resolvers.map(str::to_owned)),
+            "{builds:?}"
+        );
+        for resolver in resolvers {
+            let launcher = launcher_of(resolver);
+            let runs = builds
+                .iter()
+                .filter(|argv| argv.first() == Some(&launcher))
+                .count();
+            assert_eq!(runs, 1, "{builds:?}");
+        }
+        let queries = harness.query.calls.borrow();
+        let probes: Vec<_> = queries
+            .iter()
+            .filter(|argv| argv.iter().any(|arg| arg == "cquery"))
+            .collect();
+        assert_eq!(probes.len(), 1, "{queries:?}");
+        assert_eq!(probes[0].last(), Some(&resolvers.join(" + ")));
+    }
+
+    #[test]
+    fn a_failed_batch_build_names_the_resolver_that_did_not_build() {
+        let resolvers = two_resolvers();
+        let [built, broken] = resolvers;
+        let all_built = two_sets("check-lock-batch-built");
+        all_built.run(&["check"]);
+        let batch = all_built
+            .build_argv
+            .borrow()
+            .iter()
+            .position(|argv| argv.ends_with(&resolvers.map(str::to_owned)))
+            .expect("batch build");
+        let mut harness = two_sets("check-lock-batch-unbuilt");
+        harness.launch_codes = [vec![0; batch], vec![1, 0, 1, 0]].concat();
+        let (code, out, err) = harness.run(&["check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains(&format!("{broken} did not build: bazel exited 1")),
+            "{err}"
+        );
+        assert!(!err.contains(&format!("{built} did not build")), "{err}");
+        let builds = harness.build_argv.borrow();
+        assert!(
+            builds
+                .iter()
+                .any(|argv| argv.last().map(String::as_str) == Some(built))
+        );
     }
 
     #[test]

@@ -47,7 +47,7 @@ typescript_doc_shard(
         chdir = package_name(),
         mnemonic = "DxTypedocControl",
         out_dirs = ["hostile_control_html"] if marker == "tsconfig" else [],
-        tool = "//javascript/private/quality/bin:typedoc_stock",
+        tool = "//javascript/private/quality/bin:typedoc_stock_tool",
     )
     for marker, tsconfig in {
         "base": "tsconfig.base.json",

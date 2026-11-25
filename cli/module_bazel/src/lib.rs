@@ -1656,6 +1656,19 @@ pub fn loaded_calls(source: &str) -> Result<Vec<(String, String)>, ModuleError> 
     Ok(out)
 }
 
+pub fn string_literals(source: &str) -> Result<Vec<String>, ModuleError> {
+    fn walk(expr: &AstExpr, out: &mut Vec<String>) {
+        if let ExprP::Literal(AstLiteral::String(literal)) = &expr.node {
+            out.push(literal.node.clone());
+        }
+        expr.visit_expr(|child| walk(child, out));
+    }
+    let ast = parse_starlark(source)?;
+    let mut out = Vec::new();
+    ast.statement().visit_expr(|expr| walk(expr, &mut out));
+    Ok(out)
+}
+
 pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
     let ast = parse_starlark(source)?;
     Ok(ast

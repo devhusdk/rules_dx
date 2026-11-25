@@ -39,7 +39,7 @@ real_cc_docs_aspect = aspect(
         "_doxygen_binary": attr.label(
             allow_single_file = True,
             cfg = "exec",
-            default = Label("@dx_doxygen//:binary"),
+            default = Label("@dx_doxygen//:binary_or_marker"),
         ),
     },
     fragments = ["cpp"],

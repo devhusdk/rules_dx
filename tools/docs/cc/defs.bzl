@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_MARKER", "UNSUPPORTED_REASON")
+load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_MARKER")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 visibility(["//..."])
@@ -51,8 +51,6 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen, doxygen_file
     headers = sorted({f.path: f for f in headers}.values(), key = lambda f: f.path)
     if not headers:
         fail(_where(ctx) + ": lib lists no public headers")
-    if not doxygen_available(doxygen):
-        fail(_where(ctx) + ": " + UNSUPPORTED_REASON)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in headers])))
 

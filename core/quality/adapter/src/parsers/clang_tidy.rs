@@ -22,6 +22,12 @@ fn is_count_trailer(line: &str) -> bool {
         })
 }
 
+fn is_driver_warning(line: &str) -> bool {
+    line.strip_prefix("warning: ")
+        .map(split_rule)
+        .is_some_and(|(message, rule)| !message.is_empty() && rule.starts_with("clang-diagnostic-"))
+}
+
 fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
     if let Some(file) = files.iter().copied().find(|f| *f == path) {
         return Some(file);
@@ -95,6 +101,7 @@ pub fn parse_clang_tidy(
             continue;
         }
         if is_count_trailer(line)
+            || is_driver_warning(line)
             || line.starts_with("Suppressed ")
             || line.starts_with("Use -header-filter=")
             || line.starts_with("Use -system-headers")
@@ -189,6 +196,33 @@ mod tests {
         assert_eq!(findings[0].file, file);
         assert_eq!(findings[0].finding.start.line, 3);
         assert_eq!(findings[0].finding.start.column, 1);
+    }
+
+    #[test]
+    fn clang_tidy_skips_clang_cl_driver_warnings() {
+        let file = "cc/tests/fixtures/googletest/greeter_test.cc";
+        let log = "warning: unknown argument ignored in clang-cl: '-std=c++17' [clang-diagnostic-unknown-argument]\n1 warning generated.\nD:\\_bazel\\execroot\\_main\\cc\\tests\\fixtures\\googletest\\greeter_test.cc:12:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
+        let found = parse_clang_tidy(log.as_bytes(), Some(0), &[file]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, file);
+        assert_eq!(found[0].finding.start.line, 12);
+        assert_eq!(found[0].finding.start.column, 3);
+        let clean = "warning: unknown argument ignored in clang-cl: '-std=c++17' [clang-diagnostic-unknown-argument]\n1 warning generated.\n";
+        assert!(
+            parse_clang_tidy(clean.as_bytes(), Some(0), &[file])
+                .expect("parsed")
+                .is_empty()
+        );
+        for unplaced in [
+            "error: unknown argument: '-foo' [clang-diagnostic-error]\n",
+            "warning: no rule\n",
+            "warning: [clang-diagnostic-unknown-argument]\n",
+        ] {
+            assert!(
+                parse_clang_tidy(unplaced.as_bytes(), Some(0), &[file]).is_err(),
+                "{unplaced}"
+            );
+        }
     }
 
     #[test]

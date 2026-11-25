@@ -15,12 +15,12 @@ python_test(
     srcs = ["languages.py"],
     data = [
         "//tools/docs/support_matrix:facts",
-        "@dx_test_tags_sources//:consumer.json",
+        "@dx_consumer_fixtures//:consumer.json",
         "@dx_test_tags_sources//:files.json",
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_consumer_fixtures//:consumer.json)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
     },

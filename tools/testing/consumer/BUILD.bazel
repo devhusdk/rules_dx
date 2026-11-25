@@ -32,7 +32,7 @@ rust_test(
 # IN_GRAPH_GUARD_LANGS consumer fixtures, or those of --langs, under the dx check and dx docs aspects
 # and fails when they compile a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
 IN_GRAPH_GUARD_ENV = {
-    "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_CONSUMER_JSON": "$(rlocationpath @dx_consumer_fixtures//:consumer.json)",
     "DX_IN_GRAPH_GUARD_LANGS": " ".join(IN_GRAPH_GUARD_LANGS),
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
 }
@@ -45,7 +45,7 @@ rust_binary(
     crate_root = "in_graph_prebuilt_guard.rs",
     data = [
         "prebuilt_guard_allowlist.txt",
-        "@dx_test_tags_sources//:consumer.json",
+        "@dx_consumer_fixtures//:consumer.json",
     ],
     env = IN_GRAPH_GUARD_ENV,
     deps = [
@@ -62,7 +62,7 @@ rust_test(
     crate = ":in_graph_prebuilt_guard",
     data = [
         "prebuilt_guard_allowlist.txt",
-        "@dx_test_tags_sources//:consumer.json",
+        "@dx_consumer_fixtures//:consumer.json",
     ],
     env = IN_GRAPH_GUARD_ENV | {
         "DX_CONSUMER_FIXTURES": " ".join(CONSUMER_FIXTURES),
@@ -132,10 +132,10 @@ nested_bazel_test(
         "//cli/prebuilt:registry",
         "//cli/prebuilt:target_tools",
         "//patches/rules_py:patches",
-        "@dx_test_tags_sources//:consumer.json",
+        "@dx_consumer_fixtures//:consumer.json",
     ],
     env = COLD_START_ENV | {
-        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_consumer_fixtures//:consumer.json)",
         "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
         "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",

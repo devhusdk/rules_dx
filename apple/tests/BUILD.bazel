@@ -33,9 +33,9 @@ nested_bazel_test(
     crate_root = "consumer_build_test.rs",
     data = [
         "//:module_srcs",
-        "@dx_test_tags_sources//:consumer.json",
+        "@dx_consumer_fixtures//:apple.json",
     ],
-    env = {"DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)"},
+    env = {"DX_CONSUMER_JSON": "$(rlocationpath @dx_consumer_fixtures//:apple.json)"},
     target_compatible_with = ["@platforms//os:macos"],
     deps = [
         "//tools/testing:dx_testing",

@@ -1,7 +1,7 @@
-"""Coverage of the walk behind @dx_test_tags_sources."""
+"""Coverage of the walks behind @dx_test_tags_sources and @dx_consumer_fixtures."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":repos.bzl", "api_skipped", "consumer_fixture_file", "ignored_paths", "skipped", "walk")
+load(":repos.bzl", "api_skipped", "consumer_fixture_paths", "ignored_paths", "skipped", "walk")
 
 _BAZELIGNORE = """node_modules
 .claude/
@@ -67,14 +67,14 @@ def _with(directory, entry):
     tree[directory] = tree[directory] + [entry]
     return tree
 
-def _walk(tree):
+def _walk(tree, roots = [""]):
     listed = []
 
     def readdir(path):
         listed.append(path)
         return tree[path]
 
-    result = walk(ignored_paths(_BAZELIGNORE), readdir)
+    result = walk(ignored_paths(_BAZELIGNORE), readdir, roots)
     return struct(directories = result.directories, files = result.files, listed = sorted(listed))
 
 def _unchanged(name, directory, entry):
@@ -89,6 +89,7 @@ def _checks():
     ignored = ignored_paths(_BAZELIGNORE)
     before = _walk(_TREE)
     edited = _walk(_with("tools/ci", _file("test.bzl")))
+    rooted = _walk(_TREE, ["cli/entrypoint", "tools/ci"])
     return [
         expect_equal("ignored paths", sorted(ignored.keys()), [".claude", ".dx/local", ".tmp", "bin", "cli/entrypoint/consumer_sets/repo", "node_modules", "rules_dx"]),
         expect_true("ignored path", skipped(".dx/local", _dir("local"), ignored)),
@@ -102,14 +103,15 @@ def _checks():
         expect_false("source directory", skipped("tools/ci", _dir("ci"), ignored)),
         expect_false("source file", skipped("tools/ci/repos.bzl", _file("repos.bzl"), ignored)),
         expect_false("ignored name below the root", skipped("tools/bin", _dir("bin"), ignored)),
-        expect_false("ignored consumer directory", skipped("go/tests/consumer", _dir("consumer"), {"go/tests/consumer": True})),
+        expect_true("ignored consumer directory", skipped("go/tests/consumer", _dir("consumer"), {"go/tests/consumer": True})),
         expect_true("ignored non-consumer directory", skipped("go/tests/fixtures", _dir("fixtures"), {"go/tests/fixtures": True})),
         expect_true("ignored consumer node_modules", skipped("javascript/tests/consumer/node_modules", _dir("node_modules"), {"javascript/tests/consumer/node_modules": True})),
-        expect_true("consumer fixture file", consumer_fixture_file("go/tests/consumer/pkg/a.go", {"go": True})),
-        expect_false("consumer directory of no language", consumer_fixture_file("tools/tests/consumer/a.go", {"go": True})),
-        expect_false("file beside the consumer directory", consumer_fixture_file("go/tests/consumer.bzl", {"go": True})),
-        expect_false("another fixture", consumer_fixture_file("go/tests/fixtures/consumer/a.go", {"go": True})),
-        expect_false("binary image in the consumer directory", consumer_fixture_file("msix/tests/consumer/logo.png", {"msix": True})),
+        expect_equal(
+            "consumer fixture text files by language",
+            consumer_fixture_paths(["go/tests/consumer/BUILD.bazel", "go/tests/consumer/pkg/a.go", "msix/tests/consumer/BUILD.bazel", "msix/tests/consumer/logo.png"]),
+            {"go": ["go/tests/consumer/BUILD.bazel", "go/tests/consumer/pkg/a.go"], "msix": ["msix/tests/consumer/BUILD.bazel"]},
+        ),
+        expect_equal("consumer fixture of images only", consumer_fixture_paths(["msix/tests/consumer/logo.png"]), {}),
         expect_false("api fixture image", api_skipped("logo.png")),
         expect_true("api fixture consumer module", api_skipped("consumer.MODULE.bazel")),
         expect_equal("listed directories", before.listed, _DIRECTORIES),
@@ -117,6 +119,8 @@ def _checks():
         expect_equal("files", before.files, _FILES),
         expect_equal("new source file is in a listed directory", edited.listed, _DIRECTORIES),
         expect_equal("new source file is found", edited.files, sorted(_FILES + ["tools/ci/test.bzl"])),
+        expect_equal("rooted walk lists only the roots", rooted.listed, ["cli/entrypoint", "cli/entrypoint/consumer_sets", "tools/ci"]),
+        expect_equal("rooted walk files", rooted.files, ["cli/entrypoint/consumer_sets/BUILD.bazel", "cli/entrypoint/surface.bzl", "tools/ci/BUILD.bazel", "tools/ci/repos.bzl"]),
     ] + _unchanged(
         "lease file",
         ".dx/local/leases/process-groups",
@@ -144,7 +148,7 @@ def _checks():
     )
 
 def repos_tests(name):
-    """Declares the test of the walk behind @dx_test_tags_sources."""
+    """Declares the test of the walks behind @dx_test_tags_sources and @dx_consumer_fixtures."""
     starlark_test(
         name = name,
         mode = "load",

@@ -71,6 +71,15 @@ jobs:
           git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=2 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
+      - name: Build every Bazel command in the coverage configuration
+        if: ${{ contains(env.GATE, '--coverage') }}
+        run: |
+          # Instrumented tools write their .profraw here, not into the workspace.
+          mkdir -p "$RUNNER_TEMP/dx-profraw"
+          {
+            echo "BAZEL_CONFIG=$BAZEL_CONFIG --config=ci-cov"
+            echo "LLVM_PROFILE_FILE=$RUNNER_TEMP/dx-profraw/%m.profraw"
+          } >> "$GITHUB_ENV"
       - uses: ./.github/actions/setup-bazel
         with:
           free-disk: true

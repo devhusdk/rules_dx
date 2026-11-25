@@ -7,7 +7,7 @@ use crate::{WORKFLOW_STARTUP_OPTS, is_ci_value};
 
 pub(crate) const MAX_IMPORT_DEPTH: usize = 16;
 
-pub const PRESET_LOCAL_RESOURCES: [&str; 2] = ["cpu=HOST_CPUS*.75", "memory=HOST_RAM*.5"];
+pub const PRESET_LOCAL_RESOURCES: [&str; 2] = ["cpu=HOST_CPUS*.75", "memory=HOST_RAM*.25"];
 
 pub const DISK_CACHE_GC_MAX_SIZE: &str = "20G";
 

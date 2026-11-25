@@ -563,7 +563,7 @@ fn preset_values_and_custom_resources_suppress_nothing() {
     let policy = Machine::local()
         .file(
             "/ws/.bazelrc",
-            "common --local_resources=memory=HOST_RAM*.5\ncommon --local_resources=cpu=HOST_CPUS*.75\ncommon --local_resources=nested_bazel=2\n# common --local_resources=cpu=1\n",
+            "common --local_resources=memory=HOST_RAM*.25\ncommon --local_resources=cpu=HOST_CPUS*.75\ncommon --local_resources=nested_bazel=2\n# common --local_resources=cpu=1\n",
         )
         .policy();
     assert_eq!(resources(&policy), (true, true));

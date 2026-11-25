@@ -246,7 +246,20 @@ fn literal_names(call: &Call) -> Option<Vec<String>> {
     Some(names)
 }
 
-fn imports_of(file: &ModuleFile, names: &[String], referenced: &mut BTreeSet<String>) -> Imports {
+fn repo_literals(
+    source: &str,
+    names: &[String],
+) -> Result<BTreeSet<String>, dx_module_bazel::ModuleError> {
+    Ok(dx_module_bazel::string_literals(source)?
+        .iter()
+        .filter(|literal| literal.starts_with('@') && !is_starlark_file(literal))
+        .filter_map(|literal| repo_of(literal))
+        .filter(|repo| !main_repo(repo, names))
+        .map(str::to_owned)
+        .collect())
+}
+
+fn imports_of(file: &ModuleFile, referenced: &mut BTreeSet<String>) -> Imports {
     let rules: BTreeSet<&str> = file
         .calls_named("use_repo_rule")
         .filter_map(|call| call.binding.as_deref())
@@ -256,24 +269,6 @@ fn imports_of(file: &ModuleFile, names: &[String], referenced: &mut BTreeSet<Str
         ..Imports::default()
     };
     for call in file.calls() {
-        if !UNSCANNED_CALLS.contains(&call.name.as_str()) {
-            let mut labels = Vec::new();
-            let mut complete = true;
-            for value in call
-                .positional
-                .iter()
-                .chain(call.named.iter().map(|(_, value)| value))
-            {
-                value_labels(value, &mut labels, &mut complete);
-            }
-            referenced.extend(
-                labels
-                    .into_iter()
-                    .filter_map(repo_of)
-                    .filter(|repo| !main_repo(repo, names))
-                    .map(str::to_owned),
-            );
-        }
         if matches!(call.name.as_str(), "inject_repo" | "override_repo") {
             match passed_repos(call) {
                 Some(repos) => referenced.extend(repos),
@@ -339,7 +334,11 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, DxError> {
             roots.names = own_names(&file);
         }
         scan_inputs(&file, &package, &roots.names, &mut roots.inputs);
-        let imports = imports_of(&file, &roots.names, &mut roots.referenced);
+        roots.referenced.extend(
+            repo_literals(&source, &roots.names)
+                .map_err(|error| DxError::failure(format!("{rel}: {error}")))?,
+        );
+        let imports = imports_of(&file, &mut roots.referenced);
         roots.passes_computed |= imports.passes_computed;
         for call in file.calls() {
             if matches!(
@@ -775,6 +774,7 @@ struct ImpactGraph<'a> {
     bazelrc_flag_labels: Vec<String>,
     aspect_repos: BTreeSet<String>,
     module_repos: Option<BTreeSet<String>>,
+    input_repos: BTreeSet<String>,
     extensions: Vec<ExtensionClosure>,
     aspect_inputs: BTreeSet<String>,
     toolchain_inputs: BTreeSet<String>,
@@ -859,6 +859,16 @@ fn impact_graph<'a>(
         .iter()
         .map(|root| graph.closure(std::slice::from_ref(&root.rel)))
         .collect();
+    let mut input_repos = BTreeSet::new();
+    for rel in closures.iter().flatten().chain(&toolchain_inputs) {
+        let Some(text) = read(workspace, rel)? else {
+            continue;
+        };
+        input_repos.extend(
+            repo_literals(&text, &graph.names)
+                .map_err(|error| DxError::failure(format!("{rel}: {error}")))?,
+        );
+    }
     global_repos.extend(
         closures
             .iter()
@@ -898,6 +908,7 @@ fn impact_graph<'a>(
         bazelrc_flag_labels: bazelrc.flag_labels,
         aspect_repos,
         module_repos,
+        input_repos,
         extensions,
         aspect_inputs,
         toolchain_inputs,
@@ -1193,6 +1204,12 @@ pub fn repo_impact(
         } else if graph.loads_repo(&graph.toolchain_inputs, repo) {
             BzlImpact::Global(format!("toolchain input loads @{repo}"))
         } else if graph
+            .input_repos
+            .iter()
+            .any(|name| repo_matches(name, repo))
+        {
+            BzlImpact::Global(format!("module extension or toolchain input names @{repo}"))
+        } else if graph
             .module_repos
             .as_ref()
             .is_none_or(|names| names.iter().any(|name| repo_matches(name, repo)))
@@ -1459,19 +1476,29 @@ http_file(name = \"injected\", urls = [\"b\"])\n\
 http_file(name = \"plain_repo\", urls = [\"c\"])\n\
 crate = use_extension(\"//e:crate.bzl\", \"crate\")\n\
 crate.annotation(build_script_data = [\"@protoc_bin//file\"])\n\
+VIA_VAR = '@via_var//file'\n\
+crate.annotation(build_script_data = [VIA_VAR])\n\
 other = use_extension(\"//e:other.bzl\", \"other\")\n\
 inject_repo(other, \"injected\")\n\
 override_repo(other, tool = \"overridden\")\n";
         write(root, "MODULE.bazel", module).unwrap();
-        write(root, "e/crate.bzl", "X = 1\n").unwrap();
+        write(root, "e/crate.bzl", "TOOL = \"@bzl_named//:tool\"\n").unwrap();
         write(root, "e/other.bzl", "X = 1\n").unwrap();
         assert_eq!(
             repo_effects(
                 root,
-                &["injected", "overridden", "plain_repo", "protoc_bin"],
+                &[
+                    "bzl_named",
+                    "injected",
+                    "overridden",
+                    "plain_repo",
+                    "protoc_bin",
+                    "via_var"
+                ],
                 &[]
             ),
             [
+                repo_global("bzl_named", "module extension or toolchain input names"),
                 repo_global("injected", "MODULE.bazel call names"),
                 repo_global("overridden", "MODULE.bazel call names"),
                 (
@@ -1479,6 +1506,7 @@ override_repo(other, tool = \"overridden\")\n";
                     BzlImpact::Packages(BTreeSet::new())
                 ),
                 repo_global("protoc_bin", "MODULE.bazel call names"),
+                repo_global("via_var", "MODULE.bazel call names"),
             ]
         );
         write(

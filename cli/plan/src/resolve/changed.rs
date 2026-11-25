@@ -847,17 +847,12 @@ fn module_change(
             .iter()
             .filter(|scope| scope.owner() != extension_scope::ROOT)
         {
-            let owner = scope.owner();
-            if !graph.deps.contains_key(&owner) {
-                return Err(dx_error::DxError::failure(format!(
-                    "changed {} belongs to module {owner}, which has no registry MODULE.bazel",
-                    scope.display()
-                )));
+            if let Some(reason) = module_inputs::shared_scope(&graph, scope, &affected) {
+                return Err(dx_error::DxError::failure(reason));
             }
-            if let Some((module, _)) = graph
+            if let Some((module, _)) = old_graph
                 .registered
                 .iter()
-                .chain(&old_graph.registered)
                 .find(|(_, registered)| registered.iter().any(|known| known.overlaps(scope)))
             {
                 return Err(dx_error::DxError::failure(format!(
@@ -865,10 +860,8 @@ fn module_change(
                     scope.display()
                 )));
             }
-            for known in [&graph, &old_graph] {
-                if let Some(reason) = module_inputs::other_user(known, scope, &affected) {
-                    return Err(dx_error::DxError::failure(reason));
-                }
+            if let Some(reason) = module_inputs::other_user(&old_graph, scope, &affected) {
+                return Err(dx_error::DxError::failure(reason));
             }
         }
         let mut patched = affected.clone();
@@ -1009,7 +1002,7 @@ fn lock_repos(
             &names.multiple,
         )?;
         for scope in &scopes {
-            if let Some(reason) = module_inputs::other_user(&graph, scope, &BTreeSet::new()) {
+            if let Some(reason) = module_inputs::shared_scope(&graph, scope, &BTreeSet::new()) {
                 return Err(dx_error::DxError::failure(reason));
             }
         }
@@ -2459,6 +2452,31 @@ mod tests {
     }
 
     #[test]
+    fn lock_update_widens_when_the_extension_module_has_no_registry_module_file() {
+        let scratch = crate_workspace("dx-changed-unregistered-lock-");
+        let workspace = scratch.path();
+        write_registry(workspace, &[]);
+        let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
+        let selection = resolve_affected(
+            &[change(
+                Ecosystem::Cargo.lockfile(),
+                dx_adopt::ChangeKind::Modified,
+            )],
+            workspace,
+            &query,
+            &[],
+            &[],
+            Some(base()),
+        )
+        .expect("lock widens");
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "changed @@rules_rust++crate+* belongs to module rules_rust, which has no registry MODULE.bazel"
+        );
+    }
+
+    #[test]
     fn one_crate_cargo_lock_update_selects_only_its_users() {
         let scratch = crate_workspace("dx-changed-cargo-lock-");
         let workspace = scratch.path();
@@ -2768,7 +2786,7 @@ mod tests {
         write(
             fixture.scratch.path(),
             "p/o.patch",
-            "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-bazel_dep(name = \"x\", version = \"1\")\n",
+            "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-module(name = \"other\")\n+module(name = \"other\", compatibility_level = 1)\n",
         )
         .unwrap();
         let query = FakeQuery::new(vec![
@@ -3074,6 +3092,27 @@ crate.annotation(crate = \"prost-build\", build_script_data = [\"@protoc_bin//fi
             "dx-changed-passed-repo-",
             &base,
             &head,
+            &[GAZELLE, RULES_RUST],
+        );
+        assert_eq!(selection.targets, strings(&["//..."]));
+        assert_eq!(
+            selection.widened[0].reason,
+            "MODULE.bazel call names @protoc_bin"
+        );
+        let through_variable = |text: &str| {
+            text.replace(
+                "build_script_data = [\"@protoc_bin//file\"]",
+                "build_script_data = [PROTOC]",
+            )
+            .replace(
+                "crate.annotation(",
+                "PROTOC = \"@protoc_bin//file\"\ncrate.annotation(",
+            )
+        };
+        let (selection, _) = registry_edit(
+            "dx-changed-passed-var-",
+            &through_variable(&base),
+            &through_variable(&head),
             &[GAZELLE, RULES_RUST],
         );
         assert_eq!(selection.targets, strings(&["//..."]));

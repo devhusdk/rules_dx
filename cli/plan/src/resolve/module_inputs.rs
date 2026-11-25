@@ -385,6 +385,31 @@ pub(crate) fn module_graph(
     Ok(graph)
 }
 
+pub(crate) fn shared_scope(
+    graph: &ModuleGraph,
+    scope: &Scope,
+    allowed: &BTreeSet<String>,
+) -> Option<String> {
+    let owner = scope.owner();
+    if !graph.deps.contains_key(&owner) {
+        return Some(format!(
+            "changed {} belongs to module {owner}, which has no registry MODULE.bazel",
+            scope.display()
+        ));
+    }
+    graph
+        .registered
+        .iter()
+        .find(|(_, registered)| registered.iter().any(|known| known.overlaps(scope)))
+        .map(|(module, _)| {
+            format!(
+                "module {module} registers toolchains from {}",
+                scope.display()
+            )
+        })
+        .or_else(|| other_user(graph, scope, allowed))
+}
+
 pub(crate) fn other_user(
     graph: &ModuleGraph,
     scope: &Scope,
@@ -512,9 +537,10 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
 const GRAPH_EDITS: &[&str] = &["bazel_dep", "_override"];
 const MODULE_EDITS: &[&str] = &["register_", "use_extension", "use_repo_rule", "include"];
 
-fn module_file_edits(patch: &str) -> Vec<&str> {
+fn module_file_edits(patch: &str) -> Option<Vec<&str>> {
     let mut module_file = false;
-    let mut added = Vec::new();
+    let mut call_start: Option<&str> = None;
+    let mut edits = Vec::new();
     for line in patch.lines() {
         if let Some(target) = line.strip_prefix("+++ ") {
             module_file = target.split_whitespace().next().is_some_and(|path| {
@@ -522,11 +548,36 @@ fn module_file_edits(patch: &str) -> Vec<&str> {
                     .next()
                     .is_some_and(|name| name.ends_with("MODULE.bazel"))
             });
-        } else if module_file && let Some(line) = line.strip_prefix('+') {
-            added.push(line);
+            call_start = None;
+            continue;
+        }
+        if !module_file || line.starts_with("--- ") {
+            continue;
+        }
+        if line.starts_with("@@") {
+            call_start = None;
+            continue;
+        }
+        let mut chars = line.chars();
+        let (Some(kind @ (' ' | '+' | '-')), text) = (chars.next(), chars.as_str()) else {
+            continue;
+        };
+        let inside_call = text
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_whitespace() || matches!(first, ')' | ']' | '}'));
+        if !inside_call && !text.is_empty() && !text.starts_with('#') {
+            call_start = Some(text);
+        }
+        if kind == ' ' {
+            continue;
+        }
+        edits.push(text);
+        if inside_call {
+            edits.push(call_start?);
         }
     }
-    added
+    Some(edits)
 }
 
 pub(crate) fn overrides_that_widen(
@@ -575,9 +626,11 @@ pub(crate) fn overrides_that_widen(
             };
             let edits = module_file_edits(&text);
             let edits_any = |keys: &[&str]| {
-                edits
-                    .iter()
-                    .any(|line| keys.iter().any(|key| line.contains(key)))
+                edits.as_ref().is_none_or(|edits| {
+                    edits
+                        .iter()
+                        .any(|line| keys.iter().any(|key| line.contains(key)))
+                })
             };
             if edits_any(GRAPH_EDITS) || (affected.contains(module) && edits_any(MODULE_EDITS)) {
                 return widen("patches its MODULE.bazel");
@@ -912,6 +965,18 @@ mod tests {
                 "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n+bazel_dep(name = \"x\")\n",
             ),
             (
+                "p/drop.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-bazel_dep(name = \"x\")\n",
+            ),
+            (
+                "p/dev.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -1,5 +1,4 @@\n go_deps = use_extension(\n     \"@gazelle//:extensions.bzl\",\n     \"go_deps\",\n-    dev_dependency = True,\n )\n",
+            ),
+            (
+                "p/unanchored.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -4,4 +4,3 @@ go_deps = use_extension(\n     \"go_deps\",\n     isolate = False,\n-    dev_dependency = True,\n )\n",
+            ),
+            (
                 "p/register.patch",
                 "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-register_toolchains(\"//:t\")\n+register_toolchains(\"//:t\", dev_dependency = True)\n",
             ),
@@ -950,6 +1015,33 @@ mod tests {
         ] {
             assert_eq!(widen(text, &[]), Some(format!("MODULE.bazel {reason}")));
         }
+        assert!(
+            widen(
+                "single_version_override(module_name = \"a\", patches = [\"//p:drop.patch\"])\n",
+                &[]
+            )
+            .is_some()
+        );
+        for patch in ["//p:dev.patch", "//p:unanchored.patch"] {
+            assert_eq!(
+                widen(
+                    &format!(
+                        "single_version_override(module_name = \"a\", patches = [\"{patch}\"])\n"
+                    ),
+                    &["a"]
+                ),
+                Some(
+                    "MODULE.bazel single_version_override for a patches its MODULE.bazel"
+                        .to_owned()
+                ),
+                "{patch}"
+            );
+        }
+        let patched = |patch: &str| {
+            format!("single_version_override(module_name = \"a\", patches = [\"{patch}\"])\n")
+        };
+        assert_eq!(widen(&patched("//p:dev.patch"), &["b"]), None);
+        assert!(widen(&patched("//p:unanchored.patch"), &["b"]).is_some());
         let register = "single_version_override(module_name = \"a\", patches = [\"//p:register.patch\", \"//p:plain.patch\"])\n";
         assert_eq!(widen(register, &["b"]), None);
         assert_eq!(

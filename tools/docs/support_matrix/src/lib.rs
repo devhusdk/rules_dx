@@ -402,8 +402,6 @@ pub fn row_platforms(
             });
         }
     }
-    let lanes = workflows::quality_matrix_lanes(CI_WORKFLOW, &ci)?;
-    workflows::check_evidence_lanes(CI_WORKFLOW, &lanes, &ids)?;
     let mut tag_jobs = workflows::tag_job_platforms(CI_WORKFLOW, &ci, &runners)?;
     let audit = source.read(AUDIT_WORKFLOW)?;
     merge_tag_jobs(

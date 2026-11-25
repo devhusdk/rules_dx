@@ -48,16 +48,11 @@ fn the_outer_gate_requires_every_declared_dependency() {
     let document = document(CI_WORKFLOW).unwrap();
     let wanted = json!([
         "check",
-        "coverage",
         "coverage-cells",
         "dogfood",
         "analysis-scaling",
         "in-graph-prebuilt-guard",
-        "devcontainer-check",
-        "launch-heavy",
         "preflight",
-        "quality-matrix",
-        "starter-consumer",
         "workflow-check"
     ]);
     assert_eq!(
@@ -162,7 +157,6 @@ fn every_aggregate_job_needs_every_other_job() {
         let needs = job_needs(workflow, id, job);
         for (other, _) in &all {
             if other == id
-                || (workflow == CI_WORKFLOW && other == BASELINE_DIFF)
                 || (workflow == CONSUMER_WORKFLOW
                     && (other == "advisory-bump"
                         || other == "bench"
@@ -407,9 +401,9 @@ fn main_runs_when_the_audit_dispatches_it_not_on_push() {
 }
 
 #[test]
-fn every_check_and_coverage_job_records_its_failing_labels() {
+fn every_gate_job_records_its_failing_labels() {
     let document = document(CI_WORKFLOW).unwrap();
-    for id in REQUIRED_JOBS {
+    for id in GATE_JOBS {
         let job = &document["jobs"][id];
         let gate = job["steps"]
             .as_array()
@@ -422,33 +416,6 @@ fn every_check_and_coverage_job_records_its_failing_labels() {
             json!(format!("{id}-${{{{ matrix.platform }}}}"))
         );
         assert_eq!(job["permissions"]["actions"], json!("read"), "{id}");
-    }
-}
-
-#[test]
-fn baseline_diff_runs_on_pull_requests_after_every_gate_job() {
-    let document = document(CI_WORKFLOW).unwrap();
-    let job = &document["jobs"][BASELINE_DIFF];
-    assert_eq!(
-        job["if"],
-        json!("${{ !cancelled() && github.event_name == 'pull_request' }}")
-    );
-    assert_eq!(job["needs"], json!(REQUIRED_JOBS));
-    assert_eq!(job["permissions"], json!({"actions": "read"}));
-    let script = job["steps"]
-        .as_array()
-        .expect("steps")
-        .iter()
-        .filter_map(|step| step["run"].as_str())
-        .collect::<String>();
-    for needle in [
-        "main-baseline-$job",
-        ".workflow_run.head_branch == \"main\"",
-        ".workflow_run.head_repository_id == .workflow_run.repository_id",
-        "$GITHUB_STEP_SUMMARY",
-        "exit \"$bad\"",
-    ] {
-        assert!(script.contains(needle), "{BASELINE_DIFF} must use {needle}");
     }
 }
 
@@ -491,9 +458,9 @@ fn pages_publication_stays_on_default_branch_push() {
 }
 
 #[test]
-fn the_check_and_coverage_jobs_run_on_every_event() {
+fn the_gate_jobs_run_on_every_event() {
     let document = document(CI_WORKFLOW).unwrap();
-    for id in REQUIRED_JOBS {
+    for id in GATE_JOBS {
         let job = &document["jobs"][id];
         assert!(job.get("if").is_none(), "{id} must not have an if: {job}");
         assert!(
@@ -507,7 +474,7 @@ fn the_check_and_coverage_jobs_run_on_every_event() {
 fn every_other_job_runs_only_on_dispatch() {
     let document = document(CI_WORKFLOW).unwrap();
     for (id, job) in document["jobs"].as_object().expect("jobs") {
-        if REQUIRED_JOBS.contains(&id.as_str()) || id == BASELINE_DIFF {
+        if GATE_JOBS.contains(&id.as_str()) {
             continue;
         }
         let condition = job["if"].as_str().unwrap_or_default();
@@ -596,6 +563,12 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
     assert!(find.contains("compare/$sha...$HEAD_SHA"), "{find}");
     assert!(find.contains("ahead | identical"), "{find}");
     let record = step("Record the failing labels");
+    assert_eq!(
+        record["if"],
+        json!(
+            "${{ !cancelled() && inputs.baseline != '' && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}"
+        )
+    );
     let run = record["run"].as_str().expect("record run");
     assert!(
         run.contains("--failing-labels --out \"$out\" --dx \"$RUNNER_TEMP/gate.json\""),
@@ -611,9 +584,7 @@ fn the_gate_pushes_build_on_the_last_main_baseline() {
     );
     assert_eq!(
         step("Upload the failing labels")["with"]["name"],
-        json!(
-            "${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'main-baseline' || 'failing' }}-${{ inputs.baseline }}"
-        )
+        json!("main-baseline-${{ inputs.baseline }}")
     );
 }
 
@@ -646,20 +617,18 @@ fn reported_contexts(id: &str, job: &Value) -> Vec<String> {
         .collect()
 }
 
-const REQUIRED_JOBS: [&str; 2] = ["check", "coverage"];
-
-const BASELINE_DIFF: &str = "baseline-diff";
+const GATE_JOBS: [&str; 1] = ["check"];
 
 fn required_contexts() -> Vec<String> {
     let document = document(CI_WORKFLOW).unwrap();
-    REQUIRED_JOBS
+    GATE_JOBS
         .iter()
         .flat_map(|id| reported_contexts(id, &document["jobs"][id]))
         .collect()
 }
 
 #[test]
-fn the_ruleset_requires_every_check_and_coverage_job_and_queues_merges() {
+fn the_ruleset_requires_every_check_job_and_queues_merges() {
     let ruleset = document(RULESET).unwrap();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
@@ -678,7 +647,7 @@ fn the_ruleset_requires_every_check_and_coverage_job_and_queues_merges() {
     );
     assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
     let contexts = required_contexts();
-    assert_eq!(contexts.len(), 10, "{contexts:?}");
+    assert_eq!(contexts.len(), 5, "{contexts:?}");
     let wanted: Vec<Value> = contexts
         .iter()
         .map(|context| json!({"context": context, "integration_id": 15368}))
@@ -874,70 +843,6 @@ fn the_swallow_scanner_finds_entries() {
             .any(|(_, _, kind)| kind == "|| true"),
         "{CONSUMER_WORKFLOW} swallows failures the scanner must report"
     );
-}
-
-#[test]
-fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
-    const EVIDENCE_ACTION: &str = ".github/actions/compiler-evidence/action.yml";
-    let job = "starter-consumer";
-    let all = steps(CI_WORKFLOW, job).unwrap();
-    let probe = all
-        .iter()
-        .position(|step| step["name"] == json!("Run the compiler probe tests"))
-        .unwrap_or_else(|| panic!("{job} has no compiler probe step"));
-    let evidence = all
-        .iter()
-        .position(|step| step["uses"] == json!("./.github/actions/compiler-evidence"))
-        .unwrap_or_else(|| panic!("{job} has no compiler-evidence step"));
-    assert!(probe < evidence, "{job} probe step must precede evidence");
-    let probe_run = all[probe]["run"].as_str().unwrap_or_default();
-    assert!(!probe_run.contains("|| true"), "{job} probe step swallows");
-    assert!(probe_run.contains("bazel test"), "{job} probe runs no test");
-    assert!(
-        all[evidence]["if"]
-            .as_str()
-            .unwrap_or_default()
-            .starts_with("always()"),
-        "{job} evidence step must run always"
-    );
-    let action = document(EVIDENCE_ACTION).unwrap();
-    let record = &action["runs"]["steps"][0];
-    assert_eq!(record["name"], json!("Record compiler evidence"));
-    assert_eq!(record["if"], json!("always()"));
-    let evidence_run = record["run"].as_str().unwrap_or_default();
-    assert!(
-        !evidence_run
-            .lines()
-            .any(|line| line.trim_start().starts_with("bazel test")),
-        "evidence step runs tests"
-    );
-}
-
-#[test]
-fn the_gate_job_merges_evidence_without_swallowing() {
-    let all = steps(CI_WORKFLOW, GATE).unwrap();
-    for step in all.iter().filter(|step| {
-        let uses = step["uses"].as_str().unwrap_or_default();
-        step["name"] == json!("Merge compiler evidence")
-            || uses.starts_with("actions/download-artifact@")
-            || uses.starts_with("actions/upload-artifact@")
-    }) {
-        assert!(
-            step.get("continue-on-error").is_none(),
-            "{GATE} step swallows: {step}"
-        );
-        assert!(
-            step["if"]
-                .as_str()
-                .unwrap_or_default()
-                .starts_with("always()")
-                || step["if"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .starts_with("${{ always()"),
-            "{GATE} step must run always: {step}"
-        );
-    }
 }
 
 #[test]

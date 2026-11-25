@@ -5,24 +5,8 @@ load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
-load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GHC_VERSION", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_SUFFIX", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapped", "musl_wrapper", "os_libraries", "toolchain_libraries")
-
-_GHC_BIN = [
-    ("ghc", "ghc-9.10.3"),
-    ("ghc-9.10.3", "ghc-9.10.3"),
-    ("ghc-pkg", "ghc-pkg-9.10.3"),
-    ("ghc-pkg-9.10.3", "ghc-pkg-9.10.3"),
-    ("haddock", "haddock-ghc-9.10.3"),
-    ("haddock-ghc-9.10.3", "haddock-ghc-9.10.3"),
-    ("hsc2hs", "hsc2hs-ghc-9.10.3"),
-    ("hsc2hs-ghc-9.10.3", "hsc2hs-ghc-9.10.3"),
-    ("runghc", "runghc-9.10.3"),
-    ("runghc-9.10.3", "runghc-9.10.3"),
-    ("runhaskell-9.10.3", "runghc-9.10.3"),
-    ("unlit", "unlit-ghc-9.10.3"),
-    ("unlit-ghc-9.10.3", "unlit-ghc-9.10.3"),
-]
+load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_argv", "musl_config", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -168,16 +152,13 @@ def _checks():
         ),
         expect_contains("musl cell targets musl only", hub_files()["BUILD.bazel"], repr(MUSL_CELLS["linux_arm64_musl"].target_compatible_with)),
         expect_equal("x86_64 musl cell targets x86_64 musl", MUSL_CELLS["linux_x86_64_musl"].target_compatible_with, ["@platforms//os:linux", "@platforms//cpu:x86_64", str(Label("@llvm//constraints/libc:musl"))]),
-        expect_contains("x86_64 musl ghc runs under its own loader", musl_wrapper("linux_x86_64_musl", "ghc-9.10.3"), "\"$root/dx_closure/lib/ld-musl-x86_64.so.1\" --library-path \"$root/dx_closure/lib:$root/lib/x86_64-linux-ghc-9.10.3\" \"$root/bin/ghc-9.10.3.musl\" -B\"$root/lib\" \"$@\""),
-        expect_contains("musl ghc runs under the shipped loader", musl_wrapper("linux_arm64_musl", "ghc-9.10.3"), "\"$root/dx_closure/lib/ld-musl-aarch64.so.1\" --library-path \"$root/dx_closure/lib:$root/lib/aarch64-linux-ghc-9.10.3\" \"$root/bin/ghc-9.10.3.musl\" -B\"$root/lib\" \"$@\""),
-        expect_contains("musl wrapper finds its root with shell builtins only", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac\nroot=\"$(cd \"$bin/..\" && pwd)\"\n"),
-        expect_contains("musl ghc-pkg names the global database", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "--global-package-db=\"$root/lib/package.conf.d\""),
-        expect_contains("musl runghc runs the wrapped ghc", musl_wrapper("linux_arm64_musl", "runghc-9.10.3"), "-f \"$root/bin/ghc\""),
-        expect_contains("musl hsc2hs names the bindist template", musl_wrapper("linux_arm64_musl", "hsc2hs-ghc-9.10.3"), "\"$root/bin/hsc2hs-ghc-9.10.3.musl\" --template=\"$root/lib/template-hsc.h\" \"$@\""),
-        expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
-        expect_equal("musl wraps regular files and skips symlinks", musl_wrapped(_GHC_BIN), ["ghc-9.10.3", "ghc-pkg-9.10.3", "haddock-ghc-9.10.3", "hsc2hs-ghc-9.10.3", "runghc-9.10.3", "unlit-ghc-9.10.3"]),
-        expect_equal("musl wraps every tool that takes extra args", [key for key in sorted(MUSL_TOOL_ARGS) if key.format(version = GHC_VERSION) not in musl_wrapped(_GHC_BIN)], []),
-        expect_equal("each musl wrapper execs its own renamed binary", [name for name in musl_wrapped(_GHC_BIN) if "\"$root/bin/{}{}\"".format(name, MUSL_SUFFIX) not in musl_wrapper("linux_x86_64_musl", name)], []),
+        expect_equal("x86_64 musl ghc runs under its own loader", musl_argv(musl_config("linux_x86_64_musl"), "/r", "/w", "ghc"), ["/r/dx_closure/lib/ld-musl-x86_64.so.1", "--library-path", "/r/dx_closure/lib:/r/lib/x86_64-linux-ghc-9.10.3", "/r/bin/ghc", "-B/r/lib", "-pgmL/w/unlit", "-pgmi/w/ghc-iserv"]),
+        expect_equal("arm64 musl ghc runs under the shipped loader", musl_argv(musl_config("linux_arm64_musl"), "/r", "/w", "ghc")[:3], ["/r/dx_closure/lib/ld-musl-aarch64.so.1", "--library-path", "/r/dx_closure/lib:/r/lib/aarch64-linux-ghc-9.10.3"]),
+        expect_equal("musl ghc-pkg names the global database", musl_argv(musl_config("linux_arm64_musl"), "/r", "/w", "ghc-pkg")[3:], ["/r/bin/ghc-pkg", "--global-package-db=/r/lib/package.conf.d"]),
+        expect_equal("musl runghc runs the linked ghc", musl_argv(musl_config("linux_arm64_musl"), "/r", "/w", "runghc")[3:], ["/r/bin/runghc", "-f", "/w/ghc"]),
+        expect_equal("musl hsc2hs names the bindist template", musl_argv(musl_config("linux_arm64_musl"), "/r", "/w", "hsc2hs")[3:], ["/r/bin/hsc2hs", "--template=/r/lib/template-hsc.h"]),
+        expect_equal("musl unlit takes no extra flags", musl_argv(musl_config("linux_arm64_musl"), "/r", "/w", "unlit")[3:], ["/r/bin/unlit"]),
+        expect_equal("every tool a musl flag names is linked", [arg for args in MUSL_TOOL_ARGS.values() for arg in args if "{bin}/" in arg and arg.partition("{bin}/")[2] not in MUSL_TOOL_ARGS], []),
         expect_equal("musl apks pin sha256", [(cell, package.package) for cell in sorted(MUSL_CELLS) for package in MUSL_CELLS[cell].apks if len(package.sha256) != 64], []),
         expect_equal("musl apks match the cell arch", [(cell, package.package) for cell, arch in [("linux_arm64_musl", "aarch64"), ("linux_x86_64_musl", "x86_64")] for package in MUSL_CELLS[cell].apks if "/main/%s/" % arch not in package.url], []),
         expect_equal("host gcc library dirs move into the closure", host_cxx_library_dirs("library-dirs:         /usr/lib/gcc/aarch64-alpine-linux-musl/12.2.1/../../../../lib\nname: x", "dx_closure"), "library-dirs: ${pkgroot}/../dx_closure/lib\nname: x"),

@@ -148,6 +148,7 @@ rust_binary(
         "//deploy/private/symbols:dx_symbols",
         "//elixir/private/tools/lock:hex_lock_lib",
         "//fortran/private/tools/lock:fpm_lock_lib",
+        "//haskell/private/tools/ghc_musl",
         "//haskell/private/tools/lock:cabal_lock_lib",
         "//java/private/tools/lock:maven_lock_lib",
         "//lua/private/tools/lock:lua_lock_lib",

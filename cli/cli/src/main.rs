@@ -266,6 +266,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::SymbolsPdb => dx_symbols::entry::pdb(&named("symbols_pdb", args)),
         Tool::OcamlCcDriver => ocaml_cc_driver::run_tool(&argv0, args.collect()),
         Tool::OcamlDune => ocaml_cc_driver::run_dune(&lossy(args)),
+        Tool::GhcMusl => ghc_musl::run_tool(&argv0, args.collect()),
         Tool::ApplePostAction => collect_native::apple_post::run_process(&lossy(args)),
     })
 }

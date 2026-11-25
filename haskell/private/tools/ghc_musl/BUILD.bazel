@@ -1,0 +1,44 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_library(
+    name = "ghc_musl",
+    srcs = ["src/lib.rs"],
+    crate_name = "ghc_musl",
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/cli:__pkg__"],
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "ghc_musl_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    coverage_lib = ":ghc_musl",
+    crate_name = "ghc_musl",
+    crate_root = "src/lib.rs",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

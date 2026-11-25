@@ -92,6 +92,73 @@ fn failed_probe_falls_back_to_every_shard() {
     }
 }
 
+fn broken_probe_harness(name: &str, code: i32, reason: &str) -> Harness {
+    let mut harness = clean_harness(name);
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    harness.probe_code = Some(code);
+    harness.probe_aborted = Some(reason.to_owned());
+    harness
+}
+
+#[test]
+fn analysis_failure_in_the_probe_still_narrows() {
+    for reason in ["ANALYSIS_FAILURE", "LOADING_FAILURE"] {
+        let harness = broken_probe_harness(
+            &format!("probe-analysis-failure-{reason}"),
+            dx_exec_core::common::BAZEL_BUILD_FAILED,
+            reason,
+        );
+        let (code, _, _) = harness.run(&["lint", "--output=text"]);
+        assert_eq!(code, 0, "{reason}");
+        assert_eq!(harness.probe_argv.borrow().len(), 1, "{reason}");
+        let builds = harness.build_argv.borrow();
+        assert_eq!(
+            aspects_of(&builds[0]),
+            vec![
+                "real_lint_aspect",
+                "android_sdk_aspect",
+                "real_rust_lint_aspect"
+            ],
+            "{reason}"
+        );
+    }
+}
+
+#[test]
+fn build_failure_with_an_unreported_target_falls_back() {
+    let harness = broken_probe_harness(
+        "probe-build-failure-unreported",
+        dx_exec_core::common::BAZEL_BUILD_FAILED,
+        "NO_BUILD",
+    );
+    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    assert_eq!(code, 0);
+    let builds = harness.build_argv.borrow();
+    let all = dx_plan::plan::spec(dx_plan::args::Command::Lint)
+        .aspects
+        .len();
+    assert_eq!(aspects_of(&builds[0]).len(), all);
+}
+
+#[test]
+fn usage_and_server_exits_from_the_probe_fall_back() {
+    for exit in [
+        dx_exec_core::common::BAZEL_USAGE,
+        dx_exec_core::common::BAZEL_OUT_OF_MEMORY,
+        36,
+    ] {
+        let harness = broken_probe_harness(&format!("probe-exit-{exit}"), exit, "ANALYSIS_FAILURE");
+        let (code, _, _) = harness.run(&["lint", "--output=text"]);
+        assert_eq!(code, 0, "{exit}");
+        assert_eq!(harness.probe_argv.borrow().len(), 1, "{exit}");
+        let builds = harness.build_argv.borrow();
+        let all = dx_plan::plan::spec(dx_plan::args::Command::Lint)
+            .aspects
+            .len();
+        assert_eq!(aspects_of(&builds[0]).len(), all, "{exit}");
+    }
+}
+
 #[test]
 fn probe_keeps_json_stdout_to_the_build_events() {
     let mut probed = clean_harness("probe-json");

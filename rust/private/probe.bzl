@@ -35,12 +35,7 @@ def _without_executable_suffix(name):
     return name
 
 def _dep_keys(crate):
-    """Returns the crate's dependency crates by label, then how many dependencies carry no crate.
-
-    A label, not a provider, names each crate: an upstream analyzed outside its wrapper's transition
-    reaches a crate both in its own configuration and, through a forwarded crate attribute, in the
-    transitioned one, and the depset keeps both providers.
-    """
+    """Returns the dependency crates by label, so a crate reached in two configurations counts once, then the count of other dependencies."""
     owners = {}
     others = 0
     for dep in crate.deps.to_list():

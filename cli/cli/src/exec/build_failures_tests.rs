@@ -498,6 +498,25 @@ fn the_event_file_reaches_bazel_for_every_workflow_verb() {
     }
 }
 
+#[test]
+fn test_and_coverage_leave_testonly_support_targets_out_of_the_top_level() {
+    for verb in ["test", "coverage"] {
+        let harness = Harness::new("bf-support");
+        harness.query.script_test_support("//fixture:dirty_bin\n");
+        let run = harness.probe_with(&invocation(&[verb]), &[Some(0)]);
+        let argv = &run.argv[0];
+        let scope = argv.iter().position(|arg| arg == "//...").expect("scope");
+        assert_eq!(argv[scope + 1], "-//fixture:dirty_bin", "{verb}: {argv:?}");
+        let expressions = harness.query.test_support_expressions.borrow();
+        assert!(
+            expressions
+                .iter()
+                .any(|expression| expression.starts_with("let s = set(\"//...\") in ")),
+            "{verb}: {expressions:?}"
+        );
+    }
+}
+
 fn summary_of(harness: &Harness, lines: &[String]) -> ReportedFailures {
     let bep = harness.temp.join("summary.bep.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");

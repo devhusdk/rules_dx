@@ -1408,6 +1408,7 @@ dx_pins.archive(
         "//patches/rules_scala:manifest_only_wrapper.patch",
         "//patches/rules_scala:protobuf_repo_name.patch",
         "//patches/rules_scala:toolchain_type_alias.patch",
+        "//patches/rules_scala:windows_coverage_launcher.patch",
     ],
     pins = "//scala:pins.json",
 )

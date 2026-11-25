@@ -174,12 +174,12 @@ const JVM_FLAGS: [Flag; 3] = [
 
 const WORKER_FLAGS: [Flag; 2] = [
     (
-        "build --worker_sandboxing",
-        "Run persistent workers, such as the JVM checks, in a sandbox like other local actions.",
+        "build:linux --worker_sandboxing",
+        "On Linux, run persistent workers, such as the JVM checks, in a sandbox like other local actions.",
     ),
     (
-        "build:windows --noworker_sandboxing",
-        "On Windows, run persistent workers unsandboxed, since the rules_android Desugar worker JVM fails at startup in a Windows worker sandbox.",
+        "build:macos --worker_sandboxing",
+        "On macOS, run persistent workers in a sandbox too. Windows runs them unsandboxed, since a JVM worker cannot load its JDK from a Windows worker sandbox.",
     ),
 ];
 
@@ -700,6 +700,40 @@ mod tests {
             .collect()
     }
 
+    fn option_value(option: &str) -> (&str, &str) {
+        let option = option.trim_start_matches('-');
+        match option.split_once('=') {
+            Some((name, value)) => (name, value),
+            None => match option.strip_prefix("no") {
+                Some(name) => (name, "false"),
+                None => (option, "true"),
+            },
+        }
+    }
+
+    #[test]
+    fn host_config_lines_are_not_overridden_by_plain_lines() {
+        let rendered = render_all(DEFAULT_REPO);
+        let lines: Vec<(&str, &str)> = flag_sequence(&rendered)
+            .into_iter()
+            .filter_map(|line| line.split_once(' '))
+            .collect();
+        for (command, option) in &lines {
+            let Some((_, host)) = command.split_once(':') else {
+                continue;
+            };
+            if !["linux", "macos", "windows"].contains(&host) {
+                continue;
+            }
+            let (name, value) = option_value(option);
+            let clash = lines.iter().find(|(other_command, other_option)| {
+                let (other_name, other_value) = option_value(other_option);
+                !other_command.contains(':') && other_name == name && other_value != value
+            });
+            assert_eq!(clash, None, "{command} {option}");
+        }
+    }
+
     #[test]
     fn prepend_imports_keeps_bom_eol_and_rest() {
         let all = Layer::ALL;
@@ -802,8 +836,8 @@ mod tests {
                 "build --java_runtime_version=remotejdk_21",
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
-                "build --worker_sandboxing",
-                "build:windows --noworker_sandboxing",
+                "build:linux --worker_sandboxing",
+                "build:macos --worker_sandboxing",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",

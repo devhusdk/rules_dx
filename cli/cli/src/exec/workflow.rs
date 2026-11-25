@@ -16,7 +16,9 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow, results_path, run_id};
 use dx_plan::reports::{Destination, PlannedReport, StandardFormat, plan_reports};
-use dx_plan::resolve::{SelectionContext, resolve, resolve_for_test_with_selection};
+use dx_plan::resolve::{
+    SelectionContext, exclude_test_support, resolve, resolve_for_test_with_selection,
+};
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -439,7 +441,8 @@ fn resolve_scope(
             query_runner,
             &invocation.bazel_startup_options,
             selection,
-        ),
+        )
+        .and_then(|resolved| exclude_test_support(resolved, workspace, query_runner, selection)),
         _ => {
             return Err(pre_exec(
                 invocation.output,

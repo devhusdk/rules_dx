@@ -3,8 +3,9 @@ use std::path::Path;
 use dx_process::Scope;
 
 use super::{
-    PackageCache, QueryRunner, ResolveError, ResolvedScope, RuleGraph, SelectionContext,
-    classify_generate_scopes, classify_scopes, exclude, owners_in_graph, tests_for_owners,
+    PackageCache, QueryFailure, QueryRunner, ResolveError, ResolvedScope, RuleGraph,
+    SelectionContext, classify_generate_scopes, classify_scopes, exclude, owners_in_graph,
+    query::run_query_file, tests_for_owners,
 };
 
 pub fn resolve(
@@ -43,6 +44,32 @@ pub fn resolve_for_test_with_selection(
     let excludes = exclude::load(workspace)?;
     let resolved = expand_for_test(scopes, workspace, runner, startup_options, selection)?;
     exclude::apply(resolved, &excludes, scopes)
+}
+
+pub fn exclude_test_support(
+    mut resolved: ResolvedScope,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    selection: &SelectionContext,
+) -> Result<ResolvedScope, ResolveError> {
+    let Some(expression) = exclude::test_support_query(&resolved) else {
+        return Ok(resolved);
+    };
+    let label = "testonly support targets";
+    let support = run_query_file(&expression, label, workspace, runner, |file| {
+        selection
+            .selection_query_file_argv("query", &[], file)
+            .map_err(|error| {
+                ResolveError::query(
+                    label,
+                    QueryFailure::Prepare {
+                        detail: error.to_string(),
+                    },
+                )
+            })
+    })?;
+    resolved.excluded.extend(support);
+    Ok(resolved)
 }
 
 fn whole_repo() -> ResolvedScope {
@@ -365,5 +392,64 @@ mod tests {
         )
         .expect("dir");
         assert_eq!(got.targets, strings(&["//app/..."]));
+    }
+
+    #[test]
+    fn test_support_targets_join_the_negative_patterns() {
+        let query = FakeQuery::new(vec![FakeQuery::ok(
+            "//pkg:fixture_bin\n//pkg:support_lib\n",
+        )]);
+        let resolved = ResolvedScope {
+            excluded: strings(&["//third_party/..."]),
+            ..owners(strings(&["//...", "//pkg:named_lib"]))
+        };
+        let selection = SelectionContext::unconfigured_with_options(
+            &strings(&["--override_repository=foo=/x", "--config=ci"]),
+            &[],
+        );
+        let got =
+            exclude_test_support(resolved, Path::new("/w"), &query, &selection).expect("query");
+        assert_eq!(
+            got.excluded,
+            strings(&[
+                "//third_party/...",
+                "//pkg:fixture_bin",
+                "//pkg:support_lib"
+            ])
+        );
+        assert_eq!(got.targets, strings(&["//...", "//pkg:named_lib"]));
+        assert_eq!(
+            exclude::bazel_labels(&got),
+            strings(&[
+                "//...",
+                "//pkg:named_lib",
+                "-//third_party/...",
+                "-//pkg:fixture_bin",
+                "-//pkg:support_lib",
+            ])
+        );
+        let (argv, _) = &query.calls()[0];
+        assert!(
+            argv.contains(&"--override_repository=foo=/x".to_owned()),
+            "{argv:?}"
+        );
+        assert!(!argv.contains(&"--config=ci".to_owned()), "{argv:?}");
+        assert!(
+            query.expressions()[0].contains("except set(\"//pkg:named_lib\")"),
+            "{argv:?}"
+        );
+    }
+
+    #[test]
+    fn named_labels_skip_the_test_support_query() {
+        let resolved = labels(strings(&["//pkg:unit", "//pkg:fixture_bin"]));
+        let got = exclude_test_support(
+            resolved.clone(),
+            Path::new("/w"),
+            &NeverQuery,
+            &SelectionContext::unconfigured(&[]),
+        )
+        .expect("no query");
+        assert_eq!(got, resolved);
     }
 }

@@ -6,7 +6,7 @@ load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expe
 load("//core:toolchain.bzl", "hub_checks", "pins_hub")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
 load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "HUB_NAME", "flang_major", "flang_rt_build")
-load("//fortran/private/toolchain:toolchain.bzl", "toolchain_fields")
+load("//fortran/private/toolchain:toolchain.bzl", "deployment_flags", "toolchain_fields")
 
 def _checks():
     fields = toolchain_fields("flang", "ar", depset(), "rt")
@@ -23,6 +23,8 @@ def _checks():
         expect_equal("the compiler doubles as the unused linker", fields["linker"], "flang"),
         expect_equal("the runtime is the flang-rt CcInfo", fields["runtime_ccinfo"], "rt"),
         expect_equal("no prebuilt runtime libraries", fields["runtime_libraries"], []),
+        expect_equal("no compiler flags off macOS", fields["compiler_flags"], []),
+        expect_equal("macOS objects take the C++ deployment target", deployment_flags("14.0"), ["-mmacos-version-min=14.0"]),
         expect_equal("toolchain fields match the upstream provider", sorted(fields.keys()), sorted(dir(FortranToolchainInfo(**fields)))),
     ] + hub_checks(hub, str(Label("//fortran:toolchain_type")), len(FORTRAN_CELLS))
 

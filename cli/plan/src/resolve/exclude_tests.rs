@@ -120,6 +120,30 @@ fn bazel_labels_put_negatives_before_kept_targets() {
 }
 
 #[test]
+fn test_support_query_spares_tests_suites_and_named_labels() {
+    assert_eq!(test_support_query(&scope(&["//a:b", "//a:c"])), None);
+    assert_eq!(
+        test_support_query(&scope(&["//app/..."])).as_deref(),
+        Some(
+            r#"let s = set("//app/...") in ((attr(testonly, 1, $s) except tests($s)) except kind("^test_suite rule$", $s))"#
+        )
+    );
+    let resolved = ResolvedScope {
+        excluded: strings(&["//third_party/..."]),
+        kept: strings(&["//third_party/x:y"]),
+        ..scope(&["//...", "//app:fixture", "//third_party/x:y"])
+    };
+    assert_eq!(
+        test_support_query(&resolved).as_deref(),
+        Some(concat!(
+            r#"(let s = (set("//...") except set("//third_party/...")) in "#,
+            r#"((attr(testonly, 1, $s) except tests($s)) except kind("^test_suite rule$", $s))"#,
+            r#" except set("//app:fixture" "//third_party/x:y"))"#,
+        ))
+    );
+}
+
+#[test]
 fn load_reads_dx_toml_and_rejects_a_bad_pattern() {
     let scratch = dx_test_scratch::scratch("dx-resolve-exclude-").unwrap();
     let root = scratch.path();

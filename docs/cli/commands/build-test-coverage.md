@@ -127,6 +127,7 @@ A scope picks what to run. Pass labels, patterns, files, or directories. With no
 - A file runs the targets that own it.
 - For `test` and `coverage`, a file runs the tests that depend on its owning targets.
 - A test tagged `manual` runs only when it owns the file. A *tag* is a word in a target's `tags` list.
+- For `test` and `coverage`, a pattern leaves out `testonly` targets that are not tests. They still build when a test depends on them.
 - `--here` uses the current directory tree.
 - `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. On `test` and `coverage` it runs only the affected tests. With nothing affected, dx prints `no affected targets` and exits `0`.
 - `--here` does not combine with scopes or `--affected`.

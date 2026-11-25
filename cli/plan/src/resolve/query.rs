@@ -45,25 +45,27 @@ pub fn run_label_query_file(
     runner: &dyn QueryRunner,
     startup_options: &[String],
 ) -> Result<Vec<String>, ResolveError> {
-    let mut file = tempfile::NamedTempFile::new().map_err(|error| {
-        ResolveError::query(
-            label,
-            QueryFailure::Prepare {
-                detail: format!("cannot write the query file: {error}"),
-            },
-        )
-    })?;
-    std::io::Write::write_all(&mut file, expression.as_bytes()).map_err(|error| {
-        ResolveError::query(
-            label,
-            QueryFailure::Prepare {
-                detail: format!("cannot write the query file: {error}"),
-            },
-        )
-    })?;
-    let mut argv = dx_process::startup_argv(startup_options);
-    argv.push("query".to_owned());
-    argv.push(format!("--query_file={}", file.path().display()));
+    run_query_file(expression, label, workspace, runner, |file| {
+        let mut argv = dx_process::startup_argv(startup_options);
+        argv.push("query".to_owned());
+        argv.push(format!("--query_file={}", file.display()));
+        Ok(argv)
+    })
+}
+
+pub(crate) fn run_query_file(
+    expression: &str,
+    label: &str,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    argv: impl FnOnce(&Path) -> Result<Vec<String>, ResolveError>,
+) -> Result<Vec<String>, ResolveError> {
+    let prepare = |detail: String| ResolveError::query(label, QueryFailure::Prepare { detail });
+    let mut file = tempfile::NamedTempFile::new()
+        .map_err(|error| prepare(format!("cannot write the query file: {error}")))?;
+    std::io::Write::write_all(&mut file, expression.as_bytes())
+        .map_err(|error| prepare(format!("cannot write the query file: {error}")))?;
+    let argv = argv(file.path())?;
     let result = ResolveError::run(runner, &argv, workspace, label)?;
     parse_owners(&result.stdout, label)
 }

@@ -1224,6 +1224,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn api_check_fails_on_breaking_change_unless_major() {
+        if env_test_in_child("crates::tests::api_check_fails_on_breaking_change_unless_major") {
+            return;
+        }
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");

@@ -2326,6 +2326,11 @@ fn run_cosign(cosign: &Path, args: &[&str], home: &Path) -> Result<String, Strin
 #[cfg(unix)]
 #[test]
 fn oci_live_push_signature_and_attestation_verify_with_pinned_cosign() {
+    if env_test_in_child(
+        "oci::tests::oci_live_push_signature_and_attestation_verify_with_pinned_cosign",
+    ) {
+        return;
+    }
     let scratch = scratch_dir();
     let dir = scratch.path();
     let cosign = dx_testing::env_file("DX_COSIGN_BIN");

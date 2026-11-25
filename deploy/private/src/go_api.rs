@@ -454,6 +454,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn real_apidiff_flags_a_removed_function() {
+        if env_test_in_child("go_api::tests::real_apidiff_flags_a_removed_function") {
+            return;
+        }
         let (Some(apidiff), Some(go)) = (
             std::env::var("APIDIFF_BIN").ok(),
             std::env::var("DX_TEST_GO").ok(),

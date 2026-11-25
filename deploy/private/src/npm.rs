@@ -853,6 +853,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn api_check_without_a_published_baseline_is_a_first_release() {
+        if env_test_in_child(
+            "npm::tests::api_check_without_a_published_baseline_is_a_first_release",
+        ) {
+            return;
+        }
         let scratch = scratch_dir();
         let dir = scratch.path();
         let staged = dir.join("staged.tgz");
@@ -1429,6 +1434,9 @@ mod tests {
 
     #[test]
     fn npm_deploy_rejects_former_dry_run_request() {
+        if env_test_in_child("npm::tests::npm_deploy_rejects_former_dry_run_request") {
+            return;
+        }
         with_env(&[("NPM_PUBLISH_DRY_RUN", Some("1"))], || {
             assert_eq!(
                 npm_deploy_main(&["prog".to_owned()], "a.feed.json", "a.tgz"),
@@ -1757,6 +1765,9 @@ mod tests {
 
     #[test]
     fn npm_provenance_unavailable_without_identity() {
+        if env_test_in_child("npm::tests::npm_provenance_unavailable_without_identity") {
+            return;
+        }
         let none = [
             ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
             ("SIGSTORE_ID_TOKEN", None),
@@ -1808,6 +1819,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn npm_run_publish_passes_policy_and_keeps_the_token_out_of_args() {
+        if env_test_in_child(
+            "npm::tests::npm_run_publish_passes_policy_and_keeps_the_token_out_of_args",
+        ) {
+            return;
+        }
         let scratch = scratch_dir();
         let npm = fake_npm(scratch.path(), 0);
         let args = npm_publish_args(

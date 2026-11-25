@@ -663,7 +663,7 @@ pub fn deploy_tool_main(argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{scratch_dir, with_env};
+    use crate::test_support::{env_test_in_child, scratch_dir, with_env};
 
     fn parse(text: &str) -> Result<DeployConfig, String> {
         let dir = scratch_dir();
@@ -1052,6 +1052,9 @@ mod tests {
 
     #[test]
     fn loading_reads_the_variable() {
+        if env_test_in_child("config::tests::loading_reads_the_variable") {
+            return;
+        }
         let dir = scratch_dir();
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
@@ -1074,6 +1077,9 @@ mod tests {
 
     #[test]
     fn the_tool_exits_2_without_a_config() {
+        if env_test_in_child("config::tests::the_tool_exits_2_without_a_config") {
+            return;
+        }
         with_env(&[(DEPLOY_CONFIG_ENV, None)], || {
             assert_eq!(deploy_tool_main(&["deploy_tool".to_owned()]), 2);
         });

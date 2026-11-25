@@ -234,6 +234,20 @@ pub(crate) fn registry_files(lock: &str) -> Result<Vec<RegistryFile>, dx_error::
     Ok(kept)
 }
 
+pub(crate) fn module_file_of<'a>(
+    files: &'a [RegistryFile],
+    read: &'a dyn Fn(&str) -> Option<String>,
+) -> impl Fn(&str) -> Option<String> + 'a {
+    move |module| {
+        let mut versions = files.iter().filter(|file| file.name == module);
+        let file = versions.next()?;
+        if versions.next().is_some() {
+            return None;
+        }
+        read(&file.hash)
+    }
+}
+
 pub(crate) fn cached(caches: &[PathBuf], hash: &str) -> Option<String> {
     caches.iter().find_map(|cache| {
         let path = cache
@@ -536,44 +550,142 @@ pub(crate) fn repo_owners(files: &[ModuleFile]) -> BTreeMap<String, String> {
 const GRAPH_EDITS: &[&str] = &["bazel_dep", "_override"];
 const MODULE_EDITS: &[&str] = &["register_", "use_extension", "use_repo_rule", "include"];
 
-fn module_file_edits(patch: &str) -> Option<Vec<&str>> {
-    let mut module_file = false;
-    let mut call_start: Option<&str> = None;
-    let mut edits = Vec::new();
+fn continues_call(line: &str) -> bool {
+    line.chars()
+        .next()
+        .is_some_and(|first| first.is_whitespace() || matches!(first, ')' | ']' | '}'))
+}
+
+fn starts_statement(line: &str) -> bool {
+    !line.is_empty() && !line.starts_with('#') && !continues_call(line)
+}
+
+fn whole_bazel_dep(line: &str) -> bool {
+    line.starts_with("bazel_dep(")
+        && line.trim_end().ends_with(')')
+        && line.matches('(').count() == line.matches(')').count()
+}
+
+struct Hunk<'a> {
+    module: bool,
+    root: bool,
+    start: Option<usize>,
+    lines: Vec<(char, &'a str)>,
+}
+
+fn hunks(patch: &str) -> Vec<Hunk<'_>> {
+    let mut hunks: Vec<Hunk<'_>> = Vec::new();
+    let (mut module, mut root) = (false, false);
     for line in patch.lines() {
         if let Some(target) = line.strip_prefix("+++ ") {
-            module_file = target.split_whitespace().next().is_some_and(|path| {
-                path.rsplit('/')
-                    .next()
-                    .is_some_and(|name| name.ends_with("MODULE.bazel"))
+            let name = target
+                .split_whitespace()
+                .next()
+                .and_then(|path| path.rsplit('/').next());
+            module = name.is_some_and(|name| name.ends_with("MODULE.bazel"));
+            root = name == Some("MODULE.bazel");
+            hunks.push(Hunk {
+                module,
+                root,
+                start: None,
+                lines: Vec::new(),
             });
-            call_start = None;
             continue;
         }
-        if !module_file || line.starts_with("--- ") {
+        if line.starts_with("--- ") {
             continue;
         }
-        if line.starts_with("@@") {
-            call_start = None;
+        if let Some(header) = line.strip_prefix("@@ -") {
+            hunks.push(Hunk {
+                module,
+                root,
+                start: header
+                    .split([',', ' '])
+                    .next()
+                    .and_then(|start| start.parse().ok()),
+                lines: Vec::new(),
+            });
             continue;
         }
         let mut chars = line.chars();
-        let (Some(kind @ (' ' | '+' | '-')), text) = (chars.next(), chars.as_str()) else {
-            continue;
+        let entry = match chars.next() {
+            None => (' ', ""),
+            Some(kind @ (' ' | '+' | '-')) => (kind, chars.as_str()),
+            Some(_) => continue,
         };
-        let inside_call = text
-            .chars()
-            .next()
-            .is_some_and(|first| first.is_whitespace() || matches!(first, ')' | ']' | '}'));
-        if !inside_call && !text.is_empty() && !text.starts_with('#') {
-            call_start = Some(text);
+        if let Some(hunk) = hunks.last_mut() {
+            hunk.lines.push(entry);
         }
-        if kind == ' ' {
-            continue;
-        }
-        edits.push(text);
-        if inside_call {
-            edits.push(call_start?);
+    }
+    hunks
+}
+
+fn locate(hunk: &Hunk<'_>, original: &[&str]) -> Option<usize> {
+    let old: Vec<&str> = hunk
+        .lines
+        .iter()
+        .filter(|(kind, _)| *kind != '+')
+        .map(|(_, text)| *text)
+        .collect();
+    let expected = hunk.start?.saturating_sub(1);
+    if old.is_empty() {
+        return None;
+    }
+    original
+        .windows(old.len())
+        .enumerate()
+        .filter(|(_, window)| *window == old.as_slice())
+        .map(|(index, _)| index)
+        .min_by_key(|index| index.abs_diff(expected))
+}
+
+fn enclosing_statement<'b, 'a>(original: &'b [&'a str], anchor: usize) -> Option<&'b [&'a str]> {
+    let start = original
+        .get(..=anchor)?
+        .iter()
+        .rposition(|line| starts_statement(line))?;
+    let end = original
+        .get(start + 1..)?
+        .iter()
+        .position(|line| starts_statement(line))
+        .map_or(original.len(), |offset| start + 1 + offset);
+    original.get(start..end)
+}
+
+fn module_file_edits<'a>(patch: &'a str, original: Option<&'a str>) -> Option<Vec<&'a str>> {
+    let original: Option<Vec<&str>> = original.map(|text| text.lines().collect());
+    let mut edits = Vec::new();
+    for hunk in hunks(patch).iter().filter(|hunk| hunk.module) {
+        let mut old_index = original
+            .as_deref()
+            .filter(|_| hunk.root)
+            .and_then(|lines| locate(hunk, lines));
+        let mut call_start: Option<&str> = None;
+        for &(kind, text) in &hunk.lines {
+            let at = old_index;
+            if kind != '+' {
+                old_index = old_index.map(|index| index + 1);
+            }
+            let inside_call = continues_call(text);
+            if starts_statement(text) {
+                call_start = Some(text);
+            }
+            if kind == ' ' || (kind == '-' && whole_bazel_dep(text)) {
+                continue;
+            }
+            edits.push(text);
+            if !inside_call {
+                continue;
+            }
+            if let Some(start) = call_start {
+                edits.push(start);
+                continue;
+            }
+            let anchor = at?.checked_sub(usize::from(kind == '+'))?;
+            let statement = original
+                .as_deref()
+                .and_then(|lines| enclosing_statement(lines, anchor))?;
+            edits.extend_from_slice(statement);
         }
     }
     Some(edits)
@@ -583,6 +695,7 @@ pub(crate) fn overrides_that_widen(
     files: &[ModuleFile],
     affected: &BTreeSet<String>,
     read: &dyn Fn(&str) -> Option<String>,
+    module_file: &dyn Fn(&str) -> Option<String>,
 ) -> Option<String> {
     files.iter().flat_map(ModuleFile::calls).find_map(|call| {
         if !call.name.ends_with("_override") {
@@ -598,9 +711,6 @@ pub(crate) fn overrides_that_widen(
             "git_override" | "archive_override" | "local_path_override"
         ) {
             return widen("hides its MODULE.bazel");
-        }
-        if call.arg("patch_cmds").is_some() {
-            return widen("runs patch_cmds");
         }
         let patches = match call.arg("patches") {
             None => Vec::new(),
@@ -623,7 +733,8 @@ pub(crate) fn overrides_that_widen(
             let Some(text) = text else {
                 return widen("has an unreadable patch");
             };
-            let edits = module_file_edits(&text);
+            let original = module_file(module);
+            let edits = module_file_edits(&text, original.as_deref());
             let edits_any = |keys: &[&str]| {
                 edits.as_ref().is_none_or(|edits| {
                     edits
@@ -1001,6 +1112,14 @@ mod tests {
                 "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-bazel_dep(name = \"x\")\n",
             ),
             (
+                "p/bump.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n-bazel_dep(name = \"x\", version = \"1\")\n+bazel_dep(name = \"x\", version = \"2\")\n",
+            ),
+            (
+                "p/undev.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -1,5 +1,4 @@\n bazel_dep(\n     name = \"x\",\n     version = \"1\",\n-    dev_dependency = True,\n )\n",
+            ),
+            (
                 "p/dev.patch",
                 "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -1,5 +1,4 @@\n go_deps = use_extension(\n     \"@gazelle//:extensions.bzl\",\n     \"go_deps\",\n-    dev_dependency = True,\n )\n",
             ),
@@ -1017,7 +1136,7 @@ mod tests {
         .collect();
         let read = |path: &str| patches.get(path).map(|text| (*text).to_owned());
         let widen = |text: &str, affected: &[&str]| {
-            overrides_that_widen(&files(text), &set(affected), &read)
+            overrides_that_widen(&files(text), &set(affected), &read, &|_| None)
         };
         for (text, reason) in [
             (
@@ -1033,10 +1152,6 @@ mod tests {
                 "local_path_override for a hides its MODULE.bazel",
             ),
             (
-                "single_version_override(module_name = \"a\", patch_cmds = [\"x\"])\n",
-                "single_version_override for a runs patch_cmds",
-            ),
-            (
                 "single_version_override(module_name = \"a\", patches = [\"//p:gone.patch\"])\n",
                 "single_version_override for a has an unreadable patch",
             ),
@@ -1047,13 +1162,23 @@ mod tests {
         ] {
             assert_eq!(widen(text, &[]), Some(format!("MODULE.bazel {reason}")));
         }
-        assert!(
-            widen(
-                "single_version_override(module_name = \"a\", patches = [\"//p:drop.patch\"])\n",
-                &[]
-            )
-            .is_some()
-        );
+        let cmds = "single_version_override(module_name = \"a\", patch_cmds = [\"x\"])\n";
+        assert_eq!(widen(cmds, &["b"]), None);
+        assert_eq!(widen(cmds, &["a"]), None);
+        let patched = |patch: &str| {
+            format!("single_version_override(module_name = \"a\", patches = [\"{patch}\"])\n")
+        };
+        assert_eq!(widen(&patched("//p:drop.patch"), &["a"]), None);
+        for patch in ["//p:bump.patch", "//p:undev.patch"] {
+            assert_eq!(
+                widen(&patched(patch), &[]),
+                Some(
+                    "MODULE.bazel single_version_override for a patches its MODULE.bazel"
+                        .to_owned()
+                ),
+                "{patch}"
+            );
+        }
         for patch in ["//p:dev.patch", "//p:unanchored.patch"] {
             assert_eq!(
                 widen(
@@ -1069,9 +1194,6 @@ mod tests {
                 "{patch}"
             );
         }
-        let patched = |patch: &str| {
-            format!("single_version_override(module_name = \"a\", patches = [\"{patch}\"])\n")
-        };
         assert_eq!(widen(&patched("//p:dev.patch"), &["b"]), None);
         assert!(widen(&patched("//p:unanchored.patch"), &["b"]).is_some());
         let register = "single_version_override(module_name = \"a\", patches = [\"//p:register.patch\", \"//p:plain.patch\"])\n";
@@ -1086,6 +1208,58 @@ mod tests {
                 &["a"]
             ),
             None
+        );
+    }
+
+    #[test]
+    fn hidden_call_starts_resolve_against_the_registry_module_file() {
+        let original = "module(name = \"a\")\n\nbazel_dep(name = \"b\", version = \"1\")\n\n[\n    pip.parse(\n        python_version = v,\n    )\n    for v in VERSIONS\n]\n\n[\n    bazel_dep(name = n, version = \"1\")\n    for n in NAMES\n]\n";
+        let patches: BTreeMap<&str, &str> = [
+            (
+                "p/pip.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -7,4 +7,4 @@\n         python_version = v,\n     )\n-    for v in VERSIONS\n+    for v in VERSIONS if v != \"3.10\"\n ]\n",
+            ),
+            (
+                "p/deps.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -14,2 +14,2 @@\n-    for n in NAMES\n+    for n in NAMES[1:]\n ]\n",
+            ),
+            (
+                "p/shifted.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -5,4 +5,4 @@\n         python_version = v,\n     )\n-    for v in VERSIONS\n+    for v in VERSIONS if v != \"3.10\"\n ]\n",
+            ),
+            (
+                "p/stale.patch",
+                "--- a/MODULE.bazel\n+++ b/MODULE.bazel\n@@ -7,4 +7,4 @@\n         python_version = py,\n     )\n-    for py in VERSIONS\n+    for py in VERSIONS if py != \"3.10\"\n ]\n",
+            ),
+        ]
+        .into_iter()
+        .collect();
+        let read = |path: &str| patches.get(path).map(|text| (*text).to_owned());
+        let module_file = |module: &str| (module == "a").then(|| original.to_owned());
+        let widen = |patch: &str| {
+            overrides_that_widen(
+                &files(&format!(
+                    "single_version_override(module_name = \"a\", patches = [\"{patch}\"])\n"
+                )),
+                &set(&["b"]),
+                &read,
+                &module_file,
+            )
+        };
+        let hidden =
+            Some("MODULE.bazel single_version_override for a patches its MODULE.bazel".to_owned());
+        assert_eq!(widen("//p:pip.patch"), None);
+        assert_eq!(widen("//p:deps.patch"), hidden);
+        assert_eq!(widen("//p:shifted.patch"), None);
+        assert_eq!(widen("//p:stale.patch"), hidden);
+        assert_eq!(
+            overrides_that_widen(
+                &files("single_version_override(module_name = \"a\", patches = [\"//p:pip.patch\"])\n"),
+                &set(&["b"]),
+                &read,
+                &|_| None,
+            ),
+            hidden
         );
     }
 

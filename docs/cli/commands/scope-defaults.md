@@ -78,12 +78,13 @@ A module change also widens to `//...` when the lock does not list the version, 
 
 ### Patches
 
-dx reads each patch that a `single_version_override` or `multiple_version_override` applies. It looks at the lines a patch adds or removes in a `MODULE.bazel` file. When such a line is inside a call that spans several lines, dx also reads the first line of that call.
+dx reads each patch that a `single_version_override` or `multiple_version_override` applies. It looks at the lines a patch adds or removes in a `MODULE.bazel` file. When such a line is inside a call or other statement that spans several lines, dx also reads the first line of that statement. When the patch does not show that first line, dx reads the whole statement from the module's `MODULE.bazel` in the repository cache.
 
-- A changed line with `bazel_dep` or `_override`: `//...`.
+- A changed line with `bazel_dep` or `_override`: `//...`. Removing a whole one-line `bazel_dep` call does not widen.
 - A changed line with `register_`, `use_extension`, `use_repo_rule`, or `include`: `//...` when the patched module changed, or when the change touches an extension that a module other than the root owns.
-- A changed line inside a call whose first line the patch does not show: `//...`.
-- `patch_cmds`, or a patch dx cannot read: `//...`.
+- A changed line inside a statement whose first line the patch does not show, when the module has no single cached `MODULE.bazel` or the patch does not match it: `//...`.
+- `patch_cmds` do not widen.
+- A patch dx cannot read: `//...`.
 
 Other patch edits do not widen.
 

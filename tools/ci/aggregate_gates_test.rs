@@ -537,10 +537,70 @@ fn the_gate_runs_a_copy_of_dx_that_bazel_cannot_rewrite_under_it() {
         .filter_map(|step| step["run"].as_str())
         .find(|run| run.contains("\"$COMMAND\" --affected"))
         .expect("dx step");
-    assert!(run.contains("bazel build \"$@\" @rules_dx//:dx"), "{run}");
-    assert!(run.contains("dx=\"${RUNNER_TEMP:-/tmp}/"), "{run}");
+    assert!(
+        run.contains("dx=\"${RUNNER_TEMP:-/tmp}/dx-bin/dx\""),
+        "{run}"
+    );
     assert!(run.contains("\"$dx\" \"$COMMAND\" --affected"), "{run}");
-    assert!(!run.contains("bazel run"), "{run}");
+    assert!(!run.contains("bazel "), "{run}");
+}
+
+#[test]
+fn the_gate_builds_its_tools_in_one_bazel_build_with_the_dx_flags() {
+    let action = document(GATE_ACTION).unwrap();
+    let runs: Vec<&str> = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect();
+    let builds: Vec<&str> = runs
+        .iter()
+        .copied()
+        .filter(|run| run.contains("bazel build"))
+        .collect();
+    let [build] = builds.as_slice() else {
+        panic!("the gate must build once: {runs:?}");
+    };
+    assert!(
+        build.contains("set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS"),
+        "{build}"
+    );
+    for tool in [
+        "@rules_dx//tools/ci/gate_base:gate_base_bin",
+        "@rules_dx//:dx",
+        "@rules_dx//tools/ci/producers:producers_bin",
+    ] {
+        assert!(build.contains(tool), "{tool}: {build}");
+    }
+    assert!(
+        build.contains("bazel build \"$@\" \"${tools[@]}\""),
+        "{build}"
+    );
+    assert!(build.contains("cp -L"), "{build}");
+    for run in &runs {
+        assert!(!run.contains("bazel run"), "{run}");
+    }
+}
+
+#[test]
+fn every_gate_query_passes_its_labels_as_one_expression() {
+    let action = document(GATE_ACTION).unwrap();
+    let queries: Vec<&str> = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .flat_map(str::lines)
+        .filter(|line| line.contains("bazel cquery") || line.contains("bazel query"))
+        .collect();
+    assert!(
+        !queries.is_empty(),
+        "the gate must find its tools with a query"
+    );
+    for line in queries {
+        assert!(!line.contains("[@]}"), "{line}");
+    }
 }
 
 #[test]

@@ -94,7 +94,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- generate -- "$@" < /dev/null
+          "$RUNNER_TEMP/dx-bin/dx" generate -- "$@" < /dev/null
       - name: Check the upload holds no secret
         id: scan-results
         if: ${{ always() }}

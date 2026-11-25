@@ -1,0 +1,386 @@
+Upstream: aran/rules_flutter#25
+diff -ruN a/flutter/extensions.bzl b/flutter/extensions.bzl
+--- a/flutter/extensions.bzl
++++ b/flutter/extensions.bzl
+@@ -30,7 +30,6 @@ load("//flutter/private:constants.bzl", "ANDROID_ABI_FOR_ARCH")
+ load("//flutter/private:custom_sdks.bzl", "checkout_repo_names", "custom_sdks")
+ load("//flutter/private:default_sdk.bzl", "DEFAULT_SDK_NAME")
+ load("//flutter/private:engine_labels.bzl", "android_arches")
+-load("//flutter/private:engine_out_dirs.bzl", "unread_machine_message")
+ load("//flutter/private:flutter_android_emulator_repo.bzl", "flutter_android_emulator_repo", "flutter_android_system_image_repo")
+ load("//flutter/private:flutter_chrome_for_testing.bzl", "flutter_chrome_for_testing")
+ load("//flutter/private:flutter_dev_root_repo.bzl", "flutter_dev_root_repo")
+@@ -39,12 +38,11 @@ load("//flutter/private:flutter_linux_runtime_repo.bzl", "flutter_linux_runtime_
+ load("//flutter/private:flutter_material_fonts_repo.bzl", "flutter_material_fonts_repo")
+ load("//flutter/private:flutter_sdk_toolchains_repo.bzl", "flutter_sdk_toolchains_repo")
+ load("//flutter/private:flutter_sdks_repo.bzl", "encode_sdks", "flutter_sdks_repo")
+-load("//flutter/private:flutter_web_sdk_repo.bzl", "host_platform")
+ load("//flutter/private:linux_runtime_pins.bzl", "LINUX_RUNTIME")
+ load("//flutter/private:local_engine.bzl", "flutter_checkout_engine")
+ load("//flutter/private:repositories.bzl", "flutter_register_toolchains")
+ load("//flutter/private:toolchain_version.bzl", "select_flutter_version")
+-load("//flutter/private:toolchains_repo.bzl", "HOST_PLATFORMS", "flutter_toolchains_repo", "sdk_repo_name")
++load("//flutter/private:toolchains_repo.bzl", "HOST_PLATFORMS", "THIS_HOST", "flutter_toolchains_repo", "sdk_repo_name")
+ load("//flutter/private:versions.bzl", "ANDROID_EMULATOR", "ANDROID_SYSTEM_IMAGE", "CHROME_FOR_TESTING", "FLUTTER_VERSIONS", "flutter_source_sha256", "require_supported_flutter_version")
+ 
+ flutter_toolchain = tag_class(
+@@ -191,9 +189,6 @@ def _framework_json(sdk):
+     """The label of the `flutter_framework.json` of an SDK whose framework is not the release's."""
+     return sdk.framework + "//:flutter_framework.json"
+ 
+-# What `hosts` names the machine Bazel runs on by.
+-_THIS_HOST = "host"
+-
+ def _sdk(name, version = None, framework = None, engine = None, material_fonts_sha256 = "", checkout = None, hosts = None):
+     """One SDK: the release that supplies a half not given, and the halves given, as label prefixes.
+ 
+@@ -202,12 +197,12 @@ def _sdk(name, version = None, framework = None, engine = None, material_fonts_s
+     if version:
+         require_supported_flutter_version(version)
+     for host in hosts or []:
+-        if host != _THIS_HOST and host not in HOST_PLATFORMS:
++        if host != THIS_HOST and host not in HOST_PLATFORMS:
+             fail("The Flutter SDK \"{}\" names the host \"{}\" in `hosts`, which is none of {} and {}.".format(
+                 name,
+                 host,
+                 ", ".join(sorted(HOST_PLATFORMS.keys())),
+-                _THIS_HOST,
++                THIS_HOST,
+             ))
+     return struct(
+         name = name,
+@@ -219,28 +214,6 @@ def _sdk(name, version = None, framework = None, engine = None, material_fonts_s
+         hosts = hosts,
+     )
+ 
+-def _served_hosts(sdks, machine):
+-    """The hosts each SDK whose engine does not serve every one serves, with `host` as the machine Bazel runs on."""
+-    served = {}
+-    for name, sdk in sdks.items():
+-        if sdk.hosts != None:
+-            served[name] = sorted({
+-                (machine if h == _THIS_HOST else h): True
+-                for h in sdk.hosts
+-                if h != _THIS_HOST or machine
+-            }.keys())
+-    return served
+-
+-def _unknown_machine(sdks, machine, os):
+-    """Why each SDK that serves the machine Bazel runs on cannot here, by SDK: none when the machine is one the engine is built for."""
+-    if machine:
+-        return {}
+-    return {
+-        name: "The Flutter SDK \"{}\" runs on the machine Bazel runs on alone. {}".format(name, unread_machine_message(os))
+-        for name, sdk in sdks.items()
+-        if sdk.hosts and _THIS_HOST in sdk.hosts
+-    }
+-
+ def _custom_framework_sdk(tag):
+     return _sdk(
+         tag.name,
+@@ -271,7 +244,7 @@ def _checkout_sdk(tag):
+         material_fonts_sha256 = tag.material_fonts_sha256,
+         checkout = tag,
+         # Out dirs hold the machine's own build.
+-        hosts = [_THIS_HOST],
++        hosts = [THIS_HOST],
+     )
+ 
+ # The SDK each of the custom-SDK tags declares, by the tag's name.
+@@ -335,7 +308,7 @@ def _declared_sdks(module_ctx):
+         fail("A flutter.toolchain() is required: the default SDK, named \"{}\".".format(DEFAULT_SDK_NAME))
+     return struct(sdks = sdks, use = customs.use or DEFAULT_SDK_NAME)
+ 
+-def _register_sdk(sdk, host):
++def _register_sdk(sdk):
+     """Declares the repositories of one SDK; returns the label prefix of its engine source."""
+     name = sdk.name
+     if sdk.checkout:
+@@ -354,7 +327,7 @@ def _register_sdk(sdk, host):
+         )
+     if sdk.engine == None and sdk.framework == None:
+         # The release, with the artifact repositories it is made of.
+-        flutter_register_toolchains(name = name, flutter_version = sdk.version, host = host)
++        flutter_register_toolchains(name = name, flutter_version = sdk.version)
+         return "@{}_stock_engine".format(name)
+ 
+     # The Material fonts come with the framework: the ones its
+@@ -373,7 +346,6 @@ def _register_sdk(sdk, host):
+         flutter_register_toolchains(
+             name = name,
+             flutter_version = sdk.version,
+-            host = host,
+             framework_json = _framework_json(sdk),
+             framework_json_file = _framework_json(sdk),
+             material_fonts = fonts_label,
+@@ -398,15 +370,11 @@ def _register_sdk(sdk, host):
+ def _toolchain_extension(module_ctx):
+     declared = _declared_sdks(module_ctx)
+     sdks = declared.sdks
+-
+-    # The web SDK repository holds the Dart SDK of the machine Bazel runs on,
+-    # so the extension's repositories depend on its OS and CPU.
+-    host = host_platform(module_ctx.os)
+     engine_prefixes = {}
+     outline_packages = {}
+     for name in sorted(sdks.keys()):
+         sdk = sdks[name]
+-        engine_prefixes[name] = _register_sdk(sdk, host)
++        engine_prefixes[name] = _register_sdk(sdk)
+ 
+         # The SDK's dev root, for `@rules_flutter//flutter/pub`. Declared
+         # unconditionally because bzlmod repositories are lazy: a workspace
+@@ -498,8 +466,7 @@ def _toolchain_extension(module_ctx):
+         name = "flutter_toolchains",
+         sdks = sorted(sdks.keys()),
+         default_sdk = declared.use,
+-        hosts = _served_hosts(sdks, host),
+-        unknown_machine = _unknown_machine(sdks, host, module_ctx.os),
++        hosts = {name: sdk.hosts for name, sdk in sdks.items() if sdk.hosts != None},
+     )
+ 
+     # The browser web integration tests run in, one repository per host it is
+@@ -566,7 +533,7 @@ flutter = module_extension(
+         "checkout": flutter_checkout,
+         "use_sdk": flutter_use_sdk,
+     },
+-    os_dependent = True,
+-    arch_dependent = True,
++    os_dependent = False,
++    arch_dependent = False,
+     doc = "Installs the Flutter SDKs and their toolchains. The module docstring says which SDKs exist and which a build uses.",
+ )
+diff -ruN a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
+--- a/flutter/private/BUILD.bazel
++++ b/flutter/private/BUILD.bazel
+@@ -307,6 +307,10 @@ bzl_library(
+     name = "toolchains_repo",
+     srcs = ["toolchains_repo.bzl"],
+     visibility = ["//flutter:__subpackages__"],
++    deps = [
++        ":engine_out_dirs",
++        ":flutter_web_sdk_repo",
++    ],
+ )
+ 
+ bzl_library(
+diff -ruN a/flutter/private/flutter_web_sdk_repo.bzl b/flutter/private/flutter_web_sdk_repo.bzl
+--- a/flutter/private/flutter_web_sdk_repo.bzl
++++ b/flutter/private/flutter_web_sdk_repo.bzl
+@@ -7,10 +7,11 @@ can resolve its `include` of `../dart-sdk/lib/libraries.json` (dart:core,
+ dart:async, ...).
+ 
+ The Dart SDK archives differ by host (their `lib/_internal` dills are built on
+-each), so the host is an argument, which the `flutter` extension reads from the
+-machine it runs on. The repository is a `flutter_archive_repo`: Bazel keeps one
+-copy of it for each host in its repository contents cache, for every output
+-base.
++each), so there is one `flutter_archive_repo` for each host, the host an
++attribute: Bazel keeps one copy of each in its repository contents cache, for
++every output base. The repository the toolchains name links to the one of the
++machine Bazel runs on, which it reads when it is fetched, so the `flutter`
++extension that declares them all is the same on every host.
+ """
+ 
+ load(":archives.bzl", "archive", "archive_repo")
+@@ -56,47 +57,62 @@ def host_platform(os):
+         return prefix + "-x64"
+     return None
+ 
+-def flutter_web_sdk_repo(name, engine_revision, host, sha256 = "", dart_sdk_sha256s = {}):
+-    """Declares the web SDK of an engine, with the Dart SDK of one host.
++def _flutter_web_sdk_host_repo_impl(repository_ctx):
++    host = host_platform(repository_ctx.os)
++    if host not in repository_ctx.attr.sdks:
++        fail("The web SDK needs the Dart SDK of the machine Bazel runs on, and Flutter publishes none for this one ({} on {}).".format(
++            repository_ctx.os.name,
++            repository_ctx.os.arch,
++        ))
++    root = repository_ctx.path(repository_ctx.attr.sdks[host]).dirname
++    for tree in ["web-sdk", "dart-sdk"]:
++        repository_ctx.symlink(root.get_child(tree), tree)
++    repository_ctx.file("BUILD.bazel", _BUILD_TEMPLATE)
++
++_flutter_web_sdk_host_repo = repository_rule(
++    implementation = _flutter_web_sdk_host_repo_impl,
++    doc = "The web SDK of the machine Bazel runs on: links to the trees of its host's repository.",
++    attrs = {
++        "sdks": attr.string_keyed_label_dict(
++            doc = "Host platform to the BUILD file of its web SDK repository.",
++            mandatory = True,
++        ),
++    },
++)
++
++def flutter_web_sdk_repo(name, engine_revision, sha256 = "", dart_sdk_sha256s = {}):
++    """Declares the web SDK of an engine, one repository for each host's Dart SDK.
+ 
+     Args:
+-        name: The repository's name.
++        name: The name of the repository of the machine Bazel runs on; each
++            host's is this name with the host after it (`_darwin_arm64`).
+         engine_revision: The engine's commit.
+-        host: The engine's name for the machine Bazel runs on (`darwin-arm64`),
+-            from `host_platform`, or None where it is not one the engine is
+-            built for, which fails the fetch.
+         sha256: Expected SHA-256 of flutter-web-sdk.zip.
+-        dart_sdk_sha256s: Host platform to the SHA-256 of its Dart SDK archive.
++        dart_sdk_sha256s: Host platform to the SHA-256 of its Dart SDK archive,
++            for every host there is one for.
+     """
+-    if not host:
+-        # Nothing is downloaded: the check fails the fetch at once.
++    sdks = {}
++    for host, dart_sdk_sha256 in sorted(dart_sdk_sha256s.items()):
++        host_name = "{}_{}".format(name, host.replace("-", "_"))
++        dart_sdk_zip = dart_sdk_artifact_path(host)
+         archive_repo(
+-            name = name,
+-            archives = [],
+-            checks = [{
+-                "path": "dart-sdk",
+-                "message": "The web SDK needs the Dart SDK of the machine Bazel runs on, and Flutter publishes none for this one.",
+-            }],
+-            files = {},
++            name = host_name,
++            archives = [
++                archive(
++                    "flutter-web-sdk.zip",
++                    engine_artifact_url(engine_revision, "flutter-web-sdk.zip"),
++                    sha256,
++                    output = "web-sdk",
++                ),
++                archive(
++                    dart_sdk_zip,
++                    engine_artifact_url(engine_revision, dart_sdk_zip),
++                    dart_sdk_sha256,
++                    strip_prefix = "dart-sdk",
++                    output = "dart-sdk",
++                ),
++            ],
++            files = {"BUILD.bazel": _BUILD_TEMPLATE},
+         )
+-        return
+-    dart_sdk_zip = dart_sdk_artifact_path(host)
+-    archive_repo(
+-        name = name,
+-        archives = [
+-            archive(
+-                "flutter-web-sdk.zip",
+-                engine_artifact_url(engine_revision, "flutter-web-sdk.zip"),
+-                sha256,
+-                output = "web-sdk",
+-            ),
+-            archive(
+-                dart_sdk_zip,
+-                engine_artifact_url(engine_revision, dart_sdk_zip),
+-                dart_sdk_sha256s.get(host, ""),
+-                strip_prefix = "dart-sdk",
+-                output = "dart-sdk",
+-            ),
+-        ],
+-        files = {"BUILD.bazel": _BUILD_TEMPLATE},
+-    )
++        sdks[host] = "@{}//:BUILD.bazel".format(host_name)
++    _flutter_web_sdk_host_repo(name = name, sdks = sdks)
+diff -ruN a/flutter/private/repositories.bzl b/flutter/private/repositories.bzl
+--- a/flutter/private/repositories.bzl
++++ b/flutter/private/repositories.bzl
+@@ -119,7 +119,7 @@ def _desktop_engine_repo_name(name, target_platform, mode):
+     """The repo holding the desktop engine of one build mode for a target platform."""
+     return "{}_desktop_engine_{}_{}".format(name, target_platform, mode)
+ 
+-def flutter_register_toolchains(name, flutter_version, host, framework_json = "", framework_json_file = None, material_fonts = ""):
++def flutter_register_toolchains(name, flutter_version, framework_json = "", framework_json_file = None, material_fonts = ""):
+     """Declares the repositories of the stock release SDK.
+ 
+     Creates a repository for each host platform, cross-compilation repos, the
+@@ -130,8 +130,6 @@ def flutter_register_toolchains(name, flutter_version, host, framework_json = ""
+     Args:
+         name: base name for all created repos, like "flutter"
+         flutter_version: the Flutter release the engine is.
+-        host: the engine's name for the machine Bazel runs on, from
+-            `host_platform`, whose Dart SDK the web SDK repository holds.
+         framework_json: the label of the SDK's `flutter_framework.json`, when
+             its framework is not the release's.
+         framework_json_file: the same file, for the toolchains to read what the framework is.
+@@ -243,7 +241,6 @@ def flutter_register_toolchains(name, flutter_version, host, framework_json = ""
+     flutter_web_sdk_repo(
+         name = name + "_stock_web_sdk",
+         engine_revision = meta.engine_revision,
+-        host = host,
+         sha256 = checksums.get("flutter-web-sdk.zip", ""),
+         dart_sdk_sha256s = {h: checksums.get(dart_sdk_artifact_path(h), "") for h in HOST_PLATFORMS},
+     )
+diff -ruN a/flutter/private/toolchains_repo.bzl b/flutter/private/toolchains_repo.bzl
+--- a/flutter/private/toolchains_repo.bzl
++++ b/flutter/private/toolchains_repo.bzl
+@@ -15,8 +15,14 @@ This guidance tells us how to avoid that: we put the toolchain targets in the al
+ with only the toolchain attribute pointing into the platform-specific repositories.
+ """
+ 
++load(":engine_out_dirs.bzl", "unread_machine_message")
++load(":flutter_web_sdk_repo.bzl", "host_platform")
++
+ visibility("//flutter/...")
+ 
++# What an SDK's `hosts` names the machine Bazel runs on by.
++THIS_HOST = "host"
++
+ # Host platforms on which Flutter builds can run.
+ # Keys are platform strings used in Flutter artifact URLs.
+ HOST_PLATFORMS = {
+@@ -390,12 +396,42 @@ toolchain(
+ """.format(compatible_with = ["@platforms//os:ios", "@platforms//cpu:x86_64"])
+     return content
+ 
++def machine_hosts(hosts, os):
++    """The hosts each SDK serves on one machine, and why the SDKs that serve it alone fail there.
++
++    Args:
++        hosts: For each SDK whose engine does not serve every host, the hosts
++            it does, `host` for the machine Bazel runs on.
++        os: The machine's `repository_os`.
++
++    Returns:
++        A struct of the `hosts` and `unknown_machine` of
++        `toolchains_build_content`: `host` becomes the machine's platform, or
++        is dropped on a machine no engine is built for, where each SDK that
++        serves it gets the message its toolchains fail with.
++    """
++    machine = host_platform(os)
++    served = {}
++    unknown_machine = {}
++    for sdk, sdk_hosts in hosts.items():
++        served[sdk] = sorted({
++            (machine if h == THIS_HOST else h): True
++            for h in sdk_hosts
++            if h != THIS_HOST or machine
++        }.keys())
++        if THIS_HOST in sdk_hosts and not machine:
++            unknown_machine[sdk] = "The Flutter SDK \"{}\" runs on the machine Bazel runs on alone. {}".format(sdk, unread_machine_message(os))
++    return struct(hosts = served, unknown_machine = unknown_machine)
++
+ def _flutter_toolchains_repo_impl(repository_ctx):
++    # The machine is read here rather than in the `flutter` extension, so
++    # that the extension's repositories are the same on every host.
++    machine = machine_hosts(repository_ctx.attr.hosts, repository_ctx.os)
+     repository_ctx.file("BUILD.bazel", toolchains_build_content(
+         repository_ctx.attr.sdks,
+         repository_ctx.attr.default_sdk,
+-        repository_ctx.attr.hosts,
+-        repository_ctx.attr.unknown_machine,
++        machine.hosts,
++        machine.unknown_machine,
+     ))
+ 
+ flutter_toolchains_repo = repository_rule(
+@@ -405,7 +441,6 @@ flutter_toolchains_repo = repository_rule(
+     attrs = {
+         "sdks": attr.string_list(doc = "The names of the declared SDKs.", mandatory = True),
+         "default_sdk": attr.string(doc = "The SDK a build without `--@rules_flutter//flutter:sdk` uses.", mandatory = True),
+-        "hosts": attr.string_list_dict(doc = "For each SDK whose engine does not serve every host, the hosts it does."),
+-        "unknown_machine": attr.string_dict(doc = "For each SDK that serves the machine Bazel runs on, where no engine is built for it, why its toolchains fail there."),
++        "hosts": attr.string_list_dict(doc = "For each SDK whose engine does not serve every host, the hosts it does, `host` for the machine Bazel runs on."),
+     },
+ )

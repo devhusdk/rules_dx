@@ -154,6 +154,7 @@ _UPSTREAM_BZL = [
     "@aspect_rules_ts//ts:repositories",
     "@aspect_rules_ts//ts:defs",
     "@bazel_skylib//rules:copy_file",
+    "@bazel_skylib//rules:run_binary",
     "@dx_platforms//:host.bzl",
     "@dx_pins_data//:pins.bzl",
     "@dx_windows_support//windows:extensions",

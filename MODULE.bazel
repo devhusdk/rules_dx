@@ -1878,6 +1878,7 @@ single_version_override(
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:flutter_extension_loads.patch",
+        "//patches/rules_flutter:host_independent_extension.patch",
     ],
     version = "0.2.0",
 )

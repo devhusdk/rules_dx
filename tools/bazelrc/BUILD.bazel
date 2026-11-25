@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_CLI_TEST")
 
 package(default_visibility = VIS_TOOLS)
@@ -31,6 +32,23 @@ rust_test(
     deps = [],
 )
 
+nested_bazel_test(
+    name = "ci_remote_outage_test",
+    size = "large",
+    timeout = "moderate",
+    srcs = ["ci_remote_outage_test.rs"],
+    cache = "harness",
+    cache_locks = "//tools/testing/nested_cache:harness_locks",
+    crate_name = "ci_remote_outage_test",
+    crate_root = "ci_remote_outage_test.rs",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        ":dx_preset",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
 exports_files(
     [
         "Cargo.toml",
@@ -41,7 +59,10 @@ exports_files(
 
 test_suite(
     name = "all",
-    tests = [":dx_preset_test"],
+    tests = [
+        ":ci_remote_outage_test",
+        ":dx_preset_test",
+    ],
 )
 
 real_source_target(

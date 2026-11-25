@@ -219,8 +219,14 @@ common:ci --remote_timeout=10m
 # Under --config=ci, build locally when the remote cache fails.
 common:ci --remote_local_fallback
 
+# Under --config=ci, build locally when the remote cache cannot be reached, instead of failing the action.
+common:ci --incompatible_remote_local_fallback_for_remote_cache
+
 # Under --config=ci, retry a failed remote cache call 5 times.
 common:ci --remote_retries=5
+
+# Under --config=ci, stop calling the remote cache for the rest of the command once its calls keep failing, so lookups fall back to local builds and fetches.
+common:ci --experimental_circuit_breaker_strategy=failure
 
 # Under --config=ci, rebuild 5 times when the remote cache evicts an input.
 common:ci --experimental_remote_cache_eviction_retries=5

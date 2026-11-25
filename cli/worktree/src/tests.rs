@@ -326,6 +326,75 @@ impl Host for FakeHost {
     }
 }
 
+fn template() -> &'static Path {
+    static TEMPLATE: std::sync::OnceLock<(dx_test_scratch::TempDir, PathBuf)> =
+        std::sync::OnceLock::new();
+    &TEMPLATE
+        .get_or_init(|| {
+            let scratch = dx_test_scratch::scratch("worktree-template").unwrap();
+            let root = dx_path::without_verbatim(
+                &std::fs::canonicalize(scratch.path()).expect("canonical"),
+            );
+            build_template(&root);
+            (scratch, root)
+        })
+        .1
+}
+
+fn build_template(root: &Path) {
+    let origin = root.join("origin.git");
+    let main = root.join("repo");
+    std::fs::create_dir_all(&origin).expect("origin dir");
+    dx_test_scratch::git(
+        &origin,
+        &origin,
+        &["init", "--bare", "--quiet", "--initial-branch=main"],
+    )
+    .unwrap();
+    std::fs::create_dir_all(&main).expect("main dir");
+    dx_test_scratch::git(&main, &main, &["init", "--quiet", "--initial-branch=main"]).unwrap();
+    for (repo, hooks) in [
+        (&origin, origin.join("hooks")),
+        (&main, main.join(".git").join("hooks")),
+    ] {
+        dx_test_scratch::git(repo, repo, &["config", "maintenance.auto", "false"]).unwrap();
+        for sample in std::fs::read_dir(&hooks).expect("hooks") {
+            std::fs::remove_file(sample.expect("sample").path()).expect("drop sample hook");
+        }
+    }
+    std::fs::write(main.join("a.txt"), "one\n").expect("write");
+    std::fs::write(main.join("MODULE.bazel.lock"), "{}\n").expect("lock");
+    dx_test_scratch::git(&main, &main, &["add", "."]).unwrap();
+    dx_test_scratch::git(&main, &main, &["commit", "--quiet", "-m", "first"]).unwrap();
+    dx_test_scratch::git(
+        &main,
+        &main,
+        &["remote", "add", "origin", &origin.to_string_lossy()],
+    )
+    .unwrap();
+    dx_test_scratch::git(&main, &main, &["push", "--quiet", "-u", "origin", "main"]).unwrap();
+    dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]).unwrap();
+}
+
+fn config_value(path: &Path) -> String {
+    path.to_string_lossy()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("copy dir");
+    for entry in std::fs::read_dir(from).expect("read template") {
+        let entry = entry.expect("template entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("entry type").is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target).expect("copy template file");
+        }
+    }
+}
+
 struct Fixture {
     _scratch: tempfile::TempDir,
     main: PathBuf,
@@ -340,27 +409,19 @@ impl Fixture {
         let origin = root.join("origin.git");
         let main = root.join("repo");
         let cache = root.join("cache");
-        std::fs::create_dir_all(&origin).expect("origin dir");
-        dx_test_scratch::git(
-            &origin,
-            &origin,
-            &["init", "--bare", "--quiet", "--initial-branch=main"],
-        )
-        .unwrap();
-        std::fs::create_dir_all(&main).expect("main dir");
-        dx_test_scratch::git(&main, &main, &["init", "--quiet", "--initial-branch=main"]).unwrap();
-        std::fs::write(main.join("a.txt"), "one\n").expect("write");
-        std::fs::write(main.join("MODULE.bazel.lock"), "{}\n").expect("lock");
-        dx_test_scratch::git(&main, &main, &["add", "."]).unwrap();
-        dx_test_scratch::git(&main, &main, &["commit", "--quiet", "-m", "first"]).unwrap();
-        dx_test_scratch::git(
-            &main,
-            &main,
-            &["remote", "add", "origin", &origin.to_string_lossy()],
-        )
-        .unwrap();
-        dx_test_scratch::git(&main, &main, &["push", "--quiet", "-u", "origin", "main"]).unwrap();
-        dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]).unwrap();
+        let template = template();
+        copy_tree(&template.join("origin.git"), &origin);
+        copy_tree(&template.join("repo"), &main);
+        let config = main.join(".git").join("config");
+        let text = std::fs::read_to_string(&config).expect("template config");
+        let template_url = config_value(&template.join("origin.git"));
+        assert_eq!(
+            text.matches(&template_url).count(),
+            1,
+            "the template config names its origin once: {text}"
+        );
+        std::fs::write(&config, text.replace(&template_url, &config_value(&origin)))
+            .expect("point the copy at its own origin");
         Fixture {
             _scratch: scratch,
             main,

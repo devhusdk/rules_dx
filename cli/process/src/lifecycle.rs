@@ -83,6 +83,8 @@ pub enum ChildOutcome {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
+const FIRST_POLL: Duration = Duration::from_millis(1);
+
 fn after(at: Instant, span: Duration) -> Instant {
     const CENTURY: Duration = Duration::from_secs(100 * 365 * 24 * 3600);
     at.checked_add(span)
@@ -193,6 +195,7 @@ pub fn run_command_with_input(
     let mut hard = after(soft, cleanup.total());
     let mut status = None;
     let mut wait_error = None;
+    let mut pause = FIRST_POLL;
     while Instant::now() < soft {
         if stop().is_some() || over.load(Ordering::SeqCst) {
             hard = after(Instant::now(), cleanup.total());
@@ -205,7 +208,8 @@ pub fn run_command_with_input(
             }
             Ok(None) => {
                 let remaining = soft.saturating_duration_since(Instant::now());
-                std::thread::sleep(POLL_INTERVAL.min(remaining));
+                std::thread::sleep(pause.min(remaining));
+                pause = (pause * 2).min(POLL_INTERVAL);
             }
             // LCOV_EXCL_START - reason: try_wait failing on a live child cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             Err(err) => {

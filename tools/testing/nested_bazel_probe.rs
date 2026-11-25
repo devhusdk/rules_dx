@@ -69,7 +69,7 @@ fn run() -> Result<String, String> {
     let case = nested::case("probe");
     let (first, extracted) = server_pid(&case, &version)?;
     let fetched = fetched(&case)?;
-    let (second, _) = server_pid(&nested::case("probe"), &version)?;
+    let (second, _) = server_pid(&nested::case("probe_renamed"), &version)?;
     if first != second {
         return Err(format!("cases must share one server: {first} != {second}"));
     }

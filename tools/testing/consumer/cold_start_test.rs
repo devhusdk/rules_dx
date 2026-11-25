@@ -1,3 +1,5 @@
+#![expect(clippy::panic, reason = "test helper: a failed case fails the test")]
+
 use std::collections::BTreeSet;
 
 use dx_nested::Case;
@@ -157,6 +159,7 @@ fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
             "query",
             "--color=no",
             "--curses=no",
+            "--repo_contents_cache=",
             "--output=label",
             "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
         ],
@@ -199,207 +202,205 @@ fn cold_start_lists() -> Vec<String> {
         .collect()
 }
 
-fn fetches_only_its_cold_start_list(lang: &str) {
-    let suffix = format!("/{lang}.txt");
+fn cold_start_list(stem: &str) -> BTreeSet<String> {
+    let suffix = format!("/{stem}.txt");
     let list = cold_start_lists()
         .into_iter()
         .find(|path| path.ends_with(&suffix))
-        .unwrap_or_else(|| panic!("DX_COLD_START_LISTS has no {lang}.txt"));
-    let want = listed(&dx_testing::read_text(
+        .unwrap_or_else(|| panic!("DX_COLD_START_LISTS has no {stem}.txt"));
+    listed(&dx_testing::read_text(
         &dx_testing::rlocation(&list).unwrap_or_else(|error| panic!("{list}: {error}")),
-    ));
-    let foreign = FOREIGN
+    ))
+}
+
+fn foreign_fragments(lang: &str) -> &'static [&'static str] {
+    FOREIGN
         .iter()
         .find(|(name, _)| *name == lang)
-        .map_or(&[][..], |(_, fragments)| fragments);
+        .map_or(&[][..], |(_, fragments)| fragments)
+}
+
+fn cold_case(name: &str, lang: &str) -> Case {
     let extra = if CHECK_ANALYSIS.contains(&lang) {
         jar_pins()
     } else {
         String::new()
     };
-    let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, &extra)
-        .unwrap_or_else(|error| panic!("{error}"));
-    let mut fetches = Fetches::default();
-    run_ok(
-        &case,
-        &[
-            "build",
-            "--color=no",
-            "--curses=no",
-            "--repo_contents_cache=",
-            "//...",
-        ],
-        &mut fetches,
-    );
-    run_ok(
-        &case,
-        &[
-            "test",
-            "--color=no",
-            "--curses=no",
-            "--repo_contents_cache=",
-            "//...",
-        ],
-        &mut fetches,
-    );
-    if CHECK_ANALYSIS.contains(&lang) {
-        analyze_check_aspects(&case, &mut fetches);
-    }
+    Case::language_consumer(name, lang, &extra).unwrap_or_else(|error| panic!("{error}"))
+}
+
+fn assert_fetches_only(case: &Case, stem: &str, lang: &str, fetches: &Fetches) {
+    let want = cold_start_list(stem);
+    let foreign = foreign_fragments(lang);
     let info = case.bazel(&["info", "output_base"]);
     assert!(info.status.success(), "bazel info: {}", info.combined());
     let measured = fetched(&std::path::PathBuf::from(info.stdout.trim()).join("external"));
-    let problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, &fetches);
+    let problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, fetches);
     let list: Vec<&str> = measured.iter().map(String::as_str).collect();
     assert!(
         problems.is_empty(),
-        "{lang} cold start:\n{}\nmeasured list ({}):\n{}",
+        "{stem} cold start:\n{}\nmeasured list ({}):\n{}",
         problems.join("\n"),
         list.len(),
         list.join("\n")
     );
 }
 
-#[test]
-fn java_fetches_only_its_cold_start_list() {
-    fetches_only_its_cold_start_list("java");
-}
-
-#[test]
-fn go_fetches_only_its_cold_start_list() {
-    fetches_only_its_cold_start_list("go");
-}
-
-#[test]
-fn rust_fetches_only_its_cold_start_list() {
-    fetches_only_its_cold_start_list("rust");
-}
-
-#[test]
-fn every_cold_start_list_has_foreign_fragments() {
-    let stems: BTreeSet<String> = cold_start_lists()
-        .iter()
-        .map(|path| {
-            std::path::Path::new(path)
-                .file_stem()
-                .unwrap_or_else(|| panic!("{path} has no file name"))
-                .to_string_lossy()
-                .into_owned()
-        })
-        .collect();
-    let langs: BTreeSet<String> = FOREIGN.iter().map(|(lang, _)| (*lang).to_owned()).collect();
-    assert_eq!(stems, langs);
-}
-
-#[test]
-fn growth_shrinkage_and_downloading_foreign_repos_are_reported() {
-    let want = listed("# comment\na\nb  # why\nrules_dx++ocaml+dx_ocaml_toolchains\n\n");
-    let measured: BTreeSet<String> = [
-        "a",
-        "c",
-        "rules_dx++ocaml+dx_ocaml_toolchains",
-        "rules_dx++ocaml+dx_opam_repository",
-        "rules_ocaml+",
-    ]
-    .into_iter()
-    .map(str::to_owned)
-    .collect();
-    let fetches = Fetches {
-        ran: [
-            "rules_dx++ocaml+dx_ocaml_toolchains",
-            "rules_dx++ocaml+dx_opam_repository",
-        ]
-        .into_iter()
-        .map(str::to_owned)
-        .collect(),
-        downloaded: ["rules_dx++ocaml+dx_opam_repository"]
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
-    };
-    assert_eq!(
-        problems(&measured, &want, &["ocaml", "opam"], &[], &fetches),
-        [
-            "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads",
-            "fetched rules_ocaml+, a ocaml repository whose rule did not run (came from a cache)",
-            "new fetch: c",
-            "new fetch: rules_dx++ocaml+dx_opam_repository",
-            "new fetch: rules_ocaml+",
-            "no longer fetched, remove it from the list: b",
-        ]
-    );
-}
-
-#[test]
-fn each_language_flags_the_other_toolchain_downloads_but_not_its_hubs() {
-    let foreign = |lang: &str| {
-        FOREIGN
-            .iter()
-            .find(|(name, _)| *name == lang)
-            .map_or(&[][..], |(_, fragments)| fragments)
-    };
-    let downloads = |lang: &str, repo: &str| {
-        let measured: BTreeSet<String> = [repo.to_owned()].into_iter().collect();
-        let fetches = Fetches {
-            ran: measured.clone(),
-            downloaded: measured.clone(),
-        };
-        !problems(&measured, &measured, foreign(lang), &[], &fetches).is_empty()
-    };
-    for (lang, repo) in [
-        (
-            "go",
-            "rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
-        ),
-        (
-            "go",
-            "rules_rust++rust+rustfmt_1.99.1__x86_64-unknown-linux-gnu_tools",
-        ),
-        ("go", "rules_nodejs++node+nodejs_linux_amd64"),
-        ("rust", "rules_go++go_sdk+rules_dx__download_0_linux_amd64"),
-        ("rust", "rules_nodejs++node+nodejs_linux_amd64"),
-    ] {
-        assert!(downloads(lang, repo), "{lang} must flag {repo}");
-    }
-    for (lang, repo) in [
-        ("go", "rules_rust++rust+rust_toolchains"),
-        ("go", "rules_nodejs++node+nodejs_toolchains"),
-        ("rust", "rules_nodejs++node+nodejs_toolchains"),
-    ] {
-        assert!(
-            !downloads(lang, repo),
-            "{lang} must not flag the hub {repo}"
+pub fn fetches_only_its_cold_start_list(lang: &str) {
+    let case = cold_case(&format!("{lang}_cold_start"), lang);
+    let mut fetches = Fetches::default();
+    for command in ["build", "test"] {
+        run_ok(
+            &case,
+            &[
+                command,
+                "--color=no",
+                "--curses=no",
+                "--repo_contents_cache=",
+                "//...",
+            ],
+            &mut fetches,
         );
     }
+    assert_fetches_only(&case, lang, lang, &fetches);
 }
 
-#[test]
-fn upstream_registered_archives_skip_the_foreign_check_but_stay_listed() {
-    let want = listed("rules_kotlin+\n");
-    let measured: BTreeSet<String> = ["rules_kotlin+", "rules_scala+"]
+pub fn check_analysis_fetches_only_its_cold_start_list(lang: &str) {
+    let case = cold_case(&format!("{lang}_check_cold_start"), lang);
+    let mut fetches = Fetches::default();
+    analyze_check_aspects(&case, &mut fetches);
+    assert_fetches_only(&case, &format!("{lang}_check"), lang, &fetches);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_cold_start_list_has_foreign_fragments() {
+        let stems: BTreeSet<String> = cold_start_lists()
+            .iter()
+            .map(|path| {
+                std::path::Path::new(path)
+                    .file_stem()
+                    .unwrap_or_else(|| panic!("{path} has no file name"))
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        let langs: BTreeSet<String> = FOREIGN
+            .iter()
+            .map(|(lang, _)| (*lang).to_owned())
+            .chain(CHECK_ANALYSIS.iter().map(|lang| format!("{lang}_check")))
+            .collect();
+        assert_eq!(stems, langs);
+    }
+
+    #[test]
+    fn growth_shrinkage_and_downloading_foreign_repos_are_reported() {
+        let want = listed("# comment\na\nb  # why\nrules_dx++ocaml+dx_ocaml_toolchains\n\n");
+        let measured: BTreeSet<String> = [
+            "a",
+            "c",
+            "rules_dx++ocaml+dx_ocaml_toolchains",
+            "rules_dx++ocaml+dx_opam_repository",
+            "rules_ocaml+",
+        ]
         .into_iter()
         .map(str::to_owned)
         .collect();
-    let fetches = Fetches {
-        ran: ["rules_kotlin+", "rules_scala+"]
+        let fetches = Fetches {
+            ran: [
+                "rules_dx++ocaml+dx_ocaml_toolchains",
+                "rules_dx++ocaml+dx_opam_repository",
+            ]
             .into_iter()
             .map(str::to_owned)
             .collect(),
-        downloaded: ["rules_kotlin+", "rules_scala+"]
+            downloaded: ["rules_dx++ocaml+dx_opam_repository"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        };
+        assert_eq!(
+            problems(&measured, &want, &["ocaml", "opam"], &[], &fetches),
+            [
+                "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads",
+                "fetched rules_ocaml+, a ocaml repository whose rule did not run (came from a cache)",
+                "new fetch: c",
+                "new fetch: rules_dx++ocaml+dx_opam_repository",
+                "new fetch: rules_ocaml+",
+                "no longer fetched, remove it from the list: b",
+            ]
+        );
+    }
+
+    #[test]
+    fn each_language_flags_the_other_toolchain_downloads_but_not_its_hubs() {
+        let downloads = |lang: &str, repo: &str| {
+            let measured: BTreeSet<String> = [repo.to_owned()].into_iter().collect();
+            let fetches = Fetches {
+                ran: measured.clone(),
+                downloaded: measured.clone(),
+            };
+            !problems(&measured, &measured, foreign_fragments(lang), &[], &fetches).is_empty()
+        };
+        for (lang, repo) in [
+            (
+                "go",
+                "rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
+            ),
+            (
+                "go",
+                "rules_rust++rust+rustfmt_1.99.1__x86_64-unknown-linux-gnu_tools",
+            ),
+            ("go", "rules_nodejs++node+nodejs_linux_amd64"),
+            ("rust", "rules_go++go_sdk+rules_dx__download_0_linux_amd64"),
+            ("rust", "rules_nodejs++node+nodejs_linux_amd64"),
+        ] {
+            assert!(downloads(lang, repo), "{lang} must flag {repo}");
+        }
+        for (lang, repo) in [
+            ("go", "rules_rust++rust+rust_toolchains"),
+            ("go", "rules_nodejs++node+nodejs_toolchains"),
+            ("rust", "rules_nodejs++node+nodejs_toolchains"),
+        ] {
+            assert!(
+                !downloads(lang, repo),
+                "{lang} must not flag the hub {repo}"
+            );
+        }
+    }
+
+    #[test]
+    fn upstream_registered_archives_skip_the_foreign_check_but_stay_listed() {
+        let want = listed("rules_kotlin+\n");
+        let measured: BTreeSet<String> = ["rules_kotlin+", "rules_scala+"]
             .into_iter()
             .map(str::to_owned)
-            .collect(),
-    };
-    assert_eq!(
-        problems(
-            &measured,
-            &want,
-            &["kotlin", "scala", "cuda"],
-            &["rules_kotlin+", "rules_scala+", "rules_cuda+"],
-            &fetches,
-        ),
-        [
-            "new fetch: rules_scala+",
-            "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: rules_cuda+",
-        ]
-    );
+            .collect();
+        let fetches = Fetches {
+            ran: ["rules_kotlin+", "rules_scala+"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+            downloaded: ["rules_kotlin+", "rules_scala+"]
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        };
+        assert_eq!(
+            problems(
+                &measured,
+                &want,
+                &["kotlin", "scala", "cuda"],
+                &["rules_kotlin+", "rules_scala+", "rules_cuda+"],
+                &fetches,
+            ),
+            [
+                "new fetch: rules_scala+",
+                "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: rules_cuda+",
+            ]
+        );
+    }
 }

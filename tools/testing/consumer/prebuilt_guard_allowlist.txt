@@ -1,4 +1,4 @@
-# What the //tools/testing/consumer:<lang>_prebuilt_guard_test targets let a consumer compile.
+# What the //tools/testing/consumer:network_test guard cases let a consumer compile.
 # `label <canonical label> [<lang>...]  # reason`: a rules_dx binary the consumer may build;
 # with languages, only a consumer of one of those languages.
 # `repo rules_dx++dx_pins+rules_<name> <lang>...  # reason`: an upstream rule set whose binaries

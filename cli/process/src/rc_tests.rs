@@ -1288,6 +1288,27 @@ fn profile_dir_gives_each_build_call_its_own_trace() {
 }
 
 #[test]
+fn ensure_profile_dir_creates_the_directory_or_reports_why_not() {
+    let scratch = dx_test_scratch::scratch("dx-rc-profile-").unwrap();
+    let nested = scratch.path().join("a").join("b");
+    let policy = RcPolicy {
+        profile_dir: Some(nested.clone()),
+        ..RcPolicy::hermetic()
+    };
+    assert_eq!(policy.ensure_profile_dir(), Ok(()));
+    assert!(nested.is_dir());
+    let file = scratch.path().join("file");
+    std::fs::write(&file, "").unwrap();
+    let blocked = RcPolicy {
+        profile_dir: Some(file.join("sub")),
+        ..RcPolicy::hermetic()
+    };
+    let error = blocked.ensure_profile_dir().unwrap_err();
+    assert!(error.starts_with("cannot create DX_PROFILE_DIR directory "), "{error}");
+    assert_eq!(RcPolicy::hermetic().ensure_profile_dir(), Ok(()));
+}
+
+#[test]
 fn bazelrc_env_file_counts_for_the_gc_bound() {
     let policy = Machine::local()
         .env("BAZELRC", "/x/extra.bazelrc")

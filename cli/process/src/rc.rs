@@ -338,6 +338,18 @@ impl RcPolicy {
         }
     }
 
+    pub fn ensure_profile_dir(&self) -> Result<(), String> {
+        let Some(dir) = &self.profile_dir else {
+            return Ok(());
+        };
+        std::fs::create_dir_all(dir).map_err(|error| {
+            format!(
+                "cannot create {PROFILE_DIR_ENV} directory {}: {error}",
+                dir.display()
+            )
+        })
+    }
+
     #[must_use]
     pub fn startup_opts(&self) -> &'static [&'static str] {
         if self.read_user_rc {

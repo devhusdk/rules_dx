@@ -5,7 +5,7 @@ load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//core/quality:parity.bzl", "deferred_pipeline_error")
-load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_direct_maps_or_error", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
+load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_direct_maps_or_error", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "pipeline_tool_error", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//core/quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "holds_workspace_source", "upstream_source_class")
 load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
@@ -370,12 +370,11 @@ RealClassInfo = provider(
         "direct_files": "class id to the main-repository files it owns",
         "path_to_file": "workspace path to its File",
         "resolved": "capability to its resolved pipeline stages, for each capability no tag blocks",
-        "deferred": "capability to the deferred-class error to raise when it resolves no stage",
-        "error": "the source map error each consumer raises, else empty",
+        "failures": "capability to the message its consumers fail with, for each capability that cannot resolve",
     },
 )
 
-_UNCLASSIFIED = RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, deferred = {}, error = "")
+_UNCLASSIFIED = RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, failures = {})
 
 def _resolved_and_deferred(target_classes, direct_paths, capability, policy):
     """Resolves one capability's stages and the deferred-class error to raise when none resolve."""
@@ -398,15 +397,21 @@ def _real_classify_impl(target, ctx):
     what = "real_aspect (" + str(target.label) + ")"
     (target_classes, direct_files, direct_paths, path_to_file, error) = aspect_direct_maps_or_error(target[QualitySourcesInfo].direct_sources, what)
     if error != "":
-        return [RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, deferred = {}, error = error)]
+        return [RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, failures = {capability: error for capability in capabilities})]
     if len(target_classes) == 0:
         return [_UNCLASSIFIED]
     policy = ctx.attr._policy[QualityPolicyInfo]
     resolved = {}
-    deferred = {}
+    failures = {}
     for capability in capabilities:
-        (resolved[capability], deferred[capability]) = _resolved_and_deferred(target_classes, direct_paths, capability, policy)
-    return [RealClassInfo(direct_files = direct_files, path_to_file = path_to_file, resolved = resolved, deferred = deferred, error = "")]
+        tool_error = pipeline_tool_error(aspect_family_selections(policy, capability), REAL_CLASS_TO_FAMILY, REAL_ADAPTERS)
+        if tool_error != "":
+            failures[capability] = tool_error
+            continue
+        (resolved[capability], deferred) = _resolved_and_deferred(target_classes, direct_paths, capability, policy)
+        if deferred != "":
+            failures[capability] = what + ": " + deferred
+    return [RealClassInfo(direct_files = direct_files, path_to_file = path_to_file, resolved = resolved, failures = failures)]
 
 real_classify_aspect = aspect(
     implementation = _real_classify_impl,
@@ -415,16 +420,14 @@ real_classify_aspect = aspect(
     provides = [RealClassInfo],
 )
 
-def _shared_stages(target, capability, what):
+def _shared_stages(target, capability):
     """Reads the stages real_classify_aspect resolved for this target and capability."""
     found = target[RealClassInfo]
-    if found.error != "":
-        fail(found.error)
+    failure = found.failures.get(capability, "")
+    if failure != "":
+        fail(failure)
     resolved = found.resolved.get(capability, [])
     if len(resolved) == 0:
-        deferred = found.deferred.get(capability, "")
-        if deferred != "":
-            fail(what + ": " + deferred)
         return ([], None, None)
     return (resolved, found.direct_files, found.path_to_file)
 
@@ -442,7 +445,7 @@ def real_resolved_stages(cfg, target, ctx, capability, what):
         direct_sources = target[QualitySourcesInfo].direct_sources
         harnessed = cfg.harness_sources(target, capability, direct_sources) if cfg.harness_sources != None else None
         if harnessed == None:
-            return _shared_stages(target, capability, what)
+            return _shared_stages(target, capability)
         direct_sources = harnessed
     else:
         if target.label.name.endswith("_upstream"):

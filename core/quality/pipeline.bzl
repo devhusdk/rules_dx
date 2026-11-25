@@ -40,13 +40,23 @@ def stage_sources(direct_sources, effective_classes):
             seen[path] = True
     return sorted(seen.keys())
 
+def _unknown_tool_error(authorized, adapters):
+    """Returns the error for an authorized tool missing from the adapter registry, else empty."""
+    for tool in authorized.keys():
+        if tool not in adapters:
+            return "pipeline: unknown tool '" + tool + "': not in the ruleset adapter registry"
+    return ""
+
+def pipeline_tool_error(family_selections, class_to_family, adapters):
+    """Returns the error pipeline_stages raises for a selected tool missing from the adapter registry, else empty."""
+    return _unknown_tool_error(authorize_classes(family_selections, class_to_family), adapters)
+
 def pipeline_stages(target_classes, capability, family_selections, class_to_family, adapters):
     """Returns the nonempty stages for one target/capability, in ruleset order."""
     authorized = authorize_classes(family_selections, class_to_family)
-    for tool in authorized.keys():
-        if tool not in adapters:
-            fail("pipeline: unknown tool '" + tool +
-                 "': not in the ruleset adapter registry")
+    error = _unknown_tool_error(authorized, adapters)
+    if error != "":
+        fail(error)
     stages = []
     for tool in adapters.keys():
         if tool not in authorized:

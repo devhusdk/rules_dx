@@ -120,11 +120,18 @@ fn gzip_with_node(text: &str) -> Vec<u8> {
 
 #[test]
 fn scan_reads_inside_gzip_files() {
-    for (name, content, status) in [("gzip with key", "has k3y", 1), ("gzip clean", "clean", 0)] {
+    let corrupt = |text: &str| [&[0x1f, 0x8b, 0xff][..], text.as_bytes()].concat();
+    let cases = [
+        ("gzip with key", gzip_with_node("has k3y"), 1),
+        ("gzip clean", gzip_with_node("clean"), 0),
+        ("corrupt gzip with key", corrupt("has k3y"), 1),
+        ("corrupt gzip clean", corrupt("clean"), 0),
+    ];
+    for (name, content, status) in cases {
         let dir = dx_test_scratch::scratch("secret-scan-gzip").unwrap();
         let upload = dir.path().join("upload");
         std::fs::create_dir_all(&upload).expect("create upload dir");
-        std::fs::write(upload.join("trace.json.gz"), gzip_with_node(content)).expect("write gzip");
+        std::fs::write(upload.join("trace.json.gz"), content).expect("write gzip");
         let env = [
             ("BUILDBUDDY_API_KEY", "k3y"),
             ("DX_UPLOAD_PATH", upload.to_str().expect("utf-8 path")),

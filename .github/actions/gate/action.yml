@@ -80,7 +80,6 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-        mkdir -p "$DX_PROFILE_DIR"
         pr_tags=-network-consumer,-audit
         dx="${RUNNER_TEMP:-/tmp}/dx-bin/dx"
         out="${RUNNER_TEMP:-/tmp}/gate.json"

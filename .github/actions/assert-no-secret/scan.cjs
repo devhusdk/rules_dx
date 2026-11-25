@@ -52,10 +52,18 @@ function holdsSecret(path) {
     return false;
   }
   const raw = fs.readFileSync(path);
-  const gzipped = raw.length > 1 && raw[0] === 0x1f && raw[1] === 0x8b;
-  const flush = { finishFlush: zlib.constants.Z_SYNC_FLUSH };
-  const contents = gzipped ? [raw, zlib.gunzipSync(raw, flush)] : [raw];
-  return contents.some((content) => needles.some((needle) => content.includes(needle)));
+  return [raw, ...gunzipped(raw)].some((content) => needles.some((needle) => content.includes(needle)));
+}
+
+function gunzipped(raw) {
+  if (raw.length < 2 || raw[0] !== 0x1f || raw[1] !== 0x8b) {
+    return [];
+  }
+  try {
+    return [zlib.gunzipSync(raw, { finishFlush: zlib.constants.Z_SYNC_FLUSH })];
+  } catch {
+    return [];
+  }
 }
 
 let found;

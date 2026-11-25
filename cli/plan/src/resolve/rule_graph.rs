@@ -5,6 +5,7 @@ use dx_path::label::{Label, Repo};
 use serde_json::Value;
 
 use super::{QueryRunner, ResolveError};
+use crate::args::{TagFilter, takes_coverage};
 
 const EXPRESSION: &str = "kind('rule', //...)";
 
@@ -16,6 +17,7 @@ pub struct RuleGraph {
     release: HashSet<String>,
     kinds: HashMap<String, String>,
     filter_tags: HashMap<String, Vec<String>>,
+    test_tags: HashMap<String, Vec<String>>,
 }
 
 const QUERY_FLAGS: [&str; 9] = [
@@ -151,6 +153,7 @@ impl RuleGraph {
             release: HashSet::new(),
             kinds: HashMap::new(),
             filter_tags: HashMap::new(),
+            test_tags: HashMap::new(),
         };
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
             let value: Value = serde_json::from_str(line).map_err(|error| {
@@ -208,6 +211,7 @@ impl RuleGraph {
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
                 if is_test_kind(kind) {
                     let mut tags = tags_of(rule);
+                    graph.test_tags.insert(name.to_owned(), tags.clone());
                     let size = attribute(rule, "size")
                         .and_then(|size| size.get("stringValue"))
                         .and_then(Value::as_str)
@@ -352,6 +356,24 @@ impl RuleGraph {
         tests.sort();
         tests.dedup();
         tests
+    }
+
+    #[must_use]
+    pub fn coverage_split(&self, tests: &[String]) -> (Vec<String>, Vec<String>) {
+        tests.iter().cloned().partition(|test| {
+            self.test_tags
+                .get(test)
+                .is_none_or(|tags| takes_coverage(tags))
+        })
+    }
+
+    #[must_use]
+    pub fn admits_any(&self, tests: &[String], filter: &TagFilter) -> bool {
+        tests.iter().any(|test| {
+            self.test_tags
+                .get(test)
+                .is_none_or(|tags| filter.admits(tags))
+        })
     }
 
     fn expand_tests<'a>(&'a self, rule: &'a str, stack: &mut Vec<&'a str>) -> Vec<&'a str> {
@@ -631,6 +653,66 @@ mod tests {
                 .iter()
                 .any(|path| path.contains("ruby") || path.contains("d.rs"))
         );
+    }
+
+    fn coverage_graph() -> RuleGraph {
+        graph(&[
+            graph_rule_of_kind("//a:unit_test", "rust_test", &[], &["small"]),
+            graph_rule_of_kind("//a:opt_out_test", "rust_test", &[], &["no-coverage"]),
+            graph_rule_of_kind(
+                "//a:collector_test",
+                "sh_test",
+                &[],
+                &["dx-no-coverage-collector"],
+            ),
+            graph_rule_of_kind("//a:hand_test", "rust_test", &[], &["manual"]),
+            graph_rule_of_kind(
+                "//a:nested_test",
+                "rust_test",
+                &[],
+                &["no-sandbox", "resources:nested_bazel:1", "network-consumer"],
+            ),
+            graph_rule_of_kind("//a:near_test", "rust_test", &[], &["no-coverage-ok"]),
+        ])
+    }
+
+    #[test]
+    fn coverage_split_sends_opted_out_tests_to_the_plain_list() {
+        let graph = coverage_graph();
+        let tests = strings(&[
+            "//a:unit_test",
+            "//a:opt_out_test",
+            "//a:collector_test",
+            "//a:hand_test",
+            "//a:nested_test",
+            "//a:near_test",
+            "//b:unknown_test",
+        ]);
+        let (coverage, plain) = graph.coverage_split(&tests);
+        assert_eq!(
+            coverage,
+            ["//a:unit_test", "//a:near_test", "//b:unknown_test"]
+        );
+        assert_eq!(
+            plain,
+            [
+                "//a:opt_out_test",
+                "//a:collector_test",
+                "//a:hand_test",
+                "//a:nested_test"
+            ]
+        );
+    }
+
+    #[test]
+    fn admits_any_applies_the_tag_filter_to_known_tests() {
+        let graph = coverage_graph();
+        let filter =
+            TagFilter::from_options(&strings(&["--test_tag_filters=-network-consumer,-audit"]));
+        assert!(!graph.admits_any(&strings(&["//a:nested_test"]), &filter));
+        assert!(graph.admits_any(&strings(&["//a:nested_test", "//a:opt_out_test"]), &filter));
+        assert!(graph.admits_any(&strings(&["//..."]), &filter));
+        assert!(!graph.admits_any(&[], &filter));
     }
 
     fn shard_graph() -> RuleGraph {

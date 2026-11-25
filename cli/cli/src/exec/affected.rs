@@ -4,7 +4,7 @@ use dx_exec_core::common::{
     Env, check_stdout_write, emit_built, emit_event, refusal, resolve_failed, set_field,
 };
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started};
-use dx_plan::args::{Command, Invocation};
+use dx_plan::args::{Command, Invocation, TagFilter};
 use dx_plan::resolve::base::{PlanError, affected_base, since_base};
 use dx_plan::resolve::{
     AffectedSelection, QueryRunner, RuleGraph, WidenedScope, collect_range, collect_working_tree,
@@ -19,10 +19,12 @@ pub(crate) struct AffectedPlan {
     pub(crate) changed_files: Vec<String>,
     pub(crate) targets: Vec<String>,
     pub(crate) tests: Vec<String>,
+    pub(crate) coverage_tests: Option<Vec<String>>,
     pub(crate) generate: Vec<String>,
     pub(crate) format: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
+    pub(crate) graph: Option<RuleGraph>,
 }
 
 const SUMMARY_WIDENED_LIMIT: usize = 3;
@@ -52,6 +54,9 @@ impl AffectedPlan {
         });
         if command == Command::Check {
             set_field(&mut value, "tests", json!(self.tests));
+            if let Some(coverage_tests) = &self.coverage_tests {
+                set_field(&mut value, "coverage_tests", json!(coverage_tests));
+            }
         }
         value
     }
@@ -173,6 +178,7 @@ fn scope_to_graph(
         plan.targets.retain(|target| audit_owned(workspace, target));
         plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
+    plan.graph = Some(graph);
     Ok(())
 }
 
@@ -207,10 +213,12 @@ pub(crate) fn plan(
         changed_files,
         targets: Vec::new(),
         tests: Vec::new(),
+        coverage_tests: None,
         generate: Vec::new(),
         format: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
+        graph: None,
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -253,6 +261,7 @@ pub(crate) fn plan(
             plan.format = vec!["//...".to_owned()];
         }
         plan.targets = vec!["//...".to_owned()];
+        plan.graph = selection.graph.take();
         return Ok(plan);
     }
     scope_to_graph(
@@ -450,7 +459,61 @@ fn resolve_plan(
         )?;
         narrow_to_scope(&mut plan, &scope.targets);
     }
+    if invocation.command == Command::Check && !plan.empty() {
+        split_tests(
+            &mut plan,
+            invocation,
+            workspace,
+            query_runner,
+            &TagFilter::from_options(invocation.raw_bazel_options()),
+        )?;
+    }
     Ok(plan)
+}
+
+fn split_tests(
+    plan: &mut AffectedPlan,
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    filter: &TagFilter,
+) -> Result<(), PlanError> {
+    let whole_repo = plan.tests == ["//..."];
+    if invocation.coverage && !plan.tests.is_empty() {
+        let graph = match plan.graph.take() {
+            Some(graph) => graph,
+            None => RuleGraph::load(workspace, runner, &invocation.bazel_startup_options)?,
+        };
+        let candidates = if whole_repo {
+            let excludes = exclude::load(workspace)?;
+            let mut tests = graph.tests_of(&graph.selected(&plan.tests));
+            tests.retain(|test| !exclude::covered(&excludes, test));
+            tests
+        } else {
+            plan.tests.clone()
+        };
+        let (coverage, plain) = graph.coverage_split(&candidates);
+        plan.coverage_tests = Some(if whole_repo {
+            plan.tests.clone()
+        } else {
+            coverage
+        });
+        plan.tests = plain;
+        plan.graph = Some(graph);
+    }
+    if let Some(graph) = &plan.graph {
+        if !graph.admits_any(&plan.tests, filter) {
+            plan.tests.clear();
+        }
+        if let Some(coverage) = plan
+            .coverage_tests
+            .as_mut()
+            .filter(|coverage| !graph.admits_any(coverage, filter))
+        {
+            coverage.clear();
+        }
+    }
+    Ok(())
 }
 
 fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
@@ -465,6 +528,7 @@ fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
     next.targets.clone_from(&plan.targets);
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
+        coverage_tests: plan.coverage_tests.clone().unwrap_or_default(),
         base: Some(plan.base.clone()),
         generate: plan.generate.clone(),
         format: plan.format.clone(),
@@ -620,6 +684,7 @@ mod tests {
             changed_files: vec!["core/quality/fixtures.bzl".to_string()],
             targets: Vec::new(),
             tests: Vec::new(),
+            coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
             widened: entries
@@ -631,6 +696,7 @@ mod tests {
                 })
                 .collect(),
             unscoped: false,
+            graph: None,
         }
     }
 
@@ -1342,10 +1408,12 @@ mod tests {
             changed_files: Vec::new(),
             targets: Vec::new(),
             tests: Vec::new(),
+            coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
+            graph: None,
         };
         assert!(
             plan.summary()
@@ -1484,10 +1552,12 @@ mod tests {
             changed_files: labels(&["svc/a.rs", "web/b.ts"]),
             targets: labels(&["//svc/api:lib", "//svc:bin", "//web:app"]),
             tests: labels(&["//svc/api:test", "//web:test"]),
+            coverage_tests: None,
             generate: labels(&["//svc/api:all", "//web:all", "//..."]),
             format: labels(&["//svc/api:lib", "//web:app"]),
             widened: Vec::new(),
             unscoped: false,
+            graph: None,
         };
         narrow_to_scope(&mut plan, &labels(&["//svc/api/...", "//svc:bin"]));
         assert_eq!(plan.targets, labels(&["//svc/api:lib", "//svc:bin"]));

@@ -206,6 +206,18 @@ impl dx_process::Runner for SlotEnv<'_> {
         self.inner.run(argv, cwd, &slot_env(env, share.as_deref()))
     }
 
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<dx_process::ChildStatus> {
+        let share = self.share_env();
+        self.inner
+            .run_watched(argv, cwd, &slot_env(env, share.as_deref()), watch)
+    }
+
     fn run_hermetic(
         &self,
         argv: &[String],

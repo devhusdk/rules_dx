@@ -2510,6 +2510,36 @@ fn test_phase_results_complete_follows_kind() {
     }
 }
 
+#[test]
+fn affected_checks_plan_a_phase_only_for_each_non_empty_test_list() {
+    let harness = Harness::new("umbrella-test-phase-list");
+    let mut inv = umbrella_invocation(&harness, &["check", "--output=text"]);
+    let quality: Vec<&str> = UMBRELLA_PHASES.iter().map(|phase| phase.name()).collect();
+    let tests = vec!["//a:plain_test".to_owned()];
+    let coverage = vec!["//a:x_test".to_owned()];
+    for (plain, covered, extra) in [
+        (Vec::new(), Vec::new(), Vec::new()),
+        (tests.clone(), Vec::new(), vec!["test"]),
+        (Vec::new(), coverage.clone(), vec!["coverage"]),
+        (tests, coverage, vec!["test", "coverage"]),
+    ] {
+        inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+            tests: plain,
+            coverage_tests: covered,
+            ..Default::default()
+        });
+        let request = inv.umbrella_request().expect("umbrella");
+        let run = Run::new(&request);
+        let labels: Vec<&str> = run.phases.iter().map(|(_, label)| *label).collect();
+        let mut want = quality.clone();
+        want.extend(extra);
+        assert_eq!(labels, want);
+        for (phase, invocation) in test_phases(&request) {
+            assert_eq!(invocation.command, phase);
+        }
+    }
+}
+
 fn run_test_phase(harness: &Harness) -> (i32, PhaseKind) {
     let inv = umbrella_invocation(harness, &["test", "--output=text"]);
     let runner = harness.runner();

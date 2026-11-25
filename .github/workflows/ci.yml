@@ -42,7 +42,7 @@ jobs:
             runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     env:
-      GATE: ${{ matrix.platform == 'linux_x86_64' && 'check coverage' || 'check' }}
+      GATE: ${{ matrix.platform == 'linux_x86_64' && 'check --coverage' || 'check' }}
     permissions:
       actions: read
       contents: read

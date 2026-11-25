@@ -253,6 +253,19 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         .map(|status| status.unwrap_or_else(|| ChildStatus::exited(RESTART_EXIT)))
     }
 
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<ChildStatus> {
+        self.attempts(argv, cwd, &|| false, &|argv| {
+            self.inner.run_watched(argv, cwd, env, watch).map(Some)
+        })
+        .map(|status| status.unwrap_or_else(|| ChildStatus::exited(RESTART_EXIT)))
+    }
+
     fn run_hermetic(
         &self,
         argv: &[String],

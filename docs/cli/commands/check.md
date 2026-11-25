@@ -4,6 +4,7 @@ Use `dx check` to find and fix generated-file drift, formatting, lint and type e
 
 ```sh
 dx check --affected
+dx check --affected --coverage --report lcov=lcov.info
 dx check --apply --affected
 dx check --apply //pkg/...
 dx check --diff //pkg/...
@@ -15,7 +16,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## Usage
 
 ```text
-dx check [--here] [--affected [--since <ref>|--base <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>|--base <ref>] [--coverage]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif|lcov|sources=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Args after `--` go to Bazel.
@@ -29,6 +30,7 @@ Args after `--` go to Bazel.
 | `--unsafe` | With `--apply` or `--diff`, also include fixes the tools mark unsafe. Without either, exits `2`. The read-only check after `--apply` runs without it. |
 | `--here` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
 | `--affected` | Use only the targets your git changes reach, then run their tests as a last phase. |
+| `--coverage` | With `--affected`, run the tests that take coverage under coverage. Without `--affected` or with `--apply`, exits `2`. |
 | `--since <ref>` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
 | `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
@@ -36,6 +38,8 @@ Args after `--` go to Bazel.
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
 | `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF file. Repeatable. `-` (stdout) is rejected. |
+| `--report lcov=<dest>` | With `--coverage`, write the lcov report of the coverage phase. Without `--coverage`, exits `2`. |
+| `--report sources=<dest>` | With `--coverage`, write the coverage sources report of the coverage phase. Without `--coverage`, exits `2`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace <dir>` | Use this workspace directory. |
 | `-q, --quiet` | Hide summaries. |
@@ -67,7 +71,11 @@ Read [Scope defaults](scope-defaults.md) for details.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
 - With `--apply`, dx runs `generate` again after `typecheck` when a phase wrote a file.
-- `--affected` adds a test phase. `--apply` skips it.
+- `--affected` adds a `test` phase that runs the affected tests. `--apply` skips it.
+- With `--coverage`, a `coverage` phase runs each affected test that takes coverage once, under coverage. The `test` phase runs only the tests tagged `no-coverage`, `dx-no-coverage-collector`, `manual` or `resources:nested_bazel:1`.
+- A `test` or `coverage` phase with no tests is skipped.
+- The `test` and `coverage` phases print a failed test as soon as it finishes. They print `dx: <phase>: <finished>/<total> tests finished, <failed> failed, <elapsed>` on stderr every 60 seconds.
+- When you cancel a `test` or `coverage` phase, dx prints the count line and `dx: <phase>: not finished: <labels>` on stderr.
 - A failed run ends with a `dx: phases:` line on stderr.
 
 ### Commit messages
@@ -110,6 +118,8 @@ JSON has one `command_started` and one `command_finished` event. Each phase sits
 
 `--report sarif=<dest>` writes one SARIF file with the `lint` and `typecheck` findings. Results carry `partialFingerprints`, `ruleIndex` and `fixes`. A phase that ran but left no readable SARIF is a `collection_failed` error and marks the report incomplete.
 
+`--report lcov=<dest>` and `--report sources=<dest>` write the reports of the `coverage` phase, as in [`dx coverage`](build-test-coverage.md). Without a `coverage` phase, they are not written.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -119,7 +129,7 @@ JSON has one `command_started` and one `command_finished` event. Each phase sits
 | `2` | Usage or scope error. |
 | Bazel's code | The phase that stopped the run keeps Bazel's code. |
 
-The test phase keeps Bazel's code:
+The `test` and `coverage` phases keep Bazel's code:
 
 - `3` with complete results means tests failed.
 - `3` or `1` with incomplete results means the phase is incomplete.

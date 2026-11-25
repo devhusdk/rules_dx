@@ -1751,6 +1751,12 @@
         {
           "aliases": [],
           "defaults": [],
+          "name": "--coverage",
+          "values": []
+        },
+        {
+          "aliases": [],
+          "defaults": [],
           "name": "--diff",
           "values": []
         },

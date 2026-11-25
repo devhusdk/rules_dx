@@ -31,11 +31,11 @@ fn parse_tools(args: &[String]) -> Result<Tools, String> {
 }
 
 /// Names each coverage input the post action lacks, the profile first.
-fn missing_inputs(profile: &Path, profile_exists: bool, objects_env: Option<&str>) -> Vec<String> {
+fn missing_inputs(profile: &Path, has_profile: bool, objects_env: Option<&str>) -> Vec<String> {
     let mut reasons = Vec::new();
-    if !profile_exists {
+    if !has_profile {
         reasons.push(format!(
-            "no {} at {} (rules_apple copies it there when COLLECT_PROFDATA=1)",
+            "no {} at {} (rules_apple copies it there when COLLECT_PROFDATA=1) and no .profraw under TEST_TMPDIR",
             apple::PROFDATA_NAME,
             profile.display()
         ));
@@ -55,6 +55,19 @@ const CANDIDATE_LIMIT: usize = 20;
 
 /// Lists `.profraw` and `.profdata` files under `root`, relative to it and sorted, without following symlinks.
 fn profile_candidates(root: &Path) -> Vec<PathBuf> {
+    let mut found = profile_files(root, &["profraw", "profdata"]);
+    found.truncate(CANDIDATE_LIMIT);
+    found
+}
+
+fn raw_profiles(root: &Path) -> Vec<PathBuf> {
+    profile_files(root, &["profraw"])
+        .into_iter()
+        .map(|relative| root.join(relative))
+        .collect()
+}
+
+fn profile_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     let mut found = Vec::new();
     let mut pending = vec![(root.to_path_buf(), 0_usize)];
     while let Some((dir, depth)) = pending.pop() {
@@ -73,7 +86,7 @@ fn profile_candidates(root: &Path) -> Vec<PathBuf> {
             } else if kind.is_file()
                 && path
                     .extension()
-                    .is_some_and(|ext| ext == "profraw" || ext == "profdata")
+                    .is_some_and(|ext| extensions.iter().any(|wanted| ext == *wanted))
                 && let Ok(relative) = path.strip_prefix(root)
             {
                 found.push(relative.to_path_buf());
@@ -81,24 +94,33 @@ fn profile_candidates(root: &Path) -> Vec<PathBuf> {
         }
     }
     found.sort();
-    found.truncate(CANDIDATE_LIMIT);
     found
+}
+
+fn merge_program(tools: &Tools, raw: bool) -> (PathBuf, Vec<&'static str>) {
+    if raw {
+        (PathBuf::from("xcrun"), vec!["llvm-profdata"])
+    } else {
+        (tools.llvm_profdata.clone(), Vec::new())
+    }
 }
 
 // LCOV_EXCL_START - reason: process orchestration over env and the pinned llvm tools, issue: 9981, policy: docs/cli/commands/build-test-coverage.md
 fn export(
     tools: &Tools,
     root: &Path,
-    profile: &Path,
+    profiles: &[PathBuf],
+    raw: bool,
     objects: &[PathBuf],
 ) -> Result<String, String> {
-    let profdata = &tools.llvm_profdata;
+    let (profdata, profdata_args) = merge_program(tools, raw);
     let cov = &tools.llvm_cov;
     let scratch = PathBuf::from(env::var("TEST_TMPDIR").unwrap_or_else(|_| ".".into()));
     let merged = scratch.join("_dx_merged.profdata");
-    let out = Command::new(profdata)
+    let out = Command::new(&profdata)
+        .args(profdata_args)
         .args(["merge", "--sparse"])
-        .arg(profile)
+        .args(profiles)
         .arg("--output")
         .arg(&merged)
         .output()
@@ -109,7 +131,6 @@ fn export(
             String::from_utf8_lossy(&out.stderr)
         ));
     }
-    crate::remove_scratch(profile);
     let arch = apple::llvm_arch(env::consts::ARCH);
     let manifest = env::var("COVERAGE_MANIFEST").ok();
     let out = Command::new(cov)
@@ -148,17 +169,34 @@ fn collect(tools: &Tools) -> Result<(), String> {
     let objects_env = env::var("TEST_BINARIES_FOR_LLVM_COV").ok();
     let objects = apple::covered_objects(objects_env.as_deref().unwrap_or_default());
     let profile_exists = profile.exists();
-    let missing = missing_inputs(&profile, profile_exists, objects_env.as_deref());
+    let scratch = env::var_os("TEST_TMPDIR").map(PathBuf::from);
+    let profiles = if profile_exists {
+        vec![profile.clone()]
+    } else {
+        scratch.as_deref().map(raw_profiles).unwrap_or_default()
+    };
+    let missing = missing_inputs(&profile, !profiles.is_empty(), objects_env.as_deref());
     let report = if missing.is_empty() {
-        export(tools, &root, &profile, &objects)?
+        if !profile_exists {
+            eprintln!(
+                "dx apple coverage: no {} at {}; merging {} .profraw files under TEST_TMPDIR",
+                apple::PROFDATA_NAME,
+                profile.display(),
+                profiles.len()
+            );
+        }
+        let report = export(tools, &root, &profiles, !profile_exists, &objects);
+        crate::remove_scratch(&profile);
+        report?
     } else {
         eprintln!(
             "dx apple coverage: {}; writing an empty report",
             missing.join("; ")
         );
-        if !profile_exists && let Some(tmp) = env::var_os("TEST_TMPDIR") {
-            let tmp = PathBuf::from(tmp);
-            let candidates = profile_candidates(&tmp);
+        if profiles.is_empty()
+            && let Some(tmp) = &scratch
+        {
+            let candidates = profile_candidates(tmp);
             if candidates.is_empty() {
                 eprintln!(
                     "dx apple coverage: no .profraw or .profdata under TEST_TMPDIR {}",
@@ -244,6 +282,22 @@ mod tests {
     }
 
     #[test]
+    fn raw_profiles_merge_with_xcode_llvm_profdata() {
+        let tools = Tools {
+            llvm_cov: PathBuf::from("/c"),
+            llvm_profdata: PathBuf::from("/p"),
+        };
+        assert_eq!(
+            merge_program(&tools, true),
+            (PathBuf::from("xcrun"), vec!["llvm-profdata"])
+        );
+        assert_eq!(
+            merge_program(&tools, false),
+            (PathBuf::from("/p"), Vec::new())
+        );
+    }
+
+    #[test]
     fn present_inputs_give_no_reasons() {
         assert!(missing_inputs(Path::new("/o/Coverage.profdata"), true, Some("a/app")).is_empty());
     }
@@ -317,6 +371,31 @@ mod tests {
             ]
         );
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn raw_profiles_gives_absolute_profraw_paths_only() {
+        let base = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
+        let root = base.join("apple_post_raw_profiles");
+        let _ = fs::remove_dir_all(&root);
+        let raw = root.join("test_tmp_dir.x/SIM-ID/A-1.profraw");
+        for file in [&raw, &root.join("t/Coverage.profdata"), &root.join("b.txt")] {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, "").unwrap();
+        }
+        assert_eq!(raw_profiles(&root), vec![raw]);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_missing_profile_mentions_the_raw_profiles() {
+        let reasons = missing_inputs(Path::new("/o/Coverage.profdata"), false, Some("a/app"));
+        assert!(
+            reasons
+                .iter()
+                .all(|reason| reason.ends_with("no .profraw under TEST_TMPDIR")),
+            "{reasons:?}"
+        );
     }
 
     #[test]

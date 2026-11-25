@@ -22,19 +22,6 @@ fn every_label_is_understood() {
 }
 
 #[test]
-fn reads_the_quality_matrix_lanes_of_the_real_ci_workflow() {
-    let source = RunfilesSource::create().expect("runfiles");
-    let ci = source.read(".github/workflows/ci.yml").expect("ci.yml");
-    let lanes = support_matrix::workflows::quality_matrix_lanes("ci.yml", &ci).expect("lanes");
-    assert!(
-        lanes
-            .get("linux_x86_64")
-            .is_some_and(|labels| !labels.is_empty()),
-        "{lanes:?}"
-    );
-}
-
-#[test]
 fn committed_page_matches_the_source_data() {
     let (matrix, source) = generated();
     let committed = source.read(MATRIX_PATH).expect("committed page");

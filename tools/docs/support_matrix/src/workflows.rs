@@ -16,10 +16,6 @@ pub enum Problem {
     NotList(&'static str),
     DogfoodList(serde_json::Error),
     PreflightEntry(&'static str),
-    QualityEntry,
-    NoLane { platform: String },
-    LaneSuite { platform: String, suite: String },
-    LaneDuplicate { platform: String, label: String },
     NoJobs,
     NoRunsOn { job: String },
     UnknownRunner { job: String, label: String },
@@ -40,14 +36,6 @@ impl fmt::Display for Problem {
                 write!(f, "dogfood platforms are not a JSON list: {source}")
             }
             Self::PreflightEntry(lacks) => write!(f, "a preflight entry lacks {lacks}"),
-            Self::QualityEntry => f.write_str("a quality-matrix entry lacks platform"),
-            Self::NoLane { platform } => write!(f, "no quality-matrix lane for {platform}"),
-            Self::LaneSuite { platform, suite } => {
-                write!(f, "the {platform} quality-matrix lane must run {suite}")
-            }
-            Self::LaneDuplicate { platform, label } => {
-                write!(f, "the {platform} quality-matrix lane lists {label} twice")
-            }
             Self::NoJobs => f.write_str("declares no jobs"),
             Self::NoRunsOn { job } => write!(f, "job {job} has no string runs-on"),
             Self::UnknownRunner { job, label } => write!(
@@ -88,10 +76,6 @@ impl std::error::Error for WorkflowError {
             Problem::NotString(_)
             | Problem::NotList(_)
             | Problem::PreflightEntry(_)
-            | Problem::QualityEntry
-            | Problem::NoLane { .. }
-            | Problem::LaneSuite { .. }
-            | Problem::LaneDuplicate { .. }
             | Problem::NoJobs
             | Problem::NoRunsOn { .. }
             | Problem::UnknownRunner { .. }
@@ -161,87 +145,6 @@ pub fn runner_platforms(path: &str, text: &str) -> Result<BTreeMap<String, Strin
         runners.insert(runner.to_owned(), platform.to_owned());
     }
     Ok(runners)
-}
-
-pub fn quality_matrix_lanes(
-    path: &str,
-    text: &str,
-) -> Result<BTreeMap<String, Vec<String>>, WorkflowError> {
-    let document = document(path, text)?;
-    let Some(include) = field(
-        field(
-            field(
-                field(field(&document, "jobs"), "quality-matrix"),
-                "strategy",
-            ),
-            "matrix",
-        ),
-        "include",
-    )
-    .as_array() else {
-        return Err(error(
-            path,
-            Problem::NotList("jobs.quality-matrix.strategy.matrix.include"),
-        ));
-    };
-    let mut lanes = BTreeMap::new();
-    for entry in include {
-        let Some(platform) = field(entry, "platform").as_str() else {
-            return Err(error(path, Problem::QualityEntry));
-        };
-        let labels = field(entry, "quality")
-            .as_str()
-            .unwrap_or_default()
-            .split_whitespace()
-            .map(str::to_owned)
-            .collect();
-        lanes.insert(platform.to_owned(), labels);
-    }
-    Ok(lanes)
-}
-
-pub fn check_evidence_lanes(
-    path: &str,
-    lanes: &BTreeMap<String, Vec<String>>,
-    platforms: &[&str],
-) -> Result<(), WorkflowError> {
-    for platform in platforms {
-        if *platform == "linux_x86_64" {
-            continue;
-        }
-        let Some(labels) = lanes.get(*platform) else {
-            return Err(error(
-                path,
-                Problem::NoLane {
-                    platform: (*platform).to_owned(),
-                },
-            ));
-        };
-        let suite = format!("//core/quality/testdata:runner_matrix_{platform}");
-        if !labels.contains(&suite) {
-            return Err(error(
-                path,
-                Problem::LaneSuite {
-                    platform: (*platform).to_owned(),
-                    suite,
-                },
-            ));
-        }
-    }
-    for (platform, labels) in lanes {
-        for (index, label) in labels.iter().enumerate() {
-            if labels.iter().take(index).any(|earlier| earlier == label) {
-                return Err(error(
-                    path,
-                    Problem::LaneDuplicate {
-                        platform: platform.clone(),
-                        label: label.clone(),
-                    },
-                ));
-            }
-        }
-    }
-    Ok(())
 }
 
 fn runner_label(runs_on: &str) -> &str {
@@ -421,43 +324,6 @@ jobs:
           - platform: macos_arm64
             runner: macos-15
 "#;
-
-    fn lane_ci(quality: &str) -> String {
-        format!(
-            "jobs:\n  quality-matrix:\n    strategy:\n      matrix:\n        include:\n          - platform: macos_arm64\n            runner: macos-15\n            quality: \"{quality}\"\n"
-        )
-    }
-
-    #[test]
-    fn accepts_a_lane_running_its_suite() {
-        let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y");
-        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
-        check_evidence_lanes("ci.yml", &lanes, &["linux_x86_64", "macos_arm64"]).expect("ok");
-    }
-
-    #[test]
-    fn rejects_a_lane_without_its_suite() {
-        let ci = lane_ci("//x:y");
-        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
-        let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("suite");
-        assert!(
-            error.to_string().contains("runner_matrix_macos_arm64"),
-            "{error}"
-        );
-        let error = check_evidence_lanes("ci.yml", &lanes, &["windows_arm64"]).expect_err("lane");
-        assert!(
-            matches!(&error.problem, Problem::NoLane { platform } if platform == "windows_arm64"),
-            "{error}"
-        );
-    }
-
-    #[test]
-    fn rejects_a_duplicate_lane_label() {
-        let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y //x:y");
-        let lanes = quality_matrix_lanes("ci.yml", &ci).expect("lanes");
-        let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("dup");
-        assert!(error.to_string().contains("twice"), "{error}");
-    }
 
     #[test]
     fn reads_the_dogfood_platforms() {

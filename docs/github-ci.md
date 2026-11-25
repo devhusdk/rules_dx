@@ -182,7 +182,7 @@ The workflows write a credential helper that reads the key from the environment 
 
 Runfiles are the files a program needs when it runs. Under `--config=ci`, `<bin>.runfiles` trees are not built. A script that builds and then runs `bazel-bin/...` and needs its runfiles breaks.
 
-Without a remote cache, no config is passed. The `.dx/bazelrc` preset sets `startup --experimental_remote_repo_contents_cache`. It stores fetched repositories in the remote cache when one is set and does nothing otherwise. It applies to local runs too. With 32 loading threads, the lookups run in parallel.
+Without a remote cache, no config is passed.
 
 For more, see [Remote cache](remote-cache.md).
 

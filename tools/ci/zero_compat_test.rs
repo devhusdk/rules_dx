@@ -137,7 +137,11 @@ fn starlark_deprecations(segments: &[Segment]) -> usize {
 fn external_names(segments: &[Segment]) -> Vec<String> {
     calls(segments, "load")
         .into_iter()
-        .filter(|load| load.positional.first().is_some_and(|label| !in_module(label)))
+        .filter(|load| {
+            load.positional
+                .first()
+                .is_some_and(|label| !in_module(label))
+        })
         .flat_map(|load| {
             let names = load.positional.into_iter().skip(1);
             names.chain(load.keywords.into_values())
@@ -174,9 +178,12 @@ fn starlark_compat_words(text: &str, segments: &[Segment]) -> usize {
         .filter(|segment| !(segment.piece == Piece::Text && segment.text.starts_with(TOOL_FLAG)))
         .map(|segment| segment.text.as_str())
         .collect();
-    compat_words(&without_identifiers(&owned.join("\n"), &external_names(segments)))
-        .saturating_sub(text.matches(DEPRECATE_LOAD).count())
-        .saturating_sub(helper_calls)
+    compat_words(&without_identifiers(
+        &owned.join("\n"),
+        &external_names(segments),
+    ))
+    .saturating_sub(text.matches(DEPRECATE_LOAD).count())
+    .saturating_sub(helper_calls)
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

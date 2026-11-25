@@ -34,6 +34,7 @@ mod help_launcher_tests;
 pub(crate) mod ide_refresh;
 #[cfg(test)]
 mod link_check_tests;
+mod lock_tools;
 mod managed;
 mod managed_codegen;
 mod managed_env;

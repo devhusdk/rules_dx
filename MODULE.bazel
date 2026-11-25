@@ -1882,6 +1882,7 @@ single_version_override(
         "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:flutter_extension_loads.patch",
         "//patches/rules_flutter:host_independent_extension.patch",
+        "//patches/rules_flutter:sdk_source_once.patch",
     ],
     version = "0.2.0",
 )

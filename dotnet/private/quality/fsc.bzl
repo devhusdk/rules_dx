@@ -151,7 +151,7 @@ fsc_aspect = aspect(
     attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
         "_capture": attr.label(
-            default = "@dx_prebuilt//:dx",
+            default = "@dx_prebuilt//dx:capture",
             executable = True,
             cfg = "exec",
             doc = "Runs one program with its streams and exit code written to files.",

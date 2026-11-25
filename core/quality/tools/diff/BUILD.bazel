@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -11,6 +11,15 @@ rust_library(
     crate_root = "src/lib.rs",
     visibility = ["//cli/cli:__pkg__"],
     deps = ["@crates//:similar"],
+)
+
+rust_binary(
+    name = "buf_diff",
+    srcs = ["src/main.rs"],
+    crate_name = "buf_diff",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":diff_lib"],
 )
 
 rust_test(

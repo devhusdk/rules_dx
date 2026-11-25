@@ -48,7 +48,7 @@ TOOLS = {
 }
 
 _BUF_FORMAT_ATTRS = {
-    "_dx": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec", doc = "The dx whose buf_diff subcommand buf format runs as diff."),
+    "_dx": attr.label(default = "@dx_prebuilt//dx:buf_diff", executable = True, cfg = "exec", doc = "The dx whose buf_diff subcommand buf format runs as diff."),
 }
 
 SHARD_SPECS = {

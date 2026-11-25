@@ -31,8 +31,6 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         id: setup
         with:
-          cache-save: true
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         run: |
@@ -69,8 +67,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -92,9 +88,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: true
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -134,8 +127,6 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         id: setup
         with:
-          cache-save: true
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Qualify the consumer without installs or network
         run: |
@@ -171,9 +162,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: true
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Deny the host MSVC trees to hermetic runs
         run: |
           denies=()
@@ -231,8 +219,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Build twice and compare the execution logs
         timeout-minutes: 40
         env:
@@ -260,9 +246,6 @@ jobs:
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: true
-          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Install and launch the signed package
         run: |
           # shellcheck disable=SC2086
@@ -279,8 +262,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Verify the pinned quality tools
         run: |
           set -euo pipefail
@@ -334,8 +315,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Check each patch's Upstream header
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -379,8 +358,6 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-        with:
-          cache-save: false
       - name: Upgrade and roll back
         run: |
           bazel build --noshow_progress //tools/ci/producers:producers_bin

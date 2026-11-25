@@ -92,6 +92,10 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: false
+          disk-cache: false
+          repository-cache: false
+          external-cache: false
       - name: Configure the remote cache credential helper
         uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@01b9bd4792fce3d503a6b83b034d4c57315d22a0 # main
       - name: Lint the docs scope
@@ -149,6 +153,10 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
+          bazelisk-cache: false
+          disk-cache: false
+          repository-cache: false
+          external-cache: false
       - name: Configure the remote cache credential helper
         uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@01b9bd4792fce3d503a6b83b034d4c57315d22a0 # main
       - name: Build rendered site

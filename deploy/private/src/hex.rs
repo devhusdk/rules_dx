@@ -428,7 +428,7 @@ mod tests {
         let fake = scratch.path().join("mix");
         dx_testing::executable_script(
             &fake,
-            "#!/bin/sh\necho \"key $HEX_API_KEY\" >&2\nls -A \"$HOME\" | wc -l >&2\nexit 1\n",
+            "#!/bin/sh\necho \"key $HEX_API_KEY\" >&2\n[ -z \"$(ls -A \"$HOME\")\" ] && echo \"home empty\" >&2\nexit 1\n",
         );
         let error = hex_run(&fake, &["hex.publish", "--yes"], scratch.path(), "s3cret")
             .expect_err("publish fails");
@@ -439,7 +439,7 @@ mod tests {
             "{message}"
         );
         assert!(message.contains("\nhex: key [redacted]"), "{message}");
-        assert!(message.contains("\nhex: 0"), "{message}");
+        assert!(message.contains("\nhex: home empty"), "{message}");
         assert!(!message.contains("s3cret"), "{message}");
         std::fs::write(&fake, "#!/bin/sh\nexit 0\n").expect("rewrite");
         hex_run(&fake, &[], scratch.path(), "").expect("tool succeeds");

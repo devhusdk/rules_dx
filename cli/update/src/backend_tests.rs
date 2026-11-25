@@ -12,6 +12,11 @@ fn dir_arg(rel: &str) -> String {
     ws().join(rel).to_string_lossy().into_owned()
 }
 
+fn scratch_arg(rel: &str) -> String {
+    let path = Path::new("/scratch/1").join(rel);
+    path.to_string_lossy().into_owned()
+}
+
 fn no_head() -> dx_process::BazelHead {
     dx_process::BazelHead::default()
 }
@@ -1290,7 +1295,7 @@ fn opam_update_upgrades_then_relocks() {
         runs[0]
             .argv
             .iter()
-            .any(|a| a.contains("cd '/dx-workspace/app'"))
+            .any(|a| a.contains(&format!("cd '{}'", dir_arg("app"))))
     );
     assert!(
         runs[1]
@@ -2290,7 +2295,7 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
     let argv = expected.argv(scratch).expect("hub");
     assert_eq!(
         argv[expected.argv_head.len()..],
-        strings(&["-C", "/scratch/1/out", "mod", "download", "all"])
+        strings(&["-C", &scratch_arg("out"), "mod", "download", "all"])
     );
     assert_eq!(
         expected.env(scratch),
@@ -2299,12 +2304,12 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
             ("GOWORK".to_owned(), "off".to_owned()),
             ("GOTOOLCHAIN".to_owned(), "local".to_owned()),
             ("GOFLAGS".to_owned(), "-modcacherw".to_owned()),
-            ("GOMODCACHE".to_owned(), "/scratch/1/gomodcache".to_owned()),
-            ("GOPATH".to_owned(), "/scratch/1/gopath".to_owned()),
-            ("GOCACHE".to_owned(), "/scratch/1/gocache".to_owned()),
+            ("GOMODCACHE".to_owned(), scratch_arg("gomodcache")),
+            ("GOPATH".to_owned(), scratch_arg("gopath")),
+            ("GOCACHE".to_owned(), scratch_arg("gocache")),
         ]
     );
-    assert_eq!(expected.inputs_dir(scratch), Path::new("/scratch/1/out"));
+    assert_eq!(expected.inputs_dir(scratch), scratch.join("out"));
     assert_eq!(expected.tool_name(), "go");
 }
 
@@ -2342,7 +2347,7 @@ fn rebar_check_stages_lock_and_update_names_the_packages() {
     };
     let scratch = Path::new("/scratch/1");
     let argv = check.argv(scratch).expect("hub");
-    let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
+    let under = format!("--run_under=cd '{}' &&", scratch_arg("out"));
     let target = argv
         .iter()
         .position(|arg| *arg == under)
@@ -2368,7 +2373,7 @@ fn rebar_check_stages_lock_and_update_names_the_packages() {
     ] {
         assert!(
             env.iter()
-                .any(|(key, value)| key == name && value.starts_with("/scratch/1/")),
+                .any(|(key, value)| key == name && Path::new(value).starts_with(scratch)),
             "{name}"
         );
     }
@@ -2431,7 +2436,7 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
     };
     let scratch = Path::new("/scratch/1");
     let argv = check.argv(scratch).expect("hub");
-    let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
+    let under = format!("--run_under=cd '{}' &&", scratch_arg("out"));
     let target = argv
         .iter()
         .position(|arg| *arg == under)
@@ -2449,8 +2454,8 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
         ]
     );
     let env = check.env(scratch);
-    assert!(env.contains(&("MIX_HOME".to_owned(), "/scratch/1/mix_home".to_owned())));
-    assert!(env.contains(&("HEX_HOME".to_owned(), "/scratch/1/hex_home".to_owned())));
+    assert!(env.contains(&("MIX_HOME".to_owned(), scratch_arg("mix_home"))));
+    assert!(env.contains(&("HEX_HOME".to_owned(), scratch_arg("hex_home"))));
     assert_eq!(check.tool_name(), "mix");
 
     let packages = Selection::Packages(vec!["jason".to_owned(), "plug".to_owned()]);

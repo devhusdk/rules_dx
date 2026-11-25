@@ -125,8 +125,7 @@ jobs:
           git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
-      - id: setup
-        uses: ./.github/actions/setup-bazel
+      - uses: ./.github/actions/setup-bazel
       - name: Validate workflow inputs
         id: inputs
         env:
@@ -581,8 +580,6 @@ jobs:
         run: |
           set -o pipefail
           bazel test --noshow_progress --test_output=all --strategy=TestRunner=sandboxed,local --//android:emulator_serial=emulator-5554 //flutter/tests/fixtures/flutter_app/apk:interaction_test 2>&1 | tail -n 80
-      - uses: ./.github/actions/save-registry-cache
-        if: ${{ steps.setup.outputs.registry-cache-hit != 'true' }}
       - name: Collect test logs
         if: ${{ always() && steps.inputs.outcome == 'success' }}
         run: |

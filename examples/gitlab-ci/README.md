@@ -57,9 +57,8 @@ Not included, compared with the GitHub reusable workflow:
 - The `security-audit` and `license-audit` checks and the advisory snapshots.
   The GitHub inputs are `advisory_pr` and `invocation_id`.
 - A `remote_cache` input. Set the `DX_REMOTE_CACHE` variable below.
-- A fuzz corpus cache. Each `fuzz` job starts from the checked-in seeds.
-- A fallback cache key. The GitHub workflow has no input for it. It restores
-  from a key prefix when the exact key misses.
+- The `dx-fuzz-corpus` artifact. Each `fuzz` job starts from the checked-in
+  seeds.
 
 ## Other CI providers
 

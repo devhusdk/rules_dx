@@ -17,6 +17,11 @@ const GC_MAX_SIZE_FLAG: &str = "--experimental_disk_cache_gc_max_size";
 const GC_MAX_AGE_FLAG: &str = "--experimental_disk_cache_gc_max_age";
 const UPLOAD_FLAG: &str = "--remote_upload_local_results";
 const GC_IDLE_DELAY_FLAG: &str = "--experimental_disk_cache_gc_idle_delay";
+const PROFILE_FLAG: &str = "--profile";
+
+const PROFILE_DIR_ENV: &str = "DX_PROFILE_DIR";
+
+static PROFILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 const BAZEL_GC_IDLE_DELAY_SECS: u64 = 300;
 
@@ -163,6 +168,7 @@ pub struct RcPolicy {
     pub slot_idle_secs: Option<u64>,
     pub rc_color: RcColor,
     pub remote_cache_read_only: bool,
+    pub profile_dir: Option<PathBuf>,
 }
 
 static HERMETIC: RcPolicy = RcPolicy {
@@ -176,6 +182,7 @@ static HERMETIC: RcPolicy = RcPolicy {
     slot_idle_secs: None,
     rc_color: RcColor::NONE,
     remote_cache_read_only: false,
+    profile_dir: None,
 };
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
@@ -325,6 +332,9 @@ impl RcPolicy {
             slot_idle_secs,
             rc_color: RcColor::from_lines(&lines),
             remote_cache_read_only: is_ci_value(env_get("DX_REMOTE_CACHE_READ_ONLY").as_deref()),
+            profile_dir: env_get(PROFILE_DIR_ENV)
+                .filter(|dir| !dir.is_empty())
+                .map(|dir| expand_path(&dir, env_get, workspace)),
         }
     }
 
@@ -377,6 +387,12 @@ impl RcPolicy {
         {
             options.push(format!("{GC_IDLE_DELAY_FLAG}={secs}s"));
         }
+        if let Some(dir) = &self.profile_dir
+            && !user_sets_flag(PROFILE_FLAG)
+        {
+            let trace = dir.join(profile_name(bazel_command));
+            options.push(format!("{PROFILE_FLAG}={}", trace.display()));
+        }
         let Some(share) = share else {
             return options;
         };
@@ -406,6 +422,17 @@ fn flag_value<'a>(flag: &'a str, next: Option<&'a str>, name: &str) -> Option<&'
 fn sets_flag(flag: &str, name: &str) -> bool {
     flag.strip_prefix(name)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with('='))
+}
+
+fn profile_name(bazel_command: &str) -> String {
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_millis());
+    let call = PROFILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!(
+        "{millis}-{}-{call}-{bazel_command}.json.gz",
+        std::process::id()
+    )
 }
 
 fn gc_idle_delay_for(max_idle_secs: u64) -> Option<u64> {

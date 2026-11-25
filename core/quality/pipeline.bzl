@@ -119,8 +119,8 @@ def aspect_family_selections(policy, capability):
     """Expands one capability across policy families."""
     return {family_id: getattr(policy.families[family_id], capability) for family_id in policy.families.keys()}
 
-def aspect_direct_maps(direct_sources, what):
-    """Splits provider sources into class/file/path maps, keeping main-repository files only."""
+def aspect_direct_maps_or_error(direct_sources, what):
+    """Splits provider sources into class/file/path maps, keeping main-repository files only; returns the error instead of failing."""
     direct_files = {}
     direct_paths = {}
     path_to_file = {}
@@ -133,11 +133,18 @@ def aspect_direct_maps(direct_sources, what):
         direct_paths[class_id] = paths
         for f in files:
             if ".." in f.short_path.split("/"):
-                fail(what + ": source path escapes workspace: '" + f.short_path + "'")
+                return ([], {}, {}, {}, what + ": source path escapes workspace: '" + f.short_path + "'")
             if f.short_path in path_to_file:
-                fail(what + ": duplicate source path '" + f.short_path + "' across classes; one target/capability pipeline needs one owner per path")
+                return ([], {}, {}, {}, what + ": duplicate source path '" + f.short_path + "' across classes; one target/capability pipeline needs one owner per path")
             path_to_file[f.short_path] = f
-    return (sorted(direct_files.keys()), direct_files, direct_paths, path_to_file)
+    return (sorted(direct_files.keys()), direct_files, direct_paths, path_to_file, "")
+
+def aspect_direct_maps(direct_sources, what):
+    """Splits provider sources into class/file/path maps, keeping main-repository files only."""
+    (target_classes, direct_files, direct_paths, path_to_file, error) = aspect_direct_maps_or_error(direct_sources, what)
+    if error != "":
+        fail(error)
+    return (target_classes, direct_files, direct_paths, path_to_file)
 
 def filter_pipeline_by_tools(resolved, allowed_tools):
     """Keeps only stages whose tool is in allowed_tools."""

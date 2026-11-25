@@ -103,6 +103,39 @@ fn scan_finds_every_cache_secret() {
     }
 }
 
+fn gzip_with_node(text: &str) -> Vec<u8> {
+    let mut command = Command::new(dx_testing::env_file("DX_NODE"));
+    command
+        .args([
+            "-e",
+            "process.stdout.write(require('zlib').gzipSync(process.argv[1]))",
+            text,
+        ])
+        .env_clear();
+    keep_system_vars(&mut command);
+    let done = command.output().expect("run node");
+    assert!(done.status.success(), "{}", String::from_utf8_lossy(&done.stderr));
+    done.stdout
+}
+
+#[test]
+fn scan_reads_inside_gzip_files() {
+    for (name, content, status) in [("gzip with key", "has k3y", 1), ("gzip clean", "clean", 0)] {
+        let dir = dx_test_scratch::scratch("secret-scan-gzip").unwrap();
+        let upload = dir.path().join("upload");
+        std::fs::create_dir_all(&upload).expect("create upload dir");
+        std::fs::write(upload.join("trace.json.gz"), gzip_with_node(content)).expect("write gzip");
+        let env = [
+            ("BUILDBUDDY_API_KEY", "k3y"),
+            ("DX_UPLOAD_PATH", upload.to_str().expect("utf-8 path")),
+        ];
+        for (runner, code, output) in run_scans(dir.path(), &env) {
+            assert_eq!(code, status, "{runner} {name}: {output}");
+            assert_no_secret_printed(name, &output);
+        }
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn scan_follows_symlinks() {

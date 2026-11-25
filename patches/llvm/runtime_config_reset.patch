@@ -1,0 +1,219 @@
+Upstream: none (not yet sent upstream)
+
+diff --git a/tests/runtime_reset/BUILD.bazel b/tests/runtime_reset/BUILD.bazel
+new file mode 100644
+index 0000000..5a9af27
+--- /dev/null
++++ b/tests/runtime_reset/BUILD.bazel
+@@ -0,0 +1,28 @@
++load(":runtime_reset_test.bzl", "bin_dir_probe", "reset_roots", "runtime_bin_dir_probe", "runtime_reset_test", "stage0_bin_dir_probe")
++
++bin_dir_probe(name = "probe")
++
++runtime_bin_dir_probe(name = "runtime_probe")
++
++stage0_bin_dir_probe(
++    name = "stage0_probe",
++    probe = ":probe",
++)
++
++reset_roots(
++    name = "roots",
++    instrumented = [
++        ":runtime_probe",
++        ":stage0_probe",
++    ],
++    plain = [
++        ":runtime_probe",
++        ":stage0_probe",
++    ],
++    tags = ["manual"],
++)
++
++runtime_reset_test(
++    name = "runtime_reset_test",
++    target_under_test = ":roots",
++)
+diff --git a/tests/runtime_reset/runtime_reset_test.bzl b/tests/runtime_reset/runtime_reset_test.bzl
+new file mode 100644
+index 0000000..890c708
+--- /dev/null
++++ b/tests/runtime_reset/runtime_reset_test.bzl
+@@ -0,0 +1,95 @@
++"""Tests that settings the runtimes do not read leave them in one configuration."""
++
++load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
++load("@with_cfg.bzl", "with_cfg")
++load("//toolchain/runtimes:cc_stage0_object.bzl", "bootstrap_transition")
++load("//toolchain/runtimes:with_cfg_runtimes_common.bzl", "configure_builder_for_runtimes")
++
++def _bin_dir_probe_impl(ctx):
++    out = ctx.actions.declare_file(ctx.label.name + ".txt")
++    ctx.actions.write(out, "")
++    return [DefaultInfo(files = depset([out]))]
++
++bin_dir_probe = rule(
++    implementation = _bin_dir_probe_impl,
++)
++
++runtime_bin_dir_probe, _runtime_bin_dir_probe_internal = configure_builder_for_runtimes(
++    with_cfg(bin_dir_probe),
++    "stage1",
++).build()
++
++def _stage0_bin_dir_probe_impl(ctx):
++    return [DefaultInfo(files = depset([ctx.file.probe]))]
++
++stage0_bin_dir_probe = rule(
++    implementation = _stage0_bin_dir_probe_impl,
++    attrs = {
++        "probe": attr.label(allow_single_file = True, cfg = bootstrap_transition),
++    },
++)
++
++def _plain_impl(_settings, _attr):
++    return {
++        "//command_line_option:collect_code_coverage": False,
++        "//command_line_option:instrument_test_targets": False,
++        "//command_line_option:instrumentation_filter": "-/javatests[/:],-/test/java[/:]",
++        "//runtimes:linkmode": "static",
++    }
++
++def _instrumented_impl(_settings, _attr):
++    return {
++        "//command_line_option:collect_code_coverage": True,
++        "//command_line_option:instrument_test_targets": True,
++        "//command_line_option:instrumentation_filter": "^//tests[/:]",
++        "//runtimes:linkmode": "dynamic",
++    }
++
++_OUTPUTS = [
++    "//command_line_option:collect_code_coverage",
++    "//command_line_option:instrument_test_targets",
++    "//command_line_option:instrumentation_filter",
++    "//runtimes:linkmode",
++]
++
++_plain_transition = transition(
++    implementation = _plain_impl,
++    inputs = [],
++    outputs = _OUTPUTS,
++)
++
++_instrumented_transition = transition(
++    implementation = _instrumented_impl,
++    inputs = [],
++    outputs = _OUTPUTS,
++)
++
++ResetRootsInfo = provider(
++    doc = "Output roots of the runtime probes reached from two configurations.",
++    fields = ["instrumented", "plain"],
++)
++
++def _roots(targets):
++    return [target[DefaultInfo].files.to_list()[0].root.path for target in targets]
++
++def _reset_roots_impl(ctx):
++    return [ResetRootsInfo(
++        instrumented = _roots(ctx.attr.instrumented),
++        plain = _roots(ctx.attr.plain),
++    )]
++
++reset_roots = rule(
++    implementation = _reset_roots_impl,
++    attrs = {
++        "instrumented": attr.label_list(cfg = _instrumented_transition),
++        "plain": attr.label_list(cfg = _plain_transition),
++    },
++)
++
++def _runtime_reset_test_impl(ctx):
++    env = analysistest.begin(ctx)
++    roots = analysistest.target_under_test(env)[ResetRootsInfo]
++    asserts.equals(env, roots.plain, roots.instrumented)
++    return analysistest.end(env)
++
++runtime_reset_test = analysistest.make(_runtime_reset_test_impl)
+diff --git a/toolchain/runtimes/cc_stage0_object.bzl b/toolchain/runtimes/cc_stage0_object.bzl
+index 64f0265..086a584 100644
+--- a/toolchain/runtimes/cc_stage0_object.bzl
++++ b/toolchain/runtimes/cc_stage0_object.bzl
+@@ -1,4 +1,4 @@
+-load("@llvm//toolchain/runtimes:with_cfg_runtimes_common.bzl", "RUNTIME_RESET_FEATURES")
++load("@llvm//toolchain/runtimes:with_cfg_runtimes_common.bzl", "RUNTIME_RESET_FEATURES", "runtime_reset_transition_settings")
+ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+ load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_TYPE", "find_cc_toolchain", "use_cc_toolchain")
+ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+@@ -11,10 +11,14 @@ def _bootstrap_transition_impl(settings, _attr):
+     if features[-len(RUNTIME_RESET_FEATURES):] != RUNTIME_RESET_FEATURES:
+         features = features + RUNTIME_RESET_FEATURES
+ 
+-    return {
++    settings = runtime_reset_transition_settings()
++    settings.update({
+         "//command_line_option:features": features,
+         # we are compiling runtimes without any kind of other dependencies
+         "//toolchain:runtime_stage": "stage0",
++        # Stage0 objects build the same under either runtime linkmode, so the
++        # static and shared runtimes share one copy.
++        "//runtimes:linkmode": "static",
+         # Stage0 objects (crtbegin/crtend) are linked into every binary and
+         # shared library, so user flags must never leak into them. In
+         # particular -fsanitize-coverage would give each shared object its own
+@@ -57,14 +61,16 @@ def _bootstrap_transition_impl(settings, _attr):
+         "//config:host_xray": False,
+         "//config:host_fuzzer": False,
+         "//config:host_profile": False,
+-    }
++    })
++    return settings
+ 
+ bootstrap_transition = transition(
+     implementation = _bootstrap_transition_impl,
+     inputs = ["//command_line_option:features"],
+-    outputs = [
++    outputs = runtime_reset_transition_settings().keys() + [
+         "//command_line_option:features",
+         "//toolchain:runtime_stage",
++        "//runtimes:linkmode",
+         "//command_line_option:copt",
+         "//command_line_option:cxxopt",
+         "//command_line_option:conlyopt",
+diff --git a/toolchain/runtimes/with_cfg_runtimes_common.bzl b/toolchain/runtimes/with_cfg_runtimes_common.bzl
+index bad7bb1..4cc43c2 100644
+--- a/toolchain/runtimes/with_cfg_runtimes_common.bzl
++++ b/toolchain/runtimes/with_cfg_runtimes_common.bzl
+@@ -8,6 +8,22 @@ RUNTIME_RESET_FEATURES = [
+     "-omit_frame_pointer",
+ ]
+ 
++# Settings that split the configuration of the targets reaching a runtime but
++# must not change the runtime itself. Fixing them builds each runtime once
++# instead of once per value. Runtimes are never instrumented for coverage.
++RUNTIME_RESET_SETTINGS = {
++    "collect_code_coverage": False,
++    "instrument_test_targets": False,
++    "instrumentation_filter": "-/javatests[/:],-/test/java[/:]",
++}
++
++def runtime_reset_transition_settings():
++    """Returns RUNTIME_RESET_SETTINGS keyed by transition setting names."""
++    return {
++        ("//command_line_option:" + setting if type(setting) == "string" else str(setting)): value
++        for setting, value in RUNTIME_RESET_SETTINGS.items()
++    }
++
+ def configure_builder_for_runtimes(builder, runtime_stage, linkmode = "static", sanitizers = False, inherit_asan = False, inherit_msan = False):
+     # The problem is that compiler-rt and start libs can only be compiled with
+     # a specific set of flags and compilation mode. It is not safe to let the user
+@@ -24,6 +40,9 @@ def configure_builder_for_runtimes(builder, runtime_stage, linkmode = "static",
+ 
+     builder.extend("features", RUNTIME_RESET_FEATURES)
+ 
++    for setting, value in RUNTIME_RESET_SETTINGS.items():
++        builder.set(setting, value)
++
+     # We are compiling runtimes without any kind of other dependencies.
+     builder.set(
+         Label("//toolchain:runtime_stage"),

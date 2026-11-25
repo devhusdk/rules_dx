@@ -12,6 +12,8 @@ exports_files([
     "mingw_coff_no_timestamp.patch",
     "msvc_coverage.patch",
     "internal_symbolizer_linkmode.patch",
+    "runtime_config_reset.patch",
+    "runtime_go_race_reset.patch",
 ])
 
 real_source_target(

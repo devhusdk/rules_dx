@@ -22,6 +22,7 @@ pub struct WidenedScope {
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
+    pub aspect_widened: Vec<WidenedScope>,
     pub graph: Option<RuleGraph>,
 }
 
@@ -1181,6 +1182,7 @@ impl Users<'_> {
         seeds: &[String],
         what: &str,
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         if seeds.is_empty() {
@@ -1191,6 +1193,7 @@ impl Users<'_> {
             &self.graph.reached_rules(seeds),
             what,
             widened,
+            aspect_widened,
             targets,
         );
     }
@@ -1200,6 +1203,7 @@ impl Users<'_> {
         labels: &[String],
         owners: &[String],
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         let reached: Vec<String> = labels
@@ -1207,7 +1211,14 @@ impl Users<'_> {
             .cloned()
             .chain(self.graph.reached_rules(owners))
             .collect();
-        self.widen(owners, &reached, "changed files", widened, targets);
+        self.widen(
+            owners,
+            &reached,
+            "changed files",
+            widened,
+            aspect_widened,
+            targets,
+        );
     }
 
     fn widen(
@@ -1216,6 +1227,7 @@ impl Users<'_> {
         reached: &[String],
         what: &str,
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         self.widen_toolchain(seeds, what, widened);
@@ -1237,9 +1249,19 @@ impl Users<'_> {
             push_widened(
                 widened,
                 "//...".to_owned(),
-                format!("{what} reach {used}, which aspects or bazelrc flags use"),
+                format!("{what} reach {used}, which bazelrc flags use"),
             );
             return;
+        }
+        if let Some(used) = reached
+            .iter()
+            .find(|label| implicit.aspect_tools.contains(label.as_str()))
+        {
+            push_widened(
+                aspect_widened,
+                "//...".to_owned(),
+                format!("{what} reach {used}, which aspects use"),
+            );
         }
         let reached: BTreeSet<&str> = reached.iter().map(String::as_str).collect();
         for (value, settings) in implicit
@@ -1288,6 +1310,7 @@ pub fn resolve_affected(
 ) -> Result<AffectedSelection, ResolveError> {
     let mut targets: Vec<String> = Vec::new();
     let mut widened: Vec<WidenedScope> = Vec::new();
+    let mut aspect_widened: Vec<WidenedScope> = Vec::new();
     let mut candidates: Vec<(String, String, Fallback)> = Vec::new();
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
@@ -1483,6 +1506,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("repos of module extension {name}"),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1507,6 +1531,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("changed modules in {}", update.path),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1590,6 +1615,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("changed crates in {path}"),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1619,7 +1645,13 @@ pub fn resolve_affected(
             aspect_labels,
             graph: loaded,
         };
-        users.widen_implicit_users(&labels, &owners, &mut widened, &mut targets);
+        users.widen_implicit_users(
+            &labels,
+            &owners,
+            &mut widened,
+            &mut aspect_widened,
+            &mut targets,
+        );
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
                 if let Some((scope, reason)) = unowned(workspace, path, fallback) {
@@ -1659,6 +1691,7 @@ pub fn resolve_affected(
     Ok(AffectedSelection {
         targets,
         widened,
+        aspect_widened,
         graph,
     })
 }
@@ -4150,9 +4183,37 @@ use_repo(pip, \"pypi\")\n"
     }
 
     #[test]
-    fn changes_that_reach_an_aspect_attribute_default_widen() {
+    fn changes_that_reach_an_aspect_tool_widen_lint_but_keep_their_owners() {
         let scratch = implicit_workspace("dx-changed-implicit-aspect-");
         let workspace = scratch.path();
+        let query = FakeQuery::new(vec![implicit_graph()]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("runner/main.rs", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(selection.targets, strings(&["//runner:runner"]));
+        assert!(selection.widened.is_empty(), "{:?}", selection.widened);
+        assert_eq!(
+            selection.aspect_widened,
+            widened(&[(
+                "//...",
+                "changed files reach //runner:runner, which aspects use"
+            )])
+        );
+    }
+
+    #[test]
+    fn changes_that_reach_a_bazelrc_aspect_tool_widen_everything() {
+        let scratch = implicit_workspace("dx-changed-implicit-rc-aspect-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            ".bazelrc",
+            "build --aspects=//core/quality:aspects.bzl%lint_aspect\n",
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![implicit_graph()]);
         let selection = bzl_resolve(
             workspace,
@@ -4165,8 +4226,13 @@ use_repo(pip, \"pypi\")\n"
             selection.widened,
             widened(&[(
                 "//...",
-                "changed files reach //runner:runner, which aspects or bazelrc flags use"
+                "changed files reach //runner:runner, which bazelrc flags use"
             )])
+        );
+        assert!(
+            selection.aspect_widened.is_empty(),
+            "{:?}",
+            selection.aspect_widened
         );
     }
 
@@ -4192,8 +4258,13 @@ use_repo(pip, \"pypi\")\n"
             selection.widened,
             widened(&[(
                 "//...",
-                "changed files reach //cfg:policy, which aspects or bazelrc flags use"
+                "changed files reach //cfg:policy, which bazelrc flags use"
             )])
+        );
+        assert!(
+            selection.aspect_widened.is_empty(),
+            "{:?}",
+            selection.aspect_widened
         );
     }
 

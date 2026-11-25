@@ -216,6 +216,7 @@ pub(crate) fn plan(
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    aspect_labels: &[String],
     base: String,
     lint: LintScope,
 ) -> Result<AffectedPlan, PlanError> {
@@ -262,6 +263,7 @@ pub(crate) fn plan(
         AffectedSelection {
             targets: Vec::new(),
             widened: Vec::new(),
+            aspect_widened: Vec::new(),
             graph: None,
         }
     } else {
@@ -270,7 +272,7 @@ pub(crate) fn plan(
             workspace,
             runner,
             startup_options,
-            &dx_plan::plan::registry::all_aspect_labels(),
+            aspect_labels,
             Some((git.as_path(), plan.base.as_str())),
         )?
     };
@@ -283,6 +285,10 @@ pub(crate) fn plan(
     }
     if !overrides.is_empty() {
         selection.targets = vec!["//...".to_owned()];
+    }
+    let aspects_widen = runs_aspects(command) && !selection.aspect_widened.is_empty();
+    if aspects_widen {
+        selection.widened.append(&mut selection.aspect_widened);
     }
     plan.widened.clone_from(&selection.widened);
     if command != Command::Deploy && selection.targets.iter().any(|target| target == "//...") {
@@ -305,7 +311,23 @@ pub(crate) fn plan(
         startup_options,
         lint,
     )?;
+    if aspects_widen {
+        widen_aspect_scopes(&mut plan, command);
+    }
     Ok(plan)
+}
+
+fn runs_aspects(command: Command) -> bool {
+    command == Command::Check || !dx_plan::plan::registry::spec(command).aspects.is_empty()
+}
+
+fn widen_aspect_scopes(plan: &mut AffectedPlan, command: Command) {
+    let everything = vec!["//...".to_owned()];
+    if command == Command::Check {
+        plan.format.clone_from(&everything);
+        plan.lint.clone_from(&everything);
+    }
+    plan.targets = everything;
 }
 
 const BAZEL_LOCK: &str = "MODULE.bazel.lock";
@@ -491,6 +513,7 @@ fn resolve_plan(
         workspace,
         query_runner,
         &invocation.bazel_startup_options,
+        &dx_plan::plan::registry::all_aspect_labels(),
         base,
         if invocation.lint_closure {
             LintScope::Dependents
@@ -891,9 +914,19 @@ mod tests {
         lint: LintScope,
         answers: &[&str],
     ) -> (AffectedPlan, GitRunner) {
+        run_with_aspects(root, command, lint, &[], answers)
+    }
+
+    fn run_with_aspects(
+        root: &Path,
+        command: Command,
+        lint: LintScope,
+        aspects: &[String],
+        answers: &[&str],
+    ) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
         let base = affected_base(root, &runner, None).expect("base");
-        let plan = plan(command, root, &runner, &[], base, lint).expect("plan");
+        let plan = plan(command, root, &runner, &[], aspects, base, lint).expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
     }
@@ -1187,6 +1220,7 @@ mod tests {
             Command::Build,
             root,
             &runner,
+            &[],
             &[],
             base.clone(),
             LintScope::DirectUsers,
@@ -1517,7 +1551,7 @@ mod tests {
     }
 
     #[test]
-    fn check_lints_everything_when_a_change_reaches_lint_config_or_a_toolchain() {
+    fn a_bazelrc_global_or_a_toolchain_widens_lint_and_tests() {
         let dir = repo();
         let root = dir.path();
         write(root, ".bazelrc", "build --extra_toolchains=//a:policy\n").unwrap();
@@ -1528,7 +1562,7 @@ mod tests {
         for (user, reason) in [
             (
                 json!({"name": "//a:policy", "ruleInput": ["//a:lib"]}),
-                "changed files reach //a:policy, which aspects or bazelrc flags use",
+                "changed files reach //a:policy, which bazelrc flags use",
             ),
             (
                 json!({"name": "//a:tc", "ruleClass": "toolchain", "ruleInput": ["//a:lib"]}),
@@ -1541,9 +1575,59 @@ mod tests {
             assert_eq!(plan.widened[0].reason, reason);
             assert_eq!(plan.targets, ["//..."]);
             assert_eq!(plan.lint, ["//..."]);
+            assert_eq!(plan.tests, ["//..."]);
             let (plan, _) = run(root, Command::Lint, &[&graph]);
             assert_eq!(plan.targets, ["//..."]);
+            let (plan, _) = run(root, Command::Test, &[&graph]);
+            assert_eq!(plan.targets, ["//..."]);
         }
+    }
+
+    #[test]
+    fn an_aspect_tool_widens_lint_but_tests_stay_with_the_graph() {
+        let dir = repo();
+        let root = dir.path();
+        write(
+            root,
+            "lint/aspect.bzl",
+            "lint_aspect = aspect(attrs = {\"_tool\": attr.label(default = \"//a:tool\")})\n",
+        )
+        .unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "aspect"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//a:tool", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:tool_test", "ruleClass": "sh_test", "ruleInput": ["//a:tool"]}),
+            json!({"name": "//b:other", "ruleInput": ["//b:b.txt"]}),
+            json!({"name": "//b:other_test", "ruleClass": "sh_test", "ruleInput": ["//b:other"]}),
+        ]);
+        let aspects = ["//lint:aspect.bzl%lint_aspect".to_owned()];
+        let run = |command| {
+            run_with_aspects(root, command, LintScope::DirectUsers, &aspects, &[&graph]).0
+        };
+        let plan = run(Command::Test);
+        assert_eq!(plan.targets, ["//a:tool_test"]);
+        assert!(plan.widened.is_empty(), "{:?}", plan.widened);
+        let plan = run(Command::Build);
+        assert_eq!(plan.targets, ["//a:lib", "//a:tool", "//a:tool_test"]);
+        let plan = run(Command::Check);
+        assert_eq!(plan.tests, ["//a:tool_test"]);
+        assert_eq!(plan.lint, ["//..."]);
+        assert_eq!(plan.format, ["//..."]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.widened,
+            [WidenedScope {
+                scope: "//...".to_owned(),
+                reason: "changed files reach //a:tool, which aspects use".to_owned(),
+                repos: Vec::new(),
+            }]
+        );
+        let plan = run(Command::Lint);
+        assert_eq!(plan.targets, ["//..."]);
     }
 
     #[test]

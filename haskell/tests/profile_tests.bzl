@@ -7,7 +7,7 @@ load("//haskell/private:kwargs.bzl", "haskell_upstream_kwargs")
 def _opts_impl(ctx):
     return [DefaultInfo(files = depset(), runfiles = ctx.runfiles()), _OptsInfo(opts = ctx.attr.opts)]
 
-_OptsInfo = provider(fields = ["opts"])
+_OptsInfo = provider(doc = "The ghcopts a subject was built with.", fields = ["opts"])
 
 _opts = rule(
     implementation = _opts_impl,

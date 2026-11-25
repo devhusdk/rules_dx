@@ -29,8 +29,14 @@ pub fn repo_root(wrapper_dir: &Path) -> Result<PathBuf, String> {
         .parent()
         .ok_or_else(|| format!("{} has no parent", wrapper_dir.display()))?;
     let parts: Vec<Component<'_>> = package.components().collect();
-    if let [prefix @ .., Component::Normal(out), _, Component::Normal(bin), Component::Normal(external), repo] =
-        parts.as_slice()
+    if let [
+        prefix @ ..,
+        Component::Normal(out),
+        _,
+        Component::Normal(bin),
+        Component::Normal(external),
+        repo,
+    ] = parts.as_slice()
         && *out == "bazel-out"
         && *bin == "bin"
         && *external == "external"
@@ -91,8 +97,8 @@ fn resolve(argv0: &OsStr, args: Vec<OsString>) -> Result<Plan, String> {
             argv0.display()
         ));
     }
-    let argv0 = std::path::absolute(argv0)
-        .map_err(|error| format!("{}: {error}", argv0.display()))?;
+    let argv0 =
+        std::path::absolute(argv0).map_err(|error| format!("{}: {error}", argv0.display()))?;
     let wrapper_dir = argv0
         .parent()
         .ok_or_else(|| format!("{} has no directory", argv0.display()))?;
@@ -100,8 +106,8 @@ fn resolve(argv0: &OsStr, args: Vec<OsString>) -> Result<Plan, String> {
     let path = root.join(CONFIG);
     let text = std::fs::read_to_string(&path)
         .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-    let config: Config = serde_json::from_str(&text)
-        .map_err(|error| format!("{}: {error}", path.display()))?;
+    let config: Config =
+        serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))?;
     plan(&argv0, &config, &root, args)
 }
 
@@ -116,10 +122,7 @@ fn exec(plan: Plan) -> String {
 
 #[cfg(not(unix))]
 fn exec(plan: Plan) -> String {
-    format!(
-        "{} runs only on Linux exec hosts",
-        plan.loader.display()
-    )
+    format!("{} runs only on Linux exec hosts", plan.loader.display())
 }
 
 #[must_use]

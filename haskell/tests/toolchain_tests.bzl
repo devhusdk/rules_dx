@@ -2,11 +2,11 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_argv", "musl_config", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_cxx_library_dirs", "host_path", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_argv", "musl_config", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")

@@ -17,7 +17,9 @@ fn config() -> Config {
 
 #[test]
 fn an_execroot_wrapper_finds_the_repository_source_tree() {
-    let dir = Path::new("/x/execroot/_main/bazel-out/k8-opt-exec-ST/bin/external/+haskell+ghc/musl_tools");
+    let dir = Path::new(
+        "/x/execroot/_main/bazel-out/k8-opt-exec-ST/bin/external/+haskell+ghc/musl_tools",
+    );
     assert_eq!(
         repo_root(dir),
         Ok(PathBuf::from("/x/execroot/_main/external/+haskell+ghc"))
@@ -77,8 +79,13 @@ fn bin_names_the_wrapper_directory() {
 
 #[test]
 fn a_tool_missing_from_the_config_fails() {
-    let error = plan(Path::new("/w/musl_tools/haddock"), &config(), Path::new("/e"), Vec::new())
-        .unwrap_err();
+    let error = plan(
+        Path::new("/w/musl_tools/haddock"),
+        &config(),
+        Path::new("/e"),
+        Vec::new(),
+    )
+    .unwrap_err();
     assert_eq!(error, "dx_ghc_musl.json has no tool haddock");
 }
 

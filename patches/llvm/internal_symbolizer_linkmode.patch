@@ -1,0 +1,113 @@
+Upstream: none (not yet sent upstream)
+
+diff --git a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+--- a/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
++++ b/3rd_party/llvm-project/x.x/compiler-rt/compiler-rt.BUILD.bazel
+@@ -1505,6 +1505,7 @@
+         "//conditions:default": ["@platforms//:incompatible"],
+     }),
+     target_triple = LLVM_TARGET_TRIPLE,
++    visibility = ["@llvm//tests/internal_symbolizer_linkmode:__pkg__"],
+ )
+ 
+ cc_library(
+diff --git a/tests/internal_symbolizer_linkmode/BUILD.bazel b/tests/internal_symbolizer_linkmode/BUILD.bazel
+new file mode 100644
+--- /dev/null
++++ b/tests/internal_symbolizer_linkmode/BUILD.bazel
+@@ -0,0 +1,15 @@
++load(":internal_symbolizer_linkmode_test.bzl", "internal_symbolizer_linkmode_test", "linkmode_roots")
++
++linkmode_roots(
++    name = "roots",
++    dynamic = "@llvm-project//compiler-rt:sanitizer_common_symbolizer_internal_object",
++    static = "@llvm-project//compiler-rt:sanitizer_common_symbolizer_internal_object",
++    tags = ["manual"],
++    target_compatible_with = ["@platforms//os:linux"],
++)
++
++internal_symbolizer_linkmode_test(
++    name = "internal_symbolizer_linkmode_test",
++    target_compatible_with = ["@platforms//os:linux"],
++    target_under_test = ":roots",
++)
+diff --git a/tests/internal_symbolizer_linkmode/internal_symbolizer_linkmode_test.bzl b/tests/internal_symbolizer_linkmode/internal_symbolizer_linkmode_test.bzl
+new file mode 100644
+--- /dev/null
++++ b/tests/internal_symbolizer_linkmode/internal_symbolizer_linkmode_test.bzl
+@@ -0,0 +1,48 @@
++"""Tests that the static and shared sanitizer runtimes share one internal symbolizer build."""
++
++load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
++
++def _static_impl(_settings, _attr):
++    return {"//runtimes:linkmode": "static"}
++
++def _dynamic_impl(_settings, _attr):
++    return {"//runtimes:linkmode": "dynamic"}
++
++_static_transition = transition(
++    implementation = _static_impl,
++    inputs = [],
++    outputs = ["//runtimes:linkmode"],
++)
++
++_dynamic_transition = transition(
++    implementation = _dynamic_impl,
++    inputs = [],
++    outputs = ["//runtimes:linkmode"],
++)
++
++LinkmodeRootsInfo = provider(
++    doc = "Output roots of the same target reached under each runtime linkmode.",
++    fields = ["dynamic", "static"],
++)
++
++def _linkmode_roots_impl(ctx):
++    return [LinkmodeRootsInfo(
++        dynamic = ctx.files.dynamic[0].root.path,
++        static = ctx.files.static[0].root.path,
++    )]
++
++linkmode_roots = rule(
++    implementation = _linkmode_roots_impl,
++    attrs = {
++        "dynamic": attr.label(cfg = _dynamic_transition),
++        "static": attr.label(cfg = _static_transition),
++    },
++)
++
++def _internal_symbolizer_linkmode_test_impl(ctx):
++    env = analysistest.begin(ctx)
++    roots = analysistest.target_under_test(env)[LinkmodeRootsInfo]
++    asserts.equals(env, roots.static, roots.dynamic)
++    return analysistest.end(env)
++
++internal_symbolizer_linkmode_test = analysistest.make(_internal_symbolizer_linkmode_test_impl)
+diff --git a/toolchain/runtimes/cc_internal_symbolizer_object.bzl b/toolchain/runtimes/cc_internal_symbolizer_object.bzl
+--- a/toolchain/runtimes/cc_internal_symbolizer_object.bzl
++++ b/toolchain/runtimes/cc_internal_symbolizer_object.bzl
+@@ -36,6 +36,15 @@
+     ],
+ )
+ 
++def _internal_symbolizer_linkmode_transition_impl(_settings, _attr):
++    return {"//runtimes:linkmode": "static"}
++
++_internal_symbolizer_linkmode_transition = transition(
++    implementation = _internal_symbolizer_linkmode_transition_impl,
++    inputs = [],
++    outputs = ["//runtimes:linkmode"],
++)
++
+ def _link_files(targets):
+     archives = {}
+     objects = {}
+@@ -154,6 +163,7 @@
+         "symbolizer": attr.label(mandatory = True, providers = [CcInfo]),
+         "target_triple": attr.string_list(mandatory = True),
+     },
++    cfg = _internal_symbolizer_linkmode_transition,
+     fragments = ["cpp"],
+     toolchains = use_cc_toolchain(),
+ )

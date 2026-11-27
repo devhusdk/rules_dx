@@ -5,7 +5,7 @@ load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load(":extensions.bzl", "swift_hub")
+load(":extensions.bzl", "swift_hub", "swift_toolchain_build")
 load(":repos.bzl", "SWIFT_LINUX_CPUS", "swift_libs_build", "swift_linux_stub_build")
 
 def _link_flags(cc_info):
@@ -43,7 +43,7 @@ def swift_cross_runtime_test(name, exec_cpu, target_cpu, **kwargs):
         exec_root = Label("@dx_swift_linux_%s//:files" % exec_cpu).workspace_root,
         target_root = Label("@dx_swift_linux_%s//:files" % target_cpu).workspace_root,
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + target_cpu],
-        target_under_test = "//swift/private/toolchain:swift_toolchain_%s_%s" % (exec_cpu, target_cpu),
+        target_under_test = "@dx_swift_toolchain_impl//:swift_toolchain_%s_%s" % (exec_cpu, target_cpu),
         **kwargs
     )
 
@@ -197,13 +197,16 @@ _HUB_ORDER = [
 
 def _hub_checks():
     hub = swift_hub()
+    toolchains = swift_toolchain_build()
     names = [line.split("\"")[1] for line in hub.splitlines() if line.startswith("    name = ")]
+    declared = [line.split("\"")[1] for line in toolchains.splitlines() if line.startswith("    name = ")]
     return hub_checks(hub, "@rules_swift//toolchains:toolchain_type", len(_HUB_ORDER)) + [
         expect_equal("hub toolchain order", names, _HUB_ORDER),
-        expect_true("hub names the private swift toolchains", all([
-            "//swift/private/toolchain:swift_" + name + "\"" in hub
+        expect_true("hub names the generated swift toolchains", all([
+            "@dx_swift_toolchain_impl//:swift_" + name + "\"" in hub
             for name in _HUB_ORDER
         ])),
+        expect_equal("toolchain repository declares every hub toolchain", sorted(declared), sorted(["swift_" + name for name in _HUB_ORDER])),
     ]
 
 def swift_toolchain_hub_test(name, size):

@@ -1,4 +1,4 @@
-"""The swift extension: the Swift archives, the Windows installers and the dx_swift_toolchains hub."""
+"""The swift extension: the Swift archives, the Windows installers, the Swift toolchains and the dx_swift_toolchains hub."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//core:toolchain.bzl", "toolchain_target")
@@ -7,6 +7,20 @@ load(":repos.bzl", "SWIFT_LINUX_CPUS", "swift_libs_linux_repo", "swift_linux_rep
 _TOOLCHAIN_TYPE = "@rules_swift//toolchains:toolchain_type"
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 _WINDOWS_CPUS = ["aarch64", "x86_64"]
+_TOOLCHAIN_REPO = "dx_swift_toolchain_impl"
+
+_LINUX_TOOLCHAIN = """swift_linux_toolchain(
+    name = "swift_toolchain_{exec_cpu}_{target_cpu}",
+    exec_cpu = "{exec_cpu}",
+    target_cpu = "{target_cpu}",
+)
+"""
+
+_WINDOWS_TOOLCHAIN = """swift_windows_toolchain(
+    name = "swift_toolchain_windows_{cpu}",
+    cpu = "{cpu}",
+)
+"""
 
 def _platform(os, cpu):
     return ["@platforms//os:" + os, "@platforms//cpu:" + cpu]
@@ -19,7 +33,7 @@ def swift_hub():
             exec_compatible_with = _platform("linux", exec_cpu),
             target_compatible_with = _platform("linux", target_cpu),
             target_settings = [_TOOLCHAINS_ON],
-            toolchain = str(Label(":swift_toolchain_%s_%s" % (exec_cpu, target_cpu))),
+            toolchain = "@%s//:swift_toolchain_%s_%s" % (_TOOLCHAIN_REPO, exec_cpu, target_cpu),
             toolchain_type = _TOOLCHAIN_TYPE,
             visibility = ["//visibility:public"],
         )
@@ -32,7 +46,7 @@ def swift_hub():
             exec_compatible_with = _platform("windows", cpu),
             target_compatible_with = _platform("windows", cpu),
             target_settings = [_TOOLCHAINS_ON],
-            toolchain = str(Label(":swift_toolchain_windows_" + cpu)),
+            toolchain = "@%s//:swift_toolchain_windows_%s" % (_TOOLCHAIN_REPO, cpu),
             toolchain_type = _TOOLCHAIN_TYPE,
             visibility = ["//visibility:public"],
         )
@@ -40,14 +54,31 @@ def swift_hub():
     ]
     return "\n".join(sorted(linux + windows))
 
-def _hub_impl(rctx):
+def swift_toolchain_build():
+    """Returns the BUILD file of the repository that declares the toolchains the hub registers."""
+    return "\n".join([
+        'load("{}", "swift_linux_toolchain")'.format(Label(":toolchain.bzl")),
+        'load("{}", "swift_windows_toolchain")'.format(Label(":windows.bzl")),
+        "",
+        'package(default_visibility = ["//visibility:public"])',
+        "",
+    ] + [
+        _LINUX_TOOLCHAIN.format(exec_cpu = exec_cpu, target_cpu = target_cpu)
+        for exec_cpu in SWIFT_LINUX_CPUS
+        for target_cpu in SWIFT_LINUX_CPUS
+    ] + [
+        _WINDOWS_TOOLCHAIN.format(cpu = cpu)
+        for cpu in _WINDOWS_CPUS
+    ])
+
+def _build_file_repo_impl(rctx):
     rctx.file("BUILD.bazel", rctx.attr.build)
     return rctx.repo_metadata(reproducible = True)
 
-_hub = repository_rule(
-    implementation = _hub_impl,
-    doc = "Writes the BUILD file of the Swift toolchain hub.",
-    attrs = {"build": attr.string(mandatory = True, doc = "BUILD file content of the hub.")},
+_build_file_repo = repository_rule(
+    implementation = _build_file_repo_impl,
+    doc = "Writes one BUILD file: the toolchain hub or the toolchains it registers.",
+    attrs = {"build": attr.string(mandatory = True, doc = "BUILD file content of the repository.")},
 )
 
 def _swift_impl(module_ctx):
@@ -79,10 +110,11 @@ def _swift_impl(module_ctx):
             seven_zip_urls = seven_zip["urls"],
             version = pins["swift_windows"]["version"],
         )
-    _hub(name = "dx_swift_toolchains", build = swift_hub())
+    _build_file_repo(name = _TOOLCHAIN_REPO, build = swift_toolchain_build())
+    _build_file_repo(name = "dx_swift_toolchains", build = swift_hub())
     return module_ctx.extension_metadata(reproducible = True)
 
 swift = module_extension(
     implementation = _swift_impl,
-    doc = "Declares the Swift archives, the Windows installers and the dx_swift_toolchains hub.",
+    doc = "Declares the Swift archives, the Windows installers, the Swift toolchains and the dx_swift_toolchains hub.",
 )

@@ -52,7 +52,6 @@ def swift_windows_toolchain(name, cpu):
         parsed_version = _VERSION,
         sdkroot = root + "/platform/Developer/SDKs/Windows.sdk",
         swift_tools = repo + "//:tools",
-        tags = ["manual"],
         target_compatible_with = _WINDOWS,
         tool_executable_suffix = ".exe",
         version_file = repo + "//:.swift-version",
@@ -67,7 +66,6 @@ def swift_windows_toolchain(name, cpu):
     _with_link_inputs(
         name = name,
         link_inputs = repo + "//:link_inputs",
-        tags = ["manual"],
         target_compatible_with = _WINDOWS,
         toolchain = ":" + name + "_base",
     )

@@ -60,7 +60,6 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
 
     swift_tools(
         name = name + "_tools",
-        tags = ["manual"],
         additional_inputs = {
             label: True
             for label in [
@@ -78,7 +77,6 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
 
     swift_toolchain(
         name = name,
-        tags = ["manual"],
         target_compatible_with = _LINUX,
         arch = target_cpu,
         dynamic_runtime = [target_repo + "//:linux_dynamic_runtime"],
@@ -105,7 +103,6 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
 
     cc_library(
         name = "linux_link_libs_" + pair,
-        tags = ["manual"],
         target_compatible_with = _LINUX,
         additional_linker_inputs = [
             libs + "//:link_libs/libcurl.so",
@@ -128,7 +125,6 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
 
     _with_link_libs(
         name = name,
-        tags = ["manual"],
         target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + pair,
         resource_dir = resource_dir,

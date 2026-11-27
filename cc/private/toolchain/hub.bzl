@@ -1,4 +1,4 @@
-"""The dx_cc_toolchains hub: every C and C++ toolchain, named in registration order."""
+"""The dx_cc_toolchains hub: the registered C and C++ toolchains in order, plus unregistered LLVM bootstrap stages."""
 
 load("@apple_support//configs:platforms.bzl", "APPLE_PLATFORMS_CONSTRAINTS")
 load("@llvm//platforms:common.bzl", "MSVC_TARGET_BOOTSTRAP_SUPPORTED_EXECS", "MSVC_TARGET_STAGE0_SUPPORTED_EXECS", "SUPPORTED_EXECS", "SUPPORTED_TARGETS", "WINDOWS_TARGETS")
@@ -141,6 +141,11 @@ def _llvm():
                 "@llvm//toolchain:{}_{}_cc_toolchain".format(exec_os, exec_cpu),
                 MSVC_TARGET_STAGE0_SUPPORTED_EXECS,
             ))
+    return sorted(entries, key = lambda e: e.name)
+
+def cc_hub_bootstrap_entries():
+    """Returns the unregistered LLVM stage1 to stage3 bootstrap toolchains."""
+    entries = []
     for (exec_os, exec_cpu) in [(os, cpu) for (os, cpu) in SUPPORTED_TARGETS if os != "none"]:
         for (stage, stage_setting) in _BOOTSTRAP_STAGES:
             for (target_os, target_cpu) in SUPPORTED_TARGETS:
@@ -166,8 +171,7 @@ def cc_hub_names():
     width = len(str(len(entries)))
     return [("0" * width + str(i))[-width:] + "_" + e.name for i, e in enumerate(entries)]
 
-def cc_hub():
-    """Returns the BUILD file of the dx_cc_toolchains hub."""
+def _build(names, entries):
     return "\n".join([
         toolchain_target(
             name = name,
@@ -178,5 +182,14 @@ def cc_hub():
             toolchain_type = CC_TOOLCHAIN_TYPE,
             visibility = ["//visibility:public"],
         )
-        for name, e in zip(cc_hub_names(), cc_hub_entries())
+        for name, e in zip(names, entries)
     ])
+
+def cc_hub():
+    """Returns the BUILD file of the dx_cc_toolchains hub."""
+    return _build(cc_hub_names(), cc_hub_entries())
+
+def cc_hub_bootstrap():
+    """Returns the BUILD file of the hub's bootstrap package, which nothing registers."""
+    entries = cc_hub_bootstrap_entries()
+    return _build([e.name for e in entries], entries)

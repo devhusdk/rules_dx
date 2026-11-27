@@ -5,7 +5,7 @@ load("@dx_windows_support//windows/private/extensions:windows_sdk.bzl", "WINDOWS
 load("//cc/private/toolchain/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load("//cc/private/toolchain/msvc:extensions.bzl", "msvc_hub")
 load("//core:license.bzl", "ACCEPTED_LABEL")
-load(":hub.bzl", "cc_hub")
+load(":hub.bzl", "cc_hub", "cc_hub_bootstrap")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_AARCH64_TO_X86_64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 
@@ -24,13 +24,14 @@ _EXTRA_KNOWN = [
 
 
 def _hub_impl(rctx):
-    rctx.file("BUILD.bazel", rctx.attr.build)
+    for path, content in rctx.attr.files.items():
+        rctx.file(path, content)
     return rctx.repo_metadata(reproducible = True)
 
 _hub = repository_rule(
     implementation = _hub_impl,
-    doc = "Writes the BUILD file of the C and C++ toolchain hub.",
-    attrs = {"build": attr.string(mandatory = True, doc = "BUILD file content of the hub.")},
+    doc = "Writes the BUILD files of the C and C++ toolchain hub.",
+    attrs = {"files": attr.string_dict(mandatory = True, doc = "BUILD file content of the hub by path.")},
 )
 
 _HOSTS = ["arm64", "x64"]
@@ -107,7 +108,7 @@ def _cc_impl(mctx):
         fail("cc.msvc_runtime needs pins or visual_studio_installer_manifest_url with visual_studio_installer_manifest_integrity")
     if not windows_sdk.reproducible:
         fail("cc.windows_sdk needs pins or windows_sdk_integrity")
-    _hub(name = "dx_cc_toolchains", build = cc_hub())
+    _hub(name = "dx_cc_toolchains", files = {"BUILD.bazel": cc_hub(), "bootstrap/BUILD.bazel": cc_hub_bootstrap()})
     return mctx.extension_metadata(
         facts = msvc_runtime.facts,
         reproducible = True,

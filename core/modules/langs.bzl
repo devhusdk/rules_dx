@@ -1473,7 +1473,7 @@ LANGS = json.decode("""{
     "title": "Flutter",
     "tools": [],
     "unsupported": {
-      "windows_arm64": "rules_flutter 0.1.0 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+      "windows_arm64": "rules_flutter 0.2.0 and Flutter 3.50.0 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
     }
   },
   "fortran": {

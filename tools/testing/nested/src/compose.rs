@@ -103,13 +103,11 @@ pub fn windows_support_override() -> String {
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 4] = [
     "lock_extension",
-    "registrant_javacopts",
     "windows_golden_comparator",
-    "deterministic_web_compile",
     "flutter_extension_loads",
-    "no_swift_packages",
+    "host_independent_extension",
 ];
 
 /// The root MODULE.bazel of rules_dx.
@@ -147,7 +145,7 @@ pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
 }
 
 /// The `rules_flutter` version the root MODULE.bazel pins.
-pub const RULES_FLUTTER_VERSION: &str = "0.1.0";
+pub const RULES_FLUTTER_VERSION: &str = "0.2.0";
 
 /// The `single_version_override` of `rules_flutter` in the root MODULE.bazel, without its root-only patches.
 #[must_use]

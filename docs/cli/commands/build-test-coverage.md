@@ -118,6 +118,8 @@ With neither `--debug` nor `--release`, dx uses the `dx_build_dev` build mode. `
 
 The trace goes to `.dx/local/timings/<run id>.json.gz`. dx keeps the last five. The report goes to `.dx/local/timings/report.json`. With `--output=json`, the report is the message of a `timings_report` notice.
 
+To keep a trace of every Bazel `build`, `test`, `coverage` and `run` call dx makes, including the ones inside `dx check`, set `DX_PROFILE_DIR=<dir>`. dx creates the directory if it is missing and stops if it cannot. Each call writes `<dir>/<time>-<pid>-<n>-<verb>.json.gz`. dx keeps them all and prints no report. A `--profile` in your Bazel options wins.
+
 When a Bazel `build`, `test` or `coverage` call fails and Bazel's own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. dx prints a notice when it does, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
 
 ## Scopes

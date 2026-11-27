@@ -106,17 +106,17 @@ def _dune_runs_dx_impl(ctx):
     dune = [a for a in actions if a.mnemonic == "DxDuneLibrary"]
     asserts.equals(env, 1, len(dune))
     argv = dune[0].argv
-    asserts.equals(env, "dx", argv[0].rpartition("/")[2].partition(".")[0])
+    asserts.equals(env, "ocaml_dune", argv[0].rpartition("/")[2].partition(".")[0])
     asserts.equals(env, "ocaml_dune", argv[1])
     links = [a for a in actions if a.outputs.to_list()[0].basename.startswith("conda-ocaml-")]
     asserts.true(env, len(links) > 0, "no conda-ocaml-* symlink action")
     for action in links:
         inputs = [f.basename.partition(".")[0] for f in action.inputs.to_list()]
-        asserts.equals(env, ["dx"], inputs, action.outputs.to_list()[0].basename)
+        asserts.equals(env, ["ocaml_dune"], inputs, action.outputs.to_list()[0].basename)
     return analysistest.end(env)
 
 _dune_runs_dx_test = analysistest.make(_dune_runs_dx_impl)
 
 def ocaml_dune_runs_dx_test(name, target_under_test):
-    """Asserts the dune step runs `dx ocaml_dune` and every conda-ocaml-* program links to dx."""
+    """Asserts the dune step runs the ocaml_dune hub binary with `ocaml_dune` and every conda-ocaml-* program links to it."""
     _dune_runs_dx_test(name = name, size = "small", target_under_test = target_under_test)

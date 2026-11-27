@@ -537,6 +537,15 @@ fn locate_workspace(invocation: &mut dx_plan::args::Invocation) -> Result<PathBu
     let cwd = current_dir_or_fail(invocation)?;
     let workspace = resolve_workspace(invocation, &cwd)?;
     dx_process::configure_real_in(&workspace, dx_plan::slots::slot_idle_secs(&workspace));
+    if let Err(message) = dx_process::current().ensure_profile_dir() {
+        return Err(startup_failure(
+            &format!("dx: {message}"),
+            "unwritable_profile_dir",
+            &message,
+            pre_exec_code(),
+            invocation.output == OutputMode::Json,
+        ));
+    }
     dx_plan::plan::set_rules_dx_repo(&workspace);
     if let Some(note) = dx_plan::args::bare_scope_note(invocation, &workspace, &cwd) {
         eprintln!("{note}");

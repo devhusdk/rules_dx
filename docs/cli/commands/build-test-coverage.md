@@ -90,7 +90,7 @@ dx run --release //app -- --port 8080
 | `--debug` | `build`, `test`, `run` | Compile with the `dx_build_debug` build mode. |
 | `--release` | `build`, `test`, `run` | Compile with the `dx_build_release` build mode. |
 | `--timings` | all four | Print where build time went. For `run`, it reports on the build step. |
-| `--no-retry` | `build`, `test`, `coverage` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--no-retry` | `build`, `test`, `coverage` | Do not run Bazel again after a remote cache error. |
 | `--fail-on info\|warning\|error` | `coverage` | Fail on findings of this severity or worse. Default `warning`. |
 | `--min-coverage <percent>` | `coverage` | Fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage` | Fail below this whole percent (0-100) on lines changed since the merge-base. |
@@ -120,7 +120,7 @@ The trace goes to `.dx/local/timings/<run id>.json.gz`. dx keeps the last five. 
 
 To keep a trace of every Bazel `build`, `test`, `coverage` and `run` call dx makes, including the ones inside `dx check`, set `DX_PROFILE_DIR=<dir>`. dx creates the directory if it is missing and stops if it cannot. Each call writes `<dir>/<time>-<pid>-<n>-<verb>.json.gz`. dx keeps them all and prints no report. A `--profile` in your Bazel options wins.
 
-When a Bazel `build`, `test` or `coverage` call fails and Bazel's own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. dx prints a notice when it does, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
+When a Bazel `build`, `test` or `coverage` call fails and Bazel's own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. When Bazel instead fails to fetch into a directory missing from the output tree, or a `ctx.actions.symlink` output dangles, its action cache lists outputs that were deleted. dx then stops the Bazel server, deletes `<output_base>/action_cache` and runs the call once more with the remote cache on. dx prints a notice when it runs a call again, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
 
 ## Scopes
 

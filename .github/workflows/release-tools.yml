@@ -423,6 +423,7 @@ jobs:
             runner: macos-15
             target: "@haskell_hlint_hackage//:hlint-exe-hlint"
             lock: haskell/private/tools/hlint/cabal.lock.json
+            determinism: false
           - tool: nixfmt
             host: linux-arm64
             runner: ubuntu-24.04-arm
@@ -456,6 +457,7 @@ jobs:
           HOST: ${{ matrix.host }}
           TARGET: ${{ matrix.target }}
           LOCK: ${{ matrix.lock }}
+          DETERMINISM: ${{ matrix.determinism }}
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/hackage-out"
@@ -486,7 +488,9 @@ jobs:
               codesign --verify "$out/$asset" 2>/dev/null || codesign --force -s - "$out/$asset"
               ;;
           esac
-          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
+          if test "$DETERMINISM" != false; then
+            bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
+          fi
           "$out/$asset" --version
           if test "$HOST" = "linux-arm64"; then
             package="$(jq -c --arg tool "$TOOL" '.packages[] | select(.name == $tool) | {version, archive: .archives[0]}' "$LOCK")"

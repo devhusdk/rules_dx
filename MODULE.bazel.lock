@@ -61675,6 +61675,12 @@
       "sha512/v1:runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-ZiiQBsOdluailDf6kiMGIqF8fN4nllbQf/B39Mrkc+n2CMb2ZLc3g43GDo4T77aDV6gcmLYCNf2Idxc0AQdZmw==",
       "sha512/v1:runtime.win-x64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-XDaIz12Bo5aVvT3AUmFheT+S+M9epOknCoSzENVj8a2HlkCiA9CZM+ZykrUodvd0+H9CqXFtPMyiRV40WhF+Gg=="
     },
+    "//third_party/dotnet:extension.bzl%paket": {
+      "sha512/v1:microsoft.netcore.platforms/6.0.5": "sha512-GTMT/dgCRBCRUj11ssZ8K1FJm6Md+C/tSJl8I7YjxOFwSvopaIneV32y1VlnBTI4wy1SwueI7ou2sVfHkWENrA==",
+      "sha512/v1:netstandard.library/2.0.3": "sha512-548M6mnBSJWxsIlkQHfbzoYxpiYFXZZSL00p4GHYv8PkiqFBnnT68mW5mGEsA/ch9fDO9GkPgkFQpWiXZN7mAQ==",
+      "sha512/v1:nunit/3.14.0": "sha512-XXEZJblHyeSp9T9rXXabxKcC79crz/a0/k/lGnJFRKUmbQIxf9tf5eMS+STOvjFUnl7rLFeBycLzXD5OMa40hA==",
+      "sha512/v1:nunitlite/3.14.0": "sha512-0TEZNUokBNFu03MYqaFdaWQrYNRwuLI5k1IR1ly/p3DUVLq48a+Ig5uVWjI6t1OKOkrS/cIKkl+FkQE+2nRboQ=="
+    },
     "//tools/testing:extensions.bzl%nested_bazel": {
       "9.3.1": {
         "darwin-arm64": "19c4958626e0e3a564a61c2e85eeaab97b550a30632b82341191aa61ed0ccc1b",

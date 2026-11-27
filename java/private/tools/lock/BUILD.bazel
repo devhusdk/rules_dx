@@ -2,7 +2,7 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -35,6 +35,19 @@ rust_library(
         "//cli/lock:dx_lock",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "java_lock",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "java/private/tools/maven_lock",
+        normal = True,
+    ),
+    crate_name = "maven_lock",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":maven_lock_lib"],
 )
 
 dx_subcommand(

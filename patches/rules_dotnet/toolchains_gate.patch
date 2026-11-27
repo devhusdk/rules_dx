@@ -1,19 +1,19 @@
 Upstream: none (rules_dx only: gates toolchains behind //config:toolchains_on)
-diff --git a/dotnet/private/toolchains_repo.bzl b/dotnet/private/toolchains_repo.bzl
+diff -ruN a/dotnet/private/toolchains_repo.bzl b/dotnet/private/toolchains_repo.bzl
 --- a/dotnet/private/toolchains_repo.bzl
 +++ b/dotnet/private/toolchains_repo.bzl
-@@ -73,6 +73,7 @@
+@@ -80,6 +80,7 @@
  toolchain(
      name = "{platform}_toolchain",
      exec_compatible_with = {compatible_with},
 +    target_settings = ["{toolchains_on}"],
-     toolchain = "@{user_repository_name}_{platform}//:dotnet_toolchain",
-     toolchain_type = "@rules_dotnet//dotnet:toolchain_type",
+     toolchain = "@{sdk_repository_name}_{platform}//:dotnet_toolchain",
+     toolchain_type = "{toolchain_type}",
  )
-@@ -81,6 +82,7 @@
-             name = repository_ctx.attr.name,
-             user_repository_name = repository_ctx.attr.user_repository_name,
+@@ -88,6 +89,7 @@
+             sdk_repository_name = repository_ctx.attr.sdk_repository_name,
              compatible_with = meta.compatible_with,
+             toolchain_type = repository_ctx.attr.toolchain_type,
 +            toolchains_on = str(Label("@rules_dx//config:toolchains_on")),
          )
  

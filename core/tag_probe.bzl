@@ -1,6 +1,6 @@
 """Analysis probe that reports the tags of each listed target."""
 
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 
 visibility("public")
 

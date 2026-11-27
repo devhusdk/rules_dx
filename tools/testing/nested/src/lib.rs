@@ -45,6 +45,8 @@ pub const TMPDIR_ENV: &str = "TEST_TMPDIR";
 pub const NO_PATH: &str = "/dx_no_path";
 const USER_ROOT: &str = "u";
 const WORKSPACES: &str = "w";
+const WORKSPACE: &str = "ws";
+const RECORDED_ROOTS: &str = "recorded";
 const HOME_DIR: &str = "home";
 const REPOSITORY_CACHE: &str = "repository-cache";
 pub const SHARED_ENV: &str = "DX_NESTED_SHARED";
@@ -1031,7 +1033,6 @@ fn stripped(key: &str) -> bool {
 pub struct Server {
     config: Config,
     home: PathBuf,
-    workspace: Option<PathBuf>,
     reaper: Option<Child>,
     lease: Option<shared::Lease>,
 }
@@ -1047,7 +1048,6 @@ impl Server {
         let mut server = Server {
             config,
             home,
-            workspace: None,
             reaper: None,
             lease: None,
         };
@@ -1136,17 +1136,17 @@ impl Server {
         wrapper_at(&self.home)
     }
 
-    /// Empties the workspace `name` and makes it current, stopping the server of any other one.
+    fn workspace(&self) -> PathBuf {
+        self.home.join(WORKSPACES).join(WORKSPACE)
+    }
+
+    /// Empties the slot workspace for the next case, keeping its server.
     ///
     /// # Errors
     ///
     /// Returns `Err` when the operation fails.
-    pub fn enter(&mut self, name: &str) -> Result<PathBuf, String> {
-        let root = self.home.join(WORKSPACES).join(name);
-        if self.workspace.as_ref() != Some(&root) {
-            self.shutdown();
-            self.workspace = Some(root.clone());
-        }
+    pub fn enter(&mut self) -> Result<PathBuf, String> {
+        let root = self.workspace();
         reset(&root)?;
         Ok(root)
     }
@@ -1159,10 +1159,9 @@ impl Server {
 
     /// Stops the server and returns any that survive.
     pub fn shutdown(&mut self) -> Vec<u32> {
-        if let Some(root) = self.workspace.as_ref().filter(|root| root.is_dir())
-            && !self.servers().is_empty()
-        {
-            drop(self.bazel_command(root, &["shutdown"]).output());
+        let root = self.workspace();
+        if root.is_dir() && !self.servers().is_empty() {
+            drop(self.bazel_command(&root, &["shutdown"]).output());
         }
         kill_slot_servers(&self.user_root(), &self.home.join(WORKSPACES))
     }
@@ -1543,6 +1542,26 @@ fn finish_record(server: &Server) -> Result<(), String> {
     )
 }
 
+fn keep_recorded(home: &Path, root: &Path) -> Result<(), String> {
+    let mut roots = RECORDED.lock().unwrap_or_else(PoisonError::into_inner);
+    for (index, (_, recorded)) in roots.iter_mut().enumerate() {
+        if recorded != root {
+            continue;
+        }
+        let kept = home.join(RECORDED_ROOTS).join(index.to_string());
+        reset(&kept)?;
+        for file in ["MODULE.bazel", "MODULE.bazel.lock"] {
+            match std::fs::copy(root.join(file), kept.join(file)) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(format!("cannot keep {file}: {error}")),
+            }
+        }
+        *recorded = kept;
+    }
+    Ok(())
+}
+
 /// Rewrites the record from every workspace recorded so far; a workspace without a lock yet is skipped.
 fn flush_record(server: &Server) -> Result<(), String> {
     let Some(record) = server.config.record.as_ref() else {
@@ -1799,14 +1818,16 @@ impl Drop for Case {
             return;
         };
         if let Some(server) = guard.as_ref()
-            && let Err(error) = flush_record(server)
+            && server.config.record.is_some()
+            && let Err(error) =
+                keep_recorded(&server.home, &self.root).and_then(|()| flush_record(server))
         {
             eprintln!("nested bazel: record mode: {error}");
         }
     }
 }
 
-/// Starts a case in the workspace `name`; cases run one at a time and share one server.
+/// Starts the case `name` in the emptied slot workspace; cases run one at a time and share one server.
 ///
 /// # Panics
 ///
@@ -1837,9 +1858,9 @@ pub fn case(name: &str) -> Case {
     });
     let root = match lease.borrow_mut().as_mut() {
         Some(server) => server
-            .enter(name)
-            .unwrap_or_else(|error| panic!("nested bazel: {error}")),
-        None => panic!("nested bazel: no server"),
+            .enter()
+            .unwrap_or_else(|error| panic!("nested bazel: case {name}: {error}")),
+        None => panic!("nested bazel: case {name}: no server"),
     };
     Case { lease, root }
 }
@@ -1884,6 +1905,21 @@ pub fn checked_in_lock(stem: &str) -> String {
         }
     }
     panic!("{LOCKS_ENV} has no {name}");
+}
+
+#[must_use]
+pub fn locked_deps(lock: &str) -> String {
+    lock.lines()
+        .filter_map(|line| {
+            let url = line.trim().strip_prefix('"')?.split('"').next()?;
+            let path = url.strip_suffix("/source.json")?;
+            let (rest, version) = path.rsplit_once('/')?;
+            let (_, name) = rest.rsplit_once("/modules/")?;
+            Some(format!(
+                "bazel_dep(name = \"{name}\", version = \"{version}\")\n"
+            ))
+        })
+        .collect()
 }
 
 impl Case {
@@ -2366,10 +2402,9 @@ fn reaper_waiting(reaper: &mut Child) -> std::thread::JoinHandle<String> {
 #[track_caller]
 fn exited_unreaped(pid: u32) {
     let raw = i32::try_from(pid).expect("pid");
-    let waited =
-        dx_test_scratch::wait::within("the child exiting", Duration::from_secs(10), move || {
-            dx_os_sys::process::await_exit_unreaped(raw)
-        });
+    let waited = dx_test_wait::within("the child exiting", Duration::from_secs(10), move || {
+        dx_os_sys::process::await_exit_unreaped(raw)
+    });
     match waited {
         Ok(Ok(())) => {}
         Ok(Err(error)) => panic!("waitid {pid}: {error}"),
@@ -2442,7 +2477,7 @@ mod tests {
     const EMPTY_LOCK: &str = "{\"lockFileVersion\": 28, \"registryFileHashes\": {}}\n";
 
     #[test]
-    fn a_case_that_panics_still_writes_its_record() {
+    fn cases_reuse_one_workspace_and_a_case_that_panics_still_writes_its_record() {
         let dir = scratch("nested-flush-");
         let (bazel, _) = recorder(dir.path());
         let out = dir.path().join("out");
@@ -2453,8 +2488,21 @@ mod tests {
             }),
             ..config(&dir.path().join("base"), &bazel)
         });
-        let failed = std::panic::catch_unwind(|| {
+        let first_lock = EMPTY_LOCK.replace("28", "27");
+        let first_root = {
+            let first = case("first");
+            first.write("MODULE.bazel", "");
+            first.write("MODULE.bazel.lock", &first_lock);
+            RECORDED
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(("first".to_owned(), first.root.clone()));
+            first.root.clone()
+        };
+        let mut failing_root = None;
+        let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let failing = case("failing");
+            failing_root = Some(failing.root.clone());
             failing.write("MODULE.bazel", "");
             failing.write("MODULE.bazel.lock", EMPTY_LOCK);
             RECORDED
@@ -2462,12 +2510,17 @@ mod tests {
                 .unwrap_or_else(PoisonError::into_inner)
                 .push(("unit".to_owned(), failing.root.clone()));
             panic!("the case fails");
-        });
+        }));
         assert!(failed.is_err());
+        assert_eq!(failing_root, Some(first_root));
         assert!(out.join("unit.txt").is_file());
         assert_eq!(
             std::fs::read_to_string(out.join("unit.MODULE.bazel.lock")).expect("lock"),
             EMPTY_LOCK
+        );
+        assert_eq!(
+            std::fs::read_to_string(out.join("first.MODULE.bazel.lock")).expect("first lock"),
+            first_lock
         );
         release();
     }
@@ -3006,7 +3059,7 @@ mod tests {
             )
         );
 
-        let root = first.enter("ws").expect("enter");
+        let root = first.enter().expect("enter");
         std::fs::write(root.join("MODULE.bazel"), "").expect("write");
         let run = capture(
             first.bazel_command(&root, &["info", "release"]),
@@ -3025,7 +3078,7 @@ mod tests {
                 first.home().join("bazelrc").display()
             )
         );
-        let again = first.enter("ws").expect("enter again");
+        let again = first.enter().expect("enter again");
         assert_eq!(again, root);
         assert_eq!(std::fs::read_dir(&root).expect("list").count(), 0);
     }
@@ -3044,7 +3097,7 @@ mod tests {
             std::fs::read(server.wrapper()).expect("installed"),
             std::fs::read(&shim).expect("shim")
         );
-        let root = server.enter("ws").expect("enter");
+        let root = server.enter().expect("enter");
         let run = capture(
             server.bazel_command(&root, &["info", "release"]),
             "bazel",
@@ -3149,7 +3202,7 @@ mod tests {
 
     #[track_caller]
     fn gone(pid: u32) {
-        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(15)) {
+        if let Err(error) = dx_test_wait::pid_gone(pid, Duration::from_secs(15)) {
             panic!("{error}");
         }
     }
@@ -3567,7 +3620,7 @@ mod portable_tests {
         assert!(alive(pid));
         owner.kill().expect("kill owner");
         let _: std::io::Result<std::process::ExitStatus> = owner.wait();
-        if let Err(error) = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30)) {
+        if let Err(error) = dx_test_wait::pid_gone(pid, Duration::from_secs(30)) {
             let status = reaper.try_wait();
             drop(reaper.kill());
             panic!(
@@ -3660,11 +3713,10 @@ mod suspend_tests {
         #[cfg(unix)]
         {
             let raw = i32::try_from(pid).expect("pid");
-            let stop = dx_test_scratch::wait::within(
-                "the child stopping",
-                Duration::from_secs(10),
-                move || dx_os_sys::process::await_stop(raw),
-            );
+            let stop =
+                dx_test_wait::within("the child stopping", Duration::from_secs(10), move || {
+                    dx_os_sys::process::await_stop(raw)
+                });
             assert!(
                 matches!(stop, Ok(Ok(Some(_)))),
                 "the child never stopped: {stop:?}"

@@ -1,4 +1,4 @@
-use super::affected::writable_paths;
+use super::affected::{no_affected_targets, writable_paths};
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use dx_exec_core::common::{
@@ -18,7 +18,7 @@ use dx_output::{
 };
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
-use dx_plan::reports::plan_reports;
+use dx_plan::reports::{StandardFormat, plan_reports};
 use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, path_filter, widen_config_scopes};
 use dx_process::{Runner, interrupted};
 use serde_json::{Value, json};
@@ -306,6 +306,14 @@ fn last_stderr_line(phase_err: &[u8]) -> String {
         .map_or_else(|| "no stderr output".to_owned(), str::to_owned)
 }
 
+fn selection_stop_message(phase: &str, code: i32, phase_err: &[u8]) -> String {
+    format!(
+        "{phase} rejected its scope or configuration (exit {code}) without saying why; \
+         last stderr line: {}; pass a Bazel label or package such as //pkg, or use --affected",
+        last_stderr_line(phase_err)
+    )
+}
+
 fn explain_selection_stop(
     output: OutputMode,
     phase: &str,
@@ -330,11 +338,7 @@ fn explain_selection_stop(
     {
         return;
     }
-    let message = format!(
-        "{phase} rejected its scope or configuration (exit {code}) without saying why; \
-         last stderr line: {}; pass a Bazel label or package such as //pkg, or use --affected",
-        last_stderr_line(phase_err)
-    );
+    let message = selection_stop_message(phase, code, phase_err);
     if output != OutputMode::Json {
         if !phase_err.is_empty() {
             return;
@@ -556,6 +560,16 @@ struct Verification {
     ended: Option<i32>,
 }
 
+fn test_phases(request: &UmbrellaRequest) -> Vec<(Command, &Invocation)> {
+    [
+        (Command::Test, request.test.as_deref()),
+        (Command::Coverage, request.coverage.as_deref()),
+    ]
+    .into_iter()
+    .filter_map(|(phase, invocation)| Some((phase, invocation?)))
+    .collect()
+}
+
 fn execute_test_phase(test: &Invocation, env: Env<'_>) -> PhaseRun {
     let Env {
         workspace,
@@ -637,9 +651,10 @@ fn verify_fix(
     let command = request.command.name();
     let through = through.min(UMBRELLA_PHASES.len() - 1);
     for (index, phase) in UMBRELLA_PHASES.iter().enumerate().take(through + 1) {
-        if failed_during_apply
-            .iter()
-            .any(|(failed, _)| failed == phase)
+        if request.selects_nothing(*phase)
+            || failed_during_apply
+                .iter()
+                .any(|(failed, _)| failed == phase)
         {
             continue;
         }
@@ -952,9 +967,11 @@ impl Run {
             .iter()
             .map(|phase| (*phase, phase.name()))
             .collect();
-        if request.test.is_some() {
-            phases.push((Command::Test, Command::Test.name()));
-        }
+        phases.extend(
+            test_phases(request)
+                .into_iter()
+                .map(|(phase, _)| (phase, phase.name())),
+        );
         let mut collector = PhaseCollector::default();
         for (phase, label) in &phases {
             collector.plan(*phase, label);
@@ -1059,12 +1076,10 @@ fn capture_reports(
     phase: Command,
     phase_nonce: u64,
 ) -> Option<(Vec<ReportRequest>, Option<PathBuf>)> {
-    let accepted = base
-        .request
-        .common
-        .reports
-        .iter()
-        .find(|report| phase != Command::Test && spec(phase).accepts_report(&report.format));
+    let accepted = base.request.common.reports.iter().find(|report| {
+        !matches!(phase, Command::Test | Command::Coverage)
+            && spec(phase).accepts_report(&report.format)
+    });
     let Some(report) = accepted else {
         return Some((Vec::new(), None));
     };
@@ -1086,8 +1101,8 @@ fn execute_phase(
     phase: Command,
     phase_nonce: u64,
     phase_reports: Vec<ReportRequest>,
-    phase_out: &mut Vec<u8>,
-    phase_err: &mut Vec<u8>,
+    phase_out: &mut dyn Write,
+    phase_err: &mut dyn Write,
     shared: Option<&mut SharedChecks>,
 ) -> PhaseRun {
     let request = base.request;
@@ -1095,8 +1110,18 @@ fn execute_phase(
     if phase == Command::Generate {
         let generate = request.phase_generate_request(phase_reports);
         execute_generate_phase(&generate, phase_env)
-    } else if let (Command::Test, Some(test)) = (phase, request.test.as_deref()) {
+    } else if let Some((_, test)) = test_phases(request)
+        .into_iter()
+        .find(|(planned, _)| *planned == phase)
+    {
         execute_test_phase(test, phase_env)
+    } else if request.selects_nothing(phase) {
+        let written = no_affected_targets(request.common.output, phase_env.out, phase_env.err);
+        PhaseRun {
+            code: i32::from(written.is_err()),
+            kind: PhaseKind::Clean,
+            effects: PhaseEffects::default(),
+        }
     } else {
         match request.phase_quality_request(phase, phase_reports) {
             Ok(phase_request) => execute_quality_phase(&phase_request, phase_env, shared),
@@ -1134,7 +1159,12 @@ fn run_step(
     let output = base.request.common.output;
     let index = run.index;
     let phase_nonce = base.nonce.wrapping_add(index as u64);
-    let Some((phase_reports, capture)) = capture_reports(base, phase, phase_nonce) else {
+    let reports = if base.request.selects_nothing(phase) {
+        Some((Vec::new(), None))
+    } else {
+        capture_reports(base, phase, phase_nonce)
+    };
+    let Some((phase_reports, capture)) = reports else {
         return Step::Exit(pre_exec(
             output,
             out,
@@ -1145,24 +1175,37 @@ fn run_step(
     if let Some(capture) = capture {
         run.collector.require_capture(index, capture);
     }
-    let mut phase_out = Vec::new();
-    let mut phase_err = Vec::new();
-    let PhaseRun {
-        code,
-        mut kind,
-        effects,
-    } = execute_phase(
-        base,
-        phase,
-        phase_nonce,
-        phase_reports,
-        &mut phase_out,
-        &mut phase_err,
-        run.shared.as_mut(),
-    );
-    if code != 0 && interrupted().is_some() {
-        kind = PhaseKind::Cancelled;
-    }
+    let (
+        PhaseRun {
+            code,
+            kind,
+            effects,
+        },
+        forwarded,
+    ) = if test_phases(base.request)
+        .iter()
+        .any(|(planned, _)| *planned == phase)
+    {
+        relay_phase(
+            base,
+            run,
+            (phase, label),
+            phase_nonce,
+            phase_reports,
+            out,
+            err,
+        )
+    } else {
+        buffer_phase(
+            base,
+            run,
+            (phase, label),
+            phase_nonce,
+            phase_reports,
+            out,
+            err,
+        )
+    };
     if effects.touched() {
         run.last_touched = Some(index);
     }
@@ -1175,19 +1218,8 @@ fn run_step(
     } else {
         run.quality_applied |= effects.applied > 0;
     }
-    if kind == PhaseKind::Selection && code != 0 {
-        explain_selection_stop(output, label, code, (&mut phase_out, &mut phase_err));
-    }
     run.collector.record_exit(index, code, kind);
-    match forward_phase(
-        out,
-        err,
-        output,
-        (base.command, base.mode),
-        label,
-        (&phase_out, &phase_err),
-        code,
-    ) {
+    match forwarded {
         Ok(readable) => run.reports_ok &= readable,
         Err(exit) => {
             run.stdout_exit = Some(exit);
@@ -1205,6 +1237,79 @@ fn run_step(
         run.plan_rerun();
     }
     Step::Next
+}
+
+fn settled_kind(code: i32, kind: PhaseKind) -> PhaseKind {
+    if code != 0 && interrupted().is_some() {
+        PhaseKind::Cancelled
+    } else {
+        kind
+    }
+}
+
+fn buffer_phase(
+    base: &Base<'_>,
+    run: &mut Run,
+    (phase, label): (Command, &'static str),
+    phase_nonce: u64,
+    phase_reports: Vec<ReportRequest>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> (PhaseRun, Result<bool, i32>) {
+    let output = base.request.common.output;
+    let mut phase_out = Vec::new();
+    let mut phase_err = Vec::new();
+    let mut ran = execute_phase(
+        base,
+        phase,
+        phase_nonce,
+        phase_reports,
+        &mut phase_out,
+        &mut phase_err,
+        run.shared.as_mut(),
+    );
+    ran.kind = settled_kind(ran.code, ran.kind);
+    if ran.kind == PhaseKind::Selection && ran.code != 0 {
+        explain_selection_stop(output, label, ran.code, (&mut phase_out, &mut phase_err));
+    }
+    let forwarded = forward_phase(
+        out,
+        err,
+        output,
+        (base.command, base.mode),
+        label,
+        (&phase_out, &phase_err),
+        ran.code,
+    );
+    (ran, forwarded)
+}
+
+fn relay_phase(
+    base: &Base<'_>,
+    run: &mut Run,
+    (phase, label): (Command, &'static str),
+    phase_nonce: u64,
+    phase_reports: Vec<ReportRequest>,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> (PhaseRun, Result<bool, i32>) {
+    let output = base.request.common.output;
+    let mut relay = Relay::new(out, output, (base.command, base.mode), label);
+    let mut tee = Tee::new(err);
+    let mut ran = execute_phase(
+        base,
+        phase,
+        phase_nonce,
+        phase_reports,
+        &mut relay,
+        &mut tee,
+        run.shared.as_mut(),
+    );
+    ran.kind = settled_kind(ran.code, ran.kind);
+    let phase_err = tee.copy;
+    let stop = (ran.kind == PhaseKind::Selection && ran.code != 0).then_some(phase_err.as_slice());
+    let forwarded = relay.finish(err, ran.code, stop);
+    (ran, forwarded)
 }
 
 fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
@@ -1296,7 +1401,12 @@ fn write_phase_reports(
     }
     if run.stdout_exit.is_none() {
         let document = run.collector.document();
-        for report in &request.common.reports {
+        for report in request
+            .common
+            .reports
+            .iter()
+            .filter(|report| report.format == StandardFormat::Sarif.name())
+        {
             if let Err(error) = write_report_file(base.workspace, &report.destination, &document) {
                 run.reports_ok = false;
                 if let Err(exit) = report_failed(
@@ -1471,6 +1581,10 @@ fn git(workspace: &Path, args: &[&str]) -> Option<String> {
         }
     }
 }
+
+#[path = "umbrella_relay.rs"]
+mod relay;
+use relay::{Relay, Tee};
 
 #[cfg(test)]
 #[path = "umbrella_tests.rs"]

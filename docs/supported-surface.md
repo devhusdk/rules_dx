@@ -107,6 +107,7 @@ Exit codes: `0`, `1`, `2`.
 | `--fail-on` |  | `info`, `warning`, `error` |  |
 | `--here` |  |  |  |
 | `--include-edits` |  |  |  |
+| `--lint-scope` |  | `direct`, `closure` |  |
 | `--max-findings` |  |  |  |
 | `--online` |  |  |  |
 | `--output` | `-o` | `text`, `json` |  |
@@ -382,10 +383,12 @@ Exit codes: `0`, `1`, `2`.
 | `--build-slots` |  |  |  |
 | `--build-slots-wait` |  |  |  |
 | `--color` |  | `auto`, `always`, `never` |  |
+| `--coverage` |  |  |  |
 | `--diff` |  |  |  |
 | `--fail-on` |  | `info`, `warning`, `error` |  |
 | `--here` |  |  |  |
 | `--include-edits` |  |  |  |
+| `--lint-scope` |  | `direct`, `closure` |  |
 | `--max-findings` |  |  |  |
 | `--no-retry` |  |  |  |
 | `--output` | `-o` | `text`, `json` |  |
@@ -3805,12 +3808,18 @@ Rule.
 
 Module extension.
 
+Tag `dotnet.bootstrap_toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `dotnet_version` | `string` | yes |  |
+
 Tag `dotnet.toolchain`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `dotnet_version` | `string` | no | `""` |
-| `name` | `name` | no | `"dotnet"` |
+| `global_json` | `label` | no | `None` |
 
 ### `@rules_dx//elixir:defs.bzl`
 
@@ -7590,5 +7599,5 @@ Run these with `bazel run <target>`.
 
 | Schema | Version |
 | --- | --- |
-| `events.schema.json` | `4.1` |
+| `events.schema.json` | `4.2` |
 | `dx.schema.json` | `1.2` |

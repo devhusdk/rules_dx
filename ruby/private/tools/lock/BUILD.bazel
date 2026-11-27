@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -18,6 +18,14 @@ rust_library(
         "//cli/lock:dx_lock",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "ruby_lock",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":ruby_lock_lib"],
 )
 
 dx_subcommand(

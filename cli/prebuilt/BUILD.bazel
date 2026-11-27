@@ -11,7 +11,7 @@ load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
 load(":guard_view_tests.bzl", "guard_view_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
-load(":tools.bzl", "python_hub_lines", "registry_lines", "target_tools")
+load(":tools.bzl", "DX_SUBCOMMANDS", "python_hub_lines", "registry_lines", "target_tools")
 
 exports_files(
     [
@@ -103,6 +103,16 @@ write_file(
     out = "go_hub_targets.txt",
     content = sorted(GO_TOOLS) + [""],
     visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+write_file(
+    name = "dx_hub_targets",
+    out = "dx_hub_targets.txt",
+    content = sorted(DX_SUBCOMMANDS) + [""],
+    visibility = [
+        "//cli/cli/tests/hub_subcommands:__pkg__",
+        "//tools/testing/consumer:__pkg__",
+    ],
 )
 
 # The tools of the python_tools bundle, one "<name> <launcher> [<missing platform key>...]" line each.

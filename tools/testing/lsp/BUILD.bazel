@@ -18,7 +18,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/testing/dx_lsp",
         normal = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + ["//cli/test_wait:dx_test_wait"],
 )
 
 rust_test(
@@ -34,7 +34,7 @@ rust_test(
         package_name = "tools/testing/dx_lsp",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + ["//cli/test_wait:dx_test_wait"],
 )
 
 real_source_target(

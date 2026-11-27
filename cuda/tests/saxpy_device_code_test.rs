@@ -1,4 +1,4 @@
-use dx_testing::fatbin::{self, Entry, Kind, sorted};
+use dx_testing_image::fatbin::{self, Entry, Kind, sorted};
 
 fn expected() -> Vec<Entry> {
     vec![

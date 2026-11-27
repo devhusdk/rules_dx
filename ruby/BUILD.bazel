@@ -4,6 +4,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 # Upstream: bazel-contrib/rules_ruby#435
 # Upstream: bazel-contrib/rules_ruby#440
+# Upstream: bazel-contrib/rules_ruby#446
 exports_files([
     "README.md",
     "defs.bzl",

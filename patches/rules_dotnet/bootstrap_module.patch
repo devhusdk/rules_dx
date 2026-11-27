@@ -1,0 +1,13 @@
+Upstream: none (rules_dx only: rules_dx fetches rules_dotnet itself and declares the bootstrap SDK)
+diff -ruN a/dotnet/extensions.bzl b/dotnet/extensions.bzl
+--- a/dotnet/extensions.bzl
++++ b/dotnet/extensions.bzl
+@@ -9,7 +9,7 @@
+ 
+ # Only rules_dotnet may pin the bootstrap SDK, so that the SDK the user picks
+ # cannot decide what rules_dotnet's own tools are built with.
+-_BOOTSTRAP_MODULE = "rules_dotnet"
++_BOOTSTRAP_MODULE = "rules_dx"
+ 
+ _DOTNET_VERSION_DOC = """Version of the .Net SDK, such as `11.0.100`.
+ 

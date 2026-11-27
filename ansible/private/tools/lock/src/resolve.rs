@@ -68,9 +68,14 @@ pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
             None => trimmed,
         };
         let Some(entry) = entries.last_mut() else {
-            return Err(Error::new(format!("{trimmed:?} is outside a collection entry")));
+            return Err(Error::new(format!(
+                "{trimmed:?} is outside a collection entry"
+            )));
         };
-        match field.split_once(':').map(|(key, value)| (key.trim(), scalar(value))) {
+        match field
+            .split_once(':')
+            .map(|(key, value)| (key.trim(), scalar(value)))
+        {
             Some(("name", value)) if entry.0.is_none() => entry.0 = Some(value.to_owned()),
             Some(("version", value)) if entry.1.is_none() => entry.1 = Some(value.to_owned()),
             _ => {
@@ -91,7 +96,9 @@ pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
             )));
         }
         if !valid_version(&version) {
-            return Err(Error::new(format!("{name} has no exact version: {version:?}")));
+            return Err(Error::new(format!(
+                "{name} has no exact version: {version:?}"
+            )));
         }
         if out.iter().any(|(seen, _)| *seen == name) {
             return Err(Error::new(format!("{name} is listed twice")));
@@ -122,8 +129,8 @@ impl Resolver for Ansible {
             .ok_or_else(|| Error::new("ansible has no registry entry"))?;
         let text = std::fs::read_to_string(scratch.set().join(&manifest))
             .map_err(|error| Error::new(format!("{manifest}: {error}")))?;
-        let entries =
-            parse_requirements(&text).map_err(|error| Error::new(format!("{manifest}: {error}")))?;
+        let entries = parse_requirements(&text)
+            .map_err(|error| Error::new(format!("{manifest}: {error}")))?;
         let packages = entries
             .into_iter()
             .map(|(name, version)| Package {

@@ -107,7 +107,7 @@ fn staged_machine(path: &Path) -> String {
     std::fs::File::open(path)
         .and_then(|file| file.take(4096).read_to_end(&mut head))
         .unwrap_or_else(|err| panic!("cannot read {}: {err}", path.display()));
-    dx_testing::image_machine(&head)
+    dx_testing_image::machine(&head)
         .unwrap_or_else(|| panic!("{} is not an ELF, PE or thin Mach-O image", path.display()))
 }
 

@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "dx_testing_exec_log"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_testing_exec_log"
+path = "src/lib.rs"
+
+[dependencies]
+ruzstd = "0.9"

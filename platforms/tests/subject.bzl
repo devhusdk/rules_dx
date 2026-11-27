@@ -1,7 +1,7 @@
 """Subjects that report the platform flags and platform_select values after a platform transition."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 load("//platforms:defs.bzl", "DxTargetInfo", "platform_transition")
 
 def _moved_subject_impl(ctx):

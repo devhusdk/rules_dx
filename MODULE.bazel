@@ -85,6 +85,7 @@ single_version_override(
         "//patches/llvm:msvc_fuzzer.patch",
         "//patches/llvm:msvc_coverage.patch",
         "//patches/llvm:mingw_coff_no_timestamp.patch",
+        "//patches/llvm:internal_symbolizer_linkmode.patch",
     ],
     version = "0.8.27",
 )
@@ -306,56 +307,56 @@ actionlint_go_deps.module(
     version = "v1.7.13-0.20260419144658-011a6d15e749",
 )
 actionlint_go_deps.module(
-    path = "github.com/bmatcuk/doublestar/v4",
     indirect = True,
+    path = "github.com/bmatcuk/doublestar/v4",
     sum = "h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=",
     version = "v4.10.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/clipperhouse/uax29/v2",
     indirect = True,
+    path = "github.com/clipperhouse/uax29/v2",
     sum = "h1:+gs4oBZ2gPfVrKPthwbMzWZDaAFPGYK72F0NJv2v7Vk=",
     version = "v2.7.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/fatih/color",
     indirect = True,
+    path = "github.com/fatih/color",
     sum = "h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=",
     version = "v1.19.0",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-colorable",
     indirect = True,
+    path = "github.com/mattn/go-colorable",
     sum = "h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=",
     version = "v0.1.14",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-isatty",
     indirect = True,
+    path = "github.com/mattn/go-isatty",
     sum = "h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=",
     version = "v0.0.20",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-runewidth",
     indirect = True,
+    path = "github.com/mattn/go-runewidth",
     sum = "h1:jJKAZiQH+2mIinzCJIaIG9Be1+0NR+5sz/lYEEjdM8w=",
     version = "v0.0.21",
 )
 actionlint_go_deps.module(
-    path = "github.com/mattn/go-shellwords",
     indirect = True,
+    path = "github.com/mattn/go-shellwords",
     sum = "h1:M2zGm7EW6UQJvDeQxo4T51eKPurbeFbe8WtebGE2xrk=",
     version = "v1.0.12",
 )
 actionlint_go_deps.module(
-    path = "github.com/robfig/cron/v3",
     indirect = True,
+    path = "github.com/robfig/cron/v3",
     sum = "h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=",
     version = "v3.0.1",
 )
 actionlint_go_deps.module(
-    path = "go.yaml.in/yaml/v4",
     indirect = True,
+    path = "go.yaml.in/yaml/v4",
     sum = "h1:3h1fjsh1CTAPjW7q/EMe+C8shx5d8ctzZTrLcs/j8Go=",
     version = "v4.0.0-rc.3",
 )
@@ -511,32 +512,31 @@ use_repo(terraform, "dx_terraform_providers")
 bazel_dep(name = "bazel_lib", version = "3.8.0")
 
 dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
-dotnet.toolchain(
-    name = "dx_dotnet",
-    dotnet_version = "10.0.403",
-)
-dotnet.toolchain(
-    name = "dotnet_apphost",
-    dotnet_version = "10.0.403",
-)
+dotnet.toolchain(dotnet_version = "10.0.403")
+dotnet.bootstrap_toolchain(dotnet_version = "11.0.100")
 use_repo(
     dotnet,
-    "dotnet_apphost_aarch64-apple-darwin",
-    "dotnet_apphost_arm64-pc-windows-msvc",
-    "dotnet_apphost_arm64-unknown-linux-gnu",
-    "dotnet_apphost_x86_64-apple-darwin",
-    "dotnet_apphost_x86_64-pc-windows-msvc",
-    "dotnet_apphost_x86_64-unknown-linux-gnu",
-    "dx_dotnet_aarch64-apple-darwin",
-    "dx_dotnet_arm64-pc-windows-msvc",
-    "dx_dotnet_arm64-unknown-linux-gnu",
-    "dx_dotnet_toolchains",
-    "dx_dotnet_x86_64-apple-darwin",
-    "dx_dotnet_x86_64-pc-windows-msvc",
-    "dx_dotnet_x86_64-unknown-linux-gnu",
+    "dotnet.apphost_packs",
+    "dotnet.crossgen2_packs",
+    "dotnet.ilcompiler_packs",
+    "dotnet.nativeaot_packs",
+    "dotnet.runtime_packs",
+    "dotnet.targeting_packs",
+    "dotnet.wasm_packs",
+    "dotnet_bootstrap_toolchains",
+    "dotnet_sdk.10.0.403_aarch64-apple-darwin",
+    "dotnet_sdk.10.0.403_arm64-pc-windows-msvc",
+    "dotnet_sdk.10.0.403_arm64-unknown-linux-gnu",
+    "dotnet_sdk.10.0.403_x86_64-apple-darwin",
+    "dotnet_sdk.10.0.403_x86_64-pc-windows-msvc",
+    "dotnet_sdk.10.0.403_x86_64-unknown-linux-gnu",
+    "dotnet_toolchains",
 )
 
-register_toolchains("@dx_dotnet_toolchains//:all")
+register_toolchains(
+    "@dotnet_toolchains//:all",
+    "@dotnet_bootstrap_toolchains//:all",
+)
 
 nuget = use_extension("//csharp:extensions.bzl", "nuget")
 nuget.lock(
@@ -553,13 +553,12 @@ use_repo(
 )
 
 paket = use_extension("//third_party/dotnet:extension.bzl", "paket")
-use_repo(
-    paket,
-    "dotnet.apphost_packs",
-    "dotnet.runtime_packs",
-    "dotnet.targeting_packs",
-    "paket.rules_dotnet_nuget_packages",
+paket.parse(
+    dependencies = "@rules_dotnet//:paket.dependencies",
+    groups = ["rules_dotnet_nuget_packages"],
+    lock = "@rules_dotnet//:paket.lock",
 )
+use_repo(paket, "paket.rules_dotnet_nuget_packages")
 
 # floor: equals tested
 bazel_dep(name = "rules_jvm_external", version = "7.2")
@@ -990,12 +989,7 @@ dx_pins.archive(
     name = "rules_dotnet",
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_dotnet:reproducible.patch",
-        "//patches/rules_dotnet:fsharp_signature.patch",
-        "//patches/rules_dotnet:launcher_args.patch",
-        "//patches/rules_dotnet:nuget_group_prefix.patch",
-        "//patches/rules_dotnet:sdk_versions.patch",
-        "//patches/rules_dotnet:canonical_labels.patch",
+        "//patches/rules_dotnet:bootstrap_module.patch",
         "//patches/rules_dotnet:toolchains_gate.patch",
         "//patches/rules_dotnet:target_runtime.patch",
         "//patches/rules_dotnet:fsharp_pdb_path.patch",
@@ -1113,7 +1107,6 @@ dx_pins.archive(
         "MODULE.bazel",
         "MODULE.bazel.lock",
         "REPO.bazel",
-        "WORKSPACE.bazel",
         "_typos.toml",
         "d/extensions.bzl",
         "d/private/toolchains_repo.bzl",
@@ -1126,8 +1119,6 @@ dx_pins.archive(
         "tools",
     ],
     patches = [
-        "//patches/rules_d:pic_link.patch",
-        "//patches/rules_d:disabled_features.patch",
         "//patches/rules_d:toolchain_type_alias.patch",
     ],
     pins = "//d:pins.json",
@@ -1205,8 +1196,7 @@ dx_pins.archive(
         "//patches/rules_haskell:hermetic_haskell.patch",
         "//patches/rules_haskell:cabal_rules.patch",
         "//patches/rules_haskell:cabal_mingw_transition.patch",
-        "//patches/rules_haskell:cc_wrapper_relpath_mount.patch",
-        "//patches/rules_haskell:ghc_wrapper_runfiles_env.patch",
+        "//patches/rules_haskell:cc_wrapper_windows_exe.patch",
         "//patches/rules_haskell:cc_toolchain_config_info.patch",
         "//patches/rules_haskell:cabal_llvm_ar.patch",
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
@@ -1317,7 +1307,6 @@ dx_pins.archive(
         "test",
     ],
     patches = [
-        "//patches/rules_fortran:module_map_key.patch",
         "//patches/rules_fortran:toolchain_type_alias.patch",
     ],
     pins = "//fortran:pins.json",
@@ -1329,12 +1318,8 @@ dx_pins.archive(
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
-        "//patches/rules_julia:entry.patch",
-        "//patches/rules_julia:portable_cpu_target.patch",
         "//patches/rules_julia:stable_precompile_paths.patch",
         "//patches/rules_julia:template_action_input.patch",
-        "//patches/rules_julia:exec_toolchain.patch",
-        "//patches/rules_julia:inline_runfiles_sh.patch",
         "//patches/rules_julia:test_tmpdir_runfiles.patch",
         "//patches/rules_julia:fixed_heap_addresses.patch",
         "//patches/rules_julia:stable_sysimage_paths.patch",
@@ -1443,7 +1428,6 @@ dx_pins.archive(
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
         "//patches/rules_ruby:toolchains_hub.patch",
-        "//patches/rules_ruby:windows_binary_rlocation.patch",
     ],
     pins = "//ruby:pins.json",
 )
@@ -2915,6 +2899,7 @@ crate.from_cargo(
         "//cli/env_plan:Cargo.toml",
         "//cli/fingerprint:Cargo.toml",
         "//cli/test_scratch:Cargo.toml",
+        "//cli/test_wait:Cargo.toml",
         "//cli/roots:Cargo.toml",
         "//cli/update:Cargo.toml",
         "//cli/binfmt:Cargo.toml",
@@ -3041,6 +3026,9 @@ crate.from_cargo(
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",
+        "//tools/testing/exec_log:Cargo.toml",
+        "//tools/testing/image:Cargo.toml",
+        "//tools/testing/msix:Cargo.toml",
         "//tools/testing/nested:Cargo.toml",
         "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
@@ -3317,6 +3305,13 @@ _test_tags_sources(
     dev_dependency = True,
 )
 
+_consumer_fixtures = use_repo_rule("//tools/ci:repos.bzl", "consumer_fixtures")
+
+_consumer_fixtures(
+    name = "dx_consumer_fixtures",
+    dev_dependency = True,
+)
+
 _api_fixtures = use_repo_rule("//tools/ci:repos.bzl", "api_fixtures")
 
 _api_fixtures(
@@ -3329,7 +3324,7 @@ _hub_builds = use_repo_rule("//tools/ci:repos.bzl", "hub_builds")
 _hub_builds(
     name = "dx_hub_builds",
     builds = {
-        "dotnet.txt": "@dx_dotnet_toolchains//:BUILD.bazel",
+        "dotnet.txt": "@dotnet_toolchains//:BUILD.bazel",
         "ruby.txt": "@dx_ruby_toolchains//:BUILD",
     },
     dev_dependency = True,

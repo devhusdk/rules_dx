@@ -41,13 +41,9 @@ rust_library(
     name = "dx_testing",
     testonly = True,
     srcs = [
-        "src/allowlist.rs",
         "src/cli.rs",
-        "src/exec_log.rs",
-        "src/fatbin.rs",
         "src/http.rs",
         "src/lib.rs",
-        "src/msix.rs",
     ],
     aliases = aliases(
         package_name = "tools/dx_testing",
@@ -60,12 +56,10 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
-        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
-        "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
@@ -80,12 +74,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    compile_data = [
-        "exec_log_fixtures/cache_first.log.zst",
-        "exec_log_fixtures/cache_second.log.zst",
-        "exec_log_fixtures/first.log.zst",
-        "exec_log_fixtures/second.log.zst",
-    ],
     crate = ":dx_testing",
     data = [
         ":process_probe_child",
@@ -100,10 +88,7 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/archive:dx_archive_testing",
-        "//cli/digest:dx_digest",
-    ],
+    ),
 )
 
 child_runfiles(
@@ -304,6 +289,7 @@ nested_bazel_test(
     deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
     ],
@@ -337,8 +323,8 @@ rust_binary(
     crate_name = "determinism_check",
     crate_root = "determinism_check.rs",
     deps = [
-        ":dx_testing",
         "//cli/process:dx_process",
+        "//tools/testing/exec_log:dx_testing_exec_log",
         "@crates//:serde_json",
     ],
 )
@@ -347,12 +333,7 @@ rust_binary(
 rust_test(
     name = "determinism_check_test",
     size = "small",
-    compile_data = [
-        "exec_log_fixtures/cache_first.log.zst",
-        "exec_log_fixtures/cache_second.log.zst",
-        "exec_log_fixtures/first.log.zst",
-        "exec_log_fixtures/second.log.zst",
-    ],
+    compile_data = ["//tools/testing/exec_log:fixtures"],
     crate = ":determinism_check",
 )
 
@@ -383,11 +364,7 @@ rust_binary(
     crate_name = "starlark_harness",
     crate_root = "starlark_harness.rs",
     visibility = VIS_TOOLS_PUBLIC + VIS_TOOLS_CLI_TEST,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ) + [
-        ":dx_testing",
+    deps = [
         "//cli/path:dx_path",
         "@crates//:serde_json",
     ],
@@ -406,10 +383,7 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/path:dx_path",
-        "//cli/test_scratch:dx_test_scratch",
-    ],
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_test(
@@ -429,7 +403,6 @@ rust_test(
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
-        normal_dev = True,
     ) + [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
@@ -463,6 +436,7 @@ rust_test(
     deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing/image:dx_testing_image",
     ],
 )
 

@@ -120,6 +120,7 @@ pub struct TestReportsRequest<'a> {
     pub results_complete: &'a mut bool,
     pub actions: Option<ActionCounts>,
     pub whole_repo: bool,
+    pub streamed: &'a super::Streamed,
 }
 
 #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]

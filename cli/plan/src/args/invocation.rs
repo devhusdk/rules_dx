@@ -6,9 +6,11 @@ use super::build_mode::{BuildMode, resolve_build_mode};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AffectedHandoff {
     pub tests: Vec<String>,
+    pub coverage_tests: Vec<String>,
     pub base: Option<String>,
     pub generate: Vec<String>,
     pub format: Vec<String>,
+    pub lint: Vec<String>,
     pub writable: Option<Vec<String>>,
 }
 
@@ -93,7 +95,9 @@ pub struct UmbrellaRequest {
     pub scope: HintScope,
     pub generate_targets: Vec<String>,
     pub format_targets: Vec<String>,
+    pub lint_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
+    pub coverage: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
@@ -167,6 +171,18 @@ impl UmbrellaRequest {
         self.mode == OperationMode::Apply
     }
 
+    #[must_use]
+    pub fn selects_nothing(&self, phase: Command) -> bool {
+        let targets = if phase == Command::Format {
+            &self.format_targets
+        } else if phase == Command::Lint {
+            &self.lint_targets
+        } else {
+            return false;
+        };
+        self.scope == HintScope::Affected && targets.is_empty()
+    }
+
     pub fn phase_quality_request(
         &self,
         phase: Command,
@@ -230,6 +246,8 @@ impl UmbrellaRequest {
             mode,
             targets: if phase == Command::Format {
                 self.format_targets.clone()
+            } else if phase == Command::Lint {
+                self.lint_targets.clone()
             } else {
                 self.targets.clone()
             },
@@ -300,6 +318,7 @@ pub struct Invocation {
     pub affected: bool,
     pub since: Option<String>,
     pub base: Option<String>,
+    pub lint_closure: bool,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
@@ -334,6 +353,7 @@ pub struct Invocation {
     pub files: bool,
     pub timings: bool,
     pub no_retry: bool,
+    pub coverage: bool,
     pub budget: Option<String>,
     pub jobs: Option<u16>,
     pub bench_regression: Option<u32>,
@@ -509,6 +529,30 @@ impl Invocation {
         self.affected_handoff.is_some()
     }
 
+    fn test_phase(
+        &self,
+        command: Command,
+        tests: &[String],
+        reports: Vec<ReportRequest>,
+        bazel_options: Vec<String>,
+    ) -> Option<Box<Invocation>> {
+        if tests.is_empty() {
+            return None;
+        }
+        let mut phase = self.clone();
+        phase.command = command;
+        phase.apply = false;
+        phase.reports = reports;
+        phase.include_edits = false;
+        phase.max_findings = None;
+        phase.unsafe_fixes = false;
+        phase.coverage = false;
+        phase.targets = tests.to_vec();
+        phase.bazel_options = bazel_options;
+        phase.affected_handoff = None;
+        Some(Box::new(phase))
+    }
+
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, dx_error::DxError> {
         if self.command != Command::Check {
             return Err(dx_error::DxError::usage(format!(
@@ -517,22 +561,26 @@ impl Invocation {
             )));
         }
         let affected = self.is_affected_plan();
-        let test = match (&self.affected_handoff, self.command) {
-            (Some(AffectedHandoff { tests, .. }), Command::Check)
-                if !tests.is_empty() && !self.applies() =>
-            {
-                let mut test = self.clone();
-                test.command = Command::Test;
-                test.apply = false;
-                test.reports = Vec::new();
-                test.include_edits = false;
-                test.max_findings = None;
-                test.unsafe_fixes = false;
-                test.targets.clone_from(tests);
-                test.affected_handoff = None;
-                Some(Box::new(test))
-            }
-            _ => None,
+        let (test, coverage) = match &self.affected_handoff {
+            Some(handoff) if !self.applies() => (
+                self.test_phase(
+                    Command::Test,
+                    &handoff.tests,
+                    Vec::new(),
+                    self.bazel_options.clone(),
+                ),
+                self.test_phase(
+                    Command::Coverage,
+                    &handoff.coverage_tests,
+                    self.reports
+                        .iter()
+                        .filter(|report| matches!(report.format.as_str(), "lcov" | "sources"))
+                        .cloned()
+                        .collect(),
+                    super::exclude_tags(&self.bazel_options, &super::COVERAGE_EXCLUDED_TAGS),
+                ),
+            ),
+            _ => (None, None),
         };
         Ok(UmbrellaRequest {
             command: self.command,
@@ -552,7 +600,12 @@ impl Invocation {
                 Some(handoff) => handoff.format.clone(),
                 None => self.targets.clone(),
             },
+            lint_targets: match &self.affected_handoff {
+                Some(handoff) => handoff.lint.clone(),
+                None => self.targets.clone(),
+            },
             test,
+            coverage,
             commits_base: self
                 .affected_handoff
                 .as_ref()
@@ -763,6 +816,7 @@ mod tests {
             affected: false,
             since: None,
             base: None,
+            lint_closure: false,
             affected_handoff: None,
             serve: false,
             port: None,
@@ -797,6 +851,7 @@ mod tests {
             files: false,
             timings: false,
             no_retry: false,
+            coverage: false,
             budget: None,
             jobs: None,
             bench_regression: None,
@@ -853,11 +908,58 @@ mod tests {
     }
 
     #[test]
+    fn coverage_handoff_splits_the_tests_into_two_phases() {
+        let mut check = invocation_for(Command::Check, &["//a:x"]);
+        check.bazel_options = vec!["--test_tag_filters=-audit".to_owned()];
+        check.reports = vec![
+            ReportRequest {
+                format: "sarif".to_owned(),
+                destination: "check.sarif".to_owned(),
+            },
+            ReportRequest {
+                format: "lcov".to_owned(),
+                destination: "lcov.dat".to_owned(),
+            },
+        ];
+        check.affected_handoff = Some(AffectedHandoff {
+            tests: vec!["//a:plain_test".to_owned()],
+            coverage_tests: vec!["//a:x_test".to_owned()],
+            ..AffectedHandoff::default()
+        });
+        let request = check.umbrella_request().expect("umbrella");
+        let test = request.test.expect("test phase");
+        assert_eq!(test.command, Command::Test);
+        assert_eq!(test.targets, ["//a:plain_test"]);
+        assert_eq!(test.reports, []);
+        let coverage = request.coverage.expect("coverage phase");
+        assert_eq!(coverage.command, Command::Coverage);
+        assert_eq!(coverage.targets, ["//a:x_test"]);
+        assert_eq!(coverage.reports, check.reports[1..]);
+        assert_eq!(
+            coverage.bazel_options,
+            [format!(
+                "--test_tag_filters=-audit,-{}",
+                crate::args::COVERAGE_EXCLUDED_TAGS.join(",-")
+            )]
+        );
+    }
+
+    #[test]
+    fn empty_test_lists_plan_no_test_phase() {
+        let mut check = invocation_for(Command::Check, &["//a:x"]);
+        check.affected_handoff = Some(AffectedHandoff::default());
+        let request = check.umbrella_request().expect("umbrella");
+        assert!(request.test.is_none());
+        assert!(request.coverage.is_none());
+    }
+
+    #[test]
     fn umbrella_phases_carry_the_user_scope() {
         let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y", "//b:user"]);
         affected.affected_handoff = Some(AffectedHandoff {
             generate: vec!["//a/...".to_owned()],
             format: vec!["//a:x".to_owned()],
+            lint: vec!["//a:x".to_owned(), "//a:y".to_owned()],
             ..AffectedHandoff::default()
         });
         let request = affected.umbrella_request().expect("umbrella");
@@ -883,6 +985,20 @@ mod tests {
         assert_eq!(
             request
                 .phase_quality_request(Command::Lint, Vec::new())
+                .expect("phase")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .verify_quality_request(Command::Lint)
+                .expect("verify")
+                .targets,
+            vec!["//a:x".to_owned(), "//a:y".to_owned()]
+        );
+        assert_eq!(
+            request
+                .phase_quality_request(Command::Typecheck, Vec::new())
                 .expect("phase")
                 .targets,
             vec![
@@ -917,6 +1033,20 @@ mod tests {
 
         let direct = invocation_for(Command::Lint, &["//a/..."]);
         assert_eq!(direct.quality_request().expect("quality").origin, None);
+    }
+
+    #[test]
+    fn affected_phases_with_no_targets_select_nothing() {
+        let mut affected = invocation_for(Command::Check, &["//svc:bin"]);
+        affected.affected_handoff = Some(AffectedHandoff::default());
+        let request = affected.umbrella_request().expect("umbrella");
+        assert!(request.selects_nothing(Command::Format));
+        assert!(request.selects_nothing(Command::Lint));
+        assert!(!request.selects_nothing(Command::Typecheck));
+        assert!(!request.selects_nothing(Command::Generate));
+        let plain = invocation_for(Command::Check, &[]);
+        let request = plain.umbrella_request().expect("umbrella");
+        assert!(!request.selects_nothing(Command::Lint));
     }
 
     #[test]

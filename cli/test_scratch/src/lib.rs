@@ -11,8 +11,6 @@ use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 pub use tempfile::TempDir;
 
-pub mod wait;
-
 const PREFIX_KEEP: usize = 24;
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -465,97 +463,5 @@ mod tests {
         assert!(made.path().is_absolute());
         let relative = scratch_in(Path::new("."), "dx-rel-").unwrap();
         assert!(relative.path().is_absolute(), "{:?}", relative.path());
-    }
-
-    const HOLD: &str = "DX_TEST_SCRATCH_HOLD";
-
-    #[test]
-    fn holds_until_stdin_closes() {
-        if std::env::var_os(HOLD).is_some() {
-            drop(std::io::Read::read_to_end(
-                &mut std::io::stdin(),
-                &mut Vec::new(),
-            ));
-        }
-    }
-
-    fn holder() -> std::process::Child {
-        Command::new(std::env::current_exe().expect("exe"))
-            .args(["--exact", "tests::holds_until_stdin_closes"])
-            .env(HOLD, "1")
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::null())
-            .spawn()
-            .expect("spawn")
-    }
-
-    const LONG: std::time::Duration = std::time::Duration::from_secs(60);
-
-    #[test]
-    fn within_returns_the_work_or_names_what_never_finished() {
-        assert_eq!(wait::within("one", LONG, || 1), Ok(1));
-        let (_keep, never) = std::sync::mpsc::channel::<()>();
-        let error = wait::within("the never", std::time::Duration::ZERO, move || never.recv())
-            .expect_err("never finishes");
-        assert!(error.contains("the never did not happen"), "{error}");
-    }
-
-    #[test]
-    fn path_appears_sees_a_file_created_below_a_missing_directory() {
-        let dir = scratch("dx-wait-path-").unwrap();
-        let path = dir.path().join("later/deeper/file");
-        let error = wait::path_appears(&path, std::time::Duration::ZERO).expect_err("absent");
-        assert!(error.contains("appearing did not happen"), "{error}");
-        let root = dir.path().to_path_buf();
-        let writer = std::thread::spawn(move || write(&root, "later/deeper/file", "x"));
-        wait::path_appears(&path, LONG).unwrap();
-        writer.join().expect("writer").unwrap();
-    }
-
-    #[test]
-    fn watch_until_rechecks_a_condition_no_file_event_announces() {
-        let dir = scratch("dx-wait-recheck-").unwrap();
-        let mut checks = 0;
-        wait::watch_until(&dir.path().join("quiet"), "the third check", LONG, || {
-            checks += 1;
-            checks >= 3
-        })
-        .unwrap();
-        assert_eq!(checks, 3);
-    }
-
-    #[test]
-    fn lock_free_waits_for_the_holder_to_let_go() {
-        let dir = scratch("dx-wait-lock-").unwrap();
-        let path = dir.path().join("alive.lock");
-        let held = std::fs::File::create(&path).unwrap();
-        held.lock().unwrap();
-        let error = wait::lock_free(&path, std::time::Duration::ZERO).expect_err("held");
-        assert!(error.contains("coming free did not happen"), "{error}");
-        drop(held);
-        wait::lock_free(&path, LONG).unwrap();
-    }
-
-    #[test]
-    fn pid_gone_and_exit_within_follow_a_child_to_its_end() {
-        let mut child = holder();
-        let pid = child.id();
-        assert!(wait::pid_gone(pid, std::time::Duration::ZERO).is_err());
-        drop(child.stdin.take());
-        wait::pid_gone(pid, LONG).unwrap();
-        assert!(matches!(
-            wait::exit_within(child, LONG).unwrap(),
-            wait::Exit::Exited(status) if status.success()
-        ));
-    }
-
-    #[test]
-    fn exit_within_kills_a_child_that_outlives_the_limit() {
-        let mut child = holder();
-        let _stdin = child.stdin.take();
-        assert!(matches!(
-            wait::exit_within(child, std::time::Duration::ZERO).unwrap(),
-            wait::Exit::Killed(status) if !status.success()
-        ));
     }
 }

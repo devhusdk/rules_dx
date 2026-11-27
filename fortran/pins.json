@@ -36,11 +36,11 @@
       ]
     },
     "rules_fortran": {
-      "version": "f0cac73ebdcbda7bc01b38b8a4ee33869416c220",
-      "sha256": "ca07c12300ade0a7e5fff92eb95cc27e4618af993841b92a9784d239c34c7557",
-      "strip_prefix": "rules_fortran-f0cac73ebdcbda7bc01b38b8a4ee33869416c220",
+      "version": "7c42e69265f27de5b7dbc7acfc9c1ea2a35240dc",
+      "sha256": "63e5468dce5e681be1fccbd77b297b71fd4623ff82ebea995ad6d973c3af44df",
+      "strip_prefix": "rules_fortran-7c42e69265f27de5b7dbc7acfc9c1ea2a35240dc",
       "urls": [
-        "https://github.com/miinso/rules_fortran/archive/f0cac73ebdcbda7bc01b38b8a4ee33869416c220.tar.gz"
+        "https://github.com/miinso/rules_fortran/archive/7c42e69265f27de5b7dbc7acfc9c1ea2a35240dc.tar.gz"
       ]
     }
   }

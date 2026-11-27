@@ -50,6 +50,7 @@ rust_binary(
 
 dx_subcommand(
     name = "apple_post_action",
+    dx = "@dx_prebuilt//:dx",
     path_args = {
         "--llvm-cov": "@llvm//tools:llvm-cov",
         "--llvm-profdata": "@llvm//tools:llvm-profdata",

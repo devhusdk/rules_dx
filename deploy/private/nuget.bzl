@@ -43,7 +43,7 @@ def _nuget_config_impl(ctx):
             ))
     return deploy_config(ctx, "nuget", values, runfiles)
 
-_DOTNET_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_DOTNET_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 _nuget_config = rule(
     implementation = _nuget_config_impl,

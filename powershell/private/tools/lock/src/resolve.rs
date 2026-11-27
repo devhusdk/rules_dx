@@ -22,14 +22,18 @@ pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
             Some((name.trim().trim_matches(['\'', '"']), version))
         });
         let Some((name, version)) = entry else {
-            return Err(Error::new(format!("{line:?} is not a Name = 'version' entry")));
+            return Err(Error::new(format!(
+                "{line:?} is not a Name = 'version' entry"
+            )));
         };
         let valid = !name.is_empty()
             && name
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'));
         if !valid || version.is_empty() {
-            return Err(Error::new(format!("{line:?} is not a Name = 'version' entry")));
+            return Err(Error::new(format!(
+                "{line:?} is not a Name = 'version' entry"
+            )));
         }
         if entries.iter().any(|(seen, _)| seen == name) {
             return Err(Error::new(format!("{name} is listed twice")));
@@ -60,8 +64,8 @@ impl Resolver for Powershell {
             .ok_or_else(|| Error::new("powershell has no registry entry"))?;
         let text = std::fs::read_to_string(scratch.set().join(&manifest))
             .map_err(|error| Error::new(format!("{manifest}: {error}")))?;
-        let entries =
-            parse_requirements(&text).map_err(|error| Error::new(format!("{manifest}: {error}")))?;
+        let entries = parse_requirements(&text)
+            .map_err(|error| Error::new(format!("{manifest}: {error}")))?;
         let packages = entries
             .into_iter()
             .map(|(name, version)| Package {

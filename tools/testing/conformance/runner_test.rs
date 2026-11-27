@@ -1,16 +1,11 @@
+mod runfiles_manifest;
+
 #[test]
 fn subject_matches_mode() {
     let mode = std::env::var("DX_CONFORMANCE_MODE").expect("DX_CONFORMANCE_MODE must be set");
     let key = std::env::var("DX_CONFORMANCE_SUBJECT").expect("DX_CONFORMANCE_SUBJECT must be set");
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
     let pattern = std::env::var("DX_CONFORMANCE_PATTERN").unwrap_or_else(|_| "{case}".to_owned());
-    if mode == "cross" {
-        match std::env::var("DX_CONFORMANCE_CROSS_RUNFILE") {
-            Ok(name) => assert_runfile_image(&name, &text),
-            Err(_) => assert_image(&key, &text),
-        }
-        return;
-    }
     if mode == "lock" && key.is_empty() {
         assert_lock_check();
         return;
@@ -227,7 +222,7 @@ fn subject_matches_mode() {
                 text,
                 "unexpected output with a runfiles directory"
             );
-            let manifest = manifest_file(&runfiles, std::path::Path::new(&tmp));
+            let manifest = runfiles_manifest::manifest_file(&runfiles, std::path::Path::new(&tmp));
             let manifest = manifest.to_string_lossy().into_owned();
             let mut command = dx_testing::command_for(&subject, &envs).expect("command");
             command
@@ -262,126 +257,6 @@ fn subject_matches_mode() {
     }
 }
 
-fn expected_image(platform: &str) -> (&'static str, &'static str) {
-    let (os, cpu) = platform
-        .split_once('_')
-        .unwrap_or_else(|| panic!("unknown platform {platform}"));
-    let format = match os {
-        "linux" => "elf",
-        "macos" => "macho",
-        "windows" => "pe",
-        "wasi" | "none" => "wasm",
-        _ => panic!("unknown platform {platform}"),
-    };
-    let machine = match cpu {
-        "arm64" => "aarch64",
-        "x86_64" => "x86_64",
-        "wasm32" => "wasm32",
-        _ => panic!("unknown platform {platform}"),
-    };
-    (format, machine)
-}
-
-fn assert_image(key: &str, platform: &str) {
-    let (format, machine) = expected_image(platform);
-    let mut seen = Vec::new();
-    for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
-        let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
-        if entry.to_ascii_lowercase().ends_with(".msix") {
-            assert_msix_image(entry, &path, platform);
-            return;
-        }
-        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-        match dx_testing::image_inspect(&bytes) {
-            Ok(images) => {
-                assert!(!images.is_empty(), "{entry}: no image");
-                for image in images {
-                    assert_eq!(
-                        (image.format.name(), image.machine.as_str()),
-                        (format, machine),
-                        "{entry}: format and machine for {platform}"
-                    );
-                }
-                return;
-            }
-            Err(error) => seen.push(format!("{entry}: {error}")),
-        }
-    }
-    panic!("no binary image among the subject files: {seen:?}");
-}
-
-fn msix_arch(platform: &str) -> &'static str {
-    match expected_image(platform) {
-        ("pe", "aarch64") => "arm64",
-        ("pe", "x86_64") => "x64",
-        _ => panic!("no msix ProcessorArchitecture for {platform}"),
-    }
-}
-
-fn assert_msix_image(entry: &str, path: &std::path::Path, platform: &str) {
-    let arch = msix_arch(platform);
-    let (format, machine) = expected_image(platform);
-    let package = dx_testing::msix::read(path).unwrap_or_else(|error| panic!("{entry}: {error}"));
-    assert_eq!(
-        package.arch, arch,
-        "{entry}: manifest ProcessorArchitecture for {platform}"
-    );
-    let exe = &package.executable;
-    let images = dx_testing::image_inspect(&package.exe)
-        .unwrap_or_else(|error| panic!("{entry}: packed {exe}: {error}"));
-    assert!(!images.is_empty(), "{entry}: packed {exe}: no image");
-    for image in images {
-        assert_eq!(
-            (image.format.name(), image.machine.as_str()),
-            (format, machine),
-            "{entry}: packed {exe}: format and machine for {platform}"
-        );
-    }
-}
-
-fn assert_runfile_image(name: &str, platform: &str) {
-    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
-    let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
-    let runfiles = std::env::var("RUNFILES_DIR").unwrap_or(srcdir);
-    let manifest = manifest_file(&runfiles, std::path::Path::new(&tmp));
-    let text = std::fs::read_to_string(&manifest).expect("runfiles manifest must be readable");
-    let keys = runfile_keys(&text, name);
-    assert!(!keys.is_empty(), "no runfile named {name} in {manifest:?}");
-    let (format, machine) = expected_image(platform);
-    let mut seen = Vec::new();
-    let mut matched = 0;
-    for key in keys {
-        let path = dx_testing::rlocation(key).expect("runfile must resolve");
-        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
-        match dx_testing::image_inspect(&bytes) {
-            Ok(images) => {
-                assert!(!images.is_empty(), "{key}: no image");
-                for image in images {
-                    assert_eq!(
-                        (image.format.name(), image.machine.as_str()),
-                        (format, machine),
-                        "{key}: format and machine for {platform}"
-                    );
-                }
-                matched += 1;
-            }
-            Err(error) => seen.push(format!("{key}: {error}")),
-        }
-    }
-    assert!(
-        matched > 0,
-        "no binary image among the {name} runfiles: {seen:?}"
-    );
-}
-
-fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
-    manifest
-        .lines()
-        .map(|line| line.split_once(' ').map_or(line, |(key, _)| key))
-        .filter(|key| launcher_stem(key.rsplit('/').next().unwrap_or(key)) == name)
-        .collect()
-}
-
 fn manifest_only_verdict(tree_only: Option<&str>, passed: bool) -> Result<(), String> {
     match (tree_only, passed) {
         (None, false) => Err("manifest-only run failed or printed unexpected output".to_owned()),
@@ -403,39 +278,6 @@ fn manifest_only_verdict_honours_tree_only() {
     );
 }
 
-#[test]
-fn runfile_keys_match_file_stem() {
-    let manifest = "_main/a/node_bin /x\nnodejs_linux_arm64/bin/nodejs/bin/node /y\nnodejs_windows_arm64/bin/nodejs/node.exe /z\n_main/node/greet.js /w\n";
-    assert_eq!(
-        runfile_keys(manifest, "node"),
-        [
-            "nodejs_linux_arm64/bin/nodejs/bin/node",
-            "nodejs_windows_arm64/bin/nodejs/node.exe"
-        ]
-    );
-}
-
-#[test]
-fn expected_image_names_format_and_machine() {
-    assert_eq!(expected_image("linux_arm64"), ("elf", "aarch64"));
-    assert_eq!(expected_image("macos_arm64"), ("macho", "aarch64"));
-    assert_eq!(expected_image("windows_x86_64"), ("pe", "x86_64"));
-    assert_eq!(expected_image("wasi_wasm32"), ("wasm", "wasm32"));
-    assert_eq!(expected_image("none_wasm32"), ("wasm", "wasm32"));
-}
-
-#[test]
-fn msix_arch_names_manifest_values() {
-    assert_eq!(msix_arch("windows_arm64"), "arm64");
-    assert_eq!(msix_arch("windows_x86_64"), "x64");
-}
-
-#[test]
-#[should_panic(expected = "no msix ProcessorArchitecture for linux_arm64")]
-fn msix_arch_rejects_non_windows() {
-    msix_arch("linux_arm64");
-}
-
 fn failure_line(pattern: &str, case: &str) -> String {
     pattern.replace("{case}", case)
 }
@@ -450,29 +292,6 @@ fn failure_line_substitutes_case() {
         failure_line("test {case} ... FAILED", "failing_case"),
         "test failing_case ... FAILED"
     );
-}
-
-fn launcher_stem(name: &str) -> &str {
-    match name.len().checked_sub(4) {
-        Some(cut)
-            if name.is_char_boundary(cut)
-                && name
-                    .get(cut..)
-                    .expect("string slice within bounds")
-                    .eq_ignore_ascii_case(".exe") =>
-        {
-            name.get(..cut).expect("string slice within bounds")
-        }
-        _ => name,
-    }
-}
-
-#[test]
-fn launcher_stem_strips_exe() {
-    assert_eq!(launcher_stem("hello.exe"), "hello");
-    assert_eq!(launcher_stem("hello.EXE"), "hello");
-    assert_eq!(launcher_stem("hello"), "hello");
-    assert_eq!(launcher_stem("a.b/hello"), "a.b/hello");
 }
 
 fn collector_path(value: &str) -> String {
@@ -553,65 +372,6 @@ fn hits(report: &str, source: &str) -> u64 {
         }
     }
     total
-}
-
-fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
-    if let Ok(manifest) = std::env::var("RUNFILES_MANIFEST_FILE") {
-        return manifest.into();
-    }
-    let root = std::path::Path::new(runfiles);
-    let mut lines = Vec::new();
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(dir) = pending.pop() {
-        for entry in std::fs::read_dir(&dir)
-            .expect("runfiles must be readable")
-            .flatten()
-        {
-            let path = entry.path();
-            if path.is_dir() {
-                pending.push(path);
-            } else if let (Ok(real), Ok(rel)) = (path.canonicalize(), path.strip_prefix(root)) {
-                if rel == std::path::Path::new("MANIFEST") {
-                    continue;
-                }
-                let key: Vec<_> = rel
-                    .components()
-                    .map(|part| part.as_os_str().to_string_lossy())
-                    .collect();
-                lines.push(format!("{} {}", key.join("/"), manifest_target(&real)));
-            }
-        }
-    }
-    lines.sort();
-    let manifest = tmp.join("runfiles.manifest");
-    let mut text = lines.join("\n");
-    text.push('\n');
-    std::fs::write(&manifest, text).expect("manifest must be writable");
-    manifest
-}
-
-fn manifest_target(path: &std::path::Path) -> String {
-    let text = dx_testing::without_verbatim(path)
-        .to_string_lossy()
-        .into_owned();
-    if cfg!(windows) {
-        text.replace('\\', "/")
-    } else {
-        text
-    }
-}
-
-#[test]
-fn manifest_target_drops_verbatim_prefix() {
-    let target = |text: &str| manifest_target(std::path::Path::new(text));
-    assert_eq!(target("/a/b"), "/a/b");
-    if cfg!(windows) {
-        assert_eq!(target(r"\\?\D:\_bazel\x"), "D:/_bazel/x");
-        assert_eq!(target(r"\\?\UNC\host\share\x"), "//host/share/x");
-    } else {
-        assert_eq!(target(r"\\?\D:/x"), "D:/x");
-        assert_eq!(target(r"\\?\UNC\host\share/x"), r"\\host\share/x");
-    }
 }
 
 fn assert_lock_check() {
@@ -737,7 +497,7 @@ fn stage(
     let dir = tmp.join("subject");
     std::fs::create_dir_all(&dir).expect("stage dir must be creatable");
     let staged = dir.join(subject.file_name().expect("subject must have a name"));
-    let key = launcher_stem(key);
+    let key = runfiles_manifest::launcher_stem(key);
     let descriptor = dx_testing::rlocation(&format!("{key}.launch"))
         .or_else(|_| dx_testing::rlocation(&format!("{key}_upstream.launch")));
     let name = staged
@@ -745,7 +505,7 @@ fn stage(
         .and_then(|name| name.to_str())
         .expect("staged subject must have a name")
         .to_owned();
-    let stem = launcher_stem(&name).to_owned();
+    let stem = runfiles_manifest::launcher_stem(&name).to_owned();
     if let Ok(descriptor) = descriptor {
         std::fs::copy(&descriptor, dir.join(format!("{stem}.launch")))
             .expect("descriptor must copy");

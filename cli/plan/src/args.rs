@@ -6,6 +6,7 @@ pub mod help;
 pub mod invocation;
 pub mod pages;
 pub mod parser;
+pub mod test_tags;
 pub mod tokenizer;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -57,8 +58,16 @@ pub enum ArgsError {
     SinceNeedsAffected,
     #[error("option \"--base\" requires \"--affected\"")]
     BaseNeedsAffected,
+    #[error("option \"--lint-scope\" requires \"--affected\"")]
+    LintScopeNeedsAffected,
     #[error("option \"--affected\" cannot be combined with \"--here\"")]
     AffectedWithHere,
+    #[error("option \"--coverage\" requires \"--affected\"")]
+    CoverageNeedsAffected,
+    #[error("option \"--coverage\" cannot be combined with \"--apply\"")]
+    CoverageWithApply,
+    #[error("option \"--report={format}\" requires \"--coverage\"")]
+    ReportNeedsCoverage { format: String },
     #[error(
         "empty scope: pass no scope for repository-wide //... or a //, @, file, or directory scope"
     )]
@@ -124,6 +133,7 @@ pub use parser::{
     BREAKING_AGAINST_OPTION, ci_ignores_env, early_output_flag, is_discovery_exempt,
     json_output_intent, parse, parse_with, parse_with_ci,
 };
+pub use test_tags::{COVERAGE_EXCLUDED_TAGS, TagFilter, exclude_tags, takes_coverage};
 
 #[cfg(test)]
 #[expect(

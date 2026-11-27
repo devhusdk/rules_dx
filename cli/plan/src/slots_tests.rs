@@ -54,7 +54,7 @@ fn slot_holder_helper() {
 fn another_pass<T>(dir: &Path, waiter: &std::thread::JoinHandle<T>) {
     let mut seen = SystemTime::now();
     let mut passes = 0;
-    let passed = dx_test_scratch::wait::watch_until(
+    let passed = dx_test_wait::watch_until(
         &queue_dir(dir).join("ticket"),
         "another waiter pass",
         ANNOUNCE_TIMEOUT,
@@ -82,7 +82,7 @@ fn spawn_holder(dir: &Path) -> Child {
         .stdout(Stdio::null())
         .spawn()
         .expect("spawn");
-    let held = dx_test_scratch::wait::path_appears(&dir.join("held"), Duration::from_secs(30));
+    let held = dx_test_wait::path_appears(&dir.join("held"), Duration::from_secs(30));
     assert!(held.is_ok(), "holder never took the slot: {held:?}");
     child
 }

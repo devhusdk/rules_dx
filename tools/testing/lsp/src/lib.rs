@@ -496,7 +496,7 @@ impl Session {
             self.wait_response(id, "shutdown", Instant::now() + Duration::from_secs(15))?;
         ok_result(&response)?;
         self.notify("exit", serde_json::Value::Null)?;
-        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(15)) {
+        match dx_test_wait::child_exits(&mut self.child, Duration::from_secs(15)) {
             Ok(_) => Ok(()),
             Err(error) => {
                 drop(self.child.kill());
@@ -766,7 +766,7 @@ mod tests {
             .expect("frame is utf8")
         };
         let script = format!(
-            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; exec cat >/dev/null",
+            "printf '%s' '{}'; printf '%s' '{}'; echo boom >&2; read -r _",
             publish(serde_json::json!([])),
             publish(serde_json::json!([{"message": "bad"}])),
         );

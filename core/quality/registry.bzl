@@ -2,7 +2,7 @@
 
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "adapter_registry_schema_error")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
-load(":parity_tests.bzl", "parity_schema_error")
+load(":parity.bzl", "parity_schema_error")
 load(":sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "sources_schema_error")
 load(":support.bzl", "support_schema_error")
 load(":taxonomy.bzl", "taxonomy_schema_error")

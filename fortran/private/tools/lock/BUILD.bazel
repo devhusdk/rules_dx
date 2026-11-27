@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -24,6 +24,19 @@ rust_library(
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
     ],
+)
+
+rust_binary(
+    name = "fortran_lock",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "fortran/private/tools/fpm_lock",
+        normal = True,
+    ),
+    crate_name = "fpm_lock",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":fpm_lock_lib"],
 )
 
 dx_subcommand(

@@ -157,7 +157,7 @@ _macos_cell = rule(
         ),
         "_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:apple_ops"),
             cfg = "exec",
             executable = True,
             doc = "dx, whose apple_ops subcommand runs the check.",
@@ -323,7 +323,7 @@ _macos_app_check = rule(
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
         "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", mandatory = True),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:apple_ops"),
             cfg = "exec",
             executable = True,
             doc = "dx, whose apple_ops subcommand runs the check.",

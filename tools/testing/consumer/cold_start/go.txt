@@ -1,5 +1,5 @@
 # The repositories a fresh Go-only consumer fetches on its first `bazel build //...` and
-# `bazel test //...`, one canonical name per line. //tools/testing/consumer:cold_start_test
+# `bazel test //...`, one canonical name per line. //tools/testing/consumer:network_test
 # fails when this list grows or shrinks; when it fails it prints the measured list to paste here.
 _main
 apple_support+
@@ -63,7 +63,8 @@ rules_dx+
 rules_dx++android_ndk_toolchain_repo+android_ndk_toolchain
 rules_dx++cc+dx_cc_toolchains
 rules_dx++d+dx_d_toolchains
-rules_dx++dotnet+dx_dotnet_toolchains
+rules_dx++dotnet+dotnet_bootstrap_toolchains
+rules_dx++dotnet+dotnet_toolchains
 rules_dx++dx_licenses+dx_licenses
 rules_dx++dx_pins+dx_coreutils
 rules_dx++dx_pins+dx_fortran_toolchains

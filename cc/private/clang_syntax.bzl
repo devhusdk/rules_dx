@@ -430,6 +430,6 @@ clang_syntax_aspect = aspect(
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
         "_clang_tidy_resource_dir": attr.label(default = "@llvm//:builtin_resource_dir", providers = [DirectoryInfo], cfg = "exec"),
         "_cuda_tidy_headers": attr.label(default = "//cuda:clang_tidy_headers"),
-        "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
+        "_capture": attr.label(default = "@dx_prebuilt//dx:capture", executable = True, cfg = "exec"),
     },
 )

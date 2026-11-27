@@ -570,6 +570,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn octopus_live_publish_runs_push_then_release() {
+        if env_test_in_child("octopus::tests::octopus_live_publish_runs_push_then_release") {
+            return;
+        }
         let scratch = scratch_dir();
         let octo = fake_octo(scratch.path(), "none");
         let package = Path::new("/stage/p-1.0.0.tar.gz");

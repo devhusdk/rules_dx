@@ -607,113 +607,6 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "//dotnet:extensions.bzl%dotnet": {
-      "general": {
-        "bzlTransitiveDigest": "/7j2iZRdafBScYjeZEq4j4mCc4aNHKHuEcnTZctUGI4=",
-        "usagesDigest": "GoWWpS5sxyPXf+HMaQVutFbg//hDtlHMpcDpfcKjF+k=",
-        "recordedInputs": [
-          "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet"
-        ],
-        "generatedRepoSpecs": {
-          "dx_dotnet_x86_64-apple-darwin": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_aarch64-apple-darwin": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "aarch64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_toolchains": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
-            "attributes": {
-              "user_repository_name": "dx_dotnet"
-            }
-          },
-          "dotnet_apphost_x86_64-apple-darwin": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_aarch64-apple-darwin": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "aarch64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_toolchains": {
-            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
-            "attributes": {
-              "user_repository_name": "dotnet_apphost"
-            }
-          }
-        }
-      }
-    },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "3Dz1J6jY+ftpUHn2HUY0F2dzp0hgl4KCOgVSEkpsaC0=",
@@ -61128,6 +61021,412 @@
         },
         "url": "https://download.visualstudio.microsoft.com/download/pr/fdc37f6e-59f6-4054-838a-b476eeaa6ec3/1d82370739911457e0a2f6be15d8b5f569531b352b2eabb961429eea1e99e356/VisualStudio.vsman"
       }
+    },
+    "//dotnet:extensions.bzl%dotnet": {
+      "dotnet-sdk/v1:10.0.403": {
+        "archives": {
+          "aarch64-apple-darwin": {
+            "integrity": "sha512-WJPGa0jqNnTH2hhQEFnWBulvNnL6vk1eQXYuaSx8g98+4LK53FoHhhkdotxBPXM1FYEBwUyTWrIX8xrCUpdw8w==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-osx-arm64.tar.gz"
+          },
+          "arm64-pc-windows-msvc": {
+            "integrity": "sha512-947Ni0jiT9cu5gRoe3Xxu7gVBeg0P31S5Lr56jI3JVfrMOiPrKqtGVvyZG/M4Rf9lB5J2g1b3uHWDWPYNpaEKQ==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-arm64.zip"
+          },
+          "arm64-unknown-linux-gnu": {
+            "integrity": "sha512-CWaqK3D0Z3uDGb6d9Eenig3NYWSDZCW1Wmj9cU9AI/64e0ysIbmplreUcq1USHzQrc0qnf1XDisqHSZCOiuqmw==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-arm64.tar.gz"
+          },
+          "x86_64-apple-darwin": {
+            "integrity": "sha512-zpXSJbhtJAHxEcKqbfD15oVcN1t7NKtKc9+QxW8rD8KkQ5jP5FXLaJZwvIWQAS6UO2THpZASKvmM3AZ3IbEiIw==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-osx-x64.tar.gz"
+          },
+          "x86_64-pc-windows-msvc": {
+            "integrity": "sha512-ehFMMY+n8dmCKZG1NLKBTQ54OGztqBazcfUUGs7+dB2HzLYG7eBsrayPmsUHDjK3CKZ7vRYZ/15aeFiieHTvSA==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-x64.zip"
+          },
+          "x86_64-unknown-linux-gnu": {
+            "integrity": "sha512-t7PYRhz5iwfSVSzpGZcC+jrQEKwmcaX4zVE291NOUPaFW6e7sCsRSUVj8dBBVidqMc2hEDuQDl7s0NlHPce5xQ==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-x64.tar.gz"
+          }
+        },
+        "csharp_version": "14.0",
+        "fsharp_version": "10.0",
+        "release_date": "2026-10-25",
+        "runtime_version": "10.0.14"
+      },
+      "dotnet-sdk/v1:11.0.100": {
+        "archives": {
+          "aarch64-apple-darwin": {
+            "integrity": "sha512-bIl44KjySgS2mlOf4p7fDGjjJH5G4kr7SSDuR54s4SVrF/3wYm+INbnHQ3hMCLQOyyWr3Y3Un8mdBA2vHdtN4g==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-osx-arm64.tar.gz"
+          },
+          "arm64-pc-windows-msvc": {
+            "integrity": "sha512-gEb5QKcMV0KMCacyyeYYk5rxaVsGy6gPxTbi0tIwOc3J7tMUGTqqI6sgCWSAqp4ibZ9f0WbqQ1cYXzC6MeN/eg==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-win-arm64.zip"
+          },
+          "arm64-unknown-linux-gnu": {
+            "integrity": "sha512-z6JIuxN3YG6GhgL7W01m+ha3VGFWWTk30ZgvfyFC5t7XbXHEom79q5n4fEarQMPGcqsbV+9/olRJ7+WxQKVa9A==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-linux-arm64.tar.gz"
+          },
+          "x86_64-apple-darwin": {
+            "integrity": "sha512-jpyINcTR7Y4wRfGgDlgxsCj7CQFh0ay+tuiyaILLeD/xirBPR4E0v1G1OPK+y7+ZlzfBjxfFaO83+5SpGgPWpQ==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-osx-x64.tar.gz"
+          },
+          "x86_64-pc-windows-msvc": {
+            "integrity": "sha512-XN2RIshIc/CQA4VI6+ikeG5cUKaxuXksosbauC/XSg1/HWzfWefc0l5JA91E83r11+1z7NO8pNDM6Ui1VyRSww==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-win-x64.zip"
+          },
+          "x86_64-unknown-linux-gnu": {
+            "integrity": "sha512-G+ycyi7GibHoAkW4TytTyUQdGqbazPLOsnSQdov/qVlU+lhb0nXe8xBp2HTVQ9m6nmWR/preLb2fNOxcD9AFDA==",
+            "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/11.0.100/dotnet-sdk-11.0.100-linux-x64.tar.gz"
+          }
+        },
+        "csharp_version": "15.0",
+        "fsharp_version": "11.0",
+        "release_date": "2026-11-10",
+        "runtime_version": "11.0.0"
+      },
+      "pack-band/v1:10.0.403/net10.0": "10.0.14",
+      "pack-band/v1:10.0.403/net6.0": "6.0.36",
+      "pack-band/v1:10.0.403/net7.0": "7.0.20",
+      "pack-band/v1:10.0.403/net8.0": "8.0.33",
+      "pack-band/v1:10.0.403/net9.0": "9.0.22",
+      "pack-band/v1:11.0.100/net10.0": "10.0.15",
+      "pack-band/v1:11.0.100/net11.0": "11.0.0",
+      "pack-band/v1:11.0.100/net6.0": "6.0.36",
+      "pack-band/v1:11.0.100/net7.0": "7.0.20",
+      "pack-band/v1:11.0.100/net8.0": "8.0.34",
+      "pack-band/v1:11.0.100/net9.0": "9.0.23",
+      "sha512/v1:microsoft.aspnetcore.app.internal.assets/10.0.14": "sha512-PzuvrER0jsiaaQejCMxdu9e+ROpi9aTrGQMLr0JQpNizYm55QzXNvBo+9r3+O5JNn5CyP847pWS9ScU5eig6qQ==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/10.0.14": "sha512-eUqw1tTYl50akv8nNFnUZvyHXsjlx6xd3uMN4V1pNou9b1vFq2+XcWUGvOlU2/sgzuKHtrEFiEQzxyFEpTmEnQ==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/10.0.15": "sha512-scmS5owAPL7EYn5egcNtAU4AbuMFmOCkpf26W9m2GRgosPd6bL1KurB4jRADbfc0jOeBjuII6oxK3/EnOUBstA==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/11.0.0": "sha512-T9BWMgotaWwAXEEVKvh+5ShetSaGVkGPnb9KTSJn12kOy7fsta1S/l99min5DOeeTdXQnz0M1CwoVwHS1iWBCA==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/3.0.1": "sha512-WlsoQyUrygTLB389vvp/ORtgQlVq8l2fhFxA9kQ9L2QiMqNgVqycOUZkauc26Knf2uJ34XtrDj2q6zM8lNnRwQ==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/3.1.10": "sha512-yojrAwINItqiOp1XYc50AakRLEnJTOLSgCHdWMECI09NB+25i2eL/gaVcGfC/1986bsGGa/Afd85tcpFsuUnSQ==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/5.0.0": "sha512-WUXyfm24FMcGI+nADe0wJqBnQcGmtqrjhbJN+W2M9RZOc4TtUJDmmvpQabHwRWYQNoLjTJn/825gs5UKksOMog==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/6.0.36": "sha512-7hUCPQ2cFc920o+IO1kkTolILrJ1ozLiH1ppUQVFxSQ94z2A8t41KCxUOYxEHwoaDqKWJ0LKjDMSGuU113DVzA==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/7.0.20": "sha512-ySX6TZFi1eSJj3c3JIroCLzHbZkLmr+fgeQ78AUYsOUhjKKw7qliqRoMKx9Uqc/qMMkyRpSBcwfJ7X7vWYbPeQ==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/8.0.33": "sha512-l4Au1RN1mRlq9VZOyEVygQfuBgRwtlliXjQYapMlshSDSeJzfwmQbUG2JQpqJ+L02eTpwiwqGe9wygulIzRXHg==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/8.0.34": "sha512-U8ra1o/i+Sfb3QF30/f5MKfc7UVymmkhUd67UDxdx2cqZdMrX4mKS7ongx3mbRQmlX1YNnyUaW9IOtje/YTumw==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/9.0.22": "sha512-snWs0fwNH6lifDVwb+7eOygmNWfeKuCO0zkSQdX9+qRjO8ELSwJsf2VJx5O6EOfwEDjJEQQTswM2Xf7uoacQ/g==",
+      "sha512/v1:microsoft.aspnetcore.app.ref/9.0.23": "sha512-tTUJLRivsRqJGITvyAYp732ZU5byuuaFOx4dbfl8sOpIkCvUckkpjL+occOQmeTVOMo0PIjE18biHqDdewwETg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/10.0.14": "sha512-OtOLEwDfeIWJNsF3EPUOEx6YWrN/bSjPvB1mYzXrvjBY1w4ioShlM2f+7Wzmk+pTWICqyr7B5Yz5h2NawMCI7g==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/3.0.3": "sha512-NXATfeNJ2b3/SslsI/LbXIp1AaXM6yoKnEJQA2SW7LawfU+evBzoqgbcXap2AGRt1W+9VjavqaJCER+ilxnq9A==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/3.1.32": "sha512-Cgzc3B2gBawYYV1g1FVEVg0k9hotwGL3SPZ4ptGegs0Q6lOoIrLB7j+Vb99pTBmVs3NQs5IJeVzIaTvJ+g0Orw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/5.0.17": "sha512-qOm4eEGPVMVd+z+CGo2C5l2Qss7hoWREpLILBhbAzS0B3Lb1pMyX7prz9R0l6WUuyeKoKRff2hIWfI69vsURhg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/6.0.36": "sha512-lAAx+xfzVq7nByfQlRKcVTRElpBk6Q2RF7ulx600kH0mk1Dy0J5/0IxEkwi+K5pEgjjCrGs37Uhc82mVwF8iUQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/7.0.20": "sha512-7alEgdaS+JmhsfvgZWcOGEOWfL20TFShwkbpbRtiyXjXzMV6JHVER8s3n+tV+Bep85ME+FRwZh21YK+Nx33aZg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/8.0.33": "sha512-X0a/xbHzTrmjrkXkLWMB58jSVqpmzyzO5xslMWQ9WPxBMgKIR0Fhl2Ydd1mqBlgmtfPTUv47GFS3Y5Z5DCL+lg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-arm64/9.0.22": "sha512-BeW+hxuZIHCVQ2J/PB+r10G1eWOgVG288M4CHaIqybonhmrAfBOeZacLeh9YUoz9On4RVvBeTS3QrQlrwY099w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/10.0.14": "sha512-qdJXw8GqXjSeY1JzOnND7NqS6EIJ3ENeIgxUJ6Pfd0+zNGigZQjrZOWAS1CJQosZYDX0qDg0/hCFQGyE+QEX3g==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/3.0.3": "sha512-MAWauBKz6sv6j/PXjSR0ow50GwZh8QlAY2vRlyN/MpcYhr5xf2UBt+P7g03MjGHCFImy3xBmt7gMvoDsen/gRQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/3.1.32": "sha512-J0LbOrvRX/QJC+XSPM/v4v4b/wDJc8UKY9k8aR7mOYk6MfzkSuwc5Jz9yJzl9LCYuDb3hWYuYTZA+o8OqnZNZg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/5.0.17": "sha512-HGXmMdpWSkhLkskxer6nrd7HVqGgpiGcxTOFpJgsucBEuiy6LXHFPQ9micU4WiAuosV52Qc8sVBmnhGeCcwNTg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/6.0.36": "sha512-9jbPtXNsHUDyCWC11sWWyv6ao9aLRvdKpM57sxvhjWeOiLt93QwAagV8uDQ+1ymXkL9IfautWREGntn6KaW62w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/7.0.20": "sha512-/Ht9KgYt/xsW8cgzCbvFjsjGElx24r55BVGsrQSA6VLJMRvrZLwU6lLFuY1x0CfF5ALs0Uva/jCxTtt+zggaYA==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/8.0.33": "sha512-Ch8fwTklgR97H1mmbPYWiWV+is8hNJ6iMTK1pWn0CH2x7md8rh1qy6udkE+R7xcJ7BVPaYkuml6OJ0TV/n8Zmg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-arm64/9.0.22": "sha512-kuiOtQ+OO4+M60Yw6GXvmdUGIEkZE8lEpUC/rArFcY/mxmLk7M7fitCkbPc9PYlnXwJubrGq0cu5jOGwkrGjQw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/10.0.14": "sha512-00rrk0lrVjPzOoBdZmaRwhA44K8+Fi+2DIcXsZNa+H6LvCM9tuQi0pdcVTFnmyUuILt245xo+U036NXtwt0chQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/3.0.3": "sha512-jJYE+eZjILELbummWUpew6J2X0m/42fHn/rSTlgrKx4xy4NFm2jbmkpVmLq8B2jZpVum0gEpHj1aTFRfl+OgoQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/3.1.32": "sha512-CiDKX16Vbv4fy7I3HyPm7OKyhz6v61idhaDEr1kW0R+ZGCsV2vTNC864OzbovBL0Pmfb/qYQK7Ly4k5FsiVfHw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/5.0.17": "sha512-ZQsaMSvv1ygkbU1O5Ns4wlwu4BSGG/5fVSn82wozqCyEISmDNCQyh33iQgadLNefEQWhHUsdcFYb3OAYdfFSoQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/6.0.36": "sha512-dWFq/5WE7bNe+fYJrpzWihcBkNGM4cR4bRv23bYxmzdTV2pngiDXu1XBwUWpDgCNeL8eP0BgFOQ4Ra9NNXaLpw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/7.0.20": "sha512-wh25bBNZosflPj2pcbIMB/fttuSFCvWn4N8XmDYd6XA91RpRk4GkZx505PmC+kpfU2FgM0N4zWgqnjcrifp6Ng==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/8.0.33": "sha512-TOgXs5YzBo0QTHA6dR3i7qV5YZPxB0DJ7TkZD0bFreNeb7JFPOtW3TtPkn5V+XbNlg5wg7vcufGbQAEsLgubiA==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-musl-x64/9.0.22": "sha512-n/MKVYqHMTZ7REqQwZ/Rbww40D5AJt/tluLFxtpRwIKL/2lEgheMiQx+7GsA4prnrQx5j8WfuQadio7CNeVNRg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/10.0.14": "sha512-Cp+0XHjY+V7Ac2boAkKymKHAAvmpitw231tj4LufSuSlKTeMTRBQvjkKXR1ahkY/x+eCJQu3TDIGNmOgElkU0A==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/3.0.3": "sha512-RD9dLMTl9G8p6eUkLLgFcU+deW+CFO6uJ0+5R1gS7piUQEPTuSDjVtO/NCGaWPC5rdgyGp82D79cmD5lW2yT8A==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/3.1.32": "sha512-pc/0skPzojvKnMMgUueo8aHwmdfF7oLrcmbtScSDi3eT6MejvwzzBVp63lgcsGM+OVLyojf79iBAicd/b7ykCw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/5.0.17": "sha512-mDNoNuUVQf6fYNqgupRzjgbLPuqaj1dbTc01tY3g34TW6ARLtpnTPS8ur4ayMoNnlsQLpoy+Zi7ob0K1dNIZ0w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/6.0.36": "sha512-c/rCzvHPIQ7Es9YECSisSXAS67S+T5BWp8AgwSGxwpEgr7z3mShbhKNsMtWE+F6kxncIwzyCFAvdKKV5zuGoOw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/7.0.20": "sha512-DC+IasSvYfnFkrcT3gnq08t0iVKmIPmxEFrvITw3qdwH9Y5kz9ZEI4xgcQBIbrzUcE+z/5rwWVhATcxNHgaAWw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/8.0.33": "sha512-KnoyKzoQwuCBY9WNnj/Wsxn+7UlpLabt9/j7REZs0LnxZG5HsX8vqY1jZuEH4byZZhTA1cBLy01IgnFlTRDgrQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.linux-x64/9.0.22": "sha512-smR1cG2Bx1FXZ7Vs2zTi/9er5R8gfFK1jGNFcMQ1tVduPZ4KDpGv1ppcflyw65XkKE27EsBjsfXjmzK+FJMB+g==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-arm64/10.0.14": "sha512-SrQC9AOp1y3wumvs0zlnP/v3mBxiJtx80fmuIi5BjfLwMfTsM0QS1TwQNoekMjIczddtRnwIJgQkx6TpsQkoPQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-arm64/6.0.36": "sha512-bBaPwnTViUOUer+qW9IB5Gzrv6Ha47od8DMiCho/6GtFjUi8NeDtj8/HFjApo3JZWBzBAW3xkK1MD5QFthDJCw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-arm64/7.0.20": "sha512-PnxpVZP/vcYJrJFxyAafetPeEcG+jzyT7LnKkWPPDLK7geSktcfefPYsZ96AIMhs8MUeOXYUrQd3luOZUo2tJw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-arm64/8.0.33": "sha512-l8UatlgZ3cJkRYZYmJwTBT7dQ/erf9cbFpry6XP7IXA9+wNmgGhzzNihlUqIxtd2DTSMJj5cyowtW0fwyG6r4Q==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-arm64/9.0.22": "sha512-dEut2adIRs9oJuVZYtOk5yiDS3fuLHXJCxQ9u8MesFzFhuNh7rbxM4AQTzcFoFnEvpQwqBxV3JmqgrSM7rwsog==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/10.0.14": "sha512-zrBKxeWyrIBuxESzTvusPYG49Pl7J2ajUmxqd6MNuhj07d2QYH/kp8bSjci/10dYQ30+tEOgoVYkuMkNqEEYMg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/3.0.3": "sha512-HotMqTD/tTUSzdoDlFa0a42eZHdBJgAPm/EBHCsvX+Vxh93LBf6P/6CFsMhpuuly7lh3YcMhYuT/GucAtxd8zQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/3.1.32": "sha512-X7T+RFwnoDyFBe9+HzSqJ6MdqMEKrZBAZBDYhxhiKuR2St191gUJgbd7Ok9QpOHwrCaoYV9hysljG38k0VWLxw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/5.0.17": "sha512-CpsTwPpyC8vNhPLdruZhxe+ffDASsDsvFjLGQ6vvcRwCYGpzJoQ7z78jWHhfcXbh2rKUq67ve4LWiIlEF58kCg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/6.0.36": "sha512-YJRtVo8VZ/K6qwuyGHlGrPfqVhBZAZ4fk6+tLNZPREZM3l3EjjcrjWat2QL2WZF71aFioZVQScTzKEMfIjOZlQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/7.0.20": "sha512-MJkvhC9b1UXuA2C546UKTJ+wIV5z7QQk+lsXLe8R6g9BjVvN/NUItu9H3hylGkL5Yf/oBLmlPYVUjYuy3x5/1Q==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/8.0.33": "sha512-CQi6LfZtySQ4dE3t0kTwfSbF9hUvtPmUKeSDZTe8mCGuaaFai/Xy6xfniDDvGWpw0gWOJ60dnNqCaPtNdr3TRw==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.osx-x64/9.0.22": "sha512-ypeRB1duSXYVpikYamGrs73yTOfbE6HiEqXgTJSTNKvfYJQ0DOfNdGH41xGDwDaAX3v/CTYQvpdWNZrFWFtw4A==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/10.0.14": "sha512-mSR4ZA6Ntw2QBkqPFp4s+k79RRdg0Z/P0u2eGIbZtfmnbQLPWFqj7FGjE7XVdLOLeHRXRMsDDeI6XhZsTx64MQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/3.1.32": "sha512-ME5y8L40XafMwpsTay6peXu4CtvWU+5onUnItr6YzPRJPJYvcd9h1pvBGeBbjuv7IV1Zt07zcuLBE+S40HlRXQ==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/5.0.17": "sha512-dZajijsKrJJhOwts64gw4UMap0BwCW2+jyKVwkMPG6KypOosIoEn1Gg+XAWdo3GhBrqYvQ5XkPM1r63GglOqtA==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/6.0.36": "sha512-oqI1Ilt03mR/4Y4VDNMeYkr5hP3YafBi0h6piSLMXPTCaOgkMHsU6xSpJW5CMTwOCEwREfMZxr22g/meL0uJmg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/7.0.20": "sha512-tt3EyI0qpyqwaFqtbG9+4BP7sukzjjheZ9/Cb/uO+CXxcep/LrKJW/Wc/wBKmkkIY/NnhJQ+Kwdjs6xcHVVO+w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/8.0.33": "sha512-liKdcvHBwYbyZkYoVC+QYouEXLJLGf7RVfn2A41ueS0zEjzBDZwZfE7yWOYgQd53NDpyFyMeILexNyYrscsG3Q==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-arm64/9.0.22": "sha512-BO97ZPiwqp2xrMYhJwgT88E9rukvV7uMuhYeHn+JXuK3bgy/mOOQyMVczkm3+Y3uDIHMYiPCEJKXhlZzXtdO7w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/10.0.14": "sha512-1k8096BmENepiqExfgA3ndME94v7RqMqTqLrNMyN+FpqD7WD6jKL9tYrYWi4WKNCAgvRMFVlAidzA3s/FDmIQg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/3.0.3": "sha512-Y/So/PcccsoBY9QQuDIJLQamNKgBELmGWpZmdIyoXP80+TUqddM7r+BW51HZYheOmoKTh4YBECK7TUNVXCJZiA==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/3.1.32": "sha512-8M5j6phvShGe10B27UVVXdKvMRyJ1Xp2iKBpdgB1UlrCTB5oGoIgQeK82j2iNwE+n+R0mL1CbTYrnib/mRFsdA==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/5.0.17": "sha512-jIZjwj5feyF7p95M0hosArKnBMajc2Zy86UIg6YUcR0mJkcbPpbS+ReLn8hY6Hkml4uJcQZs9ssQOPyJ97AN8w==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/6.0.36": "sha512-XS0rzgotxL8fojceQ7zeYlmVRqSqRuP3SMJymXpIS45R8dnlpEooDfjjWRMAvyWkscmAmXQRI4f/UItGsTND5g==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/7.0.20": "sha512-H9YZkbflMTqW04B9XpumTZwyNaFgtNnBxCTzM93XYNFPZbE6nbhuCUz7c2bdF9M3cZJzbm/4ITWFqBLoTMrqbg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/8.0.33": "sha512-I6kPPL9caRk0HmE7T46DX/kOsUKD9IehbI4v1EPtH+0H6Al9Rjld68Qz85fXlGUcQlGoOIl/MkmIxsd4FjGUBg==",
+      "sha512/v1:microsoft.aspnetcore.app.runtime.win-x64/9.0.22": "sha512-Uwy/+GShRRWYzRvmo3NbapANyo5CC6NJWeTZsRCuQbsrRx15eSKZkT42O8arRSHaAvrYDA/uBnv3JRdnhsLRCQ==",
+      "sha512/v1:microsoft.aspnetcore.app/2.1.34": "sha512-SIOjTfqVrxUu6Ov6YTO2Szq4qZ/FWjX0O4pFPz+bV6BVC5PJCEfkSrGE26rxuGENVMCuU6nNehDrpa/7rqhk6Q==",
+      "sha512/v1:microsoft.aspnetcore.app/2.2.8": "sha512-tN5tV4OSYlw2Rw2AJVV2K2irF6ijReRgm0sQMuwVyR1+D8d6rgiZggGs/6QCut9mo8xtcH12g9RJmbpQwDJbnA==",
+      "sha512/v1:microsoft.aspnetcore.components.webassembly.devserver/10.0.14": "sha512-ySxdyD26qxLn1tKh2hfHeTaOi5ksvIax/wMTw2HqavB0R5lW9XVc1h78X4aGnAaDS8XmoD25UA3r0nQJmliqhg==",
+      "sha512/v1:microsoft.dotnet.ilcompiler/10.0.14": "sha512-obn/HAYT8K4e5aBYP25r2hlbFTdS58QMsUcwFEnxDIwmRJSeFao0aFGdmVbtrU1QIzSshSBXmqB+4625w7c28A==",
+      "sha512/v1:microsoft.dotnet.ilcompiler/9.0.22": "sha512-bLrEiszvMc6sfL+rwR656xXrF5fW4fgdN7WceY7sFgGGeRPVnI1XxEBcM/ud2cQp2hGAWpRePqqdZOPsHTsJog==",
+      "sha512/v1:microsoft.net.illink.tasks/10.0.14": "sha512-YgO/Gkx7Ebb/0FIjQoNRdqn2e1IuzCZaiT3KzPkIIbTvQ17QRGfYNGBCDwkcMOtx2JOzWn0Kwqnuh6SdbSfZqw==",
+      "sha512/v1:microsoft.net.sdk.webassembly.pack/10.0.14": "sha512-5k/K6981Uzk0JnXIwy7c2ziDO6oQZ3wRrjtJBXMkdLmLKrXEE6KmCwTrbwKFA/Cy58fC/GcxrGvwgM6m7I8Vtg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-arm64/10.0.14": "sha512-u6q0tjYatAugSxoDrAG6vYVcuC7Nd96s5WXLHCo7AGBk4T43kQAZFa3YIpDc/oGbO4VEvzRvaaQOkxtBOpFNQQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-arm64/6.0.36": "sha512-xdAL8+k9u+N9DzTzeALpng5956ntAzSS+/dYsXmAowVuxdlMlbiOmfDyh0V67YB87qqE08y0wBzdq+Hw3yUkaw==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-arm64/7.0.20": "sha512-hR6BQ19osMSIzMMaBC/XF9VU4yKhjjAwEp9nEBwNmOrAQfkVRwG5Td+gLhRiOMW0pY5/GjXLlwziiFQ2ksZqaQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-arm64/8.0.33": "sha512-e2RWU9+/I6kaSxD0eJB59GxD9uhu87NXJhSHBUJtH9NxDM5YJHzcy8pMQyX34bOJYL1IxLPdvmzZTvBO4LLoyA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-arm64/9.0.22": "sha512-jRXhhZXIJPMYii57gfT26so6CYbvd7SKtqfCT0lO4v/SRBXJ5Uy+KXun7sYl+EEsjcnbzUtM2g4ye773EIm/ug==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/10.0.14": "sha512-EtXOHonxkJL6n0wkN2eQqrI7O4P19VF8HHGfT86XMZaEUgXYg6UftnJ/iXa3re3tE7sSOIF4x/Kg6hoaA4E02A==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/5.0.17": "sha512-rsOw83co6NSeSxjofxTLardV3TxSy5us+Gs1lpIXHYVhk9Dj8XaNBHLzSgiy0CFpjvuTUiWiXNs8+ymr9SPsQg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/6.0.36": "sha512-Iyu9ynAcIOoiBMLm0j/9nSl0PWQGNW/ba+87hmu90vH/8Dx02waeAcFJj+jN5xNZ4NesUCLiYt1xDyh+QeQyaw==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/7.0.20": "sha512-Ydi2yUhYl//LrXMYWtr4YKxwbz/M+qNI4VJG1zgLRBBu2ZLvHULKOMMtiUJYYHV692jbkENGGFUUu3E6JiCrYQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/8.0.33": "sha512-oxxlKm277tLRewZxmdCxaxCEMNB/F83AG/bDPucvfuGjZCCEXbXYAagbpdUvdcIpXA8eiRTxVDUnGHbt501cVA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.linux-x64/9.0.22": "sha512-5onPGniG4frJJ9SbWj4xdlC5qJwQ4f/MZ+w3YurkZRS5JGVWd425wBYDog41O/SR65xPFNufhnm9F6pNsmdgbA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-arm64/10.0.14": "sha512-DE88Kvw59+B6XKWhQLwhHOolbYEkNB/HjTtkTcspk834de60iBWnz2D6Zwvck93GHUxTFrGx8PSbL1m/VYl+eA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-arm64/6.0.36": "sha512-7NLa+YPCk3zh+LGMla5Ffl2Sslis5MvHG0Ngjq1jVXHqIMukzM0FgWkhTDC5NaGM/foQOL9poMm0+v+I9ozTuA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-arm64/7.0.20": "sha512-Qzruh84k89DwZQaHiIrK5WqRD+ScoNGbX0xvG1d5OPO0fnJod/nmPhdYo/9AXobTpY9WYpfEVTcGGMjGncwfMg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-arm64/8.0.33": "sha512-cFNes6IcxNFRLcNYM5Z4bPMpzvlEpp9t477Bn8cPI2QigCXVK0AgbuAMpsdLrbo8P/dG71q6l0ZVh4M02MXkAQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-arm64/9.0.22": "sha512-fueQEw0gNeeuyuurvWBF0m2iPG4XVIDIyE4WIPDnNVXU16mEv68TAyhsfCe1qEPt+bgAfkzA8BFFYsBebeKpHA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-x64/10.0.14": "sha512-soeEvzKNynSs76bFNBtgWWPg3/2ZW3t7TUyAUEYk5+PNlsj3/hJyJHGHoCGryV4Bs0wFYSsFVj5+TZa2C+jTcg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-x64/6.0.36": "sha512-fmv0OenPlfWVvYHaH8Lbe9ReSJB/X1pdxgyVqS1d8LSrRVtuCrL7Q2Xc+SqTzBCwQUSK+3kFQoS/jyVeddTyPA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-x64/7.0.20": "sha512-H2xNMKpVvdUDRDGnEecDq84wPWhhjL+ls4W6QUOGwp6hoSMDOIXqUMPKm7gYlO4O0VCy93DYXx5aRXf9tVMVlA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-x64/8.0.33": "sha512-KyuC0oi5UAcFOJV1eibi5gDarSXRrSTCgRjAerdvpm/j2gpN+4wUmjisWc7jsWtvzPdia8htiunfHv1dEcJ8RA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.osx-x64/9.0.22": "sha512-7eXqKT9PPd7rApRhr9XE7hXHJF8uY4L0RkVLX5rT6P+i52tsk8iS+Wy8Q75xEu+o3KLt1KO6m3tf2v0JG7Wzlg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-arm64/10.0.14": "sha512-Fr7IdXYFqRCfi0DUs/oo/Q3YgCI9UX8/l/NHoWW0B+rKABfvuozBtkpCTvjabF9RoAb7Vd9vCxBag7dT8KAhDg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-arm64/6.0.36": "sha512-igD8pT3ADrTJnXem+aFYUvjYUVPY57YnSpeAtwbqkika0VOWMriD29pFqMFV7tM6fEiQOerRV0aE9eIhLiM+dw==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-arm64/7.0.20": "sha512-jbKk+MEWwNJ4l/ueJ8xoc/WOAnYawTohaMuRI67dMMldbsFMjtjNJXBqANioRgEJ/6648fiysvgat39io0KlBQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-arm64/8.0.33": "sha512-S2hs6cZR+iJw7li3S9fE4Au2RznFV6Z3YRFhx9+3DXMTQE5ilEX56Zq7VjGnzwZa6SASZBifxyIYwkb/OUwAZQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-arm64/9.0.22": "sha512-Oo3iIBwU9U7urD3+4crcYEMe8DVH0yfOCWMzWXK31zOzCk2euTo9yJqCpYCNgbdit7NNlEcZ7TH5mILQEKZJiw==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/10.0.14": "sha512-OobOegSVcgAm0CHzDql/CdB6otcE35qsvoC/LmBrUzHmizLrV1c8SsvHa338fqipTEX0GE88Tsr1l61BBjlR8A==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/5.0.17": "sha512-VU7wgMafigPcp5fRCGwmMKAPIcyw6EkZr2Zbznx478TmvAQIOq0YZaxu0bNKPzMKJDmaH6RyQGT7xDFsSCPyvg==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/6.0.36": "sha512-LnFU9J+ymzkZnTt3Q5/zDTH3q3dNhe+HP/OT24m7Zz8q2UURRF6KRYYhpdaxVyq+P+6y2Bg+2xJedfK+LHWwMQ==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/7.0.20": "sha512-3xM+swE86Z5Adp4LM+CeadMROSgoCdQ3i+aiiwKv5JwXESeN/1cFQgIJjuXtZAmSeaop3eu64Om1+poD2YtWbA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/8.0.33": "sha512-eF8yZrV2orNaTWp6XCyKL0LHeDMOxtZio8D5pgrA5DCQX2U7CrqWKFkW/F+mLRQ3j+TgHuWhhEm88kAxe1FmtA==",
+      "sha512/v1:microsoft.netcore.app.crossgen2.win-x64/9.0.22": "sha512-hUzOhkENoBftDkgx5ZESlm3OcsQClFJ0uRq3PdtCFTI+wbv+vhy+F3isl9/Gjc+SurRAkPtzZlpzLCZzxhDeOg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/10.0.14": "sha512-MU2CWnkhpol8sJXzZ9IqxVQLjHy9cqHQahlI91BH9mbCoV6uRpN6q0Mj5pJLN9qT+LyAhrMhpari229D8QG5hQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/3.0.3": "sha512-6T+r7FjmaJOcWw8dIs0pi3KNo3sU/Ggk25rhsY5SYLS6dtap1k0fVkJHeZxXeXGckunScQ/XgKAYDPQ1iETXvg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/3.1.32": "sha512-kH1+TFUJTQOoUBrEFwHYNryf28OO4JF3xcOTbUN/8WGS3NW29oCqyR88RYKEOly7QThmGua/PNd8IpjC10vRaA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/5.0.17": "sha512-/ytwOp85R5T/NTSmBL51+GlytssrC2Ov7CgZPJIWj/9u8pPI6unO1UZ219MrDZttGUWP1pHm7kJ7XaKbifjHlg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/6.0.36": "sha512-OlDeI3Y7Po0mhbfmb2zVCxaKXhPUIFGBIqRlbv5vnC7OQohief/31EPBNC0RCaEaayRjTv7P3CckkX403Y8Ncw==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/7.0.20": "sha512-a+SvJNNVQMGWbTKKmDRS4Dc83WzP4REEk2doI3UjEMkFdsLbEm2Lep3vCUpb7mkkFvjYPMiFqNiNG6OGTuVaVA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/8.0.33": "sha512-PCwuxnYKU5LQInYonBrl4FWHxEqGwOSvgVBnJ/cWWQawgbvNIJRqCN3iU/P5HHPpaA8bGs2yNicFKe1RO1Hp9g==",
+      "sha512/v1:microsoft.netcore.app.host.linux-arm64/9.0.22": "sha512-l8U2r5WY4iV408rLv6JT64hf3cug9t/4HQHdUyKsOGI5blC9TZjRFWBDEO/tIqYBJYfFTc/XO+v5VFfB7xSiQg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/10.0.14": "sha512-XS4LNBTTYXNneWjJjgfWhEGnSYAYz3TiQg12UZQWCQV7ms+AZ9HbONX/O2UZqyHAOXRM5LpIaRQ9X/dtft1HSQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/3.0.3": "sha512-rwJyEcl3wwxCI0hyIOw7tHsCfA5v2NpZVa3GZSFa7/nJmtyZlTfWyuYAXxdnFzxSwU2DNYL3kYy59/4+9EF4hA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/3.1.32": "sha512-8MAEJqAVpNSU/w0qKZFHvdweNdcIht3g0Of3gTEVqyR0R2ovNHCenSSfo5kAS8hfVZ1oxiEdTNdHrKmwq3vvRA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/5.0.17": "sha512-H9co6YngYniZfzz8XER87mkQ03h2R1eR8NYKNZL1jEVnFQYHvPRZqN6pEhIhGVx+RiKhKDEGdHORFVZDVhTFbw==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/6.0.36": "sha512-8BXWNjvA7BkhZD2dGx00Rfz7+FvjprTUnJKp3uLze83Wet0D/CcMn/22NSMq0JcG+DxulQgyQ8U88QadyQagMQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/7.0.20": "sha512-bCcmlaXLBmlScQ/HXkkLf1DYQtOjqet/dI8y2sNx1hu89BwEQc28inzi24PZ9GjYo3KyKvy7U17aldK8b2uYAw==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/8.0.33": "sha512-kx8AD5O2Dipxrl6zF8lxgTw5imxRd0Arslkjt9UCDOlNdBI8YTkL3dignN+C/rDdHEKn0LGke4biodFQuzVb/w==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-arm64/9.0.22": "sha512-at526lJ7iNoi4XU5UlrzOaYDTYxO4lPEnByN1AT8u3NfRP+tNGZ8keWznn2gyHSVsj1fU4oiyTyCmaeAFxCANQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/10.0.14": "sha512-KyWzrh2Glb5W90Y7pwgm9hNctD2MHTUXxEuACHlhKWZoaf7T9rJL7/IRobRpz9vaybwWtGyfC8Hc2cIifTR9zg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/3.0.3": "sha512-Fymy5EH69k06lZLcAzuvskwmmcyeZZmQwRrh0R13kAgPy1cH9rVfy77b1IDzkXxKNO7B4ANHdC80sfAiT8Wlmg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/3.1.32": "sha512-uglFvmuXerWDbNZuwx7ZJvvblKrMgMYcCr6r+un62yfkhx4OjjyuaAdFjSo40qpalR5QUMlqM+5xBERcw4+GOQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/5.0.17": "sha512-LY6e3dnNfEkk7mrDOxx0JY63sioI2xskstHwC1O2StNJ6QjVWE5i3xDPJl6s1DidACTvZvm16XDPqnR/cITNLg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/6.0.36": "sha512-V/yoD7xpW/R1jW3DDBLl7q7KCiSspzT4rCRgkMNf6CBFDEf1HzeoeHprpNbBz7NNMYKOWlG28Fm4uZ84LGX9MQ==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/7.0.20": "sha512-9k+5qHlL2/uiC5/crfn+Shv/93FV1E9oLFFK6nAs+/tUXL0olwsqpyEMUAdKdAoCgiTv50GnBjX/7jlp9bMmlg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/8.0.33": "sha512-Ni9nBRpG1rZ9fKUUIfV4ep88EW4GhHrJqRqV9QLfAo89czduIFdtPVO7gy8ocx7qDr9kFLylZ4SwpDZq7lf5jA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-musl-x64/9.0.22": "sha512-QSo/qjGM0D5mNhhTkjXrs0FyD4C692YSBhH7AU2Ly61LqM3/Z55A7QWNJg17nKPQkIPdW5on0XDKBXBdFzqWTA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/10.0.14": "sha512-LqyCvEWkMshyGeeZ1y1KraQ6czMsISLmMB5VKDT4addsZysxjlMC7WbCryVokdAO7juS8htBOZ3+KaDY5FQ6FA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/3.0.3": "sha512-GUhjsX3RrvzfRmGH7ol6VvVOVc8DQagZgolXuBNR0W9H/w3fGeCK32ZxZjQ1HS1qzZ1tloQPRjz1ba1MPqlkDA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/3.1.32": "sha512-4eu4PWwNn8v1ddv6+fAZZ3DVazO/uAtfRalMVQWBVzilB0LZZoJ9PLuMiSyHn0AY+ARCqHJofWSHxSiWfC1yyw==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/5.0.17": "sha512-3x4x8sACczUaRusJAfZ8uG+lGxDSeeqb0d6PekygzgT44lQhaXKKof8yji3X4xH1JqHnprv1faChuZkD54OYNg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/6.0.36": "sha512-WRPkqMdz5pLsZTxXah0LgKwrGwDVc1jLxov4XKyqeCW1uAtPCTgf7UEAkFaFZufxmW8d+B0UbAD2u4PBCKYkJA==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/7.0.20": "sha512-abPlEkse/tu8w/F9YPG7fzIP+NbtfhfBrkTjCgnRUnL+HXRkn7ysrUQJ63zWlhVYWilzwTAmUlnjqBsZ+Psnzg==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/8.0.33": "sha512-Lmfpn4KWKEoWz6dUXymtwcJqiT5VZ0dpCvGYgySjb17mPjVNfkbXavguOCVPb/+HYVBIHsB0skvzqzW9wvNt8g==",
+      "sha512/v1:microsoft.netcore.app.host.linux-x64/9.0.22": "sha512-720YrHLOMQjv38WjJ+ZKb0lz0WBDvfGz5UZbxwyl/5gppuEx+YSuXq94GYrvYU3PMxBPl7ivJzqDpITp8nAg5Q==",
+      "sha512/v1:microsoft.netcore.app.host.osx-arm64/10.0.14": "sha512-seOrLS1kMyoJvCa1fWEmjYCiVGB+Qv6C6j4YndDtHrIb49wMEfH7I2JnMV5bUuPMTRJz7F6GyEmFSAShy93Eag==",
+      "sha512/v1:microsoft.netcore.app.host.osx-arm64/6.0.36": "sha512-TRU5D6v6pHYNgtnGe9nH7XQnhKE/FdBcxvhWUkS8rcm7ZEYP2RYiOBXQvamgKqH3Tx04+i+2y/HurX0IlMaF0Q==",
+      "sha512/v1:microsoft.netcore.app.host.osx-arm64/7.0.20": "sha512-zskULQ4seV5+Aqj/hG1VQ5RKqGcjZi7T1ceCUHbfAJOxcVQOOcSzxGxy7+Ys2wQnhQsIjWYNIji58c5tnv/6vA==",
+      "sha512/v1:microsoft.netcore.app.host.osx-arm64/8.0.33": "sha512-8/8jqecDMCHdpxQwL+ibuKXLvqJxhXXH1dez8w5ggnRE7BwyCa8da9nAA3srOs4XnmH2AO2pWhrWfZfyE2V2cQ==",
+      "sha512/v1:microsoft.netcore.app.host.osx-arm64/9.0.22": "sha512-0vYrC2lHICNPs4TtsXcJbSLkkY9ALPUmdmlmSUUvlrPCNXw7VUWTBDAy+5ScsEvM1VTxgh2LrGlXJY34mOEPxg==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/10.0.14": "sha512-YDHtb/zQKor+wQJpL4QyH/iBdAgXz/mpb6QMHU7dh6d6uKWHSrvmrtWu7twDJJA9D+JtNjUS31OopD1UehBeWQ==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/3.0.3": "sha512-eIA7DY8jtGGCw+89OfgbRy05orLvoI4YKNkX3fGioKJRnzjLvg1QcbcfqVTHeXxo1hTP8qJBrNPJi54Tl3V0kw==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/3.1.32": "sha512-vV19A5M60cxvdRM3ZabhPjI6lz2svjXtbyD3n0lRz0FzxvztP4Vvf0nH1FXzwDVm/ydNL7UN3tlj62XjdNfKjQ==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/5.0.17": "sha512-cW3IvuCZC4ULbzsA4A3FznaUTFNXOJNCUDfFn9eN/t6tjJZe70tI4WAc51GApa3wC/B7Sy/S7yRsH+m5fDnjzA==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/6.0.36": "sha512-XylVsSjl1387Mz1g23ZUtPWGz/u1YBX2fd2Fldv2B6WteiIIdoLzHOmP+JeBR67WtVSUcEMrTT4NWj7xOr02Ww==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/7.0.20": "sha512-aQuov94b4ppO3l5CVG0z+VDCFVNHeklnwLS7XT/AbvSyBJ6+9BFqoSWg2uZz0MGjRl0tSA9eK9A6bkoVkPi1bQ==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/8.0.33": "sha512-vsQu/xBJdmrel3uJ+v0/CjR4C278BtTtcoy/oZ4SSRVcUpmw0rLiYrJxcZO2mLKJX1JM6nf9e4UZFNTRuFTNAg==",
+      "sha512/v1:microsoft.netcore.app.host.osx-x64/9.0.22": "sha512-wx+jnNBdS+wP73Mz8UlYnxaClg/InZt3P75YvoGq52S+OzkEl3GNHCZxfNpZE4PTt6SajJyh/E60+S0dRPNT2g==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/10.0.14": "sha512-sFXQ5snIEdwGEn8umr0TxoLXIa2ubuQZFSzRogkLW/XQmVOLb2hwdmDPl7wBQYc0rb4Qo2eUEVsjD5elJFQx9g==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/3.0.3": "sha512-h4tRZdiosNe48JJU91uw7WBga3AkT6dOvJSBgqnAaYIXZ1Hbc/z2NZ79D3JsKyXIdcQaqW1k0eI2ticzeqtjMA==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/3.1.32": "sha512-DswXqix50wAEPlovKVJ1VbPx+tYwXtwdh6zkpzGkq+Qn27Axs2iNUXdKffBjZsDBjeGavb7AEWYMrBz98a/5uA==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/5.0.17": "sha512-ibTt4do4+2H3pShc5cvk/u3SG5zeiXMwi3HvTRNMKfnjd+UIjf4w364tXNoEADHrWokdUOX37k5icLvqCIqqNA==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/6.0.36": "sha512-isiVFlAPxOJDR3pbWTrdfoy7ZbLTmg4YHgg1Vzzo0S3M35mSUU4Ere286J0lrA5s/jAe6JhBSmuvCUELIfvegw==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/7.0.20": "sha512-15hmpDKa0ap3bWF4rvM01Dy+Zn09h2h2MgeOj609P5iNZlsh7Eu8J7mQDdband/jPFZXWCV9CM4GYGPFEtKTIg==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/8.0.33": "sha512-ALIQQN1oeZQWU9+SHk5Yc9zjcA9KTUTA6OyWMimEim2RWTsoxUk+YFqjbOCUHMHt7I3BXW/g+glsgqWS168JgQ==",
+      "sha512/v1:microsoft.netcore.app.host.win-arm64/9.0.22": "sha512-omJvacxI/OAG7jbQSq+WUk7Y8fCm2wiFW7ahwT0ry8YyrAujP/PgawGtkZCCT/dWmPASetoGogUu2H5yRc2s9g==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/10.0.14": "sha512-Kn602fS/n6hsgpCW8HzykOu31D/oNrxhETNlgoou5yj7Zvvw9KWX3GnG7hevtm9R3VKdP1kPEfQ0Y3eo83YafQ==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/3.0.3": "sha512-5U3jATWwbKMwTseDUE9zqDgbTwVkARyuEd6kk9eJ2RQWCQUhc4xweDWaOQ+gjO1RfEiSFhN0ZI4LSvZJWX2cow==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/3.1.32": "sha512-p9nogZAnicSfXmfpDCBlNJbszywmLhbV6/IbcK4qB4gb+9AF46OOnSVzMc2BVZmPsLfkQtSFVlG/chdttCqD9A==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/5.0.17": "sha512-GjnT+8oke0YvrrbD2VlIcBmJ8HyqB0/zOpnNJ+f0dc0RzAQ/lSxCC7avT0Ly86as+zK5vU9TatXP++5VqspCZQ==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/6.0.36": "sha512-Qpsf4A+J0o0VZk/CQ7zvIvUIv6x+g3l2SVko2K33GcMaBj44CTT9giuHIRkTkcc2mQ5t9cFZLMeWiUuBRxoPBg==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/7.0.20": "sha512-j7IIiyW2m2BNTt0MgcmhX3f4rl3F98mnStnY+13nlMzr+YC7ewI9khfIXv+bzUA3R2lyz7KghSZx9SaQGPuRbQ==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/8.0.33": "sha512-bYAkgv8g2GYhHg2u1GP1t2bFix6iDccWH/twjmjh89Bl+4auwlEhuzx9CFP3ae5EFhAsC7GXclZSuUUrom1/gQ==",
+      "sha512/v1:microsoft.netcore.app.host.win-x64/9.0.22": "sha512-6Jlci1/fOarVqkn9dK/ESaz0e9gg+1PYpk//ojRMJdbL9eaT4RZQLz1IALloKc+WjLYIdED/Uj4CXMtEMyDHoQ==",
+      "sha512/v1:microsoft.netcore.app.ref/10.0.14": "sha512-8xmkl8ngucEaOgvjRDIr3I4K2Xxx5K9ydiAWSs6fw5AX6MWkTBSF7cqYOrRWaLa0Bpj5EfJrPTSUqSLGgJANBA==",
+      "sha512/v1:microsoft.netcore.app.ref/10.0.15": "sha512-fS+R/OlE7AEqsnQ5FzHYUAR5dw4l3jF4eXpmk8dCCas0BFRd4LNlpzZ4BYcLoOOY3IM7JuEoF/1gwdgr8rfF8Q==",
+      "sha512/v1:microsoft.netcore.app.ref/11.0.0": "sha512-ayOUxbNOZF/+5LIvk+x4a1MVWzezfT21L51sUNjrSPXI9hXyy1RhHGvnzzsFCaY2fcT++B7sXjY2mRtf/GFz9A==",
+      "sha512/v1:microsoft.netcore.app.ref/3.0.1": "sha512-JPbWGLnLSKJoP+E4dqQd93QIQ4GqXXv/+iltuzd1hFXHEqf1Ie5oOK/x/Z/oJn6PeFTSvOghef32T4cBUi9C1A==",
+      "sha512/v1:microsoft.netcore.app.ref/3.1.0": "sha512-cTXlQgzxZx5XsAIVw8tcdYhvPpcScA3vG3AQ/ScleqMn32SMBCIQqetoE0X0EqPSjW3S+hw/pRIUli0msjiJ9A==",
+      "sha512/v1:microsoft.netcore.app.ref/5.0.0": "sha512-bBp1LYzTBY58dMaCABHnp44CYBcBvW7RrfSsXENaS7iRq/yx39g+jhWdgUBZcJQBoF6AZeGbHhKV+JAoT3LHDw==",
+      "sha512/v1:microsoft.netcore.app.ref/6.0.36": "sha512-qAcjjw2vDNJrTIw7R4UWLQuvslJbUpXxTrd1ckfDpWPqE0cEehOd9CvwizbD7HADjewzVv+LKvB5aOWYnpNmKA==",
+      "sha512/v1:microsoft.netcore.app.ref/7.0.20": "sha512-dk6z/ZqMpZ4lxVisgnPX1H+MwiUTRQHhwq3e9VMSIRL5loVdqHlZ9fRFfAejEz3U8EbvGV43Vp3OwF5R7mlTTw==",
+      "sha512/v1:microsoft.netcore.app.ref/8.0.33": "sha512-sT+TrpGAW5ohk1RNlNS+c7QI33CMS/paqBA++RpBvQhBe5RK4qCeYGVQwIvSjb/v/Rh4E8Qv3T8iyacXeomHGA==",
+      "sha512/v1:microsoft.netcore.app.ref/8.0.34": "sha512-QLps42KPNzKF1BPqXDJmCsUlImQbvXOs4J9ZaKJPAOGaH3Js0MCalnq213Hu93+meiiIu1GnajfDJb9EYOkBZg==",
+      "sha512/v1:microsoft.netcore.app.ref/9.0.22": "sha512-BSfQ87Wahavupw7Rv6R/d1YL6gzNG7qru9fPw4Fqw6Nxa57izRpr3hhpDEAyHhHfi90QGuhnvmls+JWTctRrbw==",
+      "sha512/v1:microsoft.netcore.app.ref/9.0.23": "sha512-+Ry23+CwUQr6X/qIST4CXk5gqyvHInI/MSX1oqWAF0cwHcxiZN8uJqBYwgD3JytVDw4ToAqkV4G3FwXTe55YwA==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/10.0.14": "sha512-XVcOnSgh4EnuySXtcnNRlAer7C6LtXvyT61deqzgHHt4fn0nnpgwiC2zaLkhb7vl1LT1cHeboGc/FGjB6FG5pg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/3.0.3": "sha512-20QbquU9rhPmfN4BOzNRup9mxOFvRqUiSKhWy2HX3tWQzbdftkR3A/vuXdNVGclIBeyXfKO+S3W3YP9Fz3pN2g==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/3.1.32": "sha512-30BMqutTq3QcWEyz4xicVoFFBDzjjYVFGOArgXxWvjT6sYBPO+vJJXfWWPdawkYWLVu+auPB0mmH9+QwpeL0uA==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/5.0.17": "sha512-8EXts9kMDVCteF1p5bIokt/VSOG1f47xpqyARkXXQ1zmbSL6VpJxoVu5/TR4qcYOAUBvH+FfrjdThJJ0or4FAw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/6.0.36": "sha512-B3ZtzUpX1lR7XjfLrMh+rsZr5lRlVx4r2jK0eJQCyqt/V0Imw2ebQjieoQJra5sb5VQZZcS9LxNGhC5RZOrIbQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/7.0.20": "sha512-gxR7jFMvYM0IDe77zAE9OnCveUM5eW2poCOayo88FD82f//4/BK6sHY/gked0cu5cUMhygTmXEwr3klKrRnxgA==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/8.0.33": "sha512-sWbb6vpLVfSKgPiKzDGMLBVWh4T9iExHSktxwsRk/TvYHf9etdYQzsL//1k48pow3RPrP+poO1w73MY2WqYNHg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-arm64/9.0.22": "sha512-hrKkJfd8pnZw1FteBKXBZV7ZocBI27zG1rF+AOskarVUruoWLfhJRCP0cEmkYMJk4Jj0YCfk/05HhkaRHhlFXQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/10.0.14": "sha512-gd2h8ho8PYx5o4ZS2eoDbgL3qBWSR15EaUPbYPkX7I5L6imQpro60FNIs0YJLacqQE6G7amHYF1wWLWacyd+3w==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/3.0.3": "sha512-hQFrym9SCn9M2kwnJ5GV91CbTsfZhLSmcb0HDX901DIc4zbCF1fB/VAeHhfTd/4/ADgbMNE/n/cG9she4bGHIQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/3.1.32": "sha512-5XvNdjhqnp3Hx7rmaXDW1GdVI5V3f3VXOQlnNAZ4nDZlQjNIEVRmxfbAwlE/XmnThwsldKa16kUSkd4yNgJEQw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/5.0.17": "sha512-us+amSBsQ885nIi2ApDzrDeBJKvvDCKSsGuF3wA7hxA9oFqpxpfijXpWARxTb3gzSOqjG6v/GjvOesWtTZTRWQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/6.0.36": "sha512-8SzE6VIFgq87LipNuj1chTzR93v1Wu5Xun7Om1tvKCIUk98ZjXhIaqtWr6r7mwm/KFiBthCDsgq26n0ffM7wrw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/7.0.20": "sha512-4Ok+e3bc2OJ2YisrmLCMFXKZ/WD5Gyxchryl5clC4s2w2ci/kiDnKI83WL1ibNvEk5wIDRsrCQ5KXA7vYn8wyw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/8.0.33": "sha512-hd/agqVigShnrgQqV/lmUD4ccjzuwuK0bnW1eyRMUhHRK+tDXeqTXtg88aC+ns9qneHU0iXOPEXGiiJquCLbNg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-arm64/9.0.22": "sha512-H9NcS7hm3QoHX2lQVFjJhs8tCXY87K3pwFW24uOdEV5sxsrlGT41+u6hYvGdIXiN9+efBfm2WfUlS43NRBdp8Q==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/10.0.14": "sha512-u1lsqblXTPJdwtSauZdCv7U3pYdAsSXjvDybS2Rl/rGGOLqMP80ljy/J79W9Ck1OsQFwa7297qUjm1YIwFOTag==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/3.0.3": "sha512-DtrV3ONhk1E5hL17DM95SVJKV99BrlxjHlRAiEm1PY00NfX9dcowR5DOLc4FLmVKU629o5/xWa5rHITcLIrbwg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/3.1.32": "sha512-jgeoftcDq2ks5Tb/2hI70KJzPYklL9cTmPISSq6MriPVOFhtZsbJwxuOrt86JanfolTujXe98kXbZXvUtpPmnw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/5.0.17": "sha512-YlhkW0/2+ZiagSg1ZglBCrtTVUwtJJZZ+TDjgoKwdVcxahPYgpXsUDWtKfHVFxCAGccTZc92HecvAbFmfspbVQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/6.0.36": "sha512-dYTLwgPcI9x7oexhWy+b/vsLfq4sBTgGKKdtWOYgAZFCXkKLOeWCtLySNSMmITrs7MtGgRyEwDpc5XIENc7U3A==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/7.0.20": "sha512-J/bFX9ai9i8S0ux0ZdnBhN+s+IFLosIBgnFvTBHuNfblPQ6R1YFsfYww5LQFI+plL8A2NcIdnBxLACrN22jwNQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/8.0.33": "sha512-PtZ1+nJlVokdwSq8wuEKFZKlla0mmqIO69/Skq75BoK8NhkdYwmTKvVl05bK5+Zyar2MRXd3jYwpIQp12Y0plg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-musl-x64/9.0.22": "sha512-ccweSXM22Gi5lBedje+oKNnFiCi3ZQY/BHMa5XN51eGEFnH76zffGfAyG5EhFMrs7sS/nez29f5QRWIAoIZExg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/10.0.14": "sha512-IfDwQKE3gcK9u7iU7C/bOaqLNfoRf6zvXzGLHsJAbsC7Shwn5ztRCRWjD1mKRk5XUrPO9VWSC1+q8oimXRDlsg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/3.0.3": "sha512-SsEFpDY7x0sPe1ULwddZ7n5p4dfcOdx5wXPvGJQeYvjRs7J4dbqNfGTNPja+x0Zzl7mq0/oTobd6DSVIQpEdAw==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/3.1.32": "sha512-Sh3sRKcCjQwi7X9FPbbwz8tFygVewWLUiFO2/VnCOH40ZX9bix5nbESQxK0i8uy7OTuBDxNTGqcUvJxO+baw6A==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/5.0.17": "sha512-aZTIXNmm4nKrZP9iQrBAsuGFICZQdrZGbFq4p6StQ5eAfoWJK0maX/MWsXaWZGc/bc8o6h+v+elDxc29xuyo+g==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/6.0.36": "sha512-QOBu74LANKrjgQI6NMSSHZkungzGW+79tlOSv04HuGkphqCf330pMeCFvQn7U/i+egShqpFVZiFZDuzoTnCNjg==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/7.0.20": "sha512-swLcwMoZuUvAWukwmEbjr+YXYtRyeDR/hiYALZ5SVFjtyfS/FSE3IY/xbVtkEyfMFPEcRdErlDVYcJEEq0kPaQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/8.0.33": "sha512-2ctqCMiqxeGnlc4mbFNEzxp+w2svSaYKRIN3U3Vq/C1p6gahM7HGUw6NJBvSdG7ryTPWHUlArAe0PGW922xZug==",
+      "sha512/v1:microsoft.netcore.app.runtime.linux-x64/9.0.22": "sha512-f6zPJz45iWkeKmMNRwFOF8FNpiXIpnplg0ezy7DH3NwakSjELkbHpbIq5TMGXManAP6esRjcGJPKurs0jPiLwg==",
+      "sha512/v1:microsoft.netcore.app.runtime.mono.browser-wasm/10.0.14": "sha512-TClTxmTOoOiIIMeENr0h+sjzLGwKEZnzkKFx3MYlZYtvH4rTM51T20pOf9FaNwJcsiYvDmbsCPUZ8+fryppH2w==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-arm64/10.0.14": "sha512-kkt+jqbr8OFoAuwLZ5mUKEFnJC504Qwqhgtj259288kKraAPNArh5usAHHSyoUAX8vnetInPHe7ccHfG9ykLnQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-arm64/9.0.22": "sha512-EQUQktlErngf2spm+9jIfZICk7V3dbmzX0PUdVb7o9rHCuq7EoGyW2ss66C1z89BWJM0jHjAry1/cfx2HpEfHQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-musl-arm64/10.0.14": "sha512-Ykhofl1jAu4+hfUt2/89z6cbtpisnobwR+340N9TE5qXk7UtMl5fN/jxza/hezlRRlkPU3RCPsGRBMbpTXpwFA==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-musl-arm64/9.0.22": "sha512-epJLtqfmqhACJyb/0PbtuSaLIp3NkebJu6sLd1iZSEiB78DY+ayFEzw+0kz88HMYlyqCh0Ll/t6zjIU/gbgDfw==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-musl-x64/10.0.14": "sha512-D48gGGEx53DjsKJ3bhofq/4V+UomqsH+5EoE0tdhCuIbDgd2/zhH3wIoS/f7DqJ01t+RwrrQrVSGjLzl46L2Sg==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-musl-x64/9.0.22": "sha512-l2ik5QqkHDUGturduERMpzc45ypoQhS4sl91DDGROSxM6c4nUXID7YAmZjg0JlCIJgzo53EyMfUPVOu2MT2iUw==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-x64/10.0.14": "sha512-IIj3QW0MZPRI7NOKO44MpNCMcgLo9+z9/CqWVmtejV735Aap2/cheQ7yGZS28H93+yu4LEKWy1SBcLi5Y4+DHQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.linux-x64/9.0.22": "sha512-xVud96M4KQo4kGbhs69+mNmzMEc8qzpBOKCCll63iFZ7Jx5fO/EbLfLPupO6pctc1r1dQTAQTL7CQHQkY+lbyg==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.osx-arm64/10.0.14": "sha512-SaeXGZoDmwJs/4kLtoaLvpFDl6lTOEytpx/ZR3jtqVRI44farCSXizx3K7QX5T4sBMgLptfLF1Z0lfdGO7qDpw==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.osx-arm64/9.0.22": "sha512-8Y7K11umNDxpZU7+QcZdGkMglgN/zEvmz6HxTMiuOj1N3hJX/y4YXiNagL3zzQT57noUYueDZ2cf1C6MihtQQg==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.osx-x64/10.0.14": "sha512-0Bb2ZMdtEr7DZGZ5uJtOmTFx83tvy/dM8UYGDVa0eRJ7BAmeTiZYZUfUJrmQSrSU+CymP5Do4T0Tpt0HUwLqwA==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.osx-x64/9.0.22": "sha512-uMGFCMCSLCaJrHonZc/9BOchOFCYUeqB9ec3D2ue24RNYCWGFfq0mpKDmO6HbIsvJ3aET8IVlpj+Mod+rljduA==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.win-arm64/10.0.14": "sha512-ZmSPyo5Oz6UDNE3+moZ6VZBKNH/tZRNvCF+j8ssby4eKI0FlTDMH1rcdszdrk/nRhPidzmvg0XdPkZ02ZEG6Kg==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.win-arm64/9.0.22": "sha512-lSp4NcpfJyqTZYSO9YbX0blon2/vmPN4Ovnce7pPLmKXW55z1nliNsI9xavgVBYA79QuqNkmP/9kD9lbsp8v2w==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.win-x64/10.0.14": "sha512-932Q01OgC1k4vtlOWSqCT3+fHDken18kfcyV5sNSBMrKNGuXs9XBcK+GqFeUS65BgWRao4K8BhbaJYxJRythsA==",
+      "sha512/v1:microsoft.netcore.app.runtime.nativeaot.win-x64/9.0.22": "sha512-2zFGsQHFusUtyYuV/xhkgcIIt+CxNi5o8sZcy1gzyRpcGS8U5ovqwplO4iYE+Cvyiz33hE22H5cHEcRKFI9iUA==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-arm64/10.0.14": "sha512-aaaa/7gTMAMy7wlLle+AU0VZhYoMUBmImsZI9zcdrpSiZvb1GVVzsyQnwp4vEg+TvPRwm6qQuWisowO1q5AhKg==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-arm64/6.0.36": "sha512-zPyKnjYA4/HHBEKgPPl+AvPBi61273ub52yfTNE1Pb4WkI0Xlc7Vg8aPtoux3kO+jS5IVs2MM3uCjOVLJKwD2g==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-arm64/7.0.20": "sha512-+fCP5RM7V7wOodSFtnIzEsrnJUAwnVsySDZ3rR8QTn71r9L8e04rlDicaFiphr5j537pMbGvLttPBt8NbIdCgw==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-arm64/8.0.33": "sha512-f9wFtPsE/e9pSpuJh5h7/a4XGK1DqLJxcy9++yIy+qcOcnzl7N6l6oNPIGZmDFcYNK6yxvmLL1lSP6NFA5wv+A==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-arm64/9.0.22": "sha512-BrxjCW58J3yUd+v+RAUKkTlwyEOqkQCefaSlAcTFCGo8p5JIMe7IgJ9JV+oOCaNRX2eAHZF7CKktyovIim4KTQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/10.0.14": "sha512-OQVIOSu5UGOlBhTsaYRyrtRiwbAEfplTx+Ln51OU332ZSocOskRFw4IaaDJ12Ke6ekFJGAd3i2yLFcjb3zmJbA==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/3.0.3": "sha512-dfHXm0iFa0QsOrbuTjO3EOXDHUelL90ZJuKfV//W1wekoBMKRhSbJPFq2SI99BGvQZJj7ysv9RT6QtIEiWfGXg==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/3.1.32": "sha512-91V9PmRcFOJzY6lc3QzA2Vk7fLiTpaT/0a0DoYaaBOSXDX6sy0YjDa/PPYGDHUaYnxUUftqVmXz4Rd415ccAwg==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/5.0.17": "sha512-2sAAzMHaag8pSyGZxRG94a69UxRmWHaQ8p5qnrNgoFzTa1X0b+jsLqzNvrQgQba4fTtNc3lUoRdIfqaQJb6MmQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/6.0.36": "sha512-M6IcgiyppQQ5GUkSwCaOXGh7y9qOugLj+ePi4Ooi4qMqolXB56ciPZ7XJ2HxWsXg9OHmFcOYtu/7mDPGy2uodQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/7.0.20": "sha512-+wNTFv4sHMdAc6G9qlx0GaRNbBhwW/DmN4OMQVkEDgTVCiCWg+DiFON2mffojexy7trJUl6Y3MoxYMJV9/1TUw==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/8.0.33": "sha512-oM7mEHEMWoEy0nWMWYmziothHbVUM7xy67jZeezrKLpwEI9wwQd6PAorDETVkuvKfJyHBocdew1AQ1MWZm1IRg==",
+      "sha512/v1:microsoft.netcore.app.runtime.osx-x64/9.0.22": "sha512-ZfP8ipaqPnCSJPuwc1pn96pqoHbCOHuFkc6GbZclwcqn2t4C4MHZ7iTqYeIXQIE79tfH2dfNxUBBBxy/6dVC4w==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/10.0.14": "sha512-VX6JXS+AXtCL8brqXN5qvXmOzrlHOraG5T8dpdn3O1IL2knDcR1XwDNWZc2lLWuyg3u1Muu4zme2C5VnLOBoMQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/3.0.3": "sha512-W9wQFjLpXfqXbV17s0FnAlPCUadTo58sA/yrQIc+vmUkFZ8m20D+XkBAUG9u6mut+oJta8K269Tc628P0E/uSA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/3.1.32": "sha512-k1EL5k/HYiUoQoTygRfUVAKwtmtpDKo4GC00OxvElEIMG5FmpYtnT075jBFqB0b5J3y4CB0kfQf1gZaiV9DwlA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/5.0.17": "sha512-B2v3X59Gh8WD8079ZQJ68ipPA4qxjYHF++h0KqHhFMRIhVWwAMQfgkdPCSsnNyoNWZmXvVex/NQ3YWCV5LYFOA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/6.0.36": "sha512-9duYa7xbMuNJG3vsFO+TNLA8Fcvs7OPonbvH812od/ujnfbeoKPsPVPxOcgJhdUbTiRS9AMTLh3R8v491smQ0A==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/7.0.20": "sha512-qpAjc0CKz+vt3d0eoeZsjmcnb6S6IQmGnXXjv/sfqYqkYErDlBFq448CYOcLUYWdEotInD2Qc6V7wnhs9hVgoQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/8.0.33": "sha512-FMVxwioECbe2SHp5DN85EL5HC9e76IRDgKju1IiTw53Of7xGZ3eK8MyHm8qPhICQgbRh+JqPsCPGbaj5Ne9OxQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-arm64/9.0.22": "sha512-tCgmpEQryAOGHmf6Oj+4Jg2XsjxWEwxjTfHKdHld3AxAOdD51XonAhZyx63czCGnUev1sSvGlc/xvBLI5vocSg==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/10.0.14": "sha512-mLWGagTP5n7nMfJQI2XpXRYgvPcnyYvAc8ZiDfum8ShM0UcrPDyfW4Lqo45UtlCHCucERUHQuMTI6ybVweCN9A==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/3.0.3": "sha512-Pwv8RB2F8LCVFpTL2kdCcNvru4EZsG1vSFljPClbpTJR3tF9mp0DAyxBbyfy6Tg2PwV4XMKysqy2tTd4zCqpBA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/3.1.32": "sha512-cVOGmQYfQoQbls4z3fT1otCY08PvQwSJj3Ur+zwcJwd6Ejq0aRIkiiZZUQNxB/P6W+pfRTA5xi01u5lZzMvcKw==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/5.0.17": "sha512-Q+VlqOuhbAg5vU2RsWhKnPTP/QaeHzLhes32Y0aPadzKCgxYAxt2Bng7QTdNXqzraENevQQCFR83/oOutMp4/w==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/6.0.36": "sha512-SjnCMVnWxee70G6D0Pkd4ku/hkPgs6z/nK7ivfLSk12fIWb7aMtM3umXjWjDs8f0aBH8MIw+JTDObDpAKsbCKA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/7.0.20": "sha512-eiJuU57LsGAsxxkbDS4iDsSWKIJH08FcJtEIiSfPtUVN4aExj1IoLp+MWFa60QA4+hkNpqs49R+g92ye8oGoxQ==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/8.0.33": "sha512-sK+4Xj/iglM4b1QnXeOzdJlQ3pFNKRJntXfzbryAGcAIzrL4BTicSV9m7C/iPvx+tHOPJzMGsafj1e1q5pfuIA==",
+      "sha512/v1:microsoft.netcore.app.runtime.win-x64/9.0.22": "sha512-lQ4B9IjWCa2OQRyZvxGd9OpyRvn5GBvTTrDO8CYpB7ir7zD33beCluAdEfvgOel5qmgfd32mnPxTiXvk5h1s4Q==",
+      "sha512/v1:microsoft.netcore.app/1.0.16": "sha512-BKKb2pT1E0j3PpRXOahEKoLYGCPecVWkvogMEQT+sHM1eZIdGTiDo10ZGeG7sZk3TJHt3VRvLOBk8QyrtzpyYw==",
+      "sha512/v1:microsoft.netcore.app/1.1.13": "sha512-KkiJ9r8OprE+HzBNRBGGpvtBl2HwzoxCnu8NZaHV9h7XjCtGSdVKIna6LOFPqp98gqZ7HJ3AUE4zWCv5F7zyBQ==",
+      "sha512/v1:microsoft.netcore.app/2.0.9": "sha512-RA35OXXK2enpLyFQrBW6N5WxPQLGJ8cx4SVNPa0PRLEmPcIu1OmdiPzOlqaB++7ejGWY5O3o3CKkOgEgsHzDqA==",
+      "sha512/v1:microsoft.netcore.app/2.1.30": "sha512-rjXfBeXZZOixeTIXi8F+HkfXSf+iauTQg0wO+CZbzqDOm5XPesc2GypYQ0otFOBbfbFP4awZrZwNa60LaYVvYQ==",
+      "sha512/v1:microsoft.netcore.app/2.2.8": "sha512-WZ0ojrXi2DZ66MWxds4jU7ZWUyMgKOQB7gyQ70ovrvbrhzu50XNUjnlfTT7ZpWoxKDGAfneDoJjTHoJk+Oa1RA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net20/1.0.3": "sha512-M1vB2xSMJY0FdXNSUH4kjj04aTqWIOPUKeUUfaCoVA5JVw30XGO9ID7mUuBo+inSXLgmLvoMkSb3d98YEQwfyA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net35/1.0.3": "sha512-l0U4pfjnh80q9nnMSy6h9OaaLt9289Qo2lOzYaoNXwz4BBUgx1FeQA/Bbz3hc1+CUvDpziG77O8i1DZ6bXIK+A==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net40/1.0.3": "sha512-vUXmwPxi7lY1DEmxnrnve/a4JgN/Z1XE6Raozcmlqrf2OZxs9smXBb3Q9y2dZ2lCPtVMyZBRM4jQPBXz04InpQ==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net45/1.0.3": "sha512-zPJ5Pqc6+cBg4ir33AWryA8CUxJJj68Cs1Cfo8plZt1HH3Q0B/EqVon6LRXw9b8dfQyLYMqTJJk2maXgLhGJIw==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net451/1.0.3": "sha512-fS2Qwxx3JboJ2aUCknMGdM13SaYLsgurXehv+Lp5lnbl/lKwtH55S/uI3K7KRBH5CqGxLqBfWWJvAz/elS9ACA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net452/1.0.3": "sha512-Els1ywsbLD/XpEgQWV0yMpAOHk0Lecz4jWmOeLwzGSFJ3KFXB+57wKjX4rEJxqJf97CIFnUmcO+pvIz8LfTXvw==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net46/1.0.3": "sha512-2DUXmacjqNTXn5FE95qWE6bL22ae0m/0rL/SgK3aWsW6qClDzXVmo0kOLycCh6JV6i3dQU/KMuT2wtrT8EfZiA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net461/1.0.3": "sha512-txfcwV2rUr4Dxr0r2jU637Dsx4W9Wo1PxHI5oTJPRsSsGHWV2QLS75DGm7vJ2e7sl9BMZZn174/ro3SDO/oBxg==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net462/1.0.3": "sha512-HMn0QQmPYcJsVuKet9WA8IQbBweZvc7US88N39itSRqcn/1XOT/Kao1QiiykxU+vx8k7/zim11cVmKtunju4MA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net47/1.0.3": "sha512-x2ENtw+CyAOV9EO1V5okeMkPkR8LGWW8F6xG+ndxwEq3GMlNmDo0CDBZtI690PP/0jMHTwlPwyQTvYBhUpGiZA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net471/1.0.3": "sha512-Vxmc1FxJLU4hA0b2mcELn4O5S6P3AfxtlFHjg1Gw6oMaBPL8gMRt9XT+IODkzDWeJ9bX/yYN4EPiJMz9Zh/2hQ==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net472/1.0.3": "sha512-PvZKpFbtsxtJBi6hJyzt/iaK71qGdu9mNVpJT43+i1Wp23ym57YVuQI+BEnO/99K2pxPMEgYtz62n7yZFEgi2A==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net48/1.0.3": "sha512-XWKgyeNadNcTQaIVvQB8BrdCNrEar6fo/de1OdQRZ9HFy0jcBSaM8IV5q64ZampsSnC8AlTsACaGZUuoFw41RA==",
+      "sha512/v1:microsoft.netframework.referenceassemblies.net481/1.0.3": "sha512-7q2vMYIMeNF2TU1/z8ZStlyALlfQjPRa3eCLwTT+6ErueWvXZsKF6MkjPXU0vglvjCP/5iXxhTMPzvuWRKJ1Ew==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/10.0.14": "sha512-oUdMkVocvdewR870lSc4DEViKTPzW25fpQDd0uZTY2DjxpAMvHJfr419eGop+vj909UT4SYSLFPGI4FfvS0hTg==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/10.0.15": "sha512-McxOtZpqq/g2DqUdrdyaMP0+cDP0tmKAJu4UvGMK2fsP/Vt+TiSilmJS9Zux1nsddbbsDt9wGYH+ey8+L8A8lQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/11.0.0": "sha512-Ul0gdK0VZJNJ9dhQXANNruObjjHJRYPY0ka/6wIL6emcTWVFaJaStUPWk1jqSCOL5ASD+nDptr0JpzijQwh6dg==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/3.0.1": "sha512-FxSkb/mSrkZO2es3PFkreB8bmJdTN8BsMNC8EQLsGr0PgUD9B7utQl0h0ANMSvgbSatIfec/cDFTK5rSIl4urA==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/3.1.0": "sha512-JA8oDYlaS3rPvcczLrHLWbx/7Rdr18rRwlIyTflPIuh4yr0lnQg65ve9SPkIiYSLH5v+g6ryVm6EPyXB0K4KGA==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/5.0.0": "sha512-+rXLbXw6DUZiUirFq17LILBQ8tMQoVNharLf5fg78LdBf7f/DDxiTV0o35sBRe85HAEewaVZkqlb6PfjlvmeZQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/6.0.36": "sha512-0JRZrVwwDsYQbue5o0tO10sfzjO7UGAjFPTRcKT/QzyPDljnGeiATrADhPoeNCi6tsmEpafmlEIkJiH+SbKMyQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/7.0.20": "sha512-eCdVf6ia9vPelz62o84/e7D/fIFeBjQ/iEOU9aa/1PYcR0yKuW8J/+6oJ996MrZfnrdS8ml/2cWEwAeJeosydw==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/8.0.33": "sha512-irn2O9pUJHTmXyyzEcHLpFP773eJdpI5ynIvpwmbIoqcvdLGEThew5w+1H9yEaow50Po0s4bY+Lzij6DCXe63w==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/8.0.34": "sha512-UISCbhNgSKCm49ALTxG2P7XmQAB5z+wZGbuvBU9Dm8xrjS1Zv1c6jHBUrRchDPC/UJXXt1GKTbH1C7vJQu52BA==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/9.0.22": "sha512-EtbruLw7kxpzNDButT9HGDly6p9yAM00/w4HZbOPBC1vK8kq7Qz8zgij96irv070h/rINICgQ8SVr+9xs6JGJA==",
+      "sha512/v1:microsoft.windowsdesktop.app.ref/9.0.23": "sha512-3MA++Ki9BpkmOYcXBT40pQp5USC3scpML2eEanLHG3ETyGrd42hQVH4NatqXJWr+Fz7dezP8BCzXdhm0KmcmNg==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/10.0.14": "sha512-lSaoV5YDlcF/C36uu0fQA0RCUt/N0GMEZuUNXJw6ReuSeuG5lUFoKb6QtD1/Voro/EWalx3OBZacIaX7k0bs+Q==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/5.0.17": "sha512-Hy8bUW21EO5zU29PRsC+jubq/pP6N5jBL/u8RNE6odAoW/DDU8zZoKQ0ATVYhtT6wpiMt5IMeBsXdl2MpIKdhg==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/6.0.36": "sha512-+Gokybbp6YExCOIPClS5iK9ogzvNrvQHiRmh+q0IsETjIq9DwtG+E78MxxhYRKzKRK8uCFbvERpVttNfEbFm2Q==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/7.0.20": "sha512-9/XYKLU2xVEkWQBWp7HcpbjIDJ6dU1cPGA2EN6ZHBF7eUbinWDOYT+H+8nFcTKtvudtir7ouU72UiP6Do6lkKw==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/8.0.33": "sha512-CQ9uQUZrAxtYKDFSOr7YP+60tKvkRM/hVUceziGGtKXqfmXERwuvwkCLvsvr8ooVzup7S4i8tuE6QR25PN35zQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-arm64/9.0.22": "sha512-cdTCR+IMc5TYeRhuiglrhMI17sLS2ZsQ2YjgYNwHqWgRCpuZPQvLAWk0XIFntraHA0KuTeRA+Rosem22/rqp0w==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/10.0.14": "sha512-Hxj4llZzFIss9eBt/EKnxessXLi3/wj6Cwrqp2ZL1j74Pmg8VM+IZd9B7bWGt8flKre7z6cJwoRY5YpwJqX44Q==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/3.0.3": "sha512-Fhfi6NC7KBCZr3WSHyKL0OPGZtRm6htz8b1ihoKCO3aClplgheItWeBgUE3X4xptExpCtBP+M10AhJpHTLCqag==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/3.1.32": "sha512-BRPF2SJS8ZkLUUIE/Ca9VRECab9zSufDXl7Ihrodq54n44Jt+4i5JnOVh5eq0Vf1qM/vMGbFgfJ6qt95r10vkQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/5.0.17": "sha512-JfoOdMU5IP3EMbBFhUW82eIaKWBqA/y2UWv3sT1hEFhdaTVpd8Vx+t4C6bx3mQPTQRzfrW3s136IZd2npvAM/g==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/6.0.36": "sha512-hHNGpJc4CFbExEdy22WRxvBLmXfTeDAPi2voKp17MbQWvC+qI77Icrf3ijDhlt1//1uPexFwEDli7PlA6vnCfQ==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/7.0.20": "sha512-Q0TcTdqzKzsZ3vdclO5OAEwBzLmdAwfupwIFNYY0amyS1oBwkMYJ/qLEZArMtzcVR0FxZw0jKdn0bW+ADvKIeA==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/8.0.33": "sha512-aYwFzvVUnVsU4tPQ0Okz22sUYRajhjBVkPvadAg9zBWyIK02qMZRdo/AlaPO/Gm6v6ExMccf4mNUjQxRIXiTJw==",
+      "sha512/v1:microsoft.windowsdesktop.app.runtime.win-x64/9.0.22": "sha512-WX68NBhRCbAJJnnkMHVRvvRBgOe29e4gY9w7SbjOeNgL1dRlr0tgQpe/Tqo8qUzalHHofATJG5xh5cCOy2Qlgg==",
+      "sha512/v1:netstandard.library.ref/2.1.0": "sha512-Jr0OqnqkaJJGEVq3w9oNQrIEteD/4QBNg3YOh1cvRjydzwop07+5aWjO/SfEYu6CwBn+dSBKXj8niEvTNy2brA==",
+      "sha512/v1:netstandard.library/1.6.1": "sha512-CXLcLbtJJeiW9ivOLlnU5IY5Mg7jitMBbc1IX71pNqDtCAc61e7yphLf8F38OQ85MP/5552HoGBw7rgSgnfL0A==",
+      "sha512/v1:netstandard.library/2.0.3": "sha512-548M6mnBSJWxsIlkQHfbzoYxpiYFXZZSL00p4GHYv8PkiqFBnnT68mW5mGEsA/ch9fDO9GkPgkFQpWiXZN7mAQ==",
+      "sha512/v1:runtime.linux-arm64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-UcpmRCl2A+RfQuHHs6CxaErtOJE53heqABJSIRezy6Pa4wrCi5heEi95DMYepn3r8QL8zz5CptiwR4CA43PrRw==",
+      "sha512/v1:runtime.linux-arm64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-/EB7zMnrrlKi38GnDZ/+ijwRxQyentelc9xV6TPKRubRQTiQaK6rEcn79WHi7y37jw1ybXRhWVwZarHRZlVxTg==",
+      "sha512/v1:runtime.linux-x64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-m/ieK6s5RbG2CPljI+m6HdDkFg72H/ZSlanRER4btNulnlUvhF+/KJuVZOLM/K5IySJ+RiG6aR8In0uiOoWqig==",
+      "sha512/v1:runtime.linux-x64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-jx1qvTtMvpsFLj4B2JAfI4T2l1NwgipG1RTWA9rufCX9uikqKxMCdVWAzgqDkigy/leTL8LXgaNlVPy10GWqJg==",
+      "sha512/v1:runtime.osx-arm64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-U3hoAD9ZqqCaWTwWRu8lr7ckqDF5qXQhkzGW0AFEGjWwJ2qO3l1IMrL26Vso43WM8fhYk+bsIj0Gmjju7gXeGQ==",
+      "sha512/v1:runtime.osx-arm64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-JnxWhAswvbbTy3Gaf+BUIlbc4uJdYhRE6buv767UkqRmix8fTeb+zRg+taTpX/64MK8LrBHx5g1Fps7hE/j4+Q==",
+      "sha512/v1:runtime.osx-x64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-z7/XiOwSqWTIzDZqO00IP3extOs7il1qwFNa6P87rVpnCp6e4Lxgg+nH2DrFVcdrNc2ai+9++i2303xn3P4lAA==",
+      "sha512/v1:runtime.osx-x64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-2IzpLs32EUztz0Sq0PN5LXPNHP6dpXF3iP3C695UZItq5Wu02AcrNpDe7+ujapXxMxUNE+yjBlf3nkAwu6i9dg==",
+      "sha512/v1:runtime.win-arm64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-28U/aWOlu44dhBelU8NZEr6ha+D3t2aI6gt/PzQSuHXzCMsla/iRJ97skD/YmBsly7+fg7CHDBkcYPlmRWAX3w==",
+      "sha512/v1:runtime.win-arm64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-tazYimRKRb5HiMu7eavB8la8fqWGL2HteQZ/xexcv/6NrPQHsD8D6WZipFuXAhKMLXd7PrdkuVo0OCw8AzyAvQ==",
+      "sha512/v1:runtime.win-x64.microsoft.dotnet.ilcompiler/10.0.14": "sha512-ZiiQBsOdluailDf6kiMGIqF8fN4nllbQf/B39Mrkc+n2CMb2ZLc3g43GDo4T77aDV6gcmLYCNf2Idxc0AQdZmw==",
+      "sha512/v1:runtime.win-x64.microsoft.dotnet.ilcompiler/9.0.22": "sha512-XDaIz12Bo5aVvT3AUmFheT+S+M9epOknCoSzENVj8a2HlkCiA9CZM+ZykrUodvd0+H9CqXFtPMyiRV40WhF+Gg=="
+    },
+    "//third_party/dotnet:extension.bzl%paket": {
+      "sha512/v1:microsoft.netcore.platforms/6.0.5": "sha512-GTMT/dgCRBCRUj11ssZ8K1FJm6Md+C/tSJl8I7YjxOFwSvopaIneV32y1VlnBTI4wy1SwueI7ou2sVfHkWENrA==",
+      "sha512/v1:netstandard.library/2.0.3": "sha512-548M6mnBSJWxsIlkQHfbzoYxpiYFXZZSL00p4GHYv8PkiqFBnnT68mW5mGEsA/ch9fDO9GkPgkFQpWiXZN7mAQ==",
+      "sha512/v1:nunit/3.14.0": "sha512-XXEZJblHyeSp9T9rXXabxKcC79crz/a0/k/lGnJFRKUmbQIxf9tf5eMS+STOvjFUnl7rLFeBycLzXD5OMa40hA==",
+      "sha512/v1:nunitlite/3.14.0": "sha512-0TEZNUokBNFu03MYqaFdaWQrYNRwuLI5k1IR1ly/p3DUVLq48a+Ig5uVWjI6t1OKOkrS/cIKkl+FkQE+2nRboQ=="
     },
     "//tools/testing:extensions.bzl%nested_bazel": {
       "9.3.1": {

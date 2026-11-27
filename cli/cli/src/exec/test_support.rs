@@ -66,6 +66,7 @@ pub(crate) struct Harness {
     pub(crate) edit_commit_json: Option<String>,
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
+    pub(crate) probe_aborted: Option<String>,
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
     pub(crate) probe_metrics: Option<String>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
@@ -289,6 +290,7 @@ impl Harness {
             edit_commit_json: None,
             probe_shards: None,
             probe_code: None,
+            probe_aborted: None,
             probe_argv: Rc::new(RefCell::new(Vec::new())),
             probe_metrics: None,
             build_argv: Rc::new(RefCell::new(Vec::new())),
@@ -391,6 +393,7 @@ impl Harness {
                 free_disk_bytes: self.free_disk_bytes,
                 probe_shards: self.probe_shards.clone(),
                 probe_code: self.probe_code,
+                probe_aborted: self.probe_aborted.clone(),
                 probe_argv: Rc::clone(&self.probe_argv),
                 probe_metrics: self.probe_metrics.clone(),
                 build_argv: Rc::clone(&self.build_argv),
@@ -455,6 +458,7 @@ impl Harness {
             free_disk_bytes: self.free_disk_bytes,
             probe_shards: self.probe_shards.clone(),
             probe_code: self.probe_code,
+            probe_aborted: self.probe_aborted.clone(),
             probe_argv: Rc::clone(&self.probe_argv),
             probe_metrics: self.probe_metrics.clone(),
             build_argv: Rc::clone(&self.build_argv),
@@ -670,6 +674,7 @@ pub(crate) struct FakeRunner {
     pub(crate) free_disk_bytes: Option<u64>,
     pub(crate) probe_shards: Option<Vec<String>>,
     pub(crate) probe_code: Option<i32>,
+    pub(crate) probe_aborted: Option<String>,
     pub(crate) probe_argv: Rc<RefCell<Vec<Vec<String>>>>,
     pub(crate) probe_metrics: Option<String>,
     pub(crate) build_argv: Rc<RefCell<Vec<Vec<String>>>>,
@@ -679,19 +684,13 @@ pub(crate) struct FakeRunner {
 impl FakeRunner {
     fn run_shard_probe(&self, argv: &[String]) -> io::Result<ChildStatus> {
         self.probe_argv.borrow_mut().push(argv.to_vec());
-        if let Some(code) = self.probe_code {
-            return Ok(ChildStatus {
-                code: Some(code),
-                signal: None,
-            });
-        }
         let (Some(shards), Some(bep)) = (
             &self.probe_shards,
             argv.iter()
                 .find_map(|arg| arg.strip_prefix("--build_event_json_file=")),
         ) else {
             return Ok(ChildStatus {
-                code: Some(1),
+                code: Some(self.probe_code.unwrap_or(1)),
                 signal: None,
             });
         };
@@ -707,7 +706,7 @@ impl FakeRunner {
                 Ok(serde_json::json!({"uri": format!("file://{artifact}")}))
             })
             .collect::<io::Result<Vec<serde_json::Value>>>()?;
-        let lines = [
+        let mut lines = vec![
             serde_json::json!({
                 "id": {"namedSet": {"id": "0"}},
                 "namedSetOfFiles": {"files": files},
@@ -718,13 +717,24 @@ impl FakeRunner {
                 "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "0"}]}]},
             })
             .to_string(),
+        ];
+        if let Some(reason) = &self.probe_aborted {
+            lines.push(
+                serde_json::json!({
+                    "id": {"targetConfigured": {"label": "//test:broken"}},
+                    "aborted": {"reason": reason},
+                })
+                .to_string(),
+            );
+        }
+        lines.push(
             self.probe_metrics
                 .clone()
                 .unwrap_or_else(|| LAST_EVENT.to_owned()),
-        ];
+        );
         std::fs::write(bep, lines.join("\n"))?;
         Ok(ChildStatus {
-            code: Some(0),
+            code: Some(self.probe_code.unwrap_or(0)),
             signal: None,
         })
     }

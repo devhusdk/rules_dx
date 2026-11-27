@@ -61,7 +61,7 @@ diff -ruN a/dotnet/private/compiler_wrapper.bat b/dotnet/private/compiler_wrappe
 diff -ruN a/dotnet/private/compiler_wrapper.sh b/dotnet/private/compiler_wrapper.sh
 --- a/dotnet/private/compiler_wrapper.sh
 +++ b/dotnet/private/compiler_wrapper.sh
-@@ -15,5 +15,30 @@
+@@ -22,5 +22,30 @@
  fi
  PATHMAP="$PATHMAP_FLAG:$PWD=."
  

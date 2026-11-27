@@ -1042,6 +1042,9 @@ API breaking changes found. If those are intentional, the APICompat suppression 
 
     #[test]
     fn nuget_main_stages_and_reports_the_packaged_identity() {
+        if env_test_in_child("nuget::tests::nuget_main_stages_and_reports_the_packaged_identity") {
+            return;
+        }
         let scratch = scratch_dir();
         let nupkg = scratch.path().join("pkg.nupkg");
         write_nupkg(&nupkg, &[("Real.Pkg.nuspec", &nuspec("Real.Pkg", "2.0.0"))]);
@@ -1096,6 +1099,9 @@ API breaking changes found. If those are intentional, the APICompat suppression 
 
     #[test]
     fn nuget_live_push_checks_the_actual_package_version() {
+        if env_test_in_child("nuget::tests::nuget_live_push_checks_the_actual_package_version") {
+            return;
+        }
         let scratch = scratch_dir();
         let nupkg = scratch.path().join("placeholder.nupkg");
         write_nupkg(&nupkg, &[("P.nuspec", &nuspec("P", "0.0.0"))]);
@@ -1131,6 +1137,9 @@ API breaking changes found. If those are intentional, the APICompat suppression 
     #[cfg(unix)]
     #[test]
     fn nuget_live_push_keeps_the_key_out_of_argv() {
+        if env_test_in_child("nuget::tests::nuget_live_push_keeps_the_key_out_of_argv") {
+            return;
+        }
         let scratch = scratch_dir();
         let dotnet = fake_dotnet(scratch.path(), "7.6.0", 0);
         with_env(&[("DX_LEAK_PROBE", Some("1"))], || {

@@ -1,4 +1,4 @@
-use dx_testing::fatbin::{self, Entry, Kind, sorted};
+use dx_testing_image::fatbin::{self, Entry, Kind, sorted};
 
 /// `compute_80:compute_80,sm_80` gives PTX and SASS for 8.0; `sm_90` gives SASS only.
 fn expected() -> Vec<Entry> {

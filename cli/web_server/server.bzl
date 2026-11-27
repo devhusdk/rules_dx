@@ -1,6 +1,6 @@
 """Development server for staged browser applications."""
 
-load("//core/private/testing:defs.bzl", "display_label")
+load("//core/private/testing:providers.bzl", "display_label")
 load("//python:defs.bzl", "python_binary")
 
 visibility("public")

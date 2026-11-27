@@ -2,7 +2,8 @@
 
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 
 def _sorted_paths(files):
     """Returns the sorted short paths of one file list."""

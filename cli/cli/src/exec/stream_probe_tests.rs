@@ -194,7 +194,7 @@ impl Run {
         };
         let child = &mut self.child;
         let mut exited = None;
-        let waited = dx_test_scratch::wait::watch_until(
+        let waited = dx_test_wait::watch_until(
             &log,
             &format!("Bazel logging {prefix:?}"),
             Duration::from_secs(30),
@@ -222,7 +222,7 @@ impl Run {
     }
 
     fn exit(&mut self) -> ExitStatus {
-        match dx_test_scratch::wait::child_exits(&mut self.child, Duration::from_secs(40)) {
+        match dx_test_wait::child_exits(&mut self.child, Duration::from_secs(40)) {
             Ok(status) => status,
             Err(error) => {
                 drop(self.child.kill());
@@ -442,7 +442,7 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
 
 fn run_until(run: &mut Run, path: &Path, what: &str, done: impl Fn(&Run) -> bool) {
     let mut exited = None;
-    let waited = dx_test_scratch::wait::watch_until(path, what, Duration::from_secs(30), || {
+    let waited = dx_test_wait::watch_until(path, what, Duration::from_secs(30), || {
         if done(run) {
             return true;
         }
@@ -490,7 +490,7 @@ fn wait_for_lease(run: &mut Run, pgid: i32) {
 
 fn wait_until_exited(pid: i32) {
     let pid = u32::try_from(pid).expect("pid fits u32");
-    let gone = dx_test_scratch::wait::pid_gone(pid, Duration::from_secs(30));
+    let gone = dx_test_wait::pid_gone(pid, Duration::from_secs(30));
     assert!(gone.is_ok(), "{pid} never exited: {gone:?}");
 }
 
@@ -650,10 +650,9 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     assert_foreground_build(&run, &pty, build);
     let dx = i32::try_from(run.child.id()).expect("pid fits i32");
     signal(dx, SIGSTOP).expect("SIGSTOP");
-    let stopped =
-        dx_test_scratch::wait::within("dx stopping", Duration::from_secs(30), move || {
-            await_stop(dx).ok().flatten()
-        });
+    let stopped = dx_test_wait::within("dx stopping", Duration::from_secs(30), move || {
+        await_stop(dx).ok().flatten()
+    });
     assert_eq!(stopped, Ok(Some(SIGSTOP)), "{}", run.context());
     (&pty.master).write_all(b"\x1a").expect("ctrl-z");
     wait_until_stopped(build);
@@ -691,10 +690,10 @@ fn the_terminal_returns_to_dx_after_a_build() {
 }
 
 fn wait_until_gone(leader: i32, within: Duration, locks: &[&Path]) -> bool {
-    u32::try_from(leader).is_ok_and(|pid| dx_test_scratch::wait::pid_gone(pid, within).is_ok())
+    u32::try_from(leader).is_ok_and(|pid| dx_test_wait::pid_gone(pid, within).is_ok())
         && locks
             .iter()
-            .all(|lock| dx_test_scratch::wait::lock_free(lock, within).is_ok())
+            .all(|lock| dx_test_wait::lock_free(lock, within).is_ok())
 }
 
 #[cfg(target_os = "linux")]
@@ -1032,7 +1031,7 @@ fn an_ignored_hangup_does_not_stop_dx() {
         .stderr(Stdio::null())
         .spawn()
         .expect("dx starts");
-    let started = dx_test_scratch::wait::watch_until(
+    let started = dx_test_wait::watch_until(
         &scratch.path().join("bazel.log"),
         "bazel starting",
         Duration::from_secs(30),
@@ -1260,7 +1259,7 @@ fn spawn_waiting(base: &Path, words: &[&str]) -> (Child, PathBuf, PathBuf) {
             .unwrap_or_default()
             .contains("waiting for a build slot")
     };
-    let waited = dx_test_scratch::wait::watch_until(
+    let waited = dx_test_wait::watch_until(
         &stderr,
         "dx waiting for a slot",
         Duration::from_secs(30),
@@ -1340,7 +1339,7 @@ fn a_stop_signal_during_the_slot_wait_cancels_with_128_plus_signal() {
             let (mut child, stdout, stderr) = spawn_waiting(base, words);
             let pid = i32::try_from(child.id()).expect("pid");
             signal(pid, signo).unwrap_or_else(|err| panic!("{signo} {words:?}: {err}"));
-            let exited = dx_test_scratch::wait::child_exits(&mut child, Duration::from_secs(10));
+            let exited = dx_test_wait::child_exits(&mut child, Duration::from_secs(10));
             let Ok(status) = exited else {
                 drop(child.kill());
                 drop(child.wait());

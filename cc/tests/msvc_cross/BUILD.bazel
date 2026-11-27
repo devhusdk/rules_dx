@@ -90,17 +90,21 @@ cc_binary(
     rust_test(
         name = name + "_arm64_test",
         size = "small",
-        srcs = ["//tools/testing/conformance:runner_test.rs"],
+        srcs = [
+            "//tools/testing/conformance:cross_test.rs",
+            "//tools/testing/conformance:runfiles_manifest.rs",
+        ],
+        crate_root = "//tools/testing/conformance:cross_test.rs",
         data = [":%s_arm64" % name],
         env = {
-            "DX_CONFORMANCE_MODE": "cross",
             "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_arm64)" % name,
             "DX_CONFORMANCE_TEXT": "windows_arm64",
         },
         target_compatible_with = _WINDOWS_X86_64,
         deps = [
             "//tools/testing:dx_testing",
-            "//tools/testing/conformance:conformance_quality",
+            "//tools/testing/image:dx_testing_image",
+            "//tools/testing/msix:dx_testing_msix",
         ],
     )
     for name in _CROSS

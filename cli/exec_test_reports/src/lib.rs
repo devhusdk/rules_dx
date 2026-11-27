@@ -11,7 +11,7 @@ use dx_bep::{
     collect_test_events,
 };
 use dx_exec_core::common::{
-    BAZEL_NO_TESTS, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
+    BAZEL_NO_TESTS, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_EMPTY, CODE_COVERAGE_SOURCES,
     CODE_COVERAGE_SOURCES_INCOMPLETE, CODE_NO_COVERAGE_COLLECTOR, CODE_TESTS_FAILED,
     CODE_TESTS_FILTERED, CODE_WORKSPACE_WITHOUT_TESTS, FsArtifacts, bazel_exit_event,
     bazel_failure_code, bep_error_code, collect_output_account, emit_built, emit_event, kept_child,
@@ -51,12 +51,15 @@ pub use account::{TestReportsRequest, output_locations};
 pub use changed_coverage::changed_lines;
 mod collect;
 use collect::{
-    Collected, Sources, announce_no_collector, collect_lcov, collect_sources, collect_test_xml,
+    Collected, Sources, announce_empty_coverage, announce_no_collector, collect_lcov,
+    collect_sources, collect_test_xml,
 };
+mod live;
+pub use live::{LiveTests, Streamed};
 mod report;
 use report::{
     ReportSink, account_sources, announce_incomplete, coverage_event, coverage_sources,
-    coverage_summary, coverage_threshold, emit_outcomes, read_events, render_report,
+    coverage_summary, coverage_threshold, emit_outcome, emit_outcomes, read_events, render_report,
     sources_report,
 };
 
@@ -68,6 +71,7 @@ struct Ctx<'a> {
     bazel_code: i32,
     query_runner: &'a dyn QueryRunner,
     whole_repo: bool,
+    streamed: &'a Streamed,
 }
 
 struct RunInputs<'a> {
@@ -86,6 +90,7 @@ struct Gathered {
     sources: Sources,
     reported: Vec<TestOutcome>,
     no_collector: Vec<(String, String)>,
+    empty_coverage: usize,
     complete: bool,
     detail: String,
 }
@@ -114,6 +119,7 @@ pub fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         results_complete,
         actions,
         whole_repo,
+        streamed,
     } = request;
     let ctx = Ctx {
         invocation,
@@ -123,6 +129,7 @@ pub fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
         bazel_code,
         query_runner,
         whole_repo,
+        streamed,
     };
     let (failure_count, failure_reports_ok) = match failure_phase(
         invocation,
@@ -172,6 +179,7 @@ fn gather(
         bazel_code,
         query_runner,
         whole_repo,
+        ..
     } = *ctx;
     let read = read_events(invocation, workspace, verb, bep, bazel_code, query_runner);
     let sources = if verb == WorkflowVerb::Coverage
@@ -218,6 +226,7 @@ fn gather(
         mut reported,
         gap,
         no_collector,
+        empty_coverage,
     } = if verb == WorkflowVerb::Test {
         collect_test_xml(&events, &summaries, &reader, evidence, err)
     } else {
@@ -237,6 +246,7 @@ fn gather(
         sources,
         reported,
         no_collector,
+        empty_coverage,
         complete,
         detail,
     })
@@ -256,6 +266,7 @@ fn emit_phase(
         bazel_code,
         query_runner,
         whole_repo,
+        streamed,
         ..
     } = *ctx;
     let Gathered {
@@ -265,12 +276,20 @@ fn emit_phase(
         sources,
         reported,
         no_collector,
+        empty_coverage,
         complete,
         detail,
     } = gathered;
     let complete = *complete;
-    let counts = emit_outcomes(invocation.output, out, err, reported, &events.filtered)
-        .map_err(|exit| kept_child(err, bazel_code, exit))?;
+    let counts = emit_outcomes(
+        invocation.output,
+        out,
+        err,
+        reported,
+        &events.filtered,
+        streamed,
+    )
+    .map_err(|exit| kept_child(err, bazel_code, exit))?;
     let groups = group_skipped(&events.skipped, invocation, workspace, query_runner);
     skipped_notice(invocation.output, out, err, &groups)
         .map_err(|exit| kept_child(err, bazel_code, exit))?;
@@ -319,6 +338,8 @@ fn emit_phase(
         Err(exit) => return Err(kept_child(err, bazel_code, exit)),
     }
     announce_incomplete(invocation.output, out, err, detail)
+        .map_err(|exit| kept_child(err, bazel_code, exit))?;
+    announce_empty_coverage(invocation.output, out, err, *empty_coverage)
         .map_err(|exit| kept_child(err, bazel_code, exit))?;
     let strict = dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on);
     let collector_ok = announce_no_collector(invocation.output, out, err, no_collector, strict)

@@ -4,7 +4,7 @@ use dx_exec_core::common::{
     Env, check_stdout_write, emit_built, emit_event, refusal, resolve_failed, set_field,
 };
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started};
-use dx_plan::args::{Command, Invocation};
+use dx_plan::args::{Command, Invocation, TagFilter};
 use dx_plan::resolve::base::{PlanError, affected_base, since_base};
 use dx_plan::resolve::{
     AffectedSelection, QueryRunner, RuleGraph, WidenedScope, collect_range, collect_working_tree,
@@ -19,10 +19,13 @@ pub(crate) struct AffectedPlan {
     pub(crate) changed_files: Vec<String>,
     pub(crate) targets: Vec<String>,
     pub(crate) tests: Vec<String>,
+    pub(crate) coverage_tests: Option<Vec<String>>,
     pub(crate) generate: Vec<String>,
     pub(crate) format: Vec<String>,
+    pub(crate) lint: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
+    pub(crate) graph: Option<RuleGraph>,
 }
 
 const SUMMARY_WIDENED_LIMIT: usize = 3;
@@ -52,6 +55,9 @@ impl AffectedPlan {
         });
         if command == Command::Check {
             set_field(&mut value, "tests", json!(self.tests));
+            if let Some(coverage_tests) = &self.coverage_tests {
+                set_field(&mut value, "coverage_tests", json!(coverage_tests));
+            }
         }
         value
     }
@@ -111,6 +117,25 @@ fn audit_owned(workspace: &Path, target: &str) -> bool {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LintScope {
+    DirectUsers,
+    Dependents,
+}
+
+fn lint_scope(selection: &AffectedSelection, requested: LintScope) -> LintScope {
+    if requested == LintScope::Dependents
+        || selection
+            .widened
+            .iter()
+            .any(|entry| !entry.repos.is_empty())
+    {
+        LintScope::Dependents
+    } else {
+        LintScope::DirectUsers
+    }
+}
+
 fn scope_to_graph(
     plan: &mut AffectedPlan,
     selection: &mut AffectedSelection,
@@ -118,6 +143,7 @@ fn scope_to_graph(
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    requested_lint: LintScope,
 ) -> Result<(), PlanError> {
     let secrets_scan = command == Command::Security;
     if selection.targets.is_empty() {
@@ -138,22 +164,33 @@ fn scope_to_graph(
     let mut rules = graph.affected(&selection.targets);
     rules.retain(|rule| !exclude::covered(&excludes, rule));
     let tests = if tests_only(command) || command == Command::Check {
-        let mut tests = graph.tests_of(&rules);
+        let mut tests = graph.affected_tests(&selection.targets, &rules);
         tests.retain(|test| !exclude::covered(&excludes, test));
         tests
     } else {
         Vec::new()
     };
-    let mut owners = if matches!(command, Command::Format | Command::Check) {
-        graph.selected(&selection.targets)
+    let quality = matches!(command, Command::Format | Command::Lint | Command::Check);
+    let mut owners = if quality {
+        graph.own_sources(&selection.targets)
     } else {
         Vec::new()
     };
     owners.retain(|rule| !exclude::covered(&excludes, rule));
+    let mut lint = if quality && lint_scope(selection, requested_lint) == LintScope::Dependents {
+        rules.clone()
+    } else if quality {
+        graph.own_sources_and_direct_users(&selection.targets)
+    } else {
+        Vec::new()
+    };
+    lint.retain(|rule| !exclude::covered(&excludes, rule));
     plan.targets = if tests_only(command) {
         tests.clone()
     } else if command == Command::Format {
         owners.clone()
+    } else if command == Command::Lint {
+        lint.clone()
     } else {
         rules
     };
@@ -163,16 +200,14 @@ fn scope_to_graph(
         if plan.generate.is_empty() {
             plan.generate = dx_plan::plan::generate_package_scope(&plan.targets);
         }
-        plan.format = if owners.is_empty() {
-            plan.targets.clone()
-        } else {
-            owners
-        };
+        plan.format = owners;
+        plan.lint = lint;
     }
     if matches!(command, Command::Security | Command::License) {
         plan.targets.retain(|target| audit_owned(workspace, target));
         plan.unscoped = secrets_scan && plan.targets.is_empty();
     }
+    plan.graph = Some(graph);
     Ok(())
 }
 
@@ -181,7 +216,9 @@ pub(crate) fn plan(
     workspace: &Path,
     runner: &dyn QueryRunner,
     startup_options: &[String],
+    aspect_labels: &[String],
     base: String,
+    lint: LintScope,
 ) -> Result<AffectedPlan, PlanError> {
     let git = PathBuf::from("git");
     let mut changes = collect_range(&git, workspace, runner, &base, "HEAD")
@@ -207,10 +244,13 @@ pub(crate) fn plan(
         changed_files,
         targets: Vec::new(),
         tests: Vec::new(),
+        coverage_tests: None,
         generate: Vec::new(),
         format: Vec::new(),
+        lint: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
+        graph: None,
     };
     if changes.is_empty() && overrides.is_empty() {
         return Ok(plan);
@@ -223,6 +263,7 @@ pub(crate) fn plan(
         AffectedSelection {
             targets: Vec::new(),
             widened: Vec::new(),
+            aspect_widened: Vec::new(),
             graph: None,
         }
     } else {
@@ -231,7 +272,7 @@ pub(crate) fn plan(
             workspace,
             runner,
             startup_options,
-            &dx_plan::plan::registry::all_aspect_labels(),
+            aspect_labels,
             Some((git.as_path(), plan.base.as_str())),
         )?
     };
@@ -245,14 +286,20 @@ pub(crate) fn plan(
     if !overrides.is_empty() {
         selection.targets = vec!["//...".to_owned()];
     }
+    let aspects_widen = runs_aspects(command) && !selection.aspect_widened.is_empty();
+    if aspects_widen {
+        selection.widened.append(&mut selection.aspect_widened);
+    }
     plan.widened.clone_from(&selection.widened);
     if command != Command::Deploy && selection.targets.iter().any(|target| target == "//...") {
         if command == Command::Check {
             plan.tests = vec!["//...".to_owned()];
             plan.generate = vec!["//...".to_owned()];
             plan.format = vec!["//...".to_owned()];
+            plan.lint = vec!["//...".to_owned()];
         }
         plan.targets = vec!["//...".to_owned()];
+        plan.graph = selection.graph.take();
         return Ok(plan);
     }
     scope_to_graph(
@@ -262,8 +309,25 @@ pub(crate) fn plan(
         workspace,
         runner,
         startup_options,
+        lint,
     )?;
+    if aspects_widen {
+        widen_aspect_scopes(&mut plan, command);
+    }
     Ok(plan)
+}
+
+fn runs_aspects(command: Command) -> bool {
+    command == Command::Check || !dx_plan::plan::registry::spec(command).aspects.is_empty()
+}
+
+fn widen_aspect_scopes(plan: &mut AffectedPlan, command: Command) {
+    let everything = vec!["//...".to_owned()];
+    if command == Command::Check {
+        plan.format.clone_from(&everything);
+        plan.lint.clone_from(&everything);
+    }
+    plan.targets = everything;
 }
 
 const BAZEL_LOCK: &str = "MODULE.bazel.lock";
@@ -358,6 +422,20 @@ impl Write for InjectAffected<'_> {
     }
 }
 
+pub(crate) fn no_affected_targets(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> std::io::Result<()> {
+    if output == OutputMode::Json {
+        Ok(())
+    } else if output == OutputMode::Diff {
+        writeln!(err, "no affected targets")
+    } else {
+        writeln!(out, "no affected targets")
+    }
+}
+
 fn finished_empty(
     invocation: &Invocation,
     plan: &AffectedPlan,
@@ -379,11 +457,7 @@ fn finished_empty(
         if let Err(exit) = emit_built(out, started) {
             return exit;
         }
-    } else if invocation.output == OutputMode::Diff {
-        if writeln!(err, "no affected targets").is_err() {
-            return 1;
-        }
-    } else if writeln!(out, "no affected targets").is_err() {
+    } else if no_affected_targets(invocation.output, out, err).is_err() {
         return 1;
     }
     let mut code = 0;
@@ -439,7 +513,13 @@ fn resolve_plan(
         workspace,
         query_runner,
         &invocation.bazel_startup_options,
+        &dx_plan::plan::registry::all_aspect_labels(),
         base,
+        if invocation.lint_closure {
+            LintScope::Dependents
+        } else {
+            LintScope::DirectUsers
+        },
     )?;
     if !invocation.targets.is_empty() && !plan.empty() {
         let scope = resolve(
@@ -450,7 +530,61 @@ fn resolve_plan(
         )?;
         narrow_to_scope(&mut plan, &scope.targets);
     }
+    if invocation.command == Command::Check && !plan.empty() {
+        split_tests(
+            &mut plan,
+            invocation,
+            workspace,
+            query_runner,
+            &TagFilter::from_options(invocation.raw_bazel_options()),
+        )?;
+    }
     Ok(plan)
+}
+
+fn split_tests(
+    plan: &mut AffectedPlan,
+    invocation: &Invocation,
+    workspace: &Path,
+    runner: &dyn QueryRunner,
+    filter: &TagFilter,
+) -> Result<(), PlanError> {
+    let whole_repo = plan.tests == ["//..."];
+    if invocation.coverage && !plan.tests.is_empty() {
+        let graph = match plan.graph.take() {
+            Some(graph) => graph,
+            None => RuleGraph::load(workspace, runner, &invocation.bazel_startup_options)?,
+        };
+        let candidates = if whole_repo {
+            let excludes = exclude::load(workspace)?;
+            let mut tests = graph.tests_of(&graph.own_sources(&plan.tests));
+            tests.retain(|test| !exclude::covered(&excludes, test));
+            tests
+        } else {
+            plan.tests.clone()
+        };
+        let (coverage, plain) = graph.coverage_split(&candidates);
+        plan.coverage_tests = Some(if whole_repo {
+            plan.tests.clone()
+        } else {
+            coverage
+        });
+        plan.tests = plain;
+        plan.graph = Some(graph);
+    }
+    if let Some(graph) = &plan.graph {
+        if !graph.admits_any(&plan.tests, filter) {
+            plan.tests.clear();
+        }
+        if let Some(coverage) = plan
+            .coverage_tests
+            .as_mut()
+            .filter(|coverage| !graph.admits_any(coverage, filter))
+        {
+            coverage.clear();
+        }
+    }
+    Ok(())
 }
 
 fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
@@ -458,6 +592,7 @@ fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
     plan.targets.retain(inside);
     plan.tests.retain(inside);
     plan.format.retain(inside);
+    plan.lint.retain(inside);
     plan.generate = dx_plan::plan::generate_package_scope_within(&plan.generate, scope);
 }
 
@@ -465,9 +600,11 @@ fn scope_handoff(next: &mut Invocation, plan: &AffectedPlan, workspace: &Path) {
     next.targets.clone_from(&plan.targets);
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
+        coverage_tests: plan.coverage_tests.clone().unwrap_or_default(),
         base: Some(plan.base.clone()),
         generate: plan.generate.clone(),
         format: plan.format.clone(),
+        lint: plan.lint.clone(),
         writable: Some(writable_paths(workspace, &plan.changed_files)),
     });
 }
@@ -620,8 +757,10 @@ mod tests {
             changed_files: vec!["core/quality/fixtures.bzl".to_string()],
             targets: Vec::new(),
             tests: Vec::new(),
+            coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
+            lint: Vec::new(),
             widened: entries
                 .iter()
                 .map(|(scope, reason)| WidenedScope {
@@ -631,6 +770,7 @@ mod tests {
                 })
                 .collect(),
             unscoped: false,
+            graph: None,
         }
     }
 
@@ -765,9 +905,28 @@ mod tests {
     }
 
     fn run(root: &Path, command: Command, answers: &[&str]) -> (AffectedPlan, GitRunner) {
+        run_linting(root, command, LintScope::DirectUsers, answers)
+    }
+
+    fn run_linting(
+        root: &Path,
+        command: Command,
+        lint: LintScope,
+        answers: &[&str],
+    ) -> (AffectedPlan, GitRunner) {
+        run_with_aspects(root, command, lint, &[], answers)
+    }
+
+    fn run_with_aspects(
+        root: &Path,
+        command: Command,
+        lint: LintScope,
+        aspects: &[String],
+        answers: &[&str],
+    ) -> (AffectedPlan, GitRunner) {
         let runner = GitRunner::new(answers);
         let base = affected_base(root, &runner, None).expect("base");
-        let plan = plan(command, root, &runner, &[], base).expect("plan");
+        let plan = plan(command, root, &runner, &[], aspects, base, lint).expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
     }
@@ -1057,7 +1216,16 @@ mod tests {
         let base = since_base(root, &runner, "HEAD~1").expect("base");
         let graph = graph();
         let runner = GitRunner::new(&[&graph]);
-        let plan = plan(Command::Build, root, &runner, &[], base.clone()).expect("plan");
+        let plan = plan(
+            Command::Build,
+            root,
+            &runner,
+            &[],
+            &[],
+            base.clone(),
+            LintScope::DirectUsers,
+        )
+        .expect("plan");
         assert_eq!(plan.changed_files, ["a/b.txt"]);
         assert_eq!(plan.base, base);
         let (all, _) = run(root, Command::Build, &[&graph]);
@@ -1250,6 +1418,112 @@ mod tests {
         assert_eq!(plan.targets, ["//a:t"]);
     }
 
+    fn fixture_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
+        write(root, "MODULE.bazel", "module(name = \"rules_dx\")\n").unwrap();
+        write(
+            root,
+            ".bazelignore",
+            "go/tests/consumer\nlua/tests/consumer\n",
+        )
+        .unwrap();
+        for lang in ["go", "lua"] {
+            write(root, &format!("{lang}/lang.json"), "{}\n").unwrap();
+            write(root, &format!("{lang}/tests/consumer/BUILD.bazel"), "").unwrap();
+        }
+        write(root, "lua/tests/consumer/hello.lua", "print(1)\n").unwrap();
+        write(root, "tools/testing/consumer/BUILD.bazel", "").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]).unwrap();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-b", "topic"]).unwrap();
+        dir
+    }
+
+    fn fixture_graph(snapshots: bool) -> String {
+        let fixtures = "@dx_consumer_fixtures//";
+        let snapshot = |file: &str| {
+            if snapshots {
+                vec![format!("{fixtures}:{file}")]
+            } else {
+                Vec::new()
+            }
+        };
+        let rules = [
+            json!({"name": "//tools/testing/consumer:go_consumer_test", "ruleClass": "rust_test", "ruleInput": snapshot("go.json")}),
+            json!({"name": "//tools/testing/consumer:lua_consumer_test", "ruleClass": "rust_test", "ruleInput": snapshot("lua.json")}),
+            json!({"name": "//tools/testing/consumer:in_graph_guard_test", "ruleClass": "rust_test", "ruleInput": snapshot("consumer.json")}),
+            json!({"name": "//tools/testing/consumer:lib_test", "ruleClass": "rust_test", "ruleInput": []}),
+        ];
+        rules
+            .iter()
+            .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn a_consumer_fixture_edit_selects_the_tests_that_read_its_snapshot() {
+        let dir = fixture_repo();
+        let root = dir.path();
+        write(root, "lua/tests/consumer/hello.lua", "print(2)\n").unwrap();
+        let graph = fixture_graph(true);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.changed_files, ["lua/tests/consumer/hello.lua"]);
+        assert_eq!(
+            plan.targets,
+            [
+                "//tools/testing/consumer:in_graph_guard_test",
+                "//tools/testing/consumer:lua_consumer_test",
+            ]
+        );
+        assert_eq!(
+            plan.json(Command::Test)["widened"][0]["reason"],
+            json!("consumer fixture lua/tests/consumer/hello.lua")
+        );
+    }
+
+    #[test]
+    fn a_consumer_fixture_no_rule_reads_widens_to_the_repository() {
+        let dir = fixture_repo();
+        let root = dir.path();
+        write(root, "lua/tests/consumer/hello.lua", "print(2)\n").unwrap();
+        let graph = fixture_graph(false);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.json(Command::Test)["widened"],
+            json!([{
+                "scope": "//...",
+                "reason": "consumer fixture lua/tests/consumer/hello.lua, and no rule reads its snapshot",
+            }])
+        );
+    }
+
+    #[test]
+    fn an_unowned_file_under_a_package_without_rules_widens_to_the_repository() {
+        let dir = repo();
+        let root = dir.path();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "main"]).unwrap();
+        write(root, "vendored/BUILD.bazel", "").unwrap();
+        write(root, "vendored/notes.txt", "a\n").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "vendored"]).unwrap();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-B", "topic"]).unwrap();
+        write(root, "vendored/notes.txt", "b\n").unwrap();
+        let graph = graph();
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.json(Command::Test)["widened"],
+            json!([{
+                "scope": "//...",
+                "reason": "unowned vendored/notes.txt, and no rule is in //vendored/...",
+            }])
+        );
+    }
+
     #[test]
     fn a_change_only_under_an_excluded_package_selects_nothing() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -1304,13 +1578,162 @@ mod tests {
     }
 
     #[test]
-    fn format_selects_owners_without_their_users() {
+    fn format_selects_owners_and_lint_adds_their_direct_users() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n").unwrap();
         let (plan, _) = run(dir.path(), Command::Format, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib"]);
         let (plan, _) = run(dir.path(), Command::Lint, &[&graph()]);
         assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+        let (plan, _) = run(dir.path(), Command::Typecheck, &[&graph()]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+    }
+
+    fn rules_graph(rules: &[Value]) -> String {
+        rules
+            .iter()
+            .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn check_lints_a_changed_library_and_its_direct_dependents_and_typechecks_all_users() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//a:unit", "ruleClass": "rust_test", "ruleInput": ["//a:lib"],
+                "attribute": [{"name": "crate", "stringValue": "//a:lib"}]}),
+            json!({"name": "//a:bin", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:t", "ruleClass": "sh_test", "ruleInput": ["//a:bin"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:t", "//a:unit"]);
+        assert_eq!(plan.tests, ["//a:t", "//a:unit"]);
+        assert_eq!(plan.format, ["//a:lib", "//a:unit"]);
+        assert_eq!(plan.lint, ["//a:bin", "//a:lib", "//a:unit"]);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin", "//a:lib", "//a:unit"]);
+    }
+
+    #[test]
+    fn closure_lint_scope_reaches_users_two_hops_from_a_change() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:a", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//b:b", "ruleInput": ["//a:a"]}),
+            json!({"name": "//c:c", "ruleInput": ["//b:b"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b"]);
+        let (plan, _) = run_linting(dir.path(), Command::Lint, LintScope::Dependents, &[&graph]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b", "//c:c"]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.lint, ["//a:a", "//b:b"]);
+        let (plan, _) = run_linting(dir.path(), Command::Check, LintScope::Dependents, &[&graph]);
+        assert_eq!(plan.format, ["//a:a"]);
+        assert_eq!(plan.lint, ["//a:a", "//b:b", "//c:c"]);
+        assert_eq!(plan.targets, ["//a:a", "//b:b", "//c:c"]);
+    }
+
+    #[test]
+    fn check_and_lint_select_nothing_to_lint_when_every_owner_is_manual() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n").unwrap();
+        let manual = json!([{"name": "tags", "stringListValue": ["manual"]}]);
+        let graph = rules_graph(&[
+            json!({"name": "//a:hand", "ruleInput": ["//a:a.txt"], "attribute": manual}),
+            json!({"name": "//a:mid", "ruleInput": ["//a:hand"], "attribute": manual}),
+            json!({"name": "//a:bin", "ruleInput": ["//a:mid"]}),
+        ]);
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:bin"]);
+        assert!(plan.format.is_empty(), "{:?}", plan.format);
+        assert!(plan.lint.is_empty(), "{:?}", plan.lint);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph]);
+        assert!(plan.empty(), "{:?}", plan.targets);
+    }
+
+    #[test]
+    fn a_bazelrc_global_or_a_toolchain_widens_lint_and_tests() {
+        let dir = repo();
+        let root = dir.path();
+        write(root, ".bazelrc", "build --extra_toolchains=//a:policy\n").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "policy"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        for (user, reason) in [
+            (
+                json!({"name": "//a:policy", "ruleInput": ["//a:lib"]}),
+                "changed files reach //a:policy, which bazelrc flags use",
+            ),
+            (
+                json!({"name": "//a:tc", "ruleClass": "toolchain", "ruleInput": ["//a:lib"]}),
+                "changed files reach toolchain //a:tc",
+            ),
+        ] {
+            let graph =
+                rules_graph(&[json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}), user]);
+            let (plan, _) = run(root, Command::Check, &[&graph]);
+            assert_eq!(plan.widened[0].reason, reason);
+            assert_eq!(plan.targets, ["//..."]);
+            assert_eq!(plan.lint, ["//..."]);
+            assert_eq!(plan.tests, ["//..."]);
+            let (plan, _) = run(root, Command::Lint, &[&graph]);
+            assert_eq!(plan.targets, ["//..."]);
+            let (plan, _) = run(root, Command::Test, &[&graph]);
+            assert_eq!(plan.targets, ["//..."]);
+        }
+    }
+
+    #[test]
+    fn an_aspect_tool_widens_lint_but_tests_stay_with_the_graph() {
+        let dir = repo();
+        let root = dir.path();
+        write(
+            root,
+            "lint/aspect.bzl",
+            "lint_aspect = aspect(attrs = {\"_tool\": attr.label(default = \"//a:tool\")})\n",
+        )
+        .unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "aspect"]).unwrap();
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+            json!({"name": "//a:tool", "ruleInput": ["//a:lib"]}),
+            json!({"name": "//a:tool_test", "ruleClass": "sh_test", "ruleInput": ["//a:tool"]}),
+            json!({"name": "//b:other", "ruleInput": ["//b:b.txt"]}),
+            json!({"name": "//b:other_test", "ruleClass": "sh_test", "ruleInput": ["//b:other"]}),
+        ]);
+        let aspects = ["//lint:aspect.bzl%lint_aspect".to_owned()];
+        let run = |command| {
+            run_with_aspects(root, command, LintScope::DirectUsers, &aspects, &[&graph]).0
+        };
+        let plan = run(Command::Test);
+        assert_eq!(plan.targets, ["//a:tool_test"]);
+        assert!(plan.widened.is_empty(), "{:?}", plan.widened);
+        let plan = run(Command::Build);
+        assert_eq!(plan.targets, ["//a:lib", "//a:tool", "//a:tool_test"]);
+        let plan = run(Command::Check);
+        assert_eq!(plan.tests, ["//a:tool_test"]);
+        assert_eq!(plan.lint, ["//..."]);
+        assert_eq!(plan.format, ["//..."]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.widened,
+            [WidenedScope {
+                scope: "//...".to_owned(),
+                reason: "changed files reach //a:tool, which aspects use".to_owned(),
+                repos: Vec::new(),
+            }]
+        );
+        let plan = run(Command::Lint);
+        assert_eq!(plan.targets, ["//..."]);
     }
 
     #[test]
@@ -1321,6 +1744,7 @@ mod tests {
         assert_eq!(plan.targets, ["//..."]);
         assert_eq!(plan.generate, ["//..."]);
         assert_eq!(plan.format, ["//..."]);
+        assert_eq!(plan.lint, ["//..."]);
     }
 
     #[test]
@@ -1342,10 +1766,13 @@ mod tests {
             changed_files: Vec::new(),
             targets: Vec::new(),
             tests: Vec::new(),
+            coverage_tests: None,
             generate: Vec::new(),
             format: Vec::new(),
+            lint: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
+            graph: None,
         };
         assert!(
             plan.summary()
@@ -1402,8 +1829,7 @@ mod tests {
         )
     }
 
-    #[test]
-    fn json_reports_the_crates_a_cargo_lock_update_selects() {
+    fn bumped_cargo_lock() -> (tempfile::TempDir, &'static str) {
         let dir = repo();
         let root = dir.path();
         let lock = dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].as_str();
@@ -1439,6 +1865,13 @@ mod tests {
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]).unwrap();
         dx_test_scratch::git(root, root, &["branch", "--force", "main"]).unwrap();
         write(root, lock, &cargo_lock("1.0.2")).unwrap();
+        (dir, lock)
+    }
+
+    #[test]
+    fn json_reports_the_crates_a_cargo_lock_update_selects() {
+        let (dir, lock) = bumped_cargo_lock();
+        let root = dir.path();
         let graph = [
             json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
             json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
@@ -1475,6 +1908,21 @@ mod tests {
     }
 
     #[test]
+    fn check_lints_dependents_when_a_lock_update_changes_external_crates() {
+        let (dir, _) = bumped_cargo_lock();
+        let root = dir.path();
+        write(root, "a/a.txt", "changed\n").unwrap();
+        let graph = rules_graph(&[
+            json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
+            json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
+        ]);
+        let (plan, _) = run(root, Command::Check, &[&graph]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:serde_user"]);
+        assert_eq!(plan.format, ["//a:lib"]);
+        assert_eq!(plan.lint, ["//a:lib", "//a:serde_user"]);
+    }
+
+    #[test]
     fn scopes_narrow_the_affected_plan() {
         let labels = |items: &[&str]| -> Vec<String> {
             items.iter().map(|item| (*item).to_owned()).collect()
@@ -1484,16 +1932,25 @@ mod tests {
             changed_files: labels(&["svc/a.rs", "web/b.ts"]),
             targets: labels(&["//svc/api:lib", "//svc:bin", "//web:app"]),
             tests: labels(&["//svc/api:test", "//web:test"]),
+            coverage_tests: None,
             generate: labels(&["//svc/api:all", "//web:all", "//..."]),
             format: labels(&["//svc/api:lib", "//web:app"]),
+            lint: labels(&["//svc/api:lib", "//svc/api:test", "//web:app"]),
             widened: Vec::new(),
             unscoped: false,
+            graph: None,
         };
         narrow_to_scope(&mut plan, &labels(&["//svc/api/...", "//svc:bin"]));
         assert_eq!(plan.targets, labels(&["//svc/api:lib", "//svc:bin"]));
         assert_eq!(plan.tests, labels(&["//svc/api:test"]));
         assert_eq!(plan.format, labels(&["//svc/api:lib"]));
+        assert_eq!(plan.lint, labels(&["//svc/api:lib", "//svc/api:test"]));
         assert_eq!(plan.generate, labels(&["//svc:all", "//svc/api/..."]));
+        narrow_to_scope(&mut plan, &labels(&["//svc:bin"]));
+        assert_eq!(plan.targets, labels(&["//svc:bin"]));
+        assert!(plan.format.is_empty(), "{:?}", plan.format);
+        assert!(plan.lint.is_empty(), "{:?}", plan.lint);
+        assert!(!plan.empty());
         narrow_to_scope(&mut plan, &labels(&["//web/..."]));
         assert!(plan.empty());
     }

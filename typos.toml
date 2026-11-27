@@ -24,4 +24,10 @@ passin = "passin"
 cmo = "cmo"
 
 [files]
-extend-exclude = ["*.lock", "*.min.js", "*.svg", "**/*_test.rs", "**/*_tests.rs"]
+extend-exclude = [
+  "*.lock",
+  "*.min.js",
+  "*.svg",
+  "**/*_test.rs",
+  "**/*_tests.rs",
+]

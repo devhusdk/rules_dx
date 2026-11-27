@@ -1,9 +1,9 @@
 use super::{
-    ArtifactReader, BTreeMap, CODE_NO_COVERAGE_COLLECTOR, Candidate, Evidence, JunitCase,
-    NoticeEvent, OutputMode, Path, SOURCES_OUTPUT_GROUP, SourceManifest, Summaries, TestCase,
-    TestEvents, TestOutcome, Write, account_stream, attach_log, collect_output_account, emit_built,
-    evidence_gap, final_coverage_attempts, is_coverage_file, is_coverage_output, notice_event,
-    outcome_for, parse_cases, parse_source_manifest, read_or_record, result_where,
+    ArtifactReader, BTreeMap, CODE_COVERAGE_EMPTY, CODE_NO_COVERAGE_COLLECTOR, Candidate, Evidence,
+    JunitCase, NoticeEvent, OutputMode, Path, SOURCES_OUTPUT_GROUP, SourceManifest, Summaries,
+    TestCase, TestEvents, TestOutcome, Write, account_stream, attach_log, collect_output_account,
+    emit_built, evidence_gap, final_coverage_attempts, is_coverage_file, is_coverage_output,
+    notice_event, outcome_for, parse_cases, parse_source_manifest, read_or_record, result_where,
     stable_exec_path, tally_cases, validate_lcov,
 };
 
@@ -72,6 +72,7 @@ pub(super) struct Collected {
     pub(super) reported: Vec<TestOutcome>,
     pub(super) gap: Option<String>,
     pub(super) no_collector: Vec<(String, String)>,
+    pub(super) empty_coverage: usize,
 }
 
 pub(super) fn collect_test_xml(
@@ -181,6 +182,7 @@ pub(super) fn collect_lcov(
     let finals = final_coverage_attempts(&events.results);
     let mut lcov_documents: Vec<String> = Vec::new();
     let mut reported: Vec<TestOutcome> = Vec::new();
+    let mut empty_reports = 0usize;
     for result in &events.results {
         let mut required = Vec::new();
         for file in &result.files {
@@ -225,6 +227,7 @@ pub(super) fn collect_lcov(
                 Err(error) => {
                     if bytes.iter().all(u8::is_ascii_whitespace) {
                         outcome.artifacts_collected += 1;
+                        empty_reports += 1;
                         continue;
                     }
                     outcome.artifacts_invalid += 1;
@@ -259,8 +262,18 @@ pub(super) fn collect_lcov(
         evidence.record(problem.clone());
     }
     let no_collector = no_collector_labels(events);
+    let empty_coverage = if lcov_documents.is_empty()
+        && empty_reports > 0
+        && reported
+            .iter()
+            .all(|outcome| matches!(outcome.outcome.as_str(), "passed" | "passed_after_retry"))
+    {
+        reported.len()
+    } else {
+        0
+    };
     let gap = evidence_gap(
-        lcov_documents.is_empty() && no_collector.is_empty(),
+        lcov_documents.is_empty() && no_collector.is_empty() && empty_coverage == 0,
         &evidence,
         "no coverage.dat artifacts were reported",
     );
@@ -270,7 +283,30 @@ pub(super) fn collect_lcov(
         reported,
         gap,
         no_collector,
+        empty_coverage,
         ..Collected::default()
+    }
+}
+
+pub(super) fn announce_empty_coverage(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    tests: usize,
+) -> Result<(), i32> {
+    if tests == 0 {
+        return Ok(());
+    }
+    let noun = if tests == 1 { "test" } else { "tests" };
+    let message = format!("{tests} {noun} passed and wrote only empty coverage reports");
+    if output == OutputMode::Json {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent::info(CODE_COVERAGE_EMPTY, message)),
+        )
+    } else {
+        dx_output::write_stderr(err, format_args!("dx: {CODE_COVERAGE_EMPTY}: {message}\n"));
+        Ok(())
     }
 }
 

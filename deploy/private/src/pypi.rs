@@ -1130,6 +1130,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn api_check_with_a_git_baseline_runs_griffe_against_the_tag() {
+        if env_test_in_child(
+            "pypi::tests::api_check_with_a_git_baseline_runs_griffe_against_the_tag",
+        ) {
+            return;
+        }
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");

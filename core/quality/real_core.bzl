@@ -4,8 +4,8 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//core/quality:parity_tests.bzl", "deferred_pipeline_error")
-load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
+load("//core/quality:parity.bzl", "deferred_pipeline_error")
+load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_direct_maps_or_error", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "pipeline_tool_error", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//core/quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "holds_workspace_source", "upstream_source_class")
 load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
@@ -275,9 +275,6 @@ def _expand_shard(tools_table, spec):
         "tools": tools,
     }
 
-def _direct_sources(_target, _capability, direct_sources):
-    return direct_sources
-
 def real_config(tools, shard_specs, hook_order = [], context_hooks = {}, source_recognizers = [], harness_sources = None, toolchain = None, check_policy = False):
     """Bundles the tool table and the family hooks the engine runs."""
     tools = {
@@ -294,7 +291,7 @@ def real_config(tools, shard_specs, hook_order = [], context_hooks = {}, source_
         hook_order = hook_order,
         context_hooks = context_hooks,
         source_recognizers = source_recognizers,
-        harness_sources = harness_sources if harness_sources != None else _direct_sources,
+        harness_sources = harness_sources,
         toolchain = toolchain,
         check_policy = check_policy,
     )
@@ -305,6 +302,10 @@ def real_family_tier(ctx, family_id):
     if section != None and section.tier:
         return section.tier
     return ctx.attr._config_tier[BuildSettingInfo].value
+
+def real_in_main_repo(ctx):
+    """Propagation predicate that keeps a quality aspect out of external repositories, where it reports nothing."""
+    return ctx.rule.label.repo_name == ""
 
 def real_wired_tools(cfg):
     """Maps each capability to the sorted tool names the table wires for it."""
@@ -361,6 +362,75 @@ def real_upstream_direct_sources(recognizers, target, ctx):
     check_direct_sources(direct_sources, str(target.label))
     return (True, direct_sources, "")
 
+_SHARD_CAPABILITIES = ["format", "lint", "typecheck"]
+
+RealClassInfo = provider(
+    doc = "One target's quality classification, made once and read by every shard and probe aspect.",
+    fields = {
+        "direct_files": "class id to the main-repository files it owns",
+        "path_to_file": "workspace path to its File",
+        "resolved": "capability to its resolved pipeline stages, for each capability no tag blocks",
+        "failures": "capability to the message its consumers fail with, for each capability that cannot resolve",
+    },
+)
+
+_UNCLASSIFIED = RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, failures = {})
+
+def _resolved_and_deferred(target_classes, direct_paths, capability, policy):
+    """Resolves one capability's stages and the deferred-class error to raise when none resolve."""
+    resolved = resolve_pipeline(
+        target_classes,
+        direct_paths,
+        capability,
+        aspect_family_selections(policy, capability),
+        REAL_CLASS_TO_FAMILY,
+        REAL_ADAPTERS,
+    )
+    return (resolved, deferred_pipeline_error(target_classes, capability) if len(resolved) == 0 else "")
+
+def _real_classify_impl(target, ctx):
+    if target.label.repo_name != "" or QualitySourcesInfo not in target:
+        return [_UNCLASSIFIED]
+    capabilities = [capability for capability in _SHARD_CAPABILITIES if not aspect_capability_blocked(ctx.rule.attr, capability)]
+    if len(capabilities) == 0:
+        return [_UNCLASSIFIED]
+    what = "real_aspect (" + str(target.label) + ")"
+    (target_classes, direct_files, direct_paths, path_to_file, error) = aspect_direct_maps_or_error(target[QualitySourcesInfo].direct_sources, what)
+    if error != "":
+        return [RealClassInfo(direct_files = {}, path_to_file = {}, resolved = {}, failures = {capability: error for capability in capabilities})]
+    if len(target_classes) == 0:
+        return [_UNCLASSIFIED]
+    policy = ctx.attr._policy[QualityPolicyInfo]
+    resolved = {}
+    failures = {}
+    for capability in capabilities:
+        tool_error = pipeline_tool_error(aspect_family_selections(policy, capability), REAL_CLASS_TO_FAMILY, REAL_ADAPTERS)
+        if tool_error != "":
+            failures[capability] = tool_error
+            continue
+        (resolved[capability], deferred) = _resolved_and_deferred(target_classes, direct_paths, capability, policy)
+        if deferred != "":
+            failures[capability] = what + ": " + deferred
+    return [RealClassInfo(direct_files = direct_files, path_to_file = path_to_file, resolved = resolved, failures = failures)]
+
+real_classify_aspect = aspect(
+    implementation = _real_classify_impl,
+    doc = "Classifies a main-repository target's quality sources once for every shard and probe aspect.",
+    attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
+    provides = [RealClassInfo],
+)
+
+def _shared_stages(target, capability):
+    """Reads the stages real_classify_aspect resolved for this target and capability."""
+    found = target[RealClassInfo]
+    failure = found.failures.get(capability, "")
+    if failure != "":
+        fail(failure)
+    resolved = found.resolved.get(capability, [])
+    if len(resolved) == 0:
+        return ([], None, None)
+    return (resolved, found.direct_files, found.path_to_file)
+
 def real_resolved_stages(cfg, target, ctx, capability, what):
     """Resolves one target's pipeline stages for both the real shards and the probe."""
     policy = ctx.attr._policy[QualityPolicyInfo]
@@ -373,6 +443,10 @@ def real_resolved_stages(cfg, target, ctx, capability, what):
         return ([], None, None)
     if QualitySourcesInfo in target:
         direct_sources = target[QualitySourcesInfo].direct_sources
+        harnessed = cfg.harness_sources(target, capability, direct_sources) if cfg.harness_sources != None else None
+        if harnessed == None:
+            return _shared_stages(target, capability)
+        direct_sources = harnessed
     else:
         if target.label.name.endswith("_upstream"):
             return ([], None, None)
@@ -382,22 +456,12 @@ def real_resolved_stages(cfg, target, ctx, capability, what):
         if not recognized:
             return ([], None, None)
         direct_sources = derived
-    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(cfg.harness_sources(target, capability, direct_sources), what)
+    (target_classes, direct_files, direct_paths, path_to_file) = aspect_direct_maps(direct_sources, what)
     if len(target_classes) == 0:
         return ([], None, None)
-    selections = aspect_family_selections(policy, capability)
-    resolved = resolve_pipeline(
-        target_classes,
-        direct_paths,
-        capability,
-        selections,
-        REAL_CLASS_TO_FAMILY,
-        REAL_ADAPTERS,
-    )
-    if len(resolved) == 0:
-        err = deferred_pipeline_error(target_classes, capability)
-        if err != "":
-            fail(what + ": " + err)
+    (resolved, deferred) = _resolved_and_deferred(target_classes, direct_paths, capability, policy)
+    if deferred != "":
+        fail(what + ": " + deferred)
     return (resolved, direct_files, path_to_file)
 
 def _staged(known, ws_path):
@@ -697,10 +761,11 @@ def real_make_aspect(cfg, shard_name):
         implementation = _impl,
         doc = shard["doc"],
         attr_aspects = ["aspect_hints", "crate"] if follows_crate else ["aspect_hints"],
+        propagation_predicate = real_in_main_repo,
         attrs = shard["attrs"],
         toolchains = shard.get("toolchains", []),
-        requires = shard.get("requires", []),
-        required_aspect_providers = shard.get("required_aspect_providers", []),
+        requires = [real_classify_aspect] + shard.get("requires", []),
+        required_aspect_providers = shard.get("required_aspect_providers", []) + [[RealClassInfo]],
     )
 
 RealShardProbeInfo = provider(
@@ -763,6 +828,9 @@ def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeIn
     return aspect(
         implementation = _impl,
         attr_aspects = ["aspect_hints", "crate"] if capability == "format" else ["aspect_hints"],
+        propagation_predicate = real_in_main_repo,
         attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
+        requires = [real_classify_aspect],
+        required_aspect_providers = [[RealClassInfo]],
         doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
     )

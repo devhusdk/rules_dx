@@ -350,12 +350,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn stub_luarocks_output_never_holds_the_key() {
-        use std::os::unix::fs::PermissionsExt as _;
         let key = "fake-luarocks-key-8841";
         let dir = tempfile::tempdir().unwrap();
         let stub = dir.path().join("luarocks");
-        std::fs::write(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        dx_testing::executable_script(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n");
         let private = PrivateConfigDir::create("dx-luarocks-test-").unwrap();
         let config = write_luarocks_config(&private, key).unwrap();
         let mut cmd = luarocks_upload_command(&stub, Path::new("r.rockspec"), &config);

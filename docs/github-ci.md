@@ -175,6 +175,7 @@ The workflows write a credential helper that reads the key from the environment 
 `tools/dx init --apply` writes the rest of the `ci` and `ci-pr` configs to `.dx/bazelrc`:
 
 - compression, timeouts, retries and local fallback
+- a circuit breaker: once remote cache calls keep failing, Bazel stops calling the cache for the rest of the command and builds and fetches locally
 - all CPUs, `--jobs=64`, `--loading_phase_threads=32` and `--remote_max_connections=200`
 - `--nobuild_runfile_links`
 - an up-to-date `MODULE.bazel.lock`

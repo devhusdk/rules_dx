@@ -243,7 +243,7 @@ impl Consumer {
                 break;
             }
         }
-        let reached = dx_test_scratch::wait::path_appears(&started, Duration::from_secs(20));
+        let reached = dx_test_wait::path_appears(&started, Duration::from_secs(20));
         assert!(reached.is_ok(), "bazel never reached the gate: {reached:?}");
         hang_up(reader.into_inner(), &probe);
         fs::write(self.base.join("bazel.log.gate"), "").expect("gate");
@@ -268,7 +268,7 @@ impl Consumer {
             .process_group(0)
             .spawn()
             .expect("dx starts");
-        let reached = dx_test_scratch::wait::path_appears(&started, Duration::from_secs(20));
+        let reached = dx_test_wait::path_appears(&started, Duration::from_secs(20));
         assert!(reached.is_ok(), "bazel never started: {reached:?}");
         let pgid = i32::try_from(child.id()).expect("pid fits i32");
         dx_os_sys::process::signal(-pgid, signo).expect("signal delivered");

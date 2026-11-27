@@ -1,0 +1,69 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+rust_library(
+    name = "dx_test_wait",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_test_wait",
+        normal = True,
+    ),
+    crate_name = "dx_test_wait",
+    crate_root = "src/lib.rs",
+    visibility = ["//:__subpackages__"],
+    deps = all_crate_deps(
+        package_name = "cli/dx_test_wait",
+        normal = True,
+    ) + [
+        "//cli/os_sys:dx_os_sys",
+        "@crates//:notify",
+    ],
+)
+
+rust_test(
+    name = "dx_test_wait_test",
+    size = "small",
+    testonly = True,
+    aliases = aliases(
+        package_name = "cli/dx_test_wait",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_test_wait",
+    deps = all_crate_deps(
+        package_name = "cli/dx_test_wait",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/os_sys:dx_os_sys",
+        "@crates//:notify",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -24,6 +24,7 @@ package(default_visibility = VIS_CLI_DEPLOY_GENERATION_QUALITY + [
     "//tools/ci:__pkg__",
     "//tools/docs/dotnet/extract:__pkg__",
     "//tools/testing:__pkg__",
+    "//tools/testing/exec_log:__pkg__",
     "//tools/testing/hermetic:__pkg__",
     "//tools/testing/nested:__pkg__",
     "//zig/private/tools/lock:__pkg__",

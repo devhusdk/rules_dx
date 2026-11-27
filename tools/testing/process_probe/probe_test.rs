@@ -442,11 +442,9 @@ impl Drop for Release {
 fn sigints_logged(log: &std::path::Path, expected: usize) -> Vec<u8> {
     let logged = || std::fs::read(log).expect("log");
     let what = format!("the probe logging {expected} SIGINTs");
-    if let Err(error) =
-        dx_test_scratch::wait::watch_until(log, &what, Duration::from_secs(10), || {
-            logged().len() >= expected
-        })
-    {
+    if let Err(error) = dx_test_wait::watch_until(log, &what, Duration::from_secs(10), || {
+        logged().len() >= expected
+    }) {
         panic!("{error}; it logged {}", logged().len());
     }
     logged()
@@ -485,7 +483,7 @@ fn counted_sigints_are_logged_and_do_not_stop_the_probe() {
     );
     assert_eq!(std::fs::read(&log).expect("log"), b"II");
     std::fs::write(&gate, b"").expect("release the probe");
-    let status = dx_test_scratch::wait::child_exits(&mut child.0, Duration::from_secs(10))
+    let status = dx_test_wait::child_exits(&mut child.0, Duration::from_secs(10))
         .unwrap_or_else(|error| panic!("the probe did not exit after its gate opened: {error}"));
     assert_eq!(status.code(), Some(0), "the probe must exit cleanly");
 }

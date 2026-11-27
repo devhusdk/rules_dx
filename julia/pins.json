@@ -1,11 +1,11 @@
 {
-  "version": "0.8.0",
   "archives": {
     "rules_julia": {
-      "version": "0.8.0",
-      "sha256": "298424f537350d37142f1f056375a3c3cd65a3058ee4b7dcd555ed1c87df8684",
+      "version": "632e1237a56d718446e3ddfca3526c0cc93b2c23",
+      "sha256": "fb9a4bf8f7485dccbade72a7c5bbaab0dafce1f6971ae045fad8b308e7894fea",
+      "strip_prefix": "rules_julia-632e1237a56d718446e3ddfca3526c0cc93b2c23",
       "urls": [
-        "https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz"
+        "https://github.com/periareon/rules_julia/archive/632e1237a56d718446e3ddfca3526c0cc93b2c23.tar.gz"
       ]
     },
     "julia_src": {

@@ -10,7 +10,7 @@ roslyn_sarif = rule(
     attrs = {"dep": attr.label(aspects = [roslyn_aspect], mandatory = True)},
 )
 
-_TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"
+_TOOLCHAIN = "@rules_dotnet//dotnet/toolchain:toolchain_type"
 
 def _sdk_recommended_impl(ctx):
     toolchain = ctx.toolchains[_TOOLCHAIN]

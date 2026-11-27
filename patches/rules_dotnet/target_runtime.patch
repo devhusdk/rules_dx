@@ -1,8 +1,8 @@
 Upstream: none (rules_dx only: uses @rules_dx//dotnet/private:target_runtime)
-diff --git a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common/attrs.bzl
+diff -ruN a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common/attrs.bzl
 --- a/dotnet/private/rules/common/attrs.bzl
 +++ b/dotnet/private/rules/common/attrs.bzl
-@@ -201,6 +201,10 @@
+@@ -322,6 +322,10 @@
          default = "//dotnet/private/sdk/runtime_packs:runtime_pack",
          cfg = runtime_pack_transition,
      ),
@@ -10,35 +10,70 @@ diff --git a/dotnet/private/rules/common/attrs.bzl b/dotnet/private/rules/common
 +        doc = "The dotnet host of the target platform",
 +        default = Label("@rules_dx//dotnet/private:target_runtime"),
 +    ),
- }
+     "_native_tools": attr.label(
+         doc = """The native compiler a ReadyToRun or NativeAOT publish of the binary asks for, for the binary's framework.
  
- # These are attributes that are common across all the binary/library/test C# rules
-diff --git a/dotnet/private/rules/common/binary.bzl b/dotnet/private/rules/common/binary.bzl
+diff -ruN a/dotnet/private/rules/common/binary.bzl b/dotnet/private/rules/common/binary.bzl
 --- a/dotnet/private/rules/common/binary.bzl
 +++ b/dotnet/private/rules/common/binary.bzl
-@@ -9,7 +9,6 @@
-     "collect_transitive_runfiles",
-     "generate_depsjson",
-     "generate_runtimeconfig",
--    "get_toolchain",
-     "is_core_framework",
-     "is_standard_framework",
-     "to_rlocation_path",
-@@ -44,7 +43,7 @@
-     return result
+@@ -31,7 +31,7 @@
+ load("//dotnet/private/rules/ready_to_run:ready_to_run.bzl", "with_ready_to_run_images")
+ load("//dotnet/private/sdk:packs.bzl", "resolve_framework_references")
  
- def _create_launcher(ctx, runfiles, executable):
--    runtime = get_toolchain(ctx).runtime
-+    runtime = ctx.attr._target_runtime
-     windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
+-def _create_launcher(ctx, is_windows, executable, toolchain, tfm):
++def _create_launcher(ctx, is_windows, executable, toolchain, host, tfm):
+     launcher = ctx.actions.declare_file("{}.{}".format(executable.basename, "bat" if is_windows else "sh"), sibling = executable)
  
-     launcher = ctx.actions.declare_file("{}.{}".format(executable.basename, "bat" if ctx.target_platform_has_constraint(windows_constraint) else "sh"), sibling = executable)
-@@ -70,7 +69,7 @@
-             is_executable = True,
-         )
+     if is_netframework(tfm):
+@@ -52,7 +52,7 @@
+         template = ctx.file._launcher_bat if is_windows else ctx.file._launcher_sh,
+         output = launcher,
+         substitutions = {
+-            "TEMPLATED_dotnet": to_rlocation_path(ctx, toolchain.runtime.files_to_run.executable),
++            "TEMPLATED_dotnet": to_rlocation_path(ctx, host.files_to_run.executable),
+             "TEMPLATED_executable": to_rlocation_path(ctx, executable),
+             "TEMPLATED_environment": icu_launcher_environment(ctx, toolchain, is_windows),
+         },
+@@ -310,6 +310,13 @@
+         The binary's providers.
+     """
+     runtime_toolchain = runtime_toolchain or toolchain
++    target_runtime = ctx.attr._target_runtime
++    if target_runtime:
++        host = target_runtime
++        host_files = depset(transitive = [target_runtime.files, target_runtime.default_runfiles.files])
++    else:
++        host = runtime_toolchain.runtime
++        host_files = runtime_toolchain.dotnetinfo.runtime_files
+     if DotnetNativeToolsInfo in ctx.attr._native_tools:
+         return _native_tools(ctx, ctx.attr._native_tools[DotnetNativeToolsInfo])
  
--    runfiles.extend(get_toolchain(ctx).dotnetinfo.runtime_files)
-+    runfiles.extend(runtime.files.to_list() + runtime.default_runfiles.files.to_list())
+@@ -327,7 +334,7 @@
+     dll = runtime_provider.libs[0]
+     assembly_name = runtime_provider.name
+     out_dir = "{}/{}".format(ctx.label.name, tfm)
+-    launcher = _create_launcher(ctx, is_windows, dll, runtime_toolchain, tfm)
++    launcher = _create_launcher(ctx, is_windows, dll, runtime_toolchain, host, tfm)
  
-     return launcher
+     # Everything staged next to the assembly is a runfile as well as an output,
+     # so that it is there when the binary runs from an isolated runfiles tree.
+@@ -378,7 +385,7 @@
+ 
+     # .NET Framework runs on the framework installed in Windows, and its
+     # launcher needs no Bash runfiles library.
+-    runtime = [] if is_netfx else [runtime_toolchain.dotnetinfo.runtime_files, icu_files(runtime_toolchain)]
++    runtime = [] if is_netfx else [host_files, icu_files(runtime_toolchain)]
+     runfiles = collect_transitive_runfiles(ctx, runtime_provider, ctx.attr.deps).merge_all([
+         ctx.runfiles(
+             files = staged + ([runtime_files.runtimeconfig, runtime_files.deps_json] if runtime_files else []),
+diff -ruN a/dotnet/private/rules/csharp/binary.bzl b/dotnet/private/rules/csharp/binary.bzl
+--- a/dotnet/private/rules/csharp/binary.bzl
++++ b/dotnet/private/rules/csharp/binary.bzl
+@@ -167,6 +167,7 @@
+         "_static_web_assets_tool": attr.label(default = "//dotnet/private:no_tool", cfg = "exec"),
+         "_apphost_pack": attr.label_list(default = []),
+         "_runtime_pack": attr.label_list(default = []),
++        "_target_runtime": attr.label_list(default = []),
+     },
+ )
  

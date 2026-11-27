@@ -2,7 +2,7 @@
 //!
 //! The test writes a stub file per registry tool of the host, adds one `dx_prebuilt.asset`
 //! (or `dx_gazelle.asset`) per tool to a consumer of the `<lang>/tests/consumer` fixtures of the
-//! `DX_PREBUILT_GUARD_LANGS` languages (the first at the root, each later one under `<lang>/`),
+//! languages the `var` environment variable names (the first at the root, each later one under `<lang>/`),
 //! and runs `bazel cquery 'deps(...)'` over the fixtures, the `@rules_dx` targets dx commands run
 //! and the hub target of every pinned tool.
 //! A tool of `DX_PREBUILT_TARGET_TOOLS` runs on the target platform, so it gets one tag per
@@ -26,6 +26,12 @@
 //! `python_tool_<name>` targets analyze the pinned bundle path.
 //!
 //! cquery only analyzes, so the stubs never run; their sha256 is all the hubs check.
+
+#![expect(
+    clippy::indexing_slicing,
+    clippy::panic,
+    reason = "test helper: a failed case fails the test"
+)]
 
 use std::collections::BTreeMap;
 
@@ -96,13 +102,29 @@ fn hub(tool: &str) -> &'static str {
     }
 }
 
+/// The names the hub serves for one registry tool, one per line.
+struct HubNames {
+    dx: String,
+    go: String,
+}
+
 /// The hub targets of `tool` on platform `key`, by canonical name so the consumer needs no
-/// `use_repo`. The `go` registry tool is the dx-go multicall, served as one hub target per name in
-/// `go_names`; `python_tools` is served as one `python_tool_<name>` per bundled tool not missing on `key`.
-fn hub_targets(tool: &str, key: &str, go_names: &str, bundle: &[BundleTool]) -> Vec<String> {
+/// `use_repo`. The `dx` registry tool is also served as `dx:<name>` per name in `names.dx`. The `go`
+/// registry tool is the dx-go multicall, served as one hub target per name in `names.go`;
+/// `python_tools` is served as one `python_tool_<name>` per bundled tool not missing on `key`.
+fn hub_targets(tool: &str, key: &str, names: &HubNames, bundle: &[BundleTool]) -> Vec<String> {
     let hub = hub(tool);
     match tool {
-        "go" => go_names
+        "dx" => std::iter::once(format!("@@rules_dx++{hub}+{hub}//:dx"))
+            .chain(
+                names
+                    .dx
+                    .split_whitespace()
+                    .map(|name| format!("@@rules_dx++{hub}+{hub}//dx:{name}")),
+            )
+            .collect(),
+        "go" => names
+            .go
             .split_whitespace()
             .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
             .collect(),
@@ -134,14 +156,10 @@ fn runfile(var: &str) -> String {
     dx_testing::read_text(&path)
 }
 
-#[test]
-fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
-    let langs = dx_testing::env_text("DX_PREBUILT_GUARD_LANGS");
+pub fn compiles_no_rules_dx_tool(var: &str) {
+    let langs = dx_testing::env_text(var);
     let langs: Vec<&str> = langs.split_whitespace().collect();
-    assert!(
-        !langs.is_empty(),
-        "DX_PREBUILT_GUARD_LANGS names no language"
-    );
+    assert!(!langs.is_empty(), "{var} names no language");
     let named = langs.join(" ");
     let list = allowlist(&runfile("DX_PREBUILT_GUARD_ALLOWLIST")).unwrap_or_else(|error| {
         panic!("prebuilt_guard_allowlist.txt: {error}");
@@ -151,7 +169,10 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let registry = runfile("DX_PREBUILT_REGISTRY");
     let tools = host_tools(&registry, &key);
     let targeted = target_keys(&registry, &runfile("DX_PREBUILT_TARGET_TOOLS"));
-    let go_names = runfile("DX_PREBUILT_GO_HUB_TARGETS");
+    let names = HubNames {
+        dx: runfile("DX_PREBUILT_DX_HUB_TARGETS"),
+        go: runfile("DX_PREBUILT_GO_HUB_TARGETS"),
+    };
     let bundle = bundle_tools(&runfile("DX_PREBUILT_PYTHON_HUB_TARGETS"))
         .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
@@ -182,7 +203,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         let url = stub_url(&stub);
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         if rooted(platform, &langs) {
-            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
+            roots.extend(hub_targets(tool, &key, &names, &bundle));
         }
     }
     let mut target_roots = Vec::new();
@@ -197,12 +218,12 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         }
         if keys.contains(&key) {
-            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
+            roots.extend(hub_targets(tool, &key, &names, &bundle));
         }
         target_roots.push(TargetRoot {
             tool: tool.clone(),
             keys: keys.clone(),
-            targets: hub_targets(tool, &key, &go_names, &bundle),
+            targets: hub_targets(tool, &key, &names, &bundle),
         });
     }
     let extra = format!(
@@ -342,88 +363,101 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     );
 }
 
-#[test]
-fn host_tools_keep_the_host_key_and_jars() {
-    let registry = "dx linux_x86_64 dx-linux-x86_64\ndx macos_arm64 dx-macos-arm64\njmh_generate any dx-jmh-generate-any.jar\nhlint linux_arm64 dx-hlint-linux-arm64\n";
-    assert_eq!(
-        host_tools(registry, "linux_x86_64"),
-        BTreeMap::from([
-            ("dx".to_owned(), "linux_x86_64".to_owned()),
-            ("jmh_generate".to_owned(), "any".to_owned()),
-        ])
-    );
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn asset_tags_go_to_the_hub_that_serves_the_tool() {
-    assert!(
-        asset_tag("gazelle", "linux", "x86_64", "file:///g", "ab")
-            .starts_with("dx_gazelle.asset(name = \"gazelle\"")
-    );
-    assert!(
-        asset_tag("selene", "linux", "x86_64", "file:///s", "ab")
-            .starts_with("dx_prebuilt.asset(name = \"selene\"")
-    );
-    let go_names = "dx_errcheck\ndx_govet\n";
-    let bundle = bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n")
-        .expect("parses");
-    let key = "linux_x86_64";
-    assert_eq!(
-        hub_targets("gazelle", key, go_names, &bundle),
-        ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
-    );
-    assert_eq!(
-        hub_targets("dx", key, go_names, &bundle),
-        ["@@rules_dx++dx_prebuilt+dx_prebuilt//:dx"]
-    );
-    assert_eq!(
-        hub_targets("python_tools", key, go_names, &bundle),
-        [
-            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_ansible_lint_tool",
-            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint",
-        ]
-    );
-    assert_eq!(
-        hub_targets("python_tools", "windows_arm64", go_names, &bundle),
-        ["@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"]
-    );
-    assert_eq!(
-        hub_targets("go", key, go_names, &bundle),
-        [
-            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
-            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",
-        ]
-    );
-}
+    #[test]
+    fn host_tools_keep_the_host_key_and_jars() {
+        let registry = "dx linux_x86_64 dx-linux-x86_64\ndx macos_arm64 dx-macos-arm64\njmh_generate any dx-jmh-generate-any.jar\nhlint linux_arm64 dx-hlint-linux-arm64\n";
+        assert_eq!(
+            host_tools(registry, "linux_x86_64"),
+            BTreeMap::from([
+                ("dx".to_owned(), "linux_x86_64".to_owned()),
+                ("jmh_generate".to_owned(), "any".to_owned()),
+            ])
+        );
+    }
 
-#[test]
-fn only_jvm_consumers_root_the_jar_tools() {
-    assert!(rooted("linux_x86_64", &["go"]));
-    assert!(rooted("linux_x86_64", &["java"]));
-    assert!(!rooted("any", &["go"]));
-    assert!(rooted("any", &["java"]));
-    assert!(rooted("any", &["kotlin"]));
-    assert!(rooted("any", &["scala"]));
-    assert!(rooted("any", &["go", "scala"]));
-}
+    #[test]
+    fn asset_tags_go_to_the_hub_that_serves_the_tool() {
+        assert!(
+            asset_tag("gazelle", "linux", "x86_64", "file:///g", "ab")
+                .starts_with("dx_gazelle.asset(name = \"gazelle\"")
+        );
+        assert!(
+            asset_tag("selene", "linux", "x86_64", "file:///s", "ab")
+                .starts_with("dx_prebuilt.asset(name = \"selene\"")
+        );
+        let names = HubNames {
+            dx: "lua_lock\nperl_lock\n".to_owned(),
+            go: "dx_errcheck\ndx_govet\n".to_owned(),
+        };
+        let bundle =
+            bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n")
+                .expect("parses");
+        let key = "linux_x86_64";
+        assert_eq!(
+            hub_targets("gazelle", key, &names, &bundle),
+            ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
+        );
+        assert_eq!(
+            hub_targets("dx", key, &names, &bundle),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//dx:lua_lock",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//dx:perl_lock",
+            ]
+        );
+        assert_eq!(
+            hub_targets("python_tools", key, &names, &bundle),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_ansible_lint_tool",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint",
+            ]
+        );
+        assert_eq!(
+            hub_targets("python_tools", "windows_arm64", &names, &bundle),
+            ["@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"]
+        );
+        assert_eq!(
+            hub_targets("go", key, &names, &bundle),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",
+            ]
+        );
+    }
 
-#[test]
-fn target_keys_list_every_registry_key_of_the_named_tools() {
-    let registry = "dx linux_x86_64 dx-linux-x86_64\nkcov linux_arm64 dx-kcov-linux-arm64\nkcov linux_x86_64 dx-kcov-linux-x86_64\nruntime windows_arm64 dx-runtime-windows-arm64\n";
-    assert_eq!(
-        target_keys(registry, "kcov\nruntime\n"),
-        BTreeMap::from([
-            (
-                "kcov".to_owned(),
-                vec!["linux_arm64".to_owned(), "linux_x86_64".to_owned()]
-            ),
-            ("runtime".to_owned(), vec!["windows_arm64".to_owned()]),
-        ])
-    );
-}
+    #[test]
+    fn only_jvm_consumers_root_the_jar_tools() {
+        assert!(rooted("linux_x86_64", &["go"]));
+        assert!(rooted("linux_x86_64", &["java"]));
+        assert!(!rooted("any", &["go"]));
+        assert!(rooted("any", &["java"]));
+        assert!(rooted("any", &["kotlin"]));
+        assert!(rooted("any", &["scala"]));
+        assert!(rooted("any", &["go", "scala"]));
+    }
 
-#[test]
-fn the_host_is_a_registry_key() {
-    let key = host().unwrap();
-    assert!(release_platform(&key).is_some(), "{key}");
+    #[test]
+    fn target_keys_list_every_registry_key_of_the_named_tools() {
+        let registry = "dx linux_x86_64 dx-linux-x86_64\nkcov linux_arm64 dx-kcov-linux-arm64\nkcov linux_x86_64 dx-kcov-linux-x86_64\nruntime windows_arm64 dx-runtime-windows-arm64\n";
+        assert_eq!(
+            target_keys(registry, "kcov\nruntime\n"),
+            BTreeMap::from([
+                (
+                    "kcov".to_owned(),
+                    vec!["linux_arm64".to_owned(), "linux_x86_64".to_owned()]
+                ),
+                ("runtime".to_owned(), vec!["windows_arm64".to_owned()]),
+            ])
+        );
+    }
+
+    #[test]
+    fn the_host_is_a_registry_key() {
+        let key = host().unwrap();
+        assert!(release_platform(&key).is_some(), "{key}");
+    }
 }

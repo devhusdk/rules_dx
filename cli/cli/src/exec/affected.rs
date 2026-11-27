@@ -1418,6 +1418,112 @@ mod tests {
         assert_eq!(plan.targets, ["//a:t"]);
     }
 
+    fn fixture_repo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
+        write(root, "MODULE.bazel", "module(name = \"rules_dx\")\n").unwrap();
+        write(
+            root,
+            ".bazelignore",
+            "go/tests/consumer\nlua/tests/consumer\n",
+        )
+        .unwrap();
+        for lang in ["go", "lua"] {
+            write(root, &format!("{lang}/lang.json"), "{}\n").unwrap();
+            write(root, &format!("{lang}/tests/consumer/BUILD.bazel"), "").unwrap();
+        }
+        write(root, "lua/tests/consumer/hello.lua", "print(1)\n").unwrap();
+        write(root, "tools/testing/consumer/BUILD.bazel", "").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]).unwrap();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-b", "topic"]).unwrap();
+        dir
+    }
+
+    fn fixture_graph(snapshots: bool) -> String {
+        let fixtures = "@dx_consumer_fixtures//";
+        let snapshot = |file: &str| {
+            if snapshots {
+                vec![format!("{fixtures}:{file}")]
+            } else {
+                Vec::new()
+            }
+        };
+        let rules = [
+            json!({"name": "//tools/testing/consumer:go_consumer_test", "ruleClass": "rust_test", "ruleInput": snapshot("go.json")}),
+            json!({"name": "//tools/testing/consumer:lua_consumer_test", "ruleClass": "rust_test", "ruleInput": snapshot("lua.json")}),
+            json!({"name": "//tools/testing/consumer:in_graph_guard_test", "ruleClass": "rust_test", "ruleInput": snapshot("consumer.json")}),
+            json!({"name": "//tools/testing/consumer:lib_test", "ruleClass": "rust_test", "ruleInput": []}),
+        ];
+        rules
+            .iter()
+            .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn a_consumer_fixture_edit_selects_the_tests_that_read_its_snapshot() {
+        let dir = fixture_repo();
+        let root = dir.path();
+        write(root, "lua/tests/consumer/hello.lua", "print(2)\n").unwrap();
+        let graph = fixture_graph(true);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.changed_files, ["lua/tests/consumer/hello.lua"]);
+        assert_eq!(
+            plan.targets,
+            [
+                "//tools/testing/consumer:in_graph_guard_test",
+                "//tools/testing/consumer:lua_consumer_test",
+            ]
+        );
+        assert_eq!(
+            plan.json(Command::Test)["widened"][0]["reason"],
+            json!("consumer fixture lua/tests/consumer/hello.lua")
+        );
+    }
+
+    #[test]
+    fn a_consumer_fixture_no_rule_reads_widens_to_the_repository() {
+        let dir = fixture_repo();
+        let root = dir.path();
+        write(root, "lua/tests/consumer/hello.lua", "print(2)\n").unwrap();
+        let graph = fixture_graph(false);
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.json(Command::Test)["widened"],
+            json!([{
+                "scope": "//...",
+                "reason": "consumer fixture lua/tests/consumer/hello.lua, and no rule reads its snapshot",
+            }])
+        );
+    }
+
+    #[test]
+    fn an_unowned_file_under_a_package_without_rules_widens_to_the_repository() {
+        let dir = repo();
+        let root = dir.path();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "main"]).unwrap();
+        write(root, "vendored/BUILD.bazel", "").unwrap();
+        write(root, "vendored/notes.txt", "a\n").unwrap();
+        dx_test_scratch::git(root, root, &["add", "."]).unwrap();
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "vendored"]).unwrap();
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-B", "topic"]).unwrap();
+        write(root, "vendored/notes.txt", "b\n").unwrap();
+        let graph = graph();
+        let (plan, _) = run(root, Command::Test, &[&graph]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(
+            plan.json(Command::Test)["widened"],
+            json!([{
+                "scope": "//...",
+                "reason": "unowned vendored/notes.txt, and no rule is in //vendored/...",
+            }])
+        );
+    }
+
     #[test]
     fn a_change_only_under_an_excluded_package_selects_nothing() {
         let dir = tempfile::tempdir().expect("tempdir");

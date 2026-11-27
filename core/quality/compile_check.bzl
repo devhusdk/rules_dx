@@ -382,7 +382,7 @@ compile_check_aspect = aspect(
     propagation_predicate = real_in_main_repo,
     attrs = {
         "_dx": attr.label(
-            default = "@dx_prebuilt//:dx",
+            default = "@dx_prebuilt//dx:compile_check",
             executable = True,
             cfg = "exec",
         ),

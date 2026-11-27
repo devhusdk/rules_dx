@@ -5707,6 +5707,7 @@
           },
           {
             "attrs": [
+              "embed_sources",
               "out",
               "srcs",
               "tags",
@@ -5786,6 +5787,7 @@
           {
             "attrs": [
               "deps",
+              "embed_sources",
               "size",
               "srcs",
               "tags",
@@ -11214,6 +11216,7 @@
           {
             "attrs": [
               "deps",
+              "embed_sources",
               "srcs",
               "tags",
               "target_frameworks",
@@ -11262,6 +11265,7 @@
           {
             "attrs": [
               "deps",
+              "embed_sources",
               "size",
               "srcs",
               "tags",

@@ -3,6 +3,7 @@ pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
 pub mod config_scope;
+pub(crate) mod consumer_fixtures;
 pub mod entry;
 pub mod exclude;
 pub(crate) mod extension_scope;

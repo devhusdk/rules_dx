@@ -69,7 +69,7 @@ _nif_lint_results = rule(
     doc = "Renders the C lint result of one target as text.",
     attrs = {
         "target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True),
-        "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
+        "_capture": attr.label(default = "@dx_prebuilt//dx:capture", executable = True, cfg = "exec"),
         "_printer": attr.label(default = "//core/quality/result:print_result", executable = True, cfg = "exec"),
     },
 )

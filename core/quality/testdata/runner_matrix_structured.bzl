@@ -16,7 +16,7 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_binaries = ["@dx_prebuilt//dx:buf_diff"],
         path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(
@@ -30,7 +30,7 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_binaries = ["@dx_prebuilt//dx:buf_diff"],
         path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(

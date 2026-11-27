@@ -5,6 +5,7 @@
 )]
 
 use std::ffi::{OsStr, OsString};
+use std::path::Path;
 
 mod driver;
 #[cfg(test)]
@@ -14,6 +15,15 @@ mod dune;
 mod dune_tests;
 #[cfg(test)]
 mod lib_tests;
+
+#[must_use]
+pub fn is_driver(argv0: &OsStr) -> bool {
+    Path::new(argv0)
+        .file_stem()
+        .and_then(OsStr::to_str)
+        .and_then(|stem| stem.strip_prefix(driver::PREFIX))
+        .is_some_and(|tool| driver::TOOLS.contains(&tool))
+}
 
 #[must_use]
 pub fn run_tool(argv0: &OsStr, args: Vec<OsString>) -> i32 {

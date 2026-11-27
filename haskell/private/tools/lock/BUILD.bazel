@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -25,6 +25,19 @@ rust_library(
         "//cli/lock:dx_lock",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "haskell_lock",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "haskell/private/tools/cabal_lock",
+        normal = True,
+    ),
+    crate_name = "cabal_lock",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":cabal_lock_lib"],
 )
 
 dx_subcommand(

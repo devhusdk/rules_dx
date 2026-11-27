@@ -28,9 +28,9 @@ use crate::results::{Collected, collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_exec_core::bazel_hint::{recorded, refine};
 use dx_exec_core::common::{
-    ActionTally, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED, CODE_BAZEL_SIGNALLED,
-    CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED, CODE_UNREADABLE_BEP, Env,
-    Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
+    ActionTally, BAZEL_BUILD_FAILED, BAZEL_INTERRUPTED, CODE_ANALYSIS_FAILED, CODE_BAZEL_FAILED,
+    CODE_BAZEL_SIGNALLED, CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED,
+    CODE_UNREADABLE_BEP, Env, Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
     REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
     check_stdout_write, collect_output_account, collect_own_account, emit_built, emit_event,
     findings_summary, operational_output, pre_exec, preset_rewritten, read_actions, remove_scratch,
@@ -39,7 +39,7 @@ use dx_exec_core::common::{
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
-use dx_exec_reports::build_failures::report_build_failures;
+use dx_exec_reports::build_failures::{report_build_failures, report_own_build_failures};
 use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
@@ -249,20 +249,34 @@ pub(crate) fn probe_shards(
         Ok(status) if status.code.is_none() => Err(ProbeStop::Signalled),
         _ if dx_process::interrupted().is_some() => Err(ProbeStop::Interrupted),
         Ok(status) if status.code == Some(BAZEL_INTERRUPTED) => Err(ProbeStop::Interrupted),
-        Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
+        Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace, false)),
+        Ok(status) if status.code == Some(BAZEL_BUILD_FAILED) => {
+            Ok(read_probe_shards(&bep, workspace, true))
+        }
         _ => Ok(None),
     };
     remove_scratch(&bep);
     shards
 }
 
-fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
+/// Reads the shards the probe reported. When the probe exited with a build
+/// failure, targets that failed to load, analyze or build are skipped so the
+/// rest still narrow; any other missing or aborted target means the shard set
+/// is unknown and the caller runs every shard.
+fn read_probe_shards(bep: &Path, workspace: &Path, build_failed: bool) -> Option<BTreeSet<String>> {
     let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
-    if account.problem.is_some() || !account.gaps.is_empty() || !account.ended {
+    let failed_only = account
+        .gaps
+        .iter()
+        .all(|gap| build_failed && gap.outcome() == "failed_to_build");
+    if account.problem.is_some() || !failed_only || !account.ended {
         return None;
     }
     let mut shards = BTreeSet::new();
     for target in &account.targets {
+        if build_failed && !target.success {
+            continue;
+        }
         if !target.success || target.incomplete {
             return None;
         }
@@ -278,7 +292,7 @@ fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
 
 pub(crate) fn read_skip_notes(
     bep: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
     workspace: &Path,
 ) -> Vec<String> {
     let Ok(account) = collect_own_account(bep, SKIP_OUTPUT_GROUP, workspace, foreign) else {
@@ -317,7 +331,7 @@ struct Settled {
 
 struct BepRead {
     path: PathBuf,
-    foreign: BTreeSet<String>,
+    foreign: dx_bep::Foreign,
     owned: bool,
 }
 
@@ -425,7 +439,7 @@ fn run_quality_request(
                 run,
                 BepRead {
                     path: bep.clone(),
-                    foreign: BTreeSet::new(),
+                    foreign: dx_bep::Foreign::default(),
                     owned: true,
                 },
             ),
@@ -558,7 +572,13 @@ fn shared_build_run(
     let (compile_only, build_stage) = if read.code == 0 {
         (false, false)
     } else {
-        let reported = report_build_failures(&read.bep, request.common.output, env.out, env.err)?;
+        let reported = report_own_build_failures(
+            &read.bep,
+            &read.foreign,
+            request.common.output,
+            env.out,
+            env.err,
+        )?;
         (reported.compile_only, reported.build_stage)
     };
     Ok(BuildRun {

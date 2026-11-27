@@ -12,6 +12,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "SIGNING_CERTIFICATE", "apple_extra_toolchains", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
 load("//apple/private/bundle:pins.bzl", "IOS_DEPLOYMENT", "XCODE_VERSION")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "single_target")
@@ -160,7 +161,7 @@ def _library_cell_impl(ctx):
         fail("apple_ios_app: library cell {} builds for no iOS platform here; build the app target so rules_apple selects the cell".format(want))
     if got != want:
         fail("apple_ios_app: app declares {} but this build targets {}; build the app target, which selects its cell".format(want, got))
-    library = ctx.attr.library
+    library = ctx.attr.library[0] if ctx.attr.library else None
     if library != None and AppleIosLibInfo in library and library[AppleIosLibInfo].cell != want:
         fail("apple_ios_app: library {} declares {} but the app builds {}".format(
             display(library.label),
@@ -170,11 +171,11 @@ def _library_cell_impl(ctx):
     xcode_config, xcode = resolved_xcode(ctx, "apple_ios_app", "app")
     inputs = []
     cc_infos = []
-    if ctx.attr.library != None:
-        cc_info = ctx.attr.library[CcInfo]
+    if library != None:
+        cc_info = library[CcInfo]
         found = archives(cc_info)
         if len(found) == 0:
-            fail("apple_ios_app: library {} links no static archive; pass a Rust static library".format(display(ctx.attr.library.label)))
+            fail("apple_ios_app: library {} links no static archive; pass a Rust static library".format(display(library.label)))
         inputs.extend(found)
         cc_infos.append(cc_info)
     for framework in ctx.attr.frameworks:
@@ -224,6 +225,7 @@ _library_cell = rule(
         ),
         "library": attr.label(
             doc = "Rust static library target linked into the app.",
+            cfg = no_coverage_transition,
             providers = [CcInfo],
         ),
     }),
@@ -909,7 +911,7 @@ _xcframework_check = rule(
             default = "",
         ),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:apple_ops"),
             cfg = "exec",
             executable = True,
             doc = "dx, whose apple_ops subcommand runs the check.",

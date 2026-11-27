@@ -9,7 +9,7 @@
     reason = "runs local tools that exit on their own"
 )]
 
-use dx_testing::exec_log;
+use dx_testing_exec_log as exec_log;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -369,10 +369,10 @@ fn main() -> Result<(), String> {
 mod tests {
     use super::*;
 
-    const FIRST: &[u8] = include_bytes!("exec_log_fixtures/first.log.zst");
-    const SECOND: &[u8] = include_bytes!("exec_log_fixtures/second.log.zst");
-    const CACHE_FIRST: &[u8] = include_bytes!("exec_log_fixtures/cache_first.log.zst");
-    const CACHE_SECOND: &[u8] = include_bytes!("exec_log_fixtures/cache_second.log.zst");
+    const FIRST: &[u8] = include_bytes!("exec_log/fixtures/first.log.zst");
+    const SECOND: &[u8] = include_bytes!("exec_log/fixtures/second.log.zst");
+    const CACHE_FIRST: &[u8] = include_bytes!("exec_log/fixtures/cache_first.log.zst");
+    const CACHE_SECOND: &[u8] = include_bytes!("exec_log/fixtures/cache_second.log.zst");
     const STAMPED: &str = "//:stamped Genrule bazel-out/k8-fastbuild/bin/stamped.txt";
 
     #[test]

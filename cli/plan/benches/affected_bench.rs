@@ -67,7 +67,7 @@ fn select(root: &Path, bazel: &CountingQuery) -> Result<Vec<String>, String> {
         .graph
         .take()
         .ok_or("the affected selection kept no rule graph")?;
-    Ok(graph.tests_of(&graph.affected(&selection.targets)))
+    Ok(graph.affected_tests(&selection.targets, &graph.affected(&selection.targets)))
 }
 
 fn timed_select(root: &Path, bazel: &CountingQuery, queries: usize) -> Result<Duration, String> {

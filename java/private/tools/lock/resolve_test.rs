@@ -48,7 +48,10 @@ fn runfiles_repository_writes_the_golden_lock() {
         Some("java/tests/fixtures/maven_lock/golden.json"),
     )
     .expect("the lock matches the golden");
-    assert_eq!(lock(&tools, &set_request(dir.path(), true)), Ok(Outcome::Fresh));
+    assert_eq!(
+        lock(&tools, &set_request(dir.path(), true)),
+        Ok(Outcome::Fresh)
+    );
 }
 
 #[test]
@@ -72,7 +75,10 @@ fn version_refs_and_strings_become_artifacts() {
             {"group": "com.example", "artifact": "lib", "version": "2.0"},
         ])
     );
-    assert_eq!(parsed["repositories"], serde_json::json!(["https://repo1.maven.org/maven2/"]));
+    assert_eq!(
+        parsed["repositories"],
+        serde_json::json!(["https://repo1.maven.org/maven2/"])
+    );
 }
 
 #[test]
@@ -86,7 +92,10 @@ fn excluded_artifacts_become_global_exclusions() {
     let manifest = format!("excluded_artifacts = [\"org.example:skip\"]\n\n{MANIFEST}");
     let rendered = config(&manifest, &[]).expect("config");
     let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
-    assert_eq!(parsed["globalExclusions"], serde_json::json!(["org.example:skip"]));
+    assert_eq!(
+        parsed["globalExclusions"],
+        serde_json::json!(["org.example:skip"])
+    );
 }
 
 #[test]
@@ -106,7 +115,10 @@ fn check_reads_only_the_marker_without_running_java() {
     let fresh = format!("{{\n  \"{MARKER}\": \"{digest}\",\n  \"artifacts\": {{}}\n}}\n");
     std::fs::write(&lock_path, &fresh).expect("lock");
     assert_eq!(lock(&tools, &request), Ok(Outcome::Fresh));
-    assert_eq!(lock(&tools, &set_request(dir.path(), false)), Ok(Outcome::Fresh));
+    assert_eq!(
+        lock(&tools, &set_request(dir.path(), false)),
+        Ok(Outcome::Fresh)
+    );
     std::fs::write(dir.path().join(&request.manifest), format!("{MANIFEST}\n")).expect("edit");
     assert_eq!(lock(&tools, &request), Ok(Outcome::Stale));
     assert_eq!(std::fs::read_to_string(&lock_path).expect("lock"), fresh);

@@ -1,8 +1,8 @@
 """FlatBuffers schema ownership for dx quality."""
 
-load("//core/private/testing:defs.bzl", "display_label")
 load("//core:stage.bzl", "stage_own")
 load("//core:wrapper.bzl", "dx_quality_sources")
+load("//core/private/testing:providers.bzl", "display_label")
 
 FlatBuffersInfo = provider(
     doc = "FlatBuffers schemas of one library and its transitive dependencies.",

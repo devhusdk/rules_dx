@@ -206,6 +206,18 @@ impl dx_process::Runner for SlotEnv<'_> {
         self.inner.run(argv, cwd, &slot_env(env, share.as_deref()))
     }
 
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<dx_process::ChildStatus> {
+        let share = self.share_env();
+        self.inner
+            .run_watched(argv, cwd, &slot_env(env, share.as_deref()), watch)
+    }
+
     fn run_hermetic(
         &self,
         argv: &[String],
@@ -2048,7 +2060,7 @@ const SETTLE_LIMIT: Duration = Duration::from_secs(5);
 fn slot_settles_free(dir: &Path, count: usize) -> bool {
     (0..count).all(|index| {
         let path = slot_path(dir, index);
-        !path.exists() || dx_test_scratch::wait::lock_free(&path, SETTLE_LIMIT).is_ok()
+        !path.exists() || dx_test_wait::lock_free(&path, SETTLE_LIMIT).is_ok()
     })
 }
 

@@ -41,6 +41,7 @@ rust_test(
 
 dx_subcommand(
     name = "toy_lock",
+    dx = "@dx_prebuilt//:dx",
     subcommand = "toy_lock",
 )
 
@@ -53,6 +54,7 @@ dx_subcommand_test(
 
 dx_subcommand(
     name = "toy_lock_paths",
+    dx = "@dx_prebuilt//:dx",
     path_args = {"--tool": "defs.bzl"},
     subcommand = "toy_lock",
 )
@@ -67,6 +69,7 @@ dx_subcommand_test(
 
 dx_subcommand(
     name = "toy_lock_args",
+    dx = "@dx_prebuilt//:dx",
     subcommand = "toy_lock",
     subcommand_args = ["--check"],
 )
@@ -77,6 +80,14 @@ dx_subcommand_test(
     extra_lines = ["arg=--check"],
     subcommand = "toy_lock",
     target_under_test = ":toy_lock_args",
+)
+
+dx_subcommand_test(
+    name = "lua_lock_test",
+    size = "small",
+    program = "lua_lock",
+    subcommand = "lua_lock",
+    target_under_test = "//lua/private/tools/lock",
 )
 
 real_source_target(

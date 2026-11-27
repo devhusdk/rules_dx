@@ -818,6 +818,9 @@ mod tests {
 
     #[test]
     fn pub_main_stages_the_checked_package() {
+        if env_test_in_child("pub_dev::tests::pub_main_stages_the_checked_package") {
+            return;
+        }
         let scratch = scratch_dir();
         let rlocs = write_package(scratch.path(), PUBSPEC, Some("## 1.2.3\n- first\n"));
         let outdir = scratch.path().join("out");
@@ -843,6 +846,9 @@ mod tests {
 
     #[test]
     fn pub_main_refuses_a_package_without_changelog() {
+        if env_test_in_child("pub_dev::tests::pub_main_refuses_a_package_without_changelog") {
+            return;
+        }
         let scratch = scratch_dir();
         let rlocs = write_package(scratch.path(), PUBSPEC, None);
         let argv = vec![
@@ -859,6 +865,9 @@ mod tests {
 
     #[test]
     fn live_publish_is_gated() {
+        if env_test_in_child("pub_dev::tests::live_publish_is_gated") {
+            return;
+        }
         let scratch = scratch_dir();
         let rlocs = write_package(scratch.path(), PUBSPEC, Some("## 1.2.3\n"));
         let argv = vec![
@@ -932,6 +941,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn api_check_fails_a_breaking_minor_and_passes_a_major_against_the_registry() {
+        if env_test_in_child(
+            "pub_dev::tests::api_check_fails_a_breaking_minor_and_passes_a_major_against_the_registry",
+        ) {
+            return;
+        }
         let scratch = scratch_dir();
         let registry = static_registry(|_| {
             vec![(
@@ -1048,6 +1062,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn publish_keeps_the_token_out_of_argv() {
+        if env_test_in_child("pub_dev::tests::publish_keeps_the_token_out_of_argv") {
+            return;
+        }
         let scratch = scratch_dir();
         let dart = fake_dart(scratch.path(), 0);
         let stage = scratch.path().join("stage");

@@ -94,10 +94,12 @@ Perl sources form the `perl` class, so `dx check` sees them.
 | Role | Tool | Settings |
 | --- | --- | --- |
 | Formatter | perltidy 20260826 | default style, LF line endings |
-| Linter | Perl::Critic 1.156 | severity 5 only |
+| Linter | Perl::Critic 1.156 | the tier profile: strict by default, `tier = "standard"` in `dx.toml` for severity 3 |
 
-Neither tool reads a profile: `.perltidyrc`, `$PERLTIDY`, `.perlcriticrc`
-and `$PERLCRITIC` are ignored. To use another binary, pass its label to
+perltidy reads no profile, and perlcritic reads only the profile dx binds:
+`.perltidyrc`, `$PERLTIDY`, `.perlcriticrc` and `$PERLCRITIC` are ignored.
+The [quality commands page](../cli/commands/quality.md) lists what each
+tier turns on. To use another binary, pass its label to
 `--@rules_dx//config:tool_perltidy` or `--@rules_dx//config:tool_perlcritic`.
 
 Perl has no type checker in dx, so the Perl rules tag every target

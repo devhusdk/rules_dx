@@ -512,7 +512,7 @@ fn name_external_repos(
 
 pub(crate) fn collect_results(
     bep: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, dx_error::DxError> {
@@ -600,7 +600,7 @@ fn mark_removals_fixable(
 
 pub(crate) fn collect_results_in(
     bep: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
     group: &str,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,

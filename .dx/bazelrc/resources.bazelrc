@@ -8,11 +8,11 @@ startup --host_jvm_args=-XX:MaxHeapFreeRatio=30
 # Keep little spare heap after a garbage collection.
 startup --host_jvm_args=-XX:MinHeapFreeRatio=10
 
-# Cap the Bazel server heap at a quarter of host memory.
-startup --host_jvm_args=-XX:MaxRAMPercentage=25
+# Cap the Bazel server heap at half of host memory.
+startup --host_jvm_args=-XX:MaxRAMPercentage=50
 
-# Schedule local actions within half of host memory.
-common --local_resources=memory=HOST_RAM*.5
+# Schedule local actions within a quarter of host memory.
+common --local_resources=memory=HOST_RAM*.25
 
 # Leave a quarter of the CPUs for the rest of the machine.
 common --local_resources=cpu=HOST_CPUS*.75

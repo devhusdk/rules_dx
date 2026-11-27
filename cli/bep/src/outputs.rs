@@ -175,7 +175,7 @@ fn read_account(
                 .and_then(|target| target.get("aspect"))
                 .and_then(Value::as_str)
                 .map(str::to_owned);
-            if config.is_foreign(aspect.as_deref()) {
+            if config.is_foreign(Some(label), aspect.as_deref()) {
                 continue;
             }
             let configuration = target_id
@@ -343,7 +343,7 @@ fn read_account(
         gaps: ledger
             .gaps(&["targetConfigured", "targetCompleted"])
             .into_iter()
-            .filter(|gap| !config.is_foreign(gap.aspect.as_deref()))
+            .filter(|gap| !config.is_foreign(gap.label.as_deref(), gap.aspect.as_deref()))
             .collect(),
         problem: None,
     };
@@ -450,10 +450,13 @@ mod tests {
         let artifacts = FakeArtifacts {
             files: HashMap::new(),
         };
-        let foreign = ["q:f.bzl%real_lint_aspect".to_owned()].into();
+        let foreign = crate::Foreign {
+            aspects: ["q:f.bzl%real_lint_aspect".to_owned()].into(),
+            labels: BTreeSet::new(),
+        };
         let account = collect_account(
             Cursor::new(stream.clone()),
-            &config().without_aspects(foreign),
+            &config().without(foreign),
             &artifacts,
             None,
         )
@@ -472,6 +475,55 @@ mod tests {
         let all = collect_account(Cursor::new(stream), &config(), &artifacts, None).expect("all");
         assert_eq!(all.targets.len(), 2);
         assert_eq!(all.gaps.len(), 1);
+    }
+
+    #[test]
+    fn foreign_labels_drop_their_outputs_and_gaps_in_any_repo_spelling() {
+        let stream = [
+            completed("@@//a:x", true, ""),
+            completed("//a:y", true, ""),
+            r#"{"id": {"targetCompleted": {"label": "@//a:x", "aspect": "//q:f.bzl%real_lint_aspect"}}, "aborted": {"reason": "ANALYSIS_FAILURE"}}"#.to_owned(),
+            r#"{"id": {"buildFinished": {}}, "lastMessage": true}"#.to_owned(),
+        ]
+        .join("\n");
+        let artifacts = FakeArtifacts {
+            files: HashMap::new(),
+        };
+        let foreign = crate::Foreign {
+            aspects: BTreeSet::new(),
+            labels: ["//a:x".to_owned()].into(),
+        };
+        let account = collect_account(
+            Cursor::new(stream),
+            &config().without(foreign),
+            &artifacts,
+            None,
+        )
+        .expect("account");
+        let labels: Vec<&str> = account
+            .targets
+            .iter()
+            .chain(&account.no_work)
+            .map(|target| target.label.as_str())
+            .collect();
+        assert_eq!(labels, ["//a:y"]);
+        assert!(account.gaps.is_empty(), "{:?}", account.gaps);
+    }
+
+    #[test]
+    fn target_keys_name_main_repo_targets_only() {
+        assert_eq!(crate::target_key("//a/b").as_deref(), Some("//a/b:b"));
+        assert_eq!(crate::target_key("@@//a:x").as_deref(), Some("//a:x"));
+        for pattern in [
+            "//a/...",
+            "//a:all",
+            "//a:*",
+            "//...",
+            "@@rules_dx+//a:x",
+            ":x",
+        ] {
+            assert_eq!(crate::target_key(pattern), None, "{pattern}");
+        }
     }
 
     #[test]

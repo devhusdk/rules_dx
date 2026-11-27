@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//core:failure_test.bzl", "failure_test_rule")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_python_lint_aspect",
@@ -151,8 +152,27 @@ _TIER_BASE_ATTRS = {"expected_profile": attr.string(mandatory = True)}
 _tier_base_subject = config_subject_rule([real_python_lint_aspect, real_python_typecheck_aspect], [OutputGroupInfo])
 _tier_base_test = analysistest.make(_tier_base_impl, attrs = _TIER_BASE_ATTRS)
 
+_UNKNOWN_TYPECHECK_SETTINGS = {
+    str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:python_unknown_typecheck_policy")),
+}
+
+def _lint_results_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.true(env, len(_dx_result_names(analysistest.target_under_test(env))) > 0, "want lint results under a policy whose typecheck tool is unknown")
+    return analysistest.end(env)
+
+_unknown_typecheck_lint_test = analysistest.make(
+    _lint_results_impl,
+    config_settings = _UNKNOWN_TYPECHECK_SETTINGS,
+    extra_target_under_test_aspects = [real_python_lint_aspect],
+)
+
+_unknown_typecheck_shard_test = failure_test_rule(_UNKNOWN_TYPECHECK_SETTINGS, [real_python_typecheck_aspect])
+
+_unknown_typecheck_probe_test = failure_test_rule(_UNKNOWN_TYPECHECK_SETTINGS, [real_typecheck_probe_aspect])
+
 def policy_config_tests(name):
-    """Proves policy configs bind a target, aspect_hints override them, tier bases follow the profile and a rendered policy analyzes."""
+    """Proves policy configs bind a target, aspect_hints override them, tier bases follow the profile, a rendered policy analyzes and an unknown typecheck tool fails typecheck only."""
     pkg = "core/quality/tests/fixtures/consumer_policy/"
     fixtures = "//core/quality/tests/fixtures/consumer_policy:"
     for suffix, target, expected in [
@@ -210,6 +230,24 @@ def policy_config_tests(name):
             expected_profile = profile,
             target_under_test = name + suffix + "_subject",
         )
+    fixture = fixtures + "policy_bound_py"
+    _unknown_typecheck_lint_test(
+        name = name + "_unknown_typecheck_lint",
+        size = "small",
+        target_under_test = fixture,
+    )
+    _unknown_typecheck_shard_test(
+        name = name + "_unknown_typecheck_shard",
+        size = "small",
+        expected_failure_substring = "pipeline: unknown tool 'nope': not in the ruleset adapter registry",
+        target_under_test = fixture,
+    )
+    _unknown_typecheck_probe_test(
+        name = name + "_unknown_typecheck_probe",
+        size = "small",
+        expected_failure_substring = "policy: family 'python' selects typecheck tool 'nope' with no wired executable",
+        target_under_test = fixture,
+    )
     native.test_suite(name = name, tests = [
         name + "_policy",
         name + "_hint",
@@ -218,6 +256,9 @@ def policy_config_tests(name):
         name + "_tier_base_default",
         name + "_tier_base_default_strict",
         name + "_tier_base_generated_strict",
+        name + "_unknown_typecheck_lint",
+        name + "_unknown_typecheck_shard",
+        name + "_unknown_typecheck_probe",
     ])
 
 def consumer_policy_tests(name, cases, **kwargs):

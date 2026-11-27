@@ -2,10 +2,9 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:canonical.bzl", "strip_canonical")
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load("//core:failure_test.bzl", "failure_test")
-load("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//dart/private:dart_config.bzl", "DartConfigInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",
@@ -19,19 +18,19 @@ load(
     "real_julia_format_aspect",
     "real_julia_typecheck_aspect",
     "real_lua_typecheck_aspect",
-    "real_php_lint_aspect",
     "real_perl_format_aspect",
     "real_perl_lint_aspect",
+    "real_php_lint_aspect",
     "real_php_typecheck_aspect",
     "real_python_format_aspect",
     "real_python_lint_aspect",
     "real_ruby_typecheck_aspect",
-    "real_typecheck_aspect",
     "real_zig_format_aspect",
     "real_zig_lint_aspect",
 )
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
+load("//dart/private:dart_config.bzl", "DartConfigInfo")
+load("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH")
 
 visibility("private")
 

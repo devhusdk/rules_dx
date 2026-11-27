@@ -140,6 +140,7 @@ pub(crate) struct Flags {
     pub(crate) affected: bool,
     pub(crate) since: Option<String>,
     pub(crate) base: Option<String>,
+    pub(crate) lint_scope: Option<String>,
     pub(crate) serve: bool,
     pub(crate) port: Option<u16>,
     pub(crate) host: Option<String>,
@@ -173,6 +174,7 @@ pub(crate) struct Flags {
     pub(crate) files: bool,
     pub(crate) timings: bool,
     pub(crate) no_retry: bool,
+    pub(crate) coverage: bool,
     pub(crate) budget: Option<String>,
     pub(crate) jobs: Option<u16>,
     pub(crate) max_regression: Option<u32>,
@@ -555,6 +557,19 @@ flag_group! {
 }
 
 flag_group! {
+    /// With --affected, lint the changed targets and their direct users (direct) or every reverse dependency (closure).
+    LintScopeFlag, {
+        #[arg(
+            long,
+            value_name = "SCOPE",
+            overrides_with = "lint_scope",
+            value_parser = clap::builder::PossibleValuesParser::new(["direct", "closure"])
+        )]
+        lint_scope: Option<String>,
+    }
+}
+
+flag_group! {
     /// Serve docs locally.
     ServeFlag, {
         #[arg(long, overrides_with = "serve")]
@@ -878,10 +893,18 @@ composite_group! {
 }
 
 flag_group! {
-    /// Do not rerun without the remote cache after a remote cache error.
+    /// Do not rerun Bazel after a remote cache error.
     NoRetryFlag, {
         #[arg(long = "no-retry", overrides_with = "no_retry")]
         no_retry: bool,
+    }
+}
+
+flag_group! {
+    /// With --affected, run the tests that take coverage under coverage.
+    CoverageFlag, {
+        #[arg(long, overrides_with = "coverage")]
+        coverage: bool,
     }
 }
 
@@ -1094,6 +1117,7 @@ command_args! {
         affected: AffectedFlag,
         since: SinceFlag,
         base: BaseFlag,
+        lint_scope: LintScopeFlag,
     };
     Typecheck => 3, BazelTail, {
         output: OutputFlag,
@@ -1200,6 +1224,8 @@ command_args! {
         affected: AffectedFlag,
         since: SinceFlag,
         base: BaseFlag,
+        coverage: CoverageFlag,
+        lint_scope: LintScopeFlag,
     };
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Clean => 13, NoScopeTail, {

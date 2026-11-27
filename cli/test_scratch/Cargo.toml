@@ -9,5 +9,4 @@ name = "dx_test_scratch"
 path = "src/lib.rs"
 
 [dependencies]
-notify = "8"
 tempfile = "3"

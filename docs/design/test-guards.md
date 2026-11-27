@@ -6,11 +6,12 @@ The guards check the rules of `docs/design/tests.md`.
 
 - `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file. Its repository rule watches every path it reads.
 - `@dx_test_tags_sources//:files.json` snapshots `MODULE.bazel`, `<lang>/lang.json`, `<lang>/README.md`, repository `*.BUILD` and `*.BUILD.bazel` files and the `docs/` language and command pages.
-- A test that walks the module tree declares the snapshots, sets `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
+- `@dx_consumer_fixtures//:<lang>.json` snapshots the text files under `<lang>/tests/consumer`, and `@dx_consumer_fixtures//:consumer.json` those of every language. Its repository rule walks only those directories, so a fixture edit reruns only the tests that read its language.
+- A test that walks the module tree declares the snapshots and sets `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`. A Python test writes them into a scratch tree.
 
 ## Determinism
 
-- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with no disk or remote cache, and compares the two compact execution logs with `dx_testing::exec_log`.
+- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with no disk or remote cache, and compares the two compact execution logs with `dx_testing_exec_log`.
 - With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: a `query` lists the non-manual ones, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind is kept. The builds pass `--skip_incompatible_explicit_targets`.
 - The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` in seven shards with `--kinds --shard i/7`, which keeps every seventh top-level package of kind targets. Shards 0 to 3 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...` and `//msix/tests/...`; shards 5 and 6 split `//deploy/private/...` into `:all` and its subpackages.
 - Each build deletes its output base after `shutdown`.
@@ -29,7 +30,7 @@ The guards check the rules of `docs/design/tests.md`.
 ## In-graph prebuilt guard
 
 - `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt`, `@dx_gazelle`, `@php_launcher` and `@qt_launcher` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its `universal` scope keeps it in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
-- `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, `MACOS_IN_GRAPH_GUARD_LANGS`, `WINDOWS_IN_GRAPH_GUARD_LANGS` and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
+- `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the go and java guard cases of the nested, sharded `network_test`, `IN_GRAPH_GUARD_LANGS`, `MACOS_IN_GRAPH_GUARD_LANGS`, `WINDOWS_IN_GRAPH_GUARD_LANGS` and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
 - The nested guards pin every registry key of each `//cli/prebuilt:target_tools` tool and write `dx_target_guard`, whose `targets` depend on the hub target of each such tool through a split transition over `@rules_dx//tools/platforms:<key>` for each of its keys. They fail when a target tool does not select its download for each key.
 - `//tools/testing/consumer:in_graph_prebuilt_guard` writes, per `IN_GRAPH_GUARD_LANGS` language or per language of its space-separated `--langs` list, `check` and `docs` targets whose `deps` carry the `dx check` and `dx docs` aspects over the non-manual rules of `@dx_api_fixtures//<lang>/tests/consumer`, injects them with `--inject_repository`, and runs `bazel cquery 'deps(...)'` with the flag and `--lockfile_mode=error`.
 - Each label is mapped to the form a consumer sees: the fixtures repo is the main repo, `@@//` is `@@rules_dx+//` and `@@+` is `@@rules_dx++`. The compiled binaries are checked against `tools/testing/consumer/prebuilt_guard_allowlist.txt` by the rules of `//tools/testing/consumer:prebuilt_guard`.

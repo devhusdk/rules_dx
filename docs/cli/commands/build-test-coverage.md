@@ -90,7 +90,7 @@ dx run --release //app -- --port 8080
 | `--debug` | `build`, `test`, `run` | Compile with the `dx_build_debug` build mode. |
 | `--release` | `build`, `test`, `run` | Compile with the `dx_build_release` build mode. |
 | `--timings` | all four | Print where build time went. For `run`, it reports on the build step. |
-| `--no-retry` | `build`, `test`, `coverage` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--no-retry` | `build`, `test`, `coverage` | Do not run Bazel again after a remote cache error. |
 | `--fail-on info\|warning\|error` | `coverage` | Fail on findings of this severity or worse. Default `warning`. |
 | `--min-coverage <percent>` | `coverage` | Fail below this whole percent (0-100). |
 | `--min-changed-line-coverage <percent>` | `coverage` | Fail below this whole percent (0-100) on lines changed since the merge-base. |
@@ -118,7 +118,9 @@ With neither `--debug` nor `--release`, dx uses the `dx_build_dev` build mode. `
 
 The trace goes to `.dx/local/timings/<run id>.json.gz`. dx keeps the last five. The report goes to `.dx/local/timings/report.json`. With `--output=json`, the report is the message of a `timings_report` notice.
 
-When a Bazel `build`, `test` or `coverage` call fails and Bazel's own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. dx prints a notice when it does, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
+To keep a trace of every Bazel `build`, `test`, `coverage` and `run` call dx makes, including the ones inside `dx check`, set `DX_PROFILE_DIR=<dir>`. dx creates the directory if it is missing and stops if it cannot. Each call writes `<dir>/<time>-<pid>-<n>-<verb>.json.gz`. dx keeps them all and prints no report. A `--profile` in your Bazel options wins.
+
+When a Bazel `build`, `test` or `coverage` call fails and Bazel's own output (not test output) has an `ERROR:` line about the remote cache, dx runs it once more with `--remote_cache= --noremote_accept_cached`. When Bazel instead fails to fetch into a directory missing from the output tree, or a `ctx.actions.symlink` output dangles, its action cache lists outputs that were deleted. dx then stops the Bazel server, deletes `<output_base>/action_cache` and runs the call once more with the remote cache on. dx prints a notice when it runs a call again, and the summary on stderr says how many calls ran again. `--no-retry` turns this off.
 
 ## Scopes
 
@@ -169,6 +171,12 @@ Each Bazel failure prints a `dx: build failure:` line with its compiler diagnost
 
 ```text
 dx: failed: //pkg:test: case_a, case_b and 2 more (log: <path>/test.log)
+```
+
+`dx test` and `dx coverage` print each failed result as soon as its test finishes. Every 60 seconds they print a count on stderr:
+
+```text
+dx: test: 12/40 tests finished, 1 failed, 3m00s
 ```
 
 JSON adds a `test_outcome` event per result that did not plainly pass. Each case in it has `classname`, `name`, `outcome` and `message`. It also has `file` and `line` when the report's `file` and `line` attributes, or the first workspace-relative `path:line` in the failure text, give them. `results.json` cases carry the same fields.
@@ -243,6 +251,8 @@ A test tagged `dx-no-coverage-collector` is a warning finding. At the default `-
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 ```
 
+When every test passes and every coverage report is empty, for example a scope of shell tests only, `dx coverage` succeeds with an empty LCOV and prints `coverage_empty`.
+
 Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows, and on a Linux cell with no kcov pin in the rules_dx release, a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources.
 
 On Windows, C and C++ sources count as unsupported files, because no C++ coverage collector runs there.
@@ -274,7 +284,7 @@ A marker that covers no instrumented line fails `--min-coverage`. So does a mark
 
 ## Signals
 
-Ctrl-C, `SIGTERM`, and `SIGHUP` stop the run. Child processes get the signal. Any still running after 10 seconds are killed. dx then dies by the same signal, so the shell sees `128` plus the signal number.
+Ctrl-C, `SIGTERM`, and `SIGHUP` stop the run. Child processes get the signal. `dx test` and `dx coverage` first print the count line with `(interrupted)` and `dx: <test|coverage>: not finished: <labels>`. Any still running after 10 seconds are killed. dx then dies by the same signal, so the shell sees `128` plus the signal number.
 
 ## Exit codes
 

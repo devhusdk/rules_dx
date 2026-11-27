@@ -86,6 +86,7 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
     ],
 )
 
@@ -111,6 +112,7 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
     ],
 )
 
@@ -133,7 +135,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
     ],
-    deps = ["//tools/testing:dx_testing"],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/image:dx_testing_image",
+    ],
 )
 
 real_source_target(

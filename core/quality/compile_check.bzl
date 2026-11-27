@@ -3,7 +3,7 @@
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
-load("//core/quality:real_core.bzl", "real_context")
+load("//core/quality:real_core.bzl", "real_context", "real_in_main_repo")
 load("//core/quality:sources.bzl", "single_target")
 
 visibility(["//core/...", "//d/...", "//fortran/...", "//haskell/...", "//ocaml/...", "//swift/...", "//zig/..."])
@@ -379,9 +379,10 @@ compile_check_aspect = aspect(
     implementation = _compile_check_impl,
     doc = "Replays the Fortran, D, Haskell, OCaml, Swift and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
+    propagation_predicate = real_in_main_repo,
     attrs = {
         "_dx": attr.label(
-            default = "@dx_prebuilt//:dx",
+            default = "@dx_prebuilt//dx:compile_check",
             executable = True,
             cfg = "exec",
         ),

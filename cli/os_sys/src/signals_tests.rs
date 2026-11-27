@@ -74,10 +74,10 @@ fn sigterm_removes_the_watched_path_and_exits_143() {
         .env(UNLINK_CHILD, &part)
         .spawn()
         .expect("run the child");
-    let exit = dx_test_scratch::wait::exit_within(child, std::time::Duration::from_secs(30))
+    let exit = dx_test_wait::exit_within(child, std::time::Duration::from_secs(30))
         .expect("wait for the child");
     let exited_143 =
-        matches!(&exit, dx_test_scratch::wait::Exit::Exited(status) if status.code() == Some(143));
+        matches!(&exit, dx_test_wait::Exit::Exited(status) if status.code() == Some(143));
     assert!(exited_143, "{exit:?}");
     assert!(!part.exists());
 }

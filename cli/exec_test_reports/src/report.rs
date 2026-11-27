@@ -1,10 +1,10 @@
 use super::{
     BTreeMap, BufReader, CODE_COVERAGE_BELOW_MINIMUM, CODE_COVERAGE_SOURCES,
     CODE_COVERAGE_SOURCES_INCOMPLETE, CellAccount, Destination, Invocation, JunitCase, NoticeEvent,
-    OutputMode, Path, QueryRunner, Sources, StandardFormat, TestCounts, TestEvents, TestOutcome,
-    WorkflowVerb, Write, collect_test_events, emit_built, filtered_notice, is_failed, notice_event,
-    output_locations, render_junit, report_event, report_failed_with_next, test_outcome_event,
-    write_report_document,
+    OutputMode, Path, QueryRunner, Sources, StandardFormat, Streamed, TestCounts, TestEvents,
+    TestOutcome, WorkflowVerb, Write, collect_test_events, emit_built, filtered_notice, is_failed,
+    notice_event, output_locations, render_junit, report_event, report_failed_with_next,
+    test_outcome_event, write_report_document,
 };
 use dx_exec_core::common::check_stdout_write;
 
@@ -14,6 +14,7 @@ pub(super) fn emit_outcomes(
     err: &mut dyn Write,
     reported: &[TestOutcome],
     filtered: &[dx_bep::UnbuiltTest],
+    streamed: &Streamed,
 ) -> Result<TestCounts, i32> {
     let mut counts = TestCounts::default();
     if output == OutputMode::Json {
@@ -38,37 +39,55 @@ pub(super) fn emit_outcomes(
             {
                 counts.skipped += 1;
             }
-            if outcome.evidence_complete
-                && (outcome.outcome == "passed"
-                    || (outcome.outcome == "no_cases" && !outcome.superseded))
-            {
-                continue;
+            if !streamed.contains(outcome) {
+                emit_outcome(output, out, err, outcome)?;
             }
-            emit_built(out, test_outcome_event(outcome))?;
         }
         filtered_notice(output, out, err, filtered)?;
     } else if matches!(output, OutputMode::Text { .. }) {
         filtered_notice(output, out, err, filtered)?;
-        for outcome in reported {
-            if outcome.outcome == "passed_after_retry" {
-                let attempt = outcome
-                    .attempt
-                    .map(|attempt| format!(" (attempt {attempt})"))
-                    .unwrap_or_default();
-                dx_output::write_stderr(
-                    err,
-                    format_args!(
-                        "dx: flaky success (passed after retry): {}{attempt}\n",
-                        outcome.target
-                    ),
-                );
-            }
-            if !outcome.superseded && is_failed(&outcome.outcome) {
-                write_failed_line(err, outcome);
-            }
+        for outcome in reported
+            .iter()
+            .filter(|outcome| !streamed.contains(outcome))
+        {
+            emit_outcome(output, out, err, outcome)?;
         }
     }
     Ok(counts)
+}
+
+pub(super) fn emit_outcome(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    outcome: &TestOutcome,
+) -> Result<(), i32> {
+    if output == OutputMode::Json {
+        let quiet = outcome.evidence_complete
+            && (outcome.outcome == "passed"
+                || (outcome.outcome == "no_cases" && !outcome.superseded));
+        if !quiet {
+            emit_built(out, test_outcome_event(outcome))?;
+        }
+    } else if matches!(output, OutputMode::Text { .. }) {
+        if outcome.outcome == "passed_after_retry" {
+            let attempt = outcome
+                .attempt
+                .map(|attempt| format!(" (attempt {attempt})"))
+                .unwrap_or_default();
+            dx_output::write_stderr(
+                err,
+                format_args!(
+                    "dx: flaky success (passed after retry): {}{attempt}\n",
+                    outcome.target
+                ),
+            );
+        }
+        if !outcome.superseded && is_failed(&outcome.outcome) {
+            write_failed_line(err, outcome);
+        }
+    }
+    Ok(())
 }
 
 pub(super) const TEXT_CASE_LIMIT: usize = 3;
@@ -164,8 +183,10 @@ pub(super) fn render_report(
             render_junit(suites).map_err(|error| dx_error::DxError::failure(error.to_string()))
         }
         WorkflowVerb::Coverage => {
-            if lcov_documents.is_empty() {
+            if lcov_documents.is_empty() && !detail.is_empty() {
                 Err(dx_error::DxError::failure(detail))
+            } else if lcov_documents.is_empty() {
+                Ok(String::new())
             } else {
                 let mut combined = lcov_documents.join("\n");
                 if !combined.ends_with('\n') {

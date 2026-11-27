@@ -337,7 +337,7 @@ mod tests {
     }
 
     fn wait_for(path: &Path, what: &str) {
-        dx_test_scratch::wait::path_appears(path, Duration::from_secs(30))
+        dx_test_wait::path_appears(path, Duration::from_secs(30))
             .unwrap_or_else(|error| panic!("{what}: {error}"));
     }
 
@@ -411,7 +411,7 @@ mod tests {
             &stale_gen,
         )
         .expect("lease path");
-        dx_test_scratch::wait::lock_free(&lease, Duration::from_secs(30))
+        dx_test_wait::lock_free(&lease, Duration::from_secs(30))
             .expect("the reader's lease comes free");
         let outcome = apply_plan(&workspace, &plan).expect("re-apply");
         assert_eq!(

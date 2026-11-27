@@ -8,7 +8,7 @@ pub mod metrics;
 pub mod outputs;
 pub mod test_outputs;
 
-pub use cache_errors::{has_remote_cache_error, stream_remote_cache_error};
+pub use cache_errors::{CacheError, cache_error, stream_cache_error};
 pub use failures::{
     BuildFailure, BuildFailures, FailedTargetKind, FailureStage, StderrRef, collect_build_failures,
 };
@@ -36,7 +36,23 @@ pub trait ArtifactReader {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CollectorConfig {
     output_group: String,
-    foreign_aspects: BTreeSet<String>,
+    foreign: Foreign,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Foreign {
+    pub aspects: BTreeSet<String>,
+    pub labels: BTreeSet<String>,
+}
+
+impl Foreign {
+    #[must_use]
+    pub fn covers(&self, label: Option<&str>, aspect: Option<&str>) -> bool {
+        aspect.is_some_and(|aspect| self.aspects.contains(aspect_key(aspect)))
+            || label
+                .and_then(target_key)
+                .is_some_and(|key| self.labels.contains(&key))
+    }
 }
 
 impl CollectorConfig {
@@ -46,7 +62,7 @@ impl CollectorConfig {
         }
         Ok(CollectorConfig {
             output_group: output_group.to_owned(),
-            foreign_aspects: BTreeSet::new(),
+            foreign: Foreign::default(),
         })
     }
 
@@ -56,15 +72,28 @@ impl CollectorConfig {
     }
 
     #[must_use]
-    pub fn without_aspects(mut self, foreign: BTreeSet<String>) -> Self {
-        self.foreign_aspects = foreign;
+    pub fn without(mut self, foreign: Foreign) -> Self {
+        self.foreign = foreign;
         self
     }
 
     #[must_use]
-    pub fn is_foreign(&self, aspect: Option<&str>) -> bool {
-        aspect.is_some_and(|aspect| self.foreign_aspects.contains(aspect_key(aspect)))
+    pub fn is_foreign(&self, label: Option<&str>, aspect: Option<&str>) -> bool {
+        self.foreign.covers(label, aspect)
     }
+}
+
+#[must_use]
+pub fn target_key(label: &str) -> Option<String> {
+    let parsed = Label::parse(label).filter(|parsed| !parsed.relative)?;
+    let main = matches!(
+        parsed.repo,
+        Repo::Local | Repo::Canonical("") | Repo::Apparent("")
+    );
+    let pattern = parsed.package.split('/').any(|part| part == "...")
+        || matches!(parsed.name, "all" | "*" | "all-targets" | "...");
+    (main && !pattern && label.contains("//"))
+        .then(|| format!("//{}:{}", parsed.package, parsed.name))
 }
 
 #[must_use]

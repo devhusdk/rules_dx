@@ -3,13 +3,13 @@ use super::run::execute_run;
 use dx_exec_core::common::{
     CODE_UNREADABLE_BEP, Env, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built,
     emit_event, emit_started, flush_out, kept_child, operational, pre_exec, read_actions,
-    report_dx_error, resolve_failed, run_bazel, warn_scope_excluded,
+    report_dx_error, resolve_failed, run_bazel, run_bazel_watched, warn_scope_excluded,
 };
 use dx_exec_deploy::execute_deploy;
 use dx_exec_reports::build_failures::report_build_failures;
 use dx_exec_reports::failure_reports::write_failure_reports;
 use dx_exec_reports::skipped_targets::{group_skipped, read_skipped, skipped_notice};
-use dx_exec_test_reports::{TestReportsRequest, execute_test_reports};
+use dx_exec_test_reports::{LiveTests, Streamed, TestReportsRequest, execute_test_reports};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event,
 };
@@ -179,7 +179,32 @@ fn launch_plan(
         whole_repo,
         argv,
     } = *launch;
-    let bazel_code = match run_bazel(invocation, out, err, workspace, runner, argv, &[]) {
+    let mut streamed = Streamed::default();
+    let ran = if matches!(verb, WorkflowVerb::Test | WorkflowVerb::Coverage) {
+        let now = std::time::Instant::now();
+        let mut live = LiveTests::new(workspace, bep, verb, invocation.output, now);
+        let ran = run_bazel_watched(
+            invocation,
+            out,
+            err,
+            workspace,
+            runner,
+            argv,
+            &mut |out, err| {
+                live.poll(
+                    out,
+                    err,
+                    std::time::Instant::now(),
+                    dx_process::interrupted().is_some(),
+                );
+            },
+        );
+        streamed = live.streamed();
+        ran
+    } else {
+        run_bazel(invocation, out, err, workspace, runner, argv, &[])
+    };
+    let bazel_code = match ran {
         Ok(code) => code,
         Err(exit) => {
             super::remove_scratch(bep);
@@ -233,6 +258,7 @@ fn launch_plan(
         results_complete: complete,
         actions: action_counts,
         whole_repo,
+        streamed: &streamed,
     })
 }
 
@@ -1424,7 +1450,7 @@ mod tests {
                 "query".to_owned(),
                 "--keep_going".to_owned(),
                 "--output=streamed_jsonproto".to_owned(),
-                "--proto:output_rule_attrs=tags,size".to_owned(),
+                "--proto:output_rule_attrs=aspect_hints,beam,beam_files_dir,crate,dx_tfm_variants,size,tags,upstream".to_owned(),
                 "--noproto:default_values".to_owned(),
                 "--noproto:locations".to_owned(),
                 "--noproto:instantiation_stack".to_owned(),

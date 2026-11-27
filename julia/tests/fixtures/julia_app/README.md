@@ -31,7 +31,7 @@ Nothing is fetched while the module graph is evaluated.
 `Preferences` is a direct dependency pinned with `=1.5.0` because the module
 annotation in `MODULE.bazel` patches that release for every hub. Resolve with
 `JULIA_LOAD_PATH=@:@stdlib` set on `pkg_resolve.jl` if `:resolve` stops at
-"Unable to locate installed package": the rules_julia 0.8.0 driver hides the
+"Unable to locate installed package": the rules_julia driver hides the
 temporary environment from `Base.locate_package`.
 
 The `julia_pkg` extension names the repository `julia_app_pkgs`, and

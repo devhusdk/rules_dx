@@ -11,7 +11,7 @@ pub(crate) fn slot_settles_free(dir: &std::path::Path, count: usize) -> bool {
 fn settles_within(dir: &std::path::Path, count: usize, limit: std::time::Duration) -> bool {
     (0..count).all(|index| {
         let path = dx_plan::slots::slot_path(dir, index);
-        !path.exists() || dx_test_scratch::wait::lock_free(&path, limit).is_ok()
+        !path.exists() || dx_test_wait::lock_free(&path, limit).is_ok()
     })
 }
 

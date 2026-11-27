@@ -1,0 +1,15 @@
+Upstream: none (not yet sent upstream: Windows cc toolchains name the compiler without its .exe suffix)
+diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
+--- a/haskell/private/cc_wrapper.py.tpl
++++ b/haskell/private/cc_wrapper.py.tpl
+@@ -1067,6 +1067,10 @@
+ 
+ def find_cc():
+     """Find the path to the actual compiler executable."""
++    if is_windows() and not CC.endswith(".exe"):
++        exe = CC + ".exe"
++        if os.path.isfile(exe):
++            return exe
+     if os.path.isfile(CC):
+         cc = CC
+     else:

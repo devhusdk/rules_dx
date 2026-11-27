@@ -1,37 +1,95 @@
 Upstream: none (not yet sent upstream)
-diff --git a/flutter/extensions.bzl b/flutter/extensions.bzl
+diff -ruN a/flutter/BUILD.bazel b/flutter/BUILD.bazel
+--- a/flutter/BUILD.bazel
++++ b/flutter/BUILD.bazel
+@@ -405,6 +405,7 @@
+         ":local_sdk",
+         "//flutter/private:constants",
+         "//flutter/private:custom_sdks",
++        "//flutter/private:default_sdk",
+         "//flutter/private:engine_labels",
+         "//flutter/private:engine_out_dirs",
+         "//flutter/private:flutter_android_emulator_repo",
+@@ -418,7 +419,6 @@
+         "//flutter/private:flutter_web_sdk_repo",
+         "//flutter/private:linux_runtime_pins",
+         "//flutter/private:local_engine",
+-        "//flutter/private:pub_extension",
+         "//flutter/private:repositories",
+         "//flutter/private:toolchain_version",
+         "//flutter/private:toolchains_repo",
+diff -ruN a/flutter/extensions.bzl b/flutter/extensions.bzl
 --- a/flutter/extensions.bzl
 +++ b/flutter/extensions.bzl
-@@ -17,6 +17,7 @@
- 
- load("@rules_dart//dart:repositories.bzl", "dart_kernel_source")
+@@ -28,6 +28,7 @@
+ load("//flutter:local_sdk.bzl", "flutter_local_framework")
  load("//flutter/private:constants.bzl", "ANDROID_ABI_FOR_ARCH")
-+load("//flutter/private:default_sdk.bzl", "DEFAULT_SDK_NAME", "framework_json")
+ load("//flutter/private:custom_sdks.bzl", "checkout_repo_names", "custom_sdks")
++load("//flutter/private:default_sdk.bzl", "DEFAULT_SDK_NAME")
  load("//flutter/private:engine_labels.bzl", "android_arches")
+ load("//flutter/private:engine_out_dirs.bzl", "unread_machine_message")
  load("//flutter/private:flutter_android_emulator_repo.bzl", "flutter_android_emulator_repo", "flutter_android_system_image_repo")
- load("//flutter/private:flutter_chrome_for_testing.bzl", "flutter_chrome_for_testing")
-@@ -27,7 +28,6 @@
- load("//flutter/private:flutter_sdk_toolchains_repo.bzl", "flutter_sdk_toolchains_repo")
- load("//flutter/private:flutter_sdks_repo.bzl", "encode_sdks", "flutter_sdks_repo")
+@@ -41,7 +42,6 @@
+ load("//flutter/private:flutter_web_sdk_repo.bzl", "host_platform")
  load("//flutter/private:linux_runtime_pins.bzl", "LINUX_RUNTIME")
--load("//flutter/private:pub_extension.bzl", "DEFAULT_SDK_NAME", "framework_json")
+ load("//flutter/private:local_engine.bzl", "flutter_checkout_engine")
+-load("//flutter/private:pub_extension.bzl", "DEFAULT_SDK_NAME")
  load("//flutter/private:repositories.bzl", "flutter_register_toolchains")
  load("//flutter/private:toolchain_version.bzl", "select_flutter_version")
- load("//flutter/private:toolchains_repo.bzl", "flutter_toolchains_repo", "sdk_repo_name")
-diff --git a/flutter/private/pub_extension.bzl b/flutter/private/pub_extension.bzl
+ load("//flutter/private:toolchains_repo.bzl", "HOST_PLATFORMS", "flutter_toolchains_repo", "sdk_repo_name")
+diff -ruN a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
+--- a/flutter/private/BUILD.bazel
++++ b/flutter/private/BUILD.bazel
+@@ -1313,6 +1313,12 @@
+ )
+ 
+ bzl_library(
++    name = "default_sdk",
++    srcs = ["default_sdk.bzl"],
++    visibility = ["//flutter:__subpackages__"],
++)
++
++bzl_library(
+     name = "toolchain_version",
+     srcs = ["toolchain_version.bzl"],
+     visibility = ["//flutter:__subpackages__"],
+@@ -1384,6 +1390,7 @@
+         ":android_plugin_maven",
+         ":apple_app_settings_repo",
+         ":apple_plugin_repo",
++        ":default_sdk",
+         ":flutter_face_repo",
+         ":flutter_framework_package",
+         ":flutter_gen_l10n_repo",
+diff -ruN a/flutter/private/default_sdk.bzl b/flutter/private/default_sdk.bzl
+--- a/flutter/private/default_sdk.bzl
++++ b/flutter/private/default_sdk.bzl
+@@ -0,0 +1,11 @@
++"""The name of the default SDK, which the `flutter` and `pub` extensions share.
++
++It lives apart from pub_extension.bzl so that the `flutter` extension, which
++every module that depends on rules_flutter evaluates for its toolchains, loads
++no Apple, Swift or Android rules.
++"""
++
++visibility("//flutter/...")
++
++# The name of the SDK every build has: the default `flutter.toolchain`.
++DEFAULT_SDK_NAME = "flutter"
+diff -ruN a/flutter/private/pub_extension.bzl b/flutter/private/pub_extension.bzl
 --- a/flutter/private/pub_extension.bzl
 +++ b/flutter/private/pub_extension.bzl
 @@ -17,6 +17,7 @@
- load("//flutter/private:android_plugin_maven.bzl", "MAVEN_DEPS_FILE", "flutter_android_maven")
- load("//flutter/private:apple_app_settings_repo.bzl", "flutter_apple_app_settings")
+ load("//flutter/private:android_plugin_maven.bzl", "MAVEN_DEPS_FILE", "flutter_android_maven", "flutter_android_maven_requirements_repo")
+ load("//flutter/private:apple_app_settings_repo.bzl", "flutter_apple_app_libraries", "flutter_apple_app_settings")
  load("//flutter/private:apple_plugin_repo.bzl", "apple_repo", "flutter_apple_plugin_repo")
-+load("//flutter/private:default_sdk.bzl", "DEFAULT_SDK_NAME", "framework_json")
++load("//flutter/private:default_sdk.bzl", "DEFAULT_SDK_NAME")
  load("//flutter/private:flutter_face_repo.bzl", "flutter_face_repo")
  load("//flutter/private:flutter_framework_package.bzl", "flutter_framework_package")
  load("//flutter/private:flutter_gen_l10n_repo.bzl", "flutter_gen_l10n_repo")
-@@ -37,16 +38,9 @@
- load("//flutter/private:swift_packages.bzl", "declare_swift_packages")
- load("//flutter/private:versions.bzl", "flutter_sdk_exact_pins", "flutter_sdk_packages", "flutter_source_sha256")
+@@ -39,9 +40,6 @@
+ 
+ visibility("//flutter/...")
  
 -# The name of the SDK every build has: the default `flutter.toolchain`.
 -DEFAULT_SDK_NAME = "flutter"
@@ -39,28 +97,3 @@ diff --git a/flutter/private/pub_extension.bzl b/flutter/private/pub_extension.b
  # The SDKs the `flutter` extension declared, as `flutter_sdks_repo` writes them.
  _SDKS = Label("@flutter_sdks//:" + SDKS_FILE)
  
--def framework_json(framework):
--    """The label of `flutter_framework.json` in a framework source."""
--    return Label("@@{}//:flutter_framework.json".format(framework.repo_name))
--
- pub_from_lock_tag = tag_class(attrs = {
-     "name": attr.string(
-         doc = """\
-diff --git a/flutter/private/default_sdk.bzl b/flutter/private/default_sdk.bzl
-new file mode 100644
---- /dev/null
-+++ b/flutter/private/default_sdk.bzl
-@@ -0,0 +1,13 @@
-+"""The default SDK name and the framework label, which the `flutter` and `pub` extensions share.
-+
-+They live apart from pub_extension.bzl so that the `flutter` extension, which
-+every module that depends on rules_flutter evaluates for its toolchains, loads
-+no Apple or Swift package rules.
-+"""
-+
-+# The name of the SDK every build has: the default `flutter.toolchain`.
-+DEFAULT_SDK_NAME = "flutter"
-+
-+def framework_json(framework):
-+    """The label of `flutter_framework.json` in a framework source."""
-+    return Label("@@{}//:flutter_framework.json".format(framework.repo_name))

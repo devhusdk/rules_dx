@@ -100,6 +100,7 @@ def android_native_library(
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
     if len(rust_srcs) == 1:
         rust_kwargs["crate_root"] = rust_srcs[0]
+    rust_kwargs["deps"] = rust_kwargs.get("deps", []) + [":" + name + "_cc"]
     rust_static_library(
         name = name + "_rust",
         srcs = rust_srcs,
@@ -121,7 +122,7 @@ def android_native_library(
     cc_binary(
         name = name + "_link",
         srcs = [],
-        deps = [":" + name + "_rust", ":" + name + "_cc"],
+        deps = [":" + name + "_rust"],
         linkshared = True,
         linkopts = linkopts,
         visibility = ["//visibility:private"],

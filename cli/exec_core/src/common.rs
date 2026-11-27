@@ -10,7 +10,6 @@ use dx_plan::reports::Destination;
 use dx_plan::resolve::QueryRunner;
 use dx_process::{Runner, broken_pipe_code, operational_code, pre_exec_code, stdout_io_code};
 use std::cell::Cell;
-use std::collections::BTreeSet;
 use std::io::{self, BufReader, Write};
 use std::path::Path;
 
@@ -209,6 +208,7 @@ pub const CODE_VERIFICATION_FAILED: &str = "verification_failed";
 pub const CODE_NOT_CONVERGED: &str = "not_converged";
 pub const CODE_COVERAGE_BELOW_MINIMUM: &str = "coverage_below_minimum";
 pub const CODE_NO_COVERAGE_COLLECTOR: &str = "no_coverage_collector";
+pub const CODE_COVERAGE_EMPTY: &str = "coverage_empty";
 pub const CODE_COVERAGE_SOURCES_INCOMPLETE: &str = "coverage_sources_incomplete";
 pub const CODE_COVERAGE_SOURCES: &str = "coverage_sources";
 pub const CODE_CHANGED_LINE_BELOW_MINIMUM: &str = "changed_line_coverage_below_minimum";
@@ -408,9 +408,7 @@ pub fn print_cache_retries(output: OutputMode, retries: u32, err: &mut dyn Write
     if retries > 0 && dx_output::dx_text_visible(&output) {
         dx_output::write_stderr(
             err,
-            format_args!(
-                "dx: {retries} Bazel call(s) ran again without the remote cache after a remote cache error\n"
-            ),
+            format_args!("dx: {retries} Bazel call(s) ran again after a remote cache error\n"),
         );
     }
 }
@@ -461,20 +459,20 @@ pub fn collect_output_account(
     group: &str,
     workspace: &Path,
 ) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
-    collect_own_account(bep, group, workspace, &BTreeSet::new())
+    collect_own_account(bep, group, workspace, &dx_bep::Foreign::default())
 }
 
 pub fn collect_own_account(
     bep: &Path,
     group: &str,
     workspace: &Path,
-    foreign: &BTreeSet<String>,
+    foreign: &dx_bep::Foreign,
 ) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
     let file = std::fs::File::open(bep)
         .map_err(|err| dx_error::DxError::failure(format!("{UNREADABLE_BEP_PREFIX}{err}")))?;
     let config = dx_bep::CollectorConfig::new(group)
         .map_err(|err| dx_error::DxError::failure(format!("invalid BEP config: {err}")))?
-        .without_aspects(foreign.clone());
+        .without(foreign.clone());
     dx_bep::collect_account(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
         .map_err(|err| dx_error::DxError::failure(format!("invalid build events: {err}")))
 }
@@ -869,6 +867,27 @@ pub fn run_bazel_output(
     warn_low_disk(output, out, err, runner, workspace, argv)?;
     let status = runner.run(argv, workspace, env);
     bazel_exit(output, out, err, runner, workspace, argv, status)
+}
+
+pub fn run_bazel_watched(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    workspace: &Path,
+    runner: &dyn Runner,
+    argv: &[String],
+    watch: &mut dyn FnMut(&mut dyn Write, &mut dyn Write),
+) -> Result<i32, i32> {
+    warn_low_disk(invocation.output, out, err, runner, workspace, argv)?;
+    let status = {
+        let streams = std::cell::RefCell::new((&mut *out, &mut *err, watch));
+        runner.run_watched(argv, workspace, &[], &|| {
+            let mut streams = streams.borrow_mut();
+            let (out, err, watch) = &mut *streams;
+            watch(&mut **out, &mut **err);
+        })
+    };
+    bazel_exit(invocation.output, out, err, runner, workspace, argv, status)
 }
 
 pub fn run_bazel_withdrawable(

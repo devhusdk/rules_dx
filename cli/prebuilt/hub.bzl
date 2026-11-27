@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "deploy_jar", "split_key")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "DX_SUBCOMMANDS", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "deploy_jar", "split_key")
 
 visibility(["//cli/..."])
 
@@ -288,6 +288,20 @@ def alias_build(actual, guard = False):
             "alias(",
             '    name = "{}",'.format(name),
             "    actual = " + _source_actual(label, guard) + ",",
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+        ]
+    return "\n".join(lines)
+
+def dx_subcommand_build(consumer, guard = False):
+    """Returns the hub dx/BUILD.bazel text: per DX_SUBCOMMANDS name, an alias of //:dx in a consumer, else of the subcommand's own binary."""
+    lines = []
+    for name, source in sorted(DX_SUBCOMMANDS.items()):
+        lines += [
+            "alias(",
+            '    name = "{}",'.format(name),
+            "    actual = " + ('"//:dx"' if consumer else _source_actual(source, guard)) + ",",
             '    visibility = ["//visibility:public"],',
             ")",
             "",

@@ -1,0 +1,47 @@
+Upstream: none (rules_dx only: names rules_go settings by their canonical labels)
+
+diff --git a/tests/runtime_reset/runtime_reset_test.bzl b/tests/runtime_reset/runtime_reset_test.bzl
+index 890c708..87d2a4f 100644
+--- a/tests/runtime_reset/runtime_reset_test.bzl
++++ b/tests/runtime_reset/runtime_reset_test.bzl
+@@ -35,6 +35,8 @@ def _plain_impl(_settings, _attr):
+         "//command_line_option:instrument_test_targets": False,
+         "//command_line_option:instrumentation_filter": "-/javatests[/:],-/test/java[/:]",
+         "//runtimes:linkmode": "static",
++        "@@rules_go+//go/config:race": False,
++        "@@rules_go+//go/private/rules:original_race": "",
+     }
+ 
+ def _instrumented_impl(_settings, _attr):
+@@ -43,6 +45,8 @@ def _instrumented_impl(_settings, _attr):
+         "//command_line_option:instrument_test_targets": True,
+         "//command_line_option:instrumentation_filter": "^//tests[/:]",
+         "//runtimes:linkmode": "dynamic",
++        "@@rules_go+//go/config:race": True,
++        "@@rules_go+//go/private/rules:original_race": "false",
+     }
+ 
+ _OUTPUTS = [
+@@ -50,6 +54,8 @@ _OUTPUTS = [
+     "//command_line_option:instrument_test_targets",
+     "//command_line_option:instrumentation_filter",
+     "//runtimes:linkmode",
++    "@@rules_go+//go/config:race",
++    "@@rules_go+//go/private/rules:original_race",
+ ]
+ 
+ _plain_transition = transition(
+diff --git a/toolchain/runtimes/with_cfg_runtimes_common.bzl b/toolchain/runtimes/with_cfg_runtimes_common.bzl
+index 4cc43c2..bd0e9ba 100644
+--- a/toolchain/runtimes/with_cfg_runtimes_common.bzl
++++ b/toolchain/runtimes/with_cfg_runtimes_common.bzl
+@@ -15,6 +15,9 @@ RUNTIME_RESET_SETTINGS = {
+     "collect_code_coverage": False,
+     "instrument_test_targets": False,
+     "instrumentation_filter": "-/javatests[/:],-/test/java[/:]",
++    # Go race mode only changes the Go compiles of the targets that set it.
++    Label("@@rules_go+//go/config:race"): False,
++    Label("@@rules_go+//go/private/rules:original_race"): "",
+ }
+ 
+ def runtime_reset_transition_settings():

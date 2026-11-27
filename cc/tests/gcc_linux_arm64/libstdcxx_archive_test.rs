@@ -3,7 +3,8 @@
     reason = "tests run local programs under the Bazel test timeout"
 )]
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{env_file, image_machine};
+use dx_testing::env_file;
+use dx_testing_image::machine;
 use std::process::Command;
 
 #[test]
@@ -47,7 +48,7 @@ fn dynamic_libstdcxx_app_ships_its_runtime_and_runs_from_the_archive() {
     for file in ["hello_cxx_gcc", "libstdc++.so.6", "libgcc_s.so.1"] {
         let bytes = std::fs::read(dir.join(file)).expect("read file");
         assert_eq!(
-            image_machine(&bytes).as_deref(),
+            machine(&bytes).as_deref(),
             Some("aarch64"),
             "{file} is not aarch64"
         );

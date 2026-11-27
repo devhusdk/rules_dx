@@ -1,11 +1,11 @@
 name: gate
-description: Run dx check, dx coverage or both with --affected against the pinned base.
+description: Run dx check with --affected against the pinned base.
 inputs:
   command:
-    description: The dx command, check or coverage, or both separated by a space, which run in order.
+    description: The dx command and its flags, check or check --coverage.
     required: true
   lcov:
-    description: Where dx coverage writes its lcov report.
+    description: Where dx check --coverage writes its lcov report.
     required: false
     default: ""
   baseline:
@@ -72,39 +72,28 @@ runs:
     - name: dx ${{ inputs.command }} --affected
       id: check
       env:
-        COMMANDS: ${{ inputs.command }}
+        COMMAND_LINE: ${{ inputs.command }}
         LCOV: ${{ inputs.lcov }}
+        LINT_SCOPE: ${{ github.event_name == 'pull_request' && 'direct' || 'closure' }}
+        DX_PROFILE_DIR: ${{ runner.temp }}/dx-profiles
       shell: bash
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
         pr_tags=-network-consumer,-audit
-        tags=-manual,-resources:nested_bazel:1,$pr_tags
         dx="${RUNNER_TEMP:-/tmp}/dx-bin/dx"
         out="${RUNNER_TEMP:-/tmp}/gate.json"
-        : > "$out"
-        status=0
-        for COMMAND in $COMMANDS; do
-          filters=()
-          report=()
-          case "$COMMAND" in
-            check)
-              report=(--max-findings 0)
-              if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-                filters=("--test_tag_filters=$pr_tags")
-              fi
-              ;;
-            coverage)
-              filters=("--test_tag_filters=-no-coverage,-dx-no-coverage-collector,$tags")
-              if [ -n "$LCOV" ]; then
-                mkdir -p "$(dirname "$LCOV")"
-                report=(--report "lcov=$LCOV")
-              fi
-              ;;
-          esac
-          "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee -a "$out" || status=$?
-        done
-        exit "$status"
+        read -ra COMMAND <<<"$COMMAND_LINE"
+        filters=()
+        report=(--max-findings 0 --lint-scope "$LINT_SCOPE")
+        if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+          filters=("--test_tag_filters=$pr_tags")
+        fi
+        if [[ " $COMMAND_LINE " == *" --coverage "* && -n "$LCOV" ]]; then
+          mkdir -p "$(dirname "$LCOV")"
+          report+=(--report "lcov=$LCOV")
+        fi
+        "$dx" "${COMMAND[@]}" --affected --output=json "${report[@]}" -- "$@" --keep_going "${filters[@]}" < /dev/null | tee "$out"
     - name: Print the failing test log tails
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash
@@ -146,6 +135,21 @@ runs:
         name: main-baseline-${{ inputs.baseline }}
         path: ${{ runner.temp }}/failing
         retention-days: 30
+        overwrite: true
+    - name: Check the Bazel profiles hold no secret
+      id: scan-profiles
+      if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
+      uses: ./.github/actions/assert-no-secret
+      with:
+        path: ${{ runner.temp }}/dx-profiles
+    - name: Upload the Bazel profiles
+      if: ${{ !cancelled() && steps.scan-profiles.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: profiles-${{ inputs.baseline || format('{0}-{1}', runner.os, runner.arch) }}
+        path: ${{ runner.temp }}/dx-profiles
+        retention-days: 7
+        if-no-files-found: ignore
         overwrite: true
     - name: Verify the base dx compared against
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}

@@ -2,9 +2,9 @@ Upstream: none (not yet sent upstream)
 diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
 --- a/julia/private/precompile.jl
 +++ b/julia/private/precompile.jl
-@@ -20,11 +20,6 @@
-     return "generic"
- end
+@@ -11,11 +11,6 @@
+ 
+ include(joinpath(@__DIR__, "rules_julia_common.jl"))
  
 -function stable_path(path)
 -    Sys.islinux() && !isabspath(path) && return joinpath("/proc/self/cwd", normpath(path))

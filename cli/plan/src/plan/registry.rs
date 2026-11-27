@@ -145,7 +145,11 @@ pub fn spec(command: Command) -> CommandSpec {
             command,
             aspects: &[],
             probes: &[],
-            reports: &[StandardFormat::Sarif],
+            reports: &[
+                StandardFormat::Sarif,
+                StandardFormat::Lcov,
+                StandardFormat::Sources,
+            ],
         },
         Command::Clean => CommandSpec {
             command,

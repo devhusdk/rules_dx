@@ -2,7 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::Path;
 use std::process::Command;
 
-const PREFIX: &str = "conda-ocaml-";
+pub const PREFIX: &str = "conda-ocaml-";
 
 const LINKING: [&str; 3] = ["cc", "mkdll", "mkexe"];
 

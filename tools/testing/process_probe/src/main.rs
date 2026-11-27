@@ -374,7 +374,7 @@ fn run_descendant(plan: &Plan) -> Result<i32, String> {
 }
 
 fn wait_for_lock(path: &str) -> Result<(), String> {
-    dx_test_scratch::wait::path_appears(std::path::Path::new(path), Duration::from_secs(10))
+    dx_test_wait::path_appears(std::path::Path::new(path), Duration::from_secs(10))
         .map_err(|error| format!("the descendant never took {path}: {error}"))
 }
 
@@ -496,7 +496,7 @@ fn sleep_until_gate(plan: &Plan) {
         std::thread::sleep(plan.sleep);
         return;
     };
-    drop(dx_test_scratch::wait::path_appears(
+    drop(dx_test_wait::path_appears(
         std::path::Path::new(gate),
         plan.sleep,
     ));

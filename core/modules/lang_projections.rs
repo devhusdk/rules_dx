@@ -317,16 +317,26 @@ fn lang_aspects(manifest: &Value) -> Result<Vec<(String, String)>, String> {
     Ok(found)
 }
 
-fn splice(text: &str, begin: &str, end: &str, body: &str) -> Result<String, String> {
+/// `text` split around the block between the `begin` and `end` markers: head, block, tail.
+fn split_block<'a>(
+    text: &'a str,
+    begin: &str,
+    end: &str,
+) -> Result<(&'a str, &'a str, &'a str), String> {
     let start = text
         .find(begin)
         .ok_or_else(|| format!("missing {begin:?}"))?
         + begin.len();
     let stop = text.find(end).ok_or_else(|| format!("missing {end:?}"))?;
-    match (text.get(..start), text.get(stop..)) {
-        (Some(head), Some(tail)) if start <= stop => Ok(format!("{head}{body}{tail}")),
+    match (text.get(..start), text.get(start..stop), text.get(stop..)) {
+        (Some(head), Some(block), Some(tail)) => Ok((head, block, tail)),
         _ => Err(format!("{begin:?} must come before {end:?}")),
     }
+}
+
+fn splice(text: &str, begin: &str, end: &str, body: &str) -> Result<String, String> {
+    let (head, _, tail) = split_block(text, begin, end)?;
+    Ok(format!("{head}{body}{tail}"))
 }
 
 /// The quality files whose rows name shard aspects, so they export the family tables. Probe-only
@@ -359,11 +369,11 @@ fn table_prefix(label: &str) -> Result<String, String> {
     Ok(format!("_{}_", stem.to_uppercase()))
 }
 
-/// Each table file's load symbols, `(local, exported)`, for `tables`.
-fn table_symbols(
-    files: &BTreeSet<String>,
-    tables: &[(&str, &str)],
-) -> Result<BTreeMap<String, Vec<(String, String)>>, String> {
+/// Load symbols, `(local, exported)`, keyed by label without the leading `//`.
+type Loads = BTreeMap<String, BTreeSet<(String, String)>>;
+
+/// Each table file's load symbols for `tables`.
+fn table_symbols(files: &BTreeSet<String>, tables: &[(&str, &str)]) -> Result<Loads, String> {
     let mut found = BTreeMap::new();
     let mut owners: BTreeMap<String, &str> = BTreeMap::new();
     for label in files {
@@ -398,24 +408,77 @@ fn table_unions(files: &BTreeSet<String>, tables: &[(&str, &str)]) -> Result<Str
     Ok(text)
 }
 
-/// `load(...)` text for `symbols`, `(local, exported)`, sorted by local name as buildifier keeps them.
-fn load_line(label: &str, mut symbols: Vec<(String, String)>) -> String {
-    symbols.sort();
-    let symbols: Vec<String> = symbols
-        .iter()
-        .map(|(local, exported)| format!("{local} = \"{exported}\""))
-        .collect();
-    format!("load(\"//{label}\", {})\n", symbols.join(", "))
+/// `load(...)` lines in buildifier's order: labels by package, then file; within a load, plain
+/// names first, then aliases by local name.
+fn load_lines(loads: &Loads) -> String {
+    let mut loads: Vec<_> = loads.iter().collect();
+    loads.sort_by_key(|(label, _)| label.split_once(':'));
+    loads
+        .into_iter()
+        .map(|(label, symbols)| {
+            let (plain, aliased): (Vec<_>, Vec<_>) = symbols
+                .iter()
+                .partition(|(local, exported)| local == exported);
+            let symbols: Vec<String> = plain
+                .iter()
+                .map(|(name, _)| format!("\"{name}\""))
+                .chain(
+                    aliased
+                        .iter()
+                        .map(|(local, exported)| format!("{local} = \"{exported}\"")),
+                )
+                .collect();
+            format!("load(\"//{label}\", {})\n", symbols.join(", "))
+        })
+        .collect()
+}
+
+/// The symbols of the one-line `load("//...", ...)` statements that make up `block`.
+fn parse_loads(block: &str) -> Result<Loads, String> {
+    let mut loads = Loads::new();
+    for line in block.lines() {
+        let (label, args) = line
+            .strip_prefix("load(\"//")
+            .and_then(|rest| rest.strip_suffix(')'))
+            .and_then(|rest| rest.split_once("\", "))
+            .ok_or_else(|| format!("{line:?} is not a one-line load of a //label"))?;
+        let symbols = loads.entry(label.to_owned()).or_default();
+        for arg in args.split(", ") {
+            let (local, quoted) = match arg.split_once(" = ") {
+                Some((local, quoted)) => (Some(local), quoted),
+                None => (None, arg),
+            };
+            let exported = quoted
+                .strip_prefix('"')
+                .and_then(|name| name.strip_suffix('"'))
+                .ok_or_else(|| format!("{line:?}: {arg:?} is not a load symbol"))?;
+            symbols.insert((local.unwrap_or(exported).to_owned(), exported.to_owned()));
+        }
+    }
+    Ok(loads)
+}
+
+/// Whether `local = "exported"` of `label` is a symbol the generator writes: an aspect alias
+/// `_<aspect>` or a family table alias `_<FILE>_<TABLE>`.
+fn generated_symbol(
+    label: &str,
+    (local, exported): &(String, String),
+    tables: &[(&str, &str)],
+) -> Result<bool, String> {
+    if exported.ends_with("_aspect") && local.strip_prefix('_') == Some(exported.as_str()) {
+        return Ok(true);
+    }
+    if tables.iter().any(|(table, _)| table == exported) {
+        return Ok(*local == format!("{}{exported}", table_prefix(label)?));
+    }
+    Ok(false)
 }
 
 /// Rewrites the generated blocks of `core_probe.bzl`: the core rows' family tables and their unions.
 fn core_probe_bzl(core: &Value, current: &str) -> Result<String, String> {
     let tables = [TOOLS, SHARD_SPECS, HOOK_ORDER, HOOKS];
     let files = table_files(&core_manifests(core)?)?;
-    let mut loads = String::new();
-    for (label, symbols) in table_symbols(&files, &tables)? {
-        loads.push_str(&load_line(&label, symbols));
-    }
+    let loads = load_lines(&table_symbols(&files, &tables)?);
     let text = splice(current, TABLE_LOADS_BEGIN, TABLE_LOADS_END, &loads)?;
     splice(
         &text,
@@ -448,15 +511,24 @@ fn all_languages_bzl(
     for (label, name) in &aspects {
         by_label.entry(label).or_default().push(name);
     }
-    let mut loads = String::new();
+    let (_, current_loads, _) = split_block(current, LOADS_BEGIN, LOADS_END)?;
+    let mut loads = Loads::new();
+    for (label, symbols) in parse_loads(current_loads)? {
+        for symbol in symbols {
+            if !generated_symbol(&label, &symbol, &tables)? {
+                loads.entry(label.clone()).or_default().insert(symbol);
+            }
+        }
+    }
     for (label, names) in &by_label {
-        let mut symbols = table_loads.remove(*label).unwrap_or_default();
+        let symbols = loads.entry((*label).to_owned()).or_default();
+        symbols.extend(table_loads.remove(*label).unwrap_or_default());
         symbols.extend(names.iter().map(|n| (format!("_{n}"), (*n).to_owned())));
-        loads.push_str(&load_line(label, symbols));
     }
     if let Some(label) = table_loads.keys().next() {
         return Err(format!("{label} names no aspect"));
     }
+    let loads = load_lines(&loads);
     let exports: Vec<String> = aspects.iter().map(|(_, n)| format!("{n} = _{n}")).collect();
     let exports = format!("{}\n", exports.join("\n\n"));
     let mut shards = String::from("_SHARD_ASPECTS = {\n");
@@ -531,7 +603,7 @@ fn conformance_quality_bzl(manifests: &BTreeMap<String, Value>) -> Result<String
         for (kind, names) in kinds {
             write!(
                 text,
-                "\n{lang}_{kind}_subject = config_subject_rule([{}], [OutputGroupInfo])\n",
+                "\n{lang}_{kind}_subject = config_subject_rule([{}])\n",
                 names.join(", ")
             )
             .map_err(|e| e.to_string())?;
@@ -785,14 +857,23 @@ mod tests {
     #[test]
     fn all_languages_bzl_rewrites_only_the_generated_blocks() {
         let current = format!(
-            "\"\"\"Hand header.\"\"\"\n\n{LOADS_BEGIN}stale\n{LOADS_END}\nkeep = 1\n\n{EXPORTS_BEGIN}{EXPORTS_END}\n{TABLES_BEGIN}{TABLES_END}\n{SHARDS_BEGIN}{SHARDS_END}"
+            "\"\"\"Hand header.\"\"\"\n\n{LOADS_BEGIN}\
+             load(\"//gone/private/quality:gone.bzl\", _GONE_TOOLS = \"TOOLS\", _real_gone_lint_aspect = \"real_gone_lint_aspect\")\n\
+             load(\"//py/private/quality:py.bzl\", _PY_RECOGNIZER = \"RECOGNIZER\", _real_py_stale_aspect = \"real_py_stale_aspect\")\n\
+             load(\"//core/quality:real_core.bzl\", _real_skip = \"real_skip\", \"real_config\")\n\
+             {LOADS_END}\nkeep = 1\n\n{EXPORTS_BEGIN}{EXPORTS_END}\n{TABLES_BEGIN}{TABLES_END}\n{SHARDS_BEGIN}{SHARDS_END}"
         );
         let text = all_languages_bzl(&sample(), &no_core(), &current).unwrap();
         assert!(text.starts_with("\"\"\"Hand header.\"\"\""), "{text}");
         assert!(text.contains("keep = 1"), "{text}");
-        assert!(!text.contains("stale"), "{text}");
         assert!(
-            text.contains("load(\"//py/private/quality:py.bzl\", _PY_HOOKS = \"HOOKS\", _PY_SHARD_SPECS = \"SHARD_SPECS\", _PY_TOOLS = \"TOOLS\", _real_py_format_aspect = \"real_py_format_aspect\", _real_py_lint_aspect = \"real_py_lint_aspect\", _real_py_lint_probe_aspect = \"real_py_lint_probe_aspect\")"),
+            text.contains(&format!(
+                "{LOADS_BEGIN}\
+                 load(\"//core/quality:real_core.bzl\", \"real_config\", _real_skip = \"real_skip\")\n\
+                 load(\"//py/private/docs:docs.bzl\", _real_py_docs_aspect = \"real_py_docs_aspect\")\n\
+                 load(\"//py/private/quality:py.bzl\", _PY_HOOKS = \"HOOKS\", _PY_RECOGNIZER = \"RECOGNIZER\", _PY_SHARD_SPECS = \"SHARD_SPECS\", _PY_TOOLS = \"TOOLS\", _real_py_format_aspect = \"real_py_format_aspect\", _real_py_lint_aspect = \"real_py_lint_aspect\", _real_py_lint_probe_aspect = \"real_py_lint_probe_aspect\")\n\
+                 {LOADS_END}"
+            )),
             "{text}"
         );
         assert!(
@@ -905,6 +986,28 @@ mod tests {
     }
 
     #[test]
+    fn load_lines_sort_by_package_then_file() {
+        let loads = parse_loads(
+            "load(\"//tools/docs/zig:aspect.bzl\", \"z\")\n\
+             load(\"//tools/docs:z/aspect.bzl\", \"y\")\n\
+             load(\"//tools/docs:aspect.bzl\", \"x\")\n",
+        )
+        .unwrap();
+        assert_eq!(
+            load_lines(&loads),
+            "load(\"//tools/docs:aspect.bzl\", \"x\")\n\
+             load(\"//tools/docs:z/aspect.bzl\", \"y\")\n\
+             load(\"//tools/docs/zig:aspect.bzl\", \"z\")\n"
+        );
+    }
+
+    #[test]
+    fn parse_loads_rejects_other_statements() {
+        let error = parse_loads("x = 1\n").unwrap_err();
+        assert_eq!(error, "\"x = 1\" is not a one-line load of a //label");
+    }
+
+    #[test]
     fn splice_fails_without_markers() {
         assert!(splice("no markers", LOADS_BEGIN, LOADS_END, "").is_err());
     }
@@ -917,9 +1020,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(
-                "py_lint_subject = config_subject_rule([real_py_lint_aspect], [OutputGroupInfo])"
-            ),
+            text.contains("py_lint_subject = config_subject_rule([real_py_lint_aspect])"),
             "{text}"
         );
         assert!(

@@ -88,15 +88,11 @@ impl Watch {
         let state = self.state.clone();
         let child = &mut self.child;
         let mut exited = None;
-        let waited = dx_test_scratch::wait::watch_until(
-            &state.join("event"),
-            what,
-            Duration::from_secs(30),
-            || {
+        let waited =
+            dx_test_wait::watch_until(&state.join("event"), what, Duration::from_secs(30), || {
                 exited = child.try_wait().ok().flatten();
                 done(&state) || exited.is_some()
-            },
-        );
+            });
         if let Some(status) = exited.filter(|_| !done(&self.state)) {
             panic!("dx exited ({status:?}) before {what}");
         }
@@ -186,7 +182,7 @@ fn ctrl_c_stops_the_watch(app_args: &str) {
         .status()
         .expect("helper runs");
     assert!(sent.success(), "the Ctrl-C helper failed: {sent:?}");
-    let stopped = dx_test_scratch::wait::child_exits(&mut watch.child, Duration::from_secs(30));
+    let stopped = dx_test_wait::child_exits(&mut watch.child, Duration::from_secs(30));
     let Ok(status) = stopped else {
         panic!("dx did not stop: {stopped:?}\n{}", watch.stderr());
     };

@@ -8,10 +8,7 @@ package(default_visibility = VIS_CLI)
 rust_library(
     name = "dx_test_scratch",
     testonly = True,
-    srcs = [
-        "src/lib.rs",
-        "src/wait.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "cli/dx_test_scratch",
         normal = True,
@@ -25,7 +22,6 @@ rust_library(
     ) + [
         "//cli/os_sys:dx_os_sys",
         "//cli/process:dx_process",
-        "@crates//:notify",
     ],
 )
 
@@ -47,7 +43,6 @@ rust_test(
     ) + [
         "//cli/os_sys:dx_os_sys",
         "//cli/process:dx_process",
-        "@crates//:notify",
     ],
 )
 

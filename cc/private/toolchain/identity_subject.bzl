@@ -1,6 +1,6 @@
 """Analysis subject reporting the selected C++ toolchain."""
 
-load("//core/private/testing:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
 load(":select.bzl", "toolchain_transition")
 

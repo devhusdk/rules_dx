@@ -844,7 +844,7 @@ rust_binary(
     deps = [
         ":hermetic",
         "//cli/families:dx_families",
-        "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],
@@ -1212,7 +1212,7 @@ exports_files(
 no_coverage_build_scripts_test(
     name = "manifest_build_scripts_no_coverage_test",
     size = "small",
-    target_under_test = ":ocaml_manifest",
+    target_under_test = ":cpp_rust_manifest",
 )
 
 _HERMETIC_BINARIES = [

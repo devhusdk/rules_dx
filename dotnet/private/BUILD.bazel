@@ -1,4 +1,7 @@
+load("//core/modules:versions.bzl", "DOTNET_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
+
+_SDK = "@dotnet_sdk." + DOTNET_VERSION + "_"
 
 real_source_target(
     name = "corpus_starlark",
@@ -83,12 +86,12 @@ config_setting(
 alias(
     name = "target_runtime",
     actual = select({
-        ":linux_arm64": "@dx_dotnet_arm64-unknown-linux-gnu//:runtime",
-        ":linux_x86_64": "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
-        ":macos_arm64": "@dx_dotnet_aarch64-apple-darwin//:runtime",
-        ":macos_x86_64": "@dx_dotnet_x86_64-apple-darwin//:runtime",
-        ":windows_arm64": "@dx_dotnet_arm64-pc-windows-msvc//:runtime",
-        ":windows_x86_64": "@dx_dotnet_x86_64-pc-windows-msvc//:runtime",
+        ":linux_arm64": _SDK + "arm64-unknown-linux-gnu//:runtime_host",
+        ":linux_x86_64": _SDK + "x86_64-unknown-linux-gnu//:runtime_host",
+        ":macos_arm64": _SDK + "aarch64-apple-darwin//:runtime_host",
+        ":macos_x86_64": _SDK + "x86_64-apple-darwin//:runtime_host",
+        ":windows_arm64": _SDK + "arm64-pc-windows-msvc//:runtime_host",
+        ":windows_x86_64": _SDK + "x86_64-pc-windows-msvc//:runtime_host",
     }),
     visibility = [
         "//:__subpackages__",

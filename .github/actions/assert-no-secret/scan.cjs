@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const process = require("process");
+const zlib = require("zlib");
 
 function fail(message) {
   process.stdout.write(`::error::${message}\n`);
@@ -50,8 +51,19 @@ function holdsSecret(path) {
   if (!info.isFile()) {
     return false;
   }
-  const content = fs.readFileSync(path);
-  return needles.some((needle) => content.includes(needle));
+  const raw = fs.readFileSync(path);
+  return [raw, ...gunzipped(raw)].some((content) => needles.some((needle) => content.includes(needle)));
+}
+
+function gunzipped(raw) {
+  if (raw.length < 2 || raw[0] !== 0x1f || raw[1] !== 0x8b) {
+    return [];
+  }
+  try {
+    return [zlib.gunzipSync(raw, { finishFlush: zlib.constants.Z_SYNC_FLUSH })];
+  } catch {
+    return [];
+  }
 }
 
 let found;

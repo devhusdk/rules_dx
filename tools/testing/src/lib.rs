@@ -6,16 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-pub mod allowlist;
 pub mod cli;
-pub mod exec_log;
-pub mod fatbin;
 pub mod http;
-pub mod msix;
-
-pub use dx_binfmt::{
-    inspect as image_inspect, machine as image_machine, machines as image_machines,
-};
 
 pub use dx_path::without_verbatim;
 pub use serde_json;
@@ -97,7 +89,7 @@ fn captured_text(buffer: &Captured) -> String {
 }
 
 fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
-    drop(dx_test_scratch::wait::within(
+    drop(dx_test_wait::within(
         "the output reader",
         limit,
         move || {
@@ -132,9 +124,9 @@ pub fn run_command(
         child.stdout.take().map(|pipe| drain(pipe, out.clone())),
         child.stderr.take().map(|pipe| drain(pipe, err.clone())),
     ];
-    let (status, timed_out) = match dx_test_scratch::wait::exit_within(child, limit)? {
-        dx_test_scratch::wait::Exit::Exited(status) => (status, false),
-        dx_test_scratch::wait::Exit::Killed(status) => (status, true),
+    let (status, timed_out) = match dx_test_wait::exit_within(child, limit)? {
+        dx_test_wait::Exit::Exited(status) => (status, false),
+        dx_test_wait::Exit::Killed(status) => (status, true),
     };
     let grace = if timed_out {
         std::time::Duration::from_secs(2)
@@ -438,38 +430,6 @@ pub fn rules_dx_source() -> Result<PathBuf, String> {
     Ok(dx_path::without_verbatim(checkout))
 }
 
-#[track_caller]
-#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
-pub fn source_snapshot() -> PathBuf {
-    static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
-    ROOT.get_or_init(|| {
-        let root = dx_test_scratch::scratch("source-snapshot")
-            .unwrap_or_else(|error| panic!("{error}"))
-            .keep();
-        for variable in [
-            "DX_SOURCES_JSON",
-            "DX_FILES_JSON",
-            "DX_PROSE_JSON",
-            "DX_RUST_JSON",
-        ] {
-            let optional = matches!(variable, "DX_PROSE_JSON" | "DX_RUST_JSON");
-            if optional && std::env::var_os(variable).is_none() {
-                continue;
-            }
-            let key = env_text(variable);
-            let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("{variable}: {error}"));
-            let files: std::collections::BTreeMap<String, String> =
-                serde_json::from_str(&read_text(&path))
-                    .unwrap_or_else(|error| panic!("{variable}: {error}"));
-            for (rel, text) in files {
-                write_text(&root.join(rel), &text);
-            }
-        }
-        root
-    })
-    .clone()
-}
-
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -761,7 +721,7 @@ pub fn empty_git_repo(dir: &Path) {
 #[expect(clippy::panic, reason = "test helper: a failed wait fails the test")]
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
-    if let Err(error) = dx_test_scratch::wait::lock_free(lock, std::time::Duration::from_secs(10)) {
+    if let Err(error) = dx_test_wait::lock_free(lock, std::time::Duration::from_secs(10)) {
         panic!("an owned process survived: {error}");
     }
 }
@@ -769,9 +729,7 @@ pub fn assert_alive_lock_released(lock: &Path) {
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed wait fails the test")]
 pub fn wait_armed(lock: &Path) {
-    if let Err(error) =
-        dx_test_scratch::wait::path_appears(lock, std::time::Duration::from_secs(10))
-    {
+    if let Err(error) = dx_test_wait::path_appears(lock, std::time::Duration::from_secs(10)) {
         panic!("probe never armed: {error}");
     }
 }
@@ -1549,8 +1507,8 @@ mod tests {
 
     #[test]
     fn scratch_json_and_run_helpers() {
-        let first_scratch = dx_test_scratch::scratch("dx-helper-").unwrap();
-        let second_scratch = dx_test_scratch::scratch("dx-helper-").unwrap();
+        let first_scratch = scratch("dx-helper-");
+        let second_scratch = scratch("dx-helper-");
         let first = first_scratch.path();
         assert_ne!(first, second_scratch.path());
         let path = first.join("doc.json");

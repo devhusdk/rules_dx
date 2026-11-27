@@ -31,7 +31,7 @@ dx check --affected --output=json
 - Labels and patterns: `//...`, `//pkg:target`. Only `dx run` accepts `@repo//...`.
 - Files and directories: workspace-relative paths. A file resolves to the rules that use it. A directory becomes `//dir/...`. Paths with control characters are refused.
 - `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `fetch`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
-- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the rules that own a changed file. `generate` and the generate phase of `check` use the directories of the changed files, without the packages below them. With `--apply`, `format`, `lint`, `typecheck`, and the other phases of `check` write only the changed files and the `BUILD` file of each one's package. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with `--here`. With scopes, `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, and `check` keep only the affected targets inside them, so `dx test --affected //svc/...` runs the affected tests under `//svc`; `generate`, `security`, and `license` reject scopes with it. Accepted by `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
+- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the targets that read a changed file. `lint` and the lint phase of `check` add the targets that depend on those directly. `generate` and the generate phase of `check` use the directories of the changed files, without the packages below them. With `--apply`, `format`, `lint`, `typecheck`, and the other phases of `check` write only the changed files and the `BUILD` file of each one's package. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with `--here`. With scopes, `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, and `check` keep only the affected targets inside them, so `dx test --affected //svc/...` runs the affected tests under `//svc`; `generate`, `security`, and `license` reject scopes with it. Accepted by `build`, `test`, `coverage`, `fetch`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
 
 Targets that do not fit the target platform are skipped by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, and `check`. Skipped tests report `skipped`. Pass `-- --noskip_incompatible_explicit_targets` to fail on them. `dx run` fails on them.
 
@@ -41,6 +41,8 @@ Changes are the diff from the merge-base with the base branch, plus staged, unst
 
 Each changed file maps to its owning targets, then to their reverse dependencies in `//...`: the targets that depend on them. Targets tagged `manual` are left out.
 
+- `format` and the format phase of `check` keep only the targets that read a changed file: the rules that own it, the rules that use a `filegroup` or `genrule` that owns it or a file such a rule generates, and the rules that take one of those, or an `alias` of one, as `crate`, `upstream`, `beam`, `beam_files_dir`, `dx_tfm_variants`, or `aspect_hints`, such as a Rust test of a library.
+- `lint` and the lint phase of `check` keep those targets plus the targets that depend on them directly. They keep all reverse dependencies with `--lint-scope closure` or when a dependency version changes. A lint or format phase with no targets prints `no affected targets` and runs nothing. `typecheck` and the test phase of `check` keep all reverse dependencies.
 - `test` and `coverage` keep only test targets.
 - `security` and `license` keep only targets a dependency set owns. `security` still runs the secrets scan when any file changed.
 - `check --affected` runs the checks, then the affected tests. `check --apply --affected` skips the tests.
@@ -52,11 +54,12 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | --- | --- |
 | `BUILD` or `BUILD.bazel` | Every target in its package plus reverse dependencies. |
 | An added or deleted `BUILD`, or a deleted file outside any package | `//...`. |
-| A deleted file | The targets that still name it, else its package plus reverse dependencies. |
-| An unowned file | The package tree around it, such as `//pkg/...`. |
+| A deleted file | The targets that still name it, else its package plus reverse dependencies, or `//...` when the package has no targets. |
+| An unowned file | The package tree around it, such as `//pkg/...`. `//...` when that tree has no targets, such as a directory that `.bazelignore` lists or a nested workspace, because only a repository rule can read the file there. |
 | A file outside any package | `//...`. |
 | A file that reaches a target a `.bazelrc` passes to a build setting, such as `.dx/config/typos/base.toml` through `--@rules_dx//config:workspace=//.dx:policy` | Its owning targets and the targets that read the setting, plus reverse dependencies. Lint and format aspects that read the setting do not widen. `//...` when a toolchain reads the setting. |
-| A file that reaches a target another `.bazelrc` flag names, such as a toolchain or platform, or that an aspect attribute names | `//...`. |
+| A file that reaches a target another `.bazelrc` flag names, such as a toolchain, platform, or an attribute of a `--aspects` aspect | `//...`. |
+| A file that reaches a target a dx lint, typecheck, or format aspect attribute names, such as a linter binary | `//...` for `lint`, `typecheck`, `format`, and the `check` phases other than generate and test. `test`, `coverage`, `build`, and the generate and test phases of `check` keep the owning targets plus reverse dependencies. |
 | `.bzl` or `.scl` | The packages that load it, plus reverse dependencies. When a root module extension or `use_repo_rule` loads it, also the users of that extension's repos. `//...` when an aspect or a toolchain or platform package uses it, when the extension's repos are registered as toolchains, named in a `.bazelrc` or by an aspect attribute, or passed by label to another `MODULE.bazel` call, or when a BUILD or `.bzl` file does not parse. |
 | `Cargo.lock` or crate_universe lockfile named by `crate.from_cargo` | The users of the changed crates. Another lock or an unreadable lock: `//...`. |
 | Any lock or `go.mod` named by an extension tag | `//...` when another module in the graph also uses that extension (such as `rules_go` with `go_deps`), when a module's patch makes an edit listed under [Patches](#patches), when a module has a non-registry override, or when the extension's repos are passed by label to another `MODULE.bazel` call. Most real extension edits fall here. |
@@ -71,16 +74,17 @@ Each changed file maps to its owning targets, then to their reverse dependencies
 | A `local_path_override` path outside the workspace | `//...`. |
 | Any `pnpm-lock.yaml`, `package-lock.json`, `go.mod`, `go.sum`, `go.work`, `go.work.sum`, `maven_install.json`, or `requirements_lock.txt` when dx cannot read every `MODULE.bazel` value | `//...`. |
 
-A module change also widens to `//...` when the lock does not list the version, an override hides the `MODULE.bazel` of a changed module or patches it as listed under [Patches](#patches), a changed module registers toolchains or uses an extension outside its deps, a root `register_toolchains` or `register_execution_platforms` call names a changed repo, or dx cannot read a cached module file. CI that restores the repository cache keeps the narrow selection.
+A module change also widens to `//...` when the lock does not list the version, an override hides the `MODULE.bazel` of a changed module or patches it as listed under [Patches](#patches), a changed module or a module that depends on it registers toolchains, a changed module uses an extension outside its deps, a root `register_toolchains` or `register_execution_platforms` call names a changed repo, or dx cannot read a cached module file. In registry modules, `dev_dependency = True` `bazel_dep`s and `register_toolchains` or `register_execution_platforms` calls do not count. CI that restores the repository cache keeps the narrow selection.
 
 ### Patches
 
-dx reads each patch that a `single_version_override` or `multiple_version_override` applies. It looks at the lines a patch adds or removes in a `MODULE.bazel` file. When such a line is inside a call that spans several lines, dx also reads the first line of that call.
+dx reads each patch that a `single_version_override` or `multiple_version_override` applies. It looks at the lines a patch adds or removes in a `MODULE.bazel` file. When such a line is inside a call or other statement that spans several lines, dx also reads the first line of that statement. When the patch does not show that first line, dx reads the whole statement from the module's `MODULE.bazel` in the repository cache.
 
-- A changed line with `bazel_dep` or `_override`: `//...`.
+- A changed line with `bazel_dep` or `_override`: `//...`. Removing a whole one-line `bazel_dep` call does not widen.
 - A changed line with `register_`, `use_extension`, `use_repo_rule`, or `include`: `//...` when the patched module changed, or when the change touches an extension that a module other than the root owns.
-- A changed line inside a call whose first line the patch does not show: `//...`.
-- `patch_cmds`, or a patch dx cannot read: `//...`.
+- A changed line inside a statement whose first line the patch does not show, when the module has no single cached `MODULE.bazel` or the patch does not match it: `//...`.
+- `patch_cmds` do not widen.
+- A patch dx cannot read: `//...`.
 
 Other patch edits do not widen.
 
@@ -88,7 +92,7 @@ Other patch edits do not widen.
 
 dx prints `dx: affected: resolving changes since <sha>` and then a summary on stderr. It names each widening and its reason, for example `dx: affected: 4 targets from 1 changed files since 1a2b3c4d5e6f; widened to //app:all (loads tools/defs.bzl)`. `--quiet`, `--diff`, and `--output=json` print neither.
 
-`--output=json` adds `affected` to `command_started` with `base`, `changed_files`, `targets`, and `widened` (a list of `scope` and `reason`). `check --affected` adds `tests`.
+`--output=json` adds `affected` to `command_started` with `base`, `changed_files`, `targets`, and `widened` (a list of `scope` and `reason`). `check --affected` adds `tests`. With `--coverage`, `tests` lists the tests of the `test` phase and `coverage_tests` the tests of the `coverage` phase.
 
 ### Errors
 

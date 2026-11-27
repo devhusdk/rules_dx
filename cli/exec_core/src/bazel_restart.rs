@@ -58,15 +58,19 @@ pub const CACHE_OFF_FLAGS: [&str; 2] = ["--remote_cache=", "--noremote_accept_ca
 
 const CACHE_COMMANDS: [&str; 3] = ["build", "test", "coverage"];
 
-pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
+fn cache_command(argv: &[String]) -> Option<(&[String], &[String])> {
     if !is_bazel(argv) {
         return None;
     }
     let command = argv.iter().skip(1).position(|arg| !arg.starts_with('-'))? + 1;
     let (head, rest) = argv.split_at_checked(command)?;
-    if !CACHE_COMMANDS.contains(&rest.first()?.as_str()) {
-        return None;
-    }
+    CACHE_COMMANDS
+        .contains(&rest.first()?.as_str())
+        .then_some((head, rest))
+}
+
+pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
+    let (head, rest) = cache_command(argv)?;
     let end = rest
         .iter()
         .position(|arg| arg == "--")
@@ -77,6 +81,33 @@ pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
     off.extend(CACHE_OFF_FLAGS.map(String::from));
     off.extend_from_slice(tail);
     Some(off)
+}
+
+fn shutdown_argv(argv: &[String]) -> Option<Vec<String>> {
+    let (head, _) = cache_command(argv)?;
+    let mut shutdown = head.to_vec();
+    shutdown.push("shutdown".to_owned());
+    Some(shutdown)
+}
+
+enum Rerun {
+    CacheOff(Vec<String>),
+    DropActionCache {
+        shutdown: Vec<String>,
+        action_cache: PathBuf,
+    },
+}
+
+impl Rerun {
+    fn for_error(argv: &[String], error: &dx_bep::CacheError) -> Option<Self> {
+        match error {
+            dx_bep::CacheError::Remote => cache_off_argv(argv).map(Rerun::CacheOff),
+            dx_bep::CacheError::LostOutputs { exec_root } => Some(Rerun::DropActionCache {
+                shutdown: shutdown_argv(argv)?,
+                action_cache: dx_process::output_base_of_execroot(exec_root)?.join("action_cache"),
+            }),
+        }
+    }
 }
 
 fn is_bazel(argv: &[String]) -> bool {
@@ -167,13 +198,17 @@ impl<R: Runner> RestartingRunner<R> {
         }
     }
 
-    fn cache_failed(&self, argv: &[String], cwd: &Path, status: &ChildStatus) -> bool {
-        self.cache_retry
-            && status.code.is_some_and(|code| code != 0)
-            && !(self.policy.stop)()
-            && bep_path_of(argv).is_some_and(|path| {
-                dx_bep::stream_remote_cache_error(&cwd.join(path)).unwrap_or(false)
-            })
+    fn cache_error(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        status: &ChildStatus,
+    ) -> Option<dx_bep::CacheError> {
+        if !self.cache_retry || status.code.is_none_or(|code| code == 0) || (self.policy.stop)() {
+            return None;
+        }
+        let path = bep_path_of(argv)?;
+        dx_bep::stream_cache_error(&cwd.join(path)).ok().flatten()
     }
 
     fn evidence(argv: &[String], cwd: &Path) -> Evidence<'static> {
@@ -198,7 +233,7 @@ impl<R: Runner> RestartingRunner<R> {
     ) -> io::Result<Option<ChildStatus>> {
         let mut restarts = 0;
         let mut current = argv.to_vec();
-        let mut cache_off = false;
+        let mut reran = false;
         loop {
             let Some(status) = call(&current)? else {
                 return Ok(None);
@@ -208,12 +243,13 @@ impl<R: Runner> RestartingRunner<R> {
                 && status.code == Some(RESTART_EXIT)
                 && !(self.policy.stop)()
                 && restartable(status.code, Self::evidence(argv, cwd));
-            let off = if restart || cache_off || !self.cache_failed(argv, cwd, &status) {
+            let rerun = if restart || reran {
                 None
             } else {
-                cache_off_argv(argv)
+                self.cache_error(argv, cwd, &status)
+                    .and_then(|error| Rerun::for_error(argv, &error))
             };
-            if !restart && off.is_none() {
+            if !restart && rerun.is_none() {
                 return Ok(Some(status));
             }
             if withdraw() {
@@ -222,20 +258,35 @@ impl<R: Runner> RestartingRunner<R> {
             if let Some(path) = bep_path_of(argv) {
                 dx_atomic_fs::discard_file(cwd.join(path));
             }
-            if let Some(off) = off {
-                self.cache_retries.set(self.cache_retries.get() + 1);
-                dx_output::write_stderr(
-                    &mut *self.policy.notice.borrow_mut(),
-                    format_args!(
-                        "dx: notice: bazel reported a remote cache error; running once more without the remote cache\n"
-                    ),
-                );
-                current = off;
-                cache_off = true;
-            } else {
-                restarts += 1;
-                if !self.policy.pause(RESTART_EXIT, restarts) {
-                    return Ok(Some(status));
+            match rerun {
+                Some(Rerun::CacheOff(off)) => {
+                    self.note_rerun(
+                        "bazel reported a remote cache error; running once more without the remote cache",
+                    );
+                    current = off;
+                    reran = true;
+                }
+                Some(Rerun::DropActionCache {
+                    shutdown,
+                    action_cache,
+                }) => {
+                    let Some(stopped) = call(&shutdown)? else {
+                        return Ok(None);
+                    };
+                    if stopped.code != Some(0) || !dx_process::remove_tree(&action_cache) {
+                        return Ok(Some(status));
+                    }
+                    self.note_rerun(
+                        "bazel's action cache lists outputs that are gone from the output tree; dropped the action cache, running once more",
+                    );
+                    current = argv.to_vec();
+                    reran = true;
+                }
+                None => {
+                    restarts += 1;
+                    if !self.policy.pause(RESTART_EXIT, restarts) {
+                        return Ok(Some(status));
+                    }
                 }
             }
             if withdraw() {
@@ -243,12 +294,33 @@ impl<R: Runner> RestartingRunner<R> {
             }
         }
     }
+
+    fn note_rerun(&self, why: &str) {
+        self.cache_retries.set(self.cache_retries.get() + 1);
+        dx_output::write_stderr(
+            &mut *self.policy.notice.borrow_mut(),
+            format_args!("dx: notice: {why}\n"),
+        );
+    }
 }
 
 impl<R: Runner> Runner for RestartingRunner<R> {
     fn run(&self, argv: &[String], cwd: &Path, env: &[(&str, &str)]) -> io::Result<ChildStatus> {
         self.attempts(argv, cwd, &|| false, &|argv| {
             self.inner.run(argv, cwd, env).map(Some)
+        })
+        .map(|status| status.unwrap_or_else(|| ChildStatus::exited(RESTART_EXIT)))
+    }
+
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<ChildStatus> {
+        self.attempts(argv, cwd, &|| false, &|argv| {
+            self.inner.run_watched(argv, cwd, env, watch).map(Some)
         })
         .map(|status| status.unwrap_or_else(|| ChildStatus::exited(RESTART_EXIT)))
     }
@@ -670,6 +742,7 @@ mod tests {
         calls: RefCell<Vec<Vec<String>>>,
         codes: RefCell<VecDeque<i32>>,
         stderr: &'static str,
+        events: String,
         bep: PathBuf,
     }
 
@@ -677,12 +750,19 @@ mod tests {
         fn run(&self, argv: &[String], _: &Path, _: &[(&str, &str)]) -> io::Result<ChildStatus> {
             let fresh = self.calls.borrow().is_empty();
             self.calls.borrow_mut().push(argv.to_vec());
+            if bep_path_of(argv).is_none() {
+                return Ok(ChildStatus::exited(0));
+            }
             if !fresh && self.bep.exists() {
                 return Err(io::Error::other("stale stream"));
             }
-            let text = if fresh { self.stderr } else { "" };
+            let (text, events) = if fresh {
+                (self.stderr, self.events.as_str())
+            } else {
+                ("", "")
+            };
             let event = serde_json::json!({"id": {"progress": {}}, "progress": {"stderr": text}});
-            std::fs::write(&self.bep, format!("{event}\n"))?;
+            std::fs::write(&self.bep, format!("{events}{event}\n"))?;
             let code = self.codes.borrow_mut().pop_front().unwrap_or(0);
             Ok(ChildStatus::exited(code))
         }
@@ -693,6 +773,7 @@ mod tests {
             calls: RefCell::default(),
             codes: RefCell::new(codes.iter().copied().collect()),
             stderr,
+            events: String::new(),
             bep: s.dir.path().join("bep.json"),
         };
         RestartingRunner::with_policy(fake, policy(s.stop.clone(), s.out.clone()))
@@ -715,6 +796,41 @@ mod tests {
         assert_eq!(r.cache_retries(), 1);
         let text = String::from_utf8(s.out.borrow().clone()).unwrap();
         assert!(text.contains("without the remote cache"), "{text}");
+    }
+
+    #[test]
+    fn lost_outputs_drop_the_action_cache_and_run_once_more_with_the_remote_cache() {
+        let s = setup();
+        let output_base = s.dir.path().join("ob");
+        let action_cache = output_base.join("action_cache");
+        std::fs::create_dir_all(&action_cache).unwrap();
+        std::fs::write(action_cache.join("action_cache_v20.blaze"), "stale").unwrap();
+        let mut r = cache_runner(
+            &s,
+            &[39, 0],
+            "ERROR: /w/BUILD:1:1: Compiling a.c failed: Failed to fetch blobs because of a remote cache error.: /ob/execroot/_main/bazel-out/bin/tool (No such file or directory)\n",
+        );
+        let workspace = serde_json::json!({
+            "id": {"workspace": {}},
+            "workspaceInfo": {"localExecRoot": output_base.join("execroot").join("_main")},
+        });
+        r.inner.events = format!("{workspace}\n");
+        let status = r.run(&bazel_build(), s.dir.path(), &[]).unwrap();
+        assert_eq!(status.code, Some(0));
+        let calls = r.inner.calls.borrow();
+        let launcher = dx_process::launcher_argv0().to_owned();
+        assert_eq!(
+            *calls,
+            vec![
+                bazel_build(),
+                vec![launcher, "shutdown".to_owned()],
+                bazel_build()
+            ]
+        );
+        assert!(!action_cache.exists());
+        assert_eq!(r.cache_retries(), 1);
+        let text = String::from_utf8(s.out.borrow().clone()).unwrap();
+        assert!(text.contains("dropped the action cache"), "{text}");
     }
 
     #[test]

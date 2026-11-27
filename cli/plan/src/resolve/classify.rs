@@ -492,7 +492,7 @@ mod tests {
                 "query",
                 "--keep_going",
                 "--output=streamed_jsonproto",
-                "--proto:output_rule_attrs=tags,size",
+                "--proto:output_rule_attrs=aspect_hints,beam,beam_files_dir,crate,dx_tfm_variants,size,tags,upstream",
                 "--noproto:default_values",
                 "--noproto:locations",
                 "--noproto:instantiation_stack",

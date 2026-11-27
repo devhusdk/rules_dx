@@ -80,6 +80,7 @@ rust_test(
         "//cli/process:dx_process",
         "//cli/roots:dx_roots",
         "//cli/test_scratch:dx_test_scratch",
+        "//cli/test_wait:dx_test_wait",
         "//tools/testing:dx_testing",
     ],
 )

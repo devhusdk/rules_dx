@@ -1,0 +1,15 @@
+[package]
+license = "Apache-2.0"
+name = "dx_test_wait"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_test_wait"
+path = "src/lib.rs"
+
+[dependencies]
+notify = "8"
+
+[dev-dependencies]
+tempfile = "3"

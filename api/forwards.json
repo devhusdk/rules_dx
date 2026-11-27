@@ -409,6 +409,7 @@
     "function": "csharp_test",
     "attrs": [
       "deps",
+      "embed_sources",
       "size",
       "srcs",
       "tags",
@@ -432,6 +433,7 @@
     "kind": "csharp_library",
     "function": "csharp_library",
     "attrs": [
+      "embed_sources",
       "out",
       "srcs",
       "tags",
@@ -967,6 +969,7 @@
     "function": "fsharp_test",
     "attrs": [
       "deps",
+      "embed_sources",
       "size",
       "srcs",
       "tags",
@@ -992,6 +995,7 @@
     "function": "fsharp_library",
     "attrs": [
       "deps",
+      "embed_sources",
       "srcs",
       "tags",
       "target_frameworks",

@@ -1,12 +1,12 @@
 """Relocatable browser applications with a managed development server."""
 
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//deploy/private:validate_resources.bzl", "resource_mapping_error", "resource_path_error")
-load("//core/private/testing:defs.bzl", "display_label")
+load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//core:resources.bzl", "dx_bundler_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
+load("//core/private/testing:providers.bzl", "display_label")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//deploy/private:validate_resources.bzl", "resource_mapping_error", "resource_path_error")
 
 visibility(["//..."])
 

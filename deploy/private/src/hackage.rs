@@ -396,12 +396,10 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn stub_cabal_output_never_holds_the_token() {
-        use std::os::unix::fs::PermissionsExt as _;
         let token = "fake-hackage-token-4402";
         let dir = tempfile::tempdir().unwrap();
         let stub = dir.path().join("cabal");
-        std::fs::write(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
-        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        dx_testing::executable_script(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n");
         let private = PrivateConfigDir::create("dx-hackage-test-").unwrap();
         let config = write_cabal_config(&private, token).unwrap();
         let mut cmd = hackage_upload_command(&stub, Path::new("p.tar.gz"), &config);

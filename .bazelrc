@@ -17,7 +17,6 @@ common --incompatible_exclude_starlark_flags_from_exec_config
 common --check_direct_dependencies=error
 common --downloader_config=tools/workspace/downloader.cfg
 
-startup:macos --host_jvm_args=-XX:MaxRAMPercentage=50
 common:macos --local_resources=nested_bazel=1
 
 startup:windows --output_user_root=C:/bz
@@ -95,6 +94,12 @@ common:ci --experimental_remote_downloader=grpcs://remote.buildbuddy.io
 common:ci --experimental_remote_downloader_local_fallback
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
+# The coverage command's build flags, so every command of a coverage gate shares one analysis cache.
+build:ci-cov --collect_code_coverage
+build:ci-cov --instrument_test_targets
+build:ci-cov --instrumentation_filter=^//
+build:ci-cov --enable_runfiles
+build:ci-cov --noallow_analysis_cache_discard
 
 common:rbe --remote_executor=grpcs://remote.buildbuddy.io
 common:rbe --remote_default_exec_properties=OSFamily=Linux

@@ -2,15 +2,11 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "config_base_toml.patch",
-    "entry.patch",
-    "exec_toolchain.patch",
     "fixed_heap_addresses.patch",
     "in_process_resolve_test.patch",
-    "inline_runfiles_sh.patch",
     "julia_1_13.patch",
     "locate_installed_package.patch",
     "package_annotation_version.patch",
-    "portable_cpu_target.patch",
     "stable_precompile_paths.patch",
     "stable_sysimage_paths.patch",
     "template_action_input.patch",

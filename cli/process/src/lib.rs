@@ -869,6 +869,18 @@ pub trait Runner {
         self.run(argv, cwd, env)
     }
 
+    fn run_watched(
+        &self,
+        argv: &[String],
+        cwd: &Path,
+        env: &[(&str, &str)],
+        watch: &dyn Fn(),
+    ) -> io::Result<ChildStatus> {
+        let status = self.run(argv, cwd, env);
+        watch();
+        status
+    }
+
     /// Runs one child in its own process group and stops that tree once `withdraw` holds; `None` means withdrawn.
     fn run_withdrawable(
         &self,

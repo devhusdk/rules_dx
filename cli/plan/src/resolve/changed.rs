@@ -2,6 +2,7 @@ use std::path::Path;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::consumer_fixtures;
 use super::extension_scope::{self, Names, Scope};
 use super::lock_inputs::{self, Hub, LockChange, LockKind};
 use super::module_diff::{self, Named};
@@ -22,6 +23,7 @@ pub struct WidenedScope {
 pub struct AffectedSelection {
     pub targets: Vec<String>,
     pub widened: Vec<WidenedScope>,
+    pub aspect_widened: Vec<WidenedScope>,
     pub graph: Option<RuleGraph>,
 }
 
@@ -815,11 +817,8 @@ fn module_change(
             .any(|scope| scope.owner() != extension_scope::ROOT)
     {
         let read = module_cache(workspace, startup_options);
-        let graph = module_inputs::module_graph(
-            &module_inputs::registry_files(&head_lock)?,
-            &read,
-            &names.multiple,
-        )?;
+        let head_registry = module_inputs::registry_files(&head_lock)?;
+        let graph = module_inputs::module_graph(&head_registry, &read, &names.multiple)?;
         let old: Vec<_> = module_inputs::registry_files(&base_lock)?
             .into_iter()
             .filter(|file| modules.contains(&file.name))
@@ -872,8 +871,9 @@ fn module_change(
             patched.extend(graph.deps.keys().cloned());
         }
         let read_patch = |rel: &str| read_head(rel).ok();
+        let original = module_inputs::module_file_of(&head_registry, &read);
         if let Some(reason) =
-            module_inputs::overrides_that_widen(&head_files, &patched, &read_patch)
+            module_inputs::overrides_that_widen(&head_files, &patched, &read_patch, &original)
         {
             return Err(dx_error::DxError::failure(reason));
         }
@@ -996,11 +996,8 @@ fn lock_repos(
     {
         let lock = read_head(ROOT_LOCK).map_err(dx_error::DxError::failure)?;
         let read = module_cache(workspace, startup_options);
-        let graph = module_inputs::module_graph(
-            &module_inputs::registry_files(&lock)?,
-            &read,
-            &names.multiple,
-        )?;
+        let registry = module_inputs::registry_files(&lock)?;
+        let graph = module_inputs::module_graph(&registry, &read, &names.multiple)?;
         for scope in &scopes {
             if let Some(reason) = module_inputs::shared_scope(&graph, scope, &BTreeSet::new()) {
                 return Err(dx_error::DxError::failure(reason));
@@ -1008,7 +1005,10 @@ fn lock_repos(
         }
         let every: BTreeSet<String> = graph.deps.keys().cloned().collect();
         let read_patch = |rel: &str| read_head(rel).ok();
-        if let Some(reason) = module_inputs::overrides_that_widen(&files, &every, &read_patch) {
+        let original = module_inputs::module_file_of(&registry, &read);
+        if let Some(reason) =
+            module_inputs::overrides_that_widen(&files, &every, &read_patch, &original)
+        {
             return Err(dx_error::DxError::failure(reason));
         }
     }
@@ -1064,14 +1064,29 @@ enum Fallback {
     Package { scope: String, reason: String },
 }
 
-fn unowned(workspace: &Path, path: &str, fallback: &Fallback) -> Option<(String, String)> {
-    match fallback {
-        Fallback::Keep => None,
-        Fallback::Nearest => Some((
+/// The scope an unowned path widens to. A scope that names no rule would select nothing, as for a
+/// path under a directory the root module ignores, so that path widens to the whole repository.
+fn unowned(
+    workspace: &Path,
+    graph: &RuleGraph,
+    path: &str,
+    fallback: &Fallback,
+) -> Option<(String, String)> {
+    let (scope, reason) = match fallback {
+        Fallback::Keep => return None,
+        Fallback::Nearest => (
             dx_adopt::nearest_package_pattern(workspace, path),
             format!("unowned {path}"),
-        )),
-        Fallback::Package { scope, reason } => Some((scope.clone(), reason.clone())),
+        ),
+        Fallback::Package { scope, reason } => (scope.clone(), reason.clone()),
+    };
+    if scope == "//..." || graph.selects_any_rule(&scope) {
+        Some((scope, reason))
+    } else {
+        Some((
+            "//...".to_owned(),
+            format!("{reason}, and no rule is in {scope}"),
+        ))
     }
 }
 
@@ -1181,6 +1196,7 @@ impl Users<'_> {
         seeds: &[String],
         what: &str,
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         if seeds.is_empty() {
@@ -1191,6 +1207,7 @@ impl Users<'_> {
             &self.graph.reached_rules(seeds),
             what,
             widened,
+            aspect_widened,
             targets,
         );
     }
@@ -1200,6 +1217,7 @@ impl Users<'_> {
         labels: &[String],
         owners: &[String],
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         let reached: Vec<String> = labels
@@ -1207,7 +1225,14 @@ impl Users<'_> {
             .cloned()
             .chain(self.graph.reached_rules(owners))
             .collect();
-        self.widen(owners, &reached, "changed files", widened, targets);
+        self.widen(
+            owners,
+            &reached,
+            "changed files",
+            widened,
+            aspect_widened,
+            targets,
+        );
     }
 
     fn widen(
@@ -1216,6 +1241,7 @@ impl Users<'_> {
         reached: &[String],
         what: &str,
         widened: &mut Vec<WidenedScope>,
+        aspect_widened: &mut Vec<WidenedScope>,
         targets: &mut Vec<String>,
     ) {
         self.widen_toolchain(seeds, what, widened);
@@ -1237,9 +1263,19 @@ impl Users<'_> {
             push_widened(
                 widened,
                 "//...".to_owned(),
-                format!("{what} reach {used}, which aspects or bazelrc flags use"),
+                format!("{what} reach {used}, which bazelrc flags use"),
             );
             return;
+        }
+        if let Some(used) = reached
+            .iter()
+            .find(|label| implicit.aspect_tools.contains(label.as_str()))
+        {
+            push_widened(
+                aspect_widened,
+                "//...".to_owned(),
+                format!("{what} reach {used}, which aspects use"),
+            );
         }
         let reached: BTreeSet<&str> = reached.iter().map(String::as_str).collect();
         for (value, settings) in implicit
@@ -1288,10 +1324,13 @@ pub fn resolve_affected(
 ) -> Result<AffectedSelection, ResolveError> {
     let mut targets: Vec<String> = Vec::new();
     let mut widened: Vec<WidenedScope> = Vec::new();
+    let mut aspect_widened: Vec<WidenedScope> = Vec::new();
     let mut candidates: Vec<(String, String, Fallback)> = Vec::new();
     let mut bzl_paths: Vec<String> = Vec::new();
     let mut lock_paths: Vec<String> = Vec::new();
     let mut module_paths: Vec<String> = Vec::new();
+    let mut fixtures: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut rules_dx_root = None;
     let mut cache = PackageCache::default();
     let (hubs, inputs) = module_inputs_of(workspace);
     let rc_files = workspace_rc_files(workspace, startup_options);
@@ -1302,6 +1341,15 @@ pub fn resolve_affected(
         }
         for path in paths {
             valid_change_path(&path)?;
+            if let Some(lang) = consumer_fixtures::language(workspace, &path)
+                && *rules_dx_root.get_or_insert_with(|| dx_adopt::is_rules_dx_root(workspace))
+            {
+                fixtures
+                    .entry(lang.to_owned())
+                    .or_default()
+                    .push(path.clone());
+                continue;
+            }
             if is_lock_input(&path, &hubs) {
                 lock_paths.push(path);
                 continue;
@@ -1466,7 +1514,11 @@ pub fn resolve_affected(
     candidates.sort();
     candidates.dedup();
     let mut graph = None;
-    if !candidates.is_empty() || !narrowed.is_empty() || update.is_some() || !extensions.is_empty()
+    if !candidates.is_empty()
+        || !narrowed.is_empty()
+        || update.is_some()
+        || !extensions.is_empty()
+        || !fixtures.is_empty()
     {
         let loaded = RuleGraph::load(workspace, runner, startup_options)?;
         let users = Users {
@@ -1483,6 +1535,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("repos of module extension {name}"),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1507,6 +1560,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("changed modules in {}", update.path),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1590,6 +1644,7 @@ pub fn resolve_affected(
                 &seeds,
                 &format!("changed crates in {path}"),
                 &mut widened,
+                &mut aspect_widened,
                 &mut targets,
             );
             targets.extend(seeds);
@@ -1606,6 +1661,33 @@ pub fn resolve_affected(
                 });
             }
         }
+        for (lang, paths) in &mut fixtures {
+            paths.sort_unstable();
+            paths.dedup();
+            let what = format!("consumer fixture {}", paths.join(", "));
+            let seeds = consumer_fixtures::seeds(loaded.external_labels(), lang);
+            if seeds.is_empty() {
+                push_widened(
+                    &mut widened,
+                    "//...".to_owned(),
+                    format!("{what}, and no rule reads its snapshot"),
+                );
+                continue;
+            }
+            users.widen_repo_users(
+                &seeds,
+                &what,
+                &mut widened,
+                &mut aspect_widened,
+                &mut targets,
+            );
+            targets.extend(seeds.iter().cloned());
+            widened.push(WidenedScope {
+                scope: rdeps_scope(&seeds),
+                reason: what,
+                repos: seeds,
+            });
+        }
         graph = Some(loaded);
     }
     if let Some(loaded) = graph.as_ref().filter(|_| !candidates.is_empty()) {
@@ -1619,10 +1701,16 @@ pub fn resolve_affected(
             aspect_labels,
             graph: loaded,
         };
-        users.widen_implicit_users(&labels, &owners, &mut widened, &mut targets);
+        users.widen_implicit_users(
+            &labels,
+            &owners,
+            &mut widened,
+            &mut aspect_widened,
+            &mut targets,
+        );
         if owners.is_empty() {
             for (path, _, fallback) in &candidates {
-                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                if let Some((scope, reason)) = unowned(workspace, loaded, path, fallback) {
                     push_widened(&mut widened, scope, reason);
                 }
             }
@@ -1634,7 +1722,7 @@ pub fn resolve_affected(
                 if sources.contains(label.as_str()) {
                     continue;
                 }
-                if let Some((scope, reason)) = unowned(workspace, path, fallback) {
+                if let Some((scope, reason)) = unowned(workspace, loaded, path, fallback) {
                     push_widened(&mut widened, scope, reason);
                 }
             }
@@ -1659,6 +1747,7 @@ pub fn resolve_affected(
     Ok(AffectedSelection {
         targets,
         widened,
+        aspect_widened,
         graph,
     })
 }
@@ -1821,7 +1910,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-changed-deleted-root-").unwrap();
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "BUILD.bazel", "").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//:lib", &[])])]);
         let selection = resolve_affected(
             &[change("gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -1902,7 +1991,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[
                 change("pkg/a.py", dx_adopt::ChangeKind::Modified),
@@ -2010,7 +2099,7 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/a.py", "x = 1\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/a.py", dx_adopt::ChangeKind::Modified)],
             &workspace,
@@ -2758,6 +2847,31 @@ mod tests {
             );
             assert_eq!(query.calls().len(), 2);
         }
+    }
+
+    #[test]
+    fn dev_deps_and_dev_registrations_of_registry_modules_do_not_widen() {
+        let fixture = edit_workspace(
+            "dx-changed-update-dev-",
+            Update {
+                user_extra: "register_toolchains(\"//:t\", dev_dependency = True)\n",
+                other_extra: "bazel_dep(name = \"leaf\", version = \"1.0\", dev_dependency = True)\nregister_toolchains(\"//:t\")\n",
+                ..UPDATE
+            },
+        );
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok(&fixture.base_module),
+            FakeQuery::ok(&fixture.base_lock),
+            update_graph(),
+        ]);
+        let selection = resolve_edit(&fixture, &query);
+        assert_eq!(
+            selection.targets,
+            strings(&["//d:all", "@@leaf+//:lib", "@@user+//:lib"])
+        );
+        let graph = selection.graph.as_ref().expect("graph");
+        let seeds = strings(&["@@leaf+//:lib", "@@user+//:lib"]);
+        assert_eq!(graph.affected(&seeds), ["//d:lib", "//u:lib"]);
     }
 
     #[test]
@@ -3787,7 +3901,7 @@ use_repo(pip, \"pypi\")\n"
                 scope: "pkg/gone.py".to_owned(),
             }
         );
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -3875,7 +3989,7 @@ use_repo(pip, \"pypi\")\n"
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "outer/BUILD.bazel", "").unwrap();
         write(&workspace, "outer/inner/BUILD.bazel", "").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//outer/inner:lib", &[])])]);
         let selection = resolve_affected(
             &[change("outer/inner/gone.py", dx_adopt::ChangeKind::Deleted)],
             &workspace,
@@ -4150,9 +4264,37 @@ use_repo(pip, \"pypi\")\n"
     }
 
     #[test]
-    fn changes_that_reach_an_aspect_attribute_default_widen() {
+    fn changes_that_reach_an_aspect_tool_widen_lint_but_keep_their_owners() {
         let scratch = implicit_workspace("dx-changed-implicit-aspect-");
         let workspace = scratch.path();
+        let query = FakeQuery::new(vec![implicit_graph()]);
+        let selection = bzl_resolve(
+            workspace,
+            &[change("runner/main.rs", dx_adopt::ChangeKind::Modified)],
+            &query,
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
+        );
+        assert_eq!(selection.targets, strings(&["//runner:runner"]));
+        assert!(selection.widened.is_empty(), "{:?}", selection.widened);
+        assert_eq!(
+            selection.aspect_widened,
+            widened(&[(
+                "//...",
+                "changed files reach //runner:runner, which aspects use"
+            )])
+        );
+    }
+
+    #[test]
+    fn changes_that_reach_a_bazelrc_aspect_tool_widen_everything() {
+        let scratch = implicit_workspace("dx-changed-implicit-rc-aspect-");
+        let workspace = scratch.path();
+        write(
+            workspace,
+            ".bazelrc",
+            "build --aspects=//core/quality:aspects.bzl%lint_aspect\n",
+        )
+        .unwrap();
         let query = FakeQuery::new(vec![implicit_graph()]);
         let selection = bzl_resolve(
             workspace,
@@ -4165,8 +4307,13 @@ use_repo(pip, \"pypi\")\n"
             selection.widened,
             widened(&[(
                 "//...",
-                "changed files reach //runner:runner, which aspects or bazelrc flags use"
+                "changed files reach //runner:runner, which bazelrc flags use"
             )])
+        );
+        assert!(
+            selection.aspect_widened.is_empty(),
+            "{:?}",
+            selection.aspect_widened
         );
     }
 
@@ -4192,8 +4339,13 @@ use_repo(pip, \"pypi\")\n"
             selection.widened,
             widened(&[(
                 "//...",
-                "changed files reach //cfg:policy, which aspects or bazelrc flags use"
+                "changed files reach //cfg:policy, which bazelrc flags use"
             )])
+        );
+        assert!(
+            selection.aspect_widened.is_empty(),
+            "{:?}",
+            selection.aspect_widened
         );
     }
 
@@ -4525,7 +4677,7 @@ use_repo(pip, \"pypi\")\n"
         let workspace = scratch.path().to_path_buf();
         write(&workspace, "pkg/BUILD.bazel", "").unwrap();
         write(&workspace, "pkg/notes.txt", "x\n").unwrap();
-        let query = FakeQuery::new(vec![graph(&[])]);
+        let query = FakeQuery::new(vec![graph(&[("//pkg:lib", &[])])]);
         let selection = resolve_affected(
             &[change("pkg/notes.txt", dx_adopt::ChangeKind::Modified)],
             &workspace,

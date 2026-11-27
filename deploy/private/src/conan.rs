@@ -348,19 +348,16 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn credentials_reach_only_the_upload_step() {
-        use std::os::unix::fs::PermissionsExt;
         let scratch = scratch_dir();
         let log = scratch.path().join("log");
         let conan = scratch.path().join("conan");
-        std::fs::write(
+        dx_testing::executable_script(
             &conan,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$1:${{CONAN_PASSWORD:-none}}\" >> {}\n",
                 log.display()
             ),
-        )
-        .expect("script");
-        std::fs::set_permissions(&conan, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        );
         let source = scratch.path().join("staging/recipe");
         std::fs::create_dir_all(&source).expect("recipe dir");
         let spec = ConanLaunch {

@@ -4,6 +4,7 @@ Use `dx check` to find and fix generated-file drift, formatting, lint and type e
 
 ```sh
 dx check --affected
+dx check --affected --coverage --report lcov=lcov.info
 dx check --apply --affected
 dx check --apply //pkg/...
 dx check --diff //pkg/...
@@ -15,7 +16,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## Usage
 
 ```text
-dx check [--here] [--affected [--since <ref>|--base <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>|--base <ref>] [--coverage] [--lint-scope direct|closure]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings <n>] [--fail-on info|warning|error] [--report sarif|lcov|sources=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Args after `--` go to Bazel.
@@ -29,13 +30,17 @@ Args after `--` go to Bazel.
 | `--unsafe` | With `--apply` or `--diff`, also include fixes the tools mark unsafe. Without either, exits `2`. The read-only check after `--apply` runs without it. |
 | `--here` | Use the current directory tree: `//path/...`, or `//...` at the workspace root. |
 | `--affected` | Use only the targets your git changes reach, then run their tests as a last phase. |
+| `--coverage` | With `--affected`, run the tests that take coverage under coverage. Without `--affected` or with `--apply`, exits `2`. |
 | `--since <ref>` | With `--affected`: compare against this git ref instead of the merge-base with the default branch. Without `--affected`, exits `2`. |
 | `--base <ref>` | With `--affected`: take the merge-base with this branch instead of the default branch. Not with `--since`. |
+| `--lint-scope direct\|closure` | With `--affected`: the lint phase adds the direct dependents (`direct`, the default) or every dependent (`closure`). Without `--affected`, exits `2`. |
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
-| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--no-retry` | Do not run Bazel again after a remote cache error. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF file. Repeatable. `-` (stdout) is rejected. |
+| `--report lcov=<dest>` | With `--coverage`, write the lcov report of the coverage phase. Without `--coverage`, exits `2`. |
+| `--report sources=<dest>` | With `--coverage`, write the coverage sources report of the coverage phase. Without `--coverage`, exits `2`. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace <dir>` | Use this workspace directory. |
 | `-q, --quiet` | Hide summaries. |
@@ -50,7 +55,7 @@ Args after `--` go to Bazel.
 A scope picks what to check. Pass a label such as `//pkg:target` (one Bazel target), a pattern such as `//pkg/...` (every target in `pkg` and below), or a workspace file or directory. With no scope, dx checks `//...`, every target in the workspace.
 
 - `--here` uses the current directory tree.
-- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them.
+- `--affected` uses the targets changed since the merge-base with the default branch (or with `--base <ref>`), or since `--since <ref>`, plus the targets that depend on them. The format phase uses only the targets that read a changed file. The lint phase adds the targets that depend on them directly. It adds every target that depends on them with `--lint-scope closure` or when a dependency version changes. A format or lint phase with no affected targets prints `no affected targets` and runs nothing.
 - `--here` does not combine with scopes or `--affected`.
 - `--affected` with scopes keeps only the affected targets inside them.
 - With nothing affected, dx prints `no affected targets`, runs no phase, and exits `0`. With `--diff`, that line goes to stderr and stdout stays empty.
@@ -63,11 +68,15 @@ Read [Scope defaults](scope-defaults.md) for details.
 
 - Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
 - `generate` compares each lock that a rules_dx lock step writes in a package the scope reaches with its manifest, offline: `<ecosystem>.lock.json`, `pubspec.lock` and a dx-written `maven_install.json`. A `maven_install.json` that rules_jvm_external pins is skipped. A `pubspec.lock` or `maven_install.json` without the dx marker is stale until one `dx generate --apply`. A stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and fails the run. A lock step that cannot run on your platform is skipped with `dx: lock of <set> not checked: <step> is incompatible with this platform`.
-- Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build. Each phase still reports only its own findings and exit code.
+- Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build, also with `--affected`. Each phase still reports only its own targets, findings and exit code.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
 - With `--apply`, dx runs `generate` again after `typecheck` when a phase wrote a file.
-- `--affected` adds a test phase. `--apply` skips it.
+- `--affected` adds a `test` phase that runs the affected tests. `--apply` skips it.
+- With `--coverage`, a `coverage` phase runs each affected test that takes coverage once, under coverage. The `test` phase runs only the tests tagged `no-coverage`, `dx-no-coverage-collector`, `manual` or `resources:nested_bazel:1`.
+- A `test` or `coverage` phase with no tests is skipped.
+- The `test` and `coverage` phases print a failed test as soon as it finishes. They print `dx: <phase>: <finished>/<total> tests finished, <failed> failed, <elapsed>` on stderr every 60 seconds.
+- When you cancel a `test` or `coverage` phase, dx prints the count line and `dx: <phase>: not finished: <labels>` on stderr.
 - A failed run ends with a `dx: phases:` line on stderr.
 
 ### Commit messages
@@ -110,6 +119,8 @@ JSON has one `command_started` and one `command_finished` event. Each phase sits
 
 `--report sarif=<dest>` writes one SARIF file with the `lint` and `typecheck` findings. Results carry `partialFingerprints`, `ruleIndex` and `fixes`. A phase that ran but left no readable SARIF is a `collection_failed` error and marks the report incomplete.
 
+`--report lcov=<dest>` and `--report sources=<dest>` write the reports of the `coverage` phase, as in [`dx coverage`](build-test-coverage.md). Without a `coverage` phase, they are not written.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -119,7 +130,7 @@ JSON has one `command_started` and one `command_finished` event. Each phase sits
 | `2` | Usage or scope error. |
 | Bazel's code | The phase that stopped the run keeps Bazel's code. |
 
-The test phase keeps Bazel's code:
+The `test` and `coverage` phases keep Bazel's code:
 
 - `3` with complete results means tests failed.
 - `3` or `1` with incomplete results means the phase is incomplete.

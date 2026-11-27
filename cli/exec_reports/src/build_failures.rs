@@ -325,6 +325,16 @@ pub fn report_build_failures(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> Result<ReportedFailures, i32> {
+    report_own_build_failures(bep, &dx_bep::Foreign::default(), output, out, err)
+}
+
+pub fn report_own_build_failures(
+    bep: &Path,
+    foreign: &dx_bep::Foreign,
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) -> Result<ReportedFailures, i32> {
     let file = match std::fs::File::open(bep) {
         Ok(file) => file,
         Err(error) => {
@@ -338,7 +348,12 @@ pub fn report_build_failures(
         }
     };
     let collected = collect_build_failures(BufReader::new(file));
-    let mut events: Vec<BuildFailureEvent> = collected.failures.iter().map(to_event).collect();
+    let mut events: Vec<BuildFailureEvent> = collected
+        .failures
+        .iter()
+        .filter(|failure| !foreign.covers(failure.target.as_deref(), None))
+        .map(to_event)
+        .collect();
     for event in &mut events {
         add_skip_reason(event);
     }

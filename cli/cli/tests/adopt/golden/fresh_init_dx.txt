@@ -219,8 +219,14 @@ common:ci --remote_timeout=10m
 # Under --config=ci, build locally when the remote cache fails.
 common:ci --remote_local_fallback
 
+# Under --config=ci, build locally when the remote cache cannot be reached, instead of failing the action.
+common:ci --incompatible_remote_local_fallback_for_remote_cache
+
 # Under --config=ci, retry a failed remote cache call 5 times.
 common:ci --remote_retries=5
+
+# Under --config=ci, stop calling the remote cache for the rest of the command once its calls keep failing, so lookups fall back to local builds and fetches.
+common:ci --experimental_circuit_breaker_strategy=failure
 
 # Under --config=ci, rebuild 5 times when the remote cache evicts an input.
 common:ci --experimental_remote_cache_eviction_retries=5
@@ -244,11 +250,11 @@ startup --host_jvm_args=-XX:MaxHeapFreeRatio=30
 # Keep little spare heap after a garbage collection.
 startup --host_jvm_args=-XX:MinHeapFreeRatio=10
 
-# Cap the Bazel server heap at a quarter of host memory.
-startup --host_jvm_args=-XX:MaxRAMPercentage=25
+# Cap the Bazel server heap at half of host memory.
+startup --host_jvm_args=-XX:MaxRAMPercentage=50
 
-# Schedule local actions within half of host memory.
-common --local_resources=memory=HOST_RAM*.5
+# Schedule local actions within a quarter of host memory.
+common --local_resources=memory=HOST_RAM*.25
 
 # Leave a quarter of the CPUs for the rest of the machine.
 common --local_resources=cpu=HOST_CPUS*.75
@@ -297,18 +303,18 @@ check-file = true
 [files]
 ignore-hidden = false
 extend-exclude = [
-    ".git/",
-    "*.lock",
-    "*.min.css",
-    "*.min.js",
-    "*.map",
-    "*.pb.go",
-    "*.svg",
-    "*_pb2.py",
-    "go.sum",
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock",
+  ".git/",
+  "*.lock",
+  "*.min.css",
+  "*.min.js",
+  "*.map",
+  "*.pb.go",
+  "*.svg",
+  "*_pb2.py",
+  "go.sum",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
 ]
 === .dx/config/yamlfmt/base.yaml
 line_ending: lf

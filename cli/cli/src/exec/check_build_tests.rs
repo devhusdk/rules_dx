@@ -26,13 +26,21 @@ fn umbrella_invocation(harness: &Harness, words: &[&str]) -> Invocation {
     dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("workspace")
 }
 
-#[expect(clippy::type_complexity, reason = "the type is spelled out once")]
+type BothWays = ([Vec<(PhaseRun, String, String)>; 2], [Vec<Vec<String>>; 2]);
+
 fn both_ways(
     harness: &Harness,
     events: &[(Option<&'static str>, String)],
     words: &[&str],
-) -> ([Vec<(PhaseRun, String, String)>; 2], [Vec<Vec<String>>; 2]) {
-    let inv = umbrella_invocation(harness, words);
+) -> BothWays {
+    both_ways_for(harness, events, &umbrella_invocation(harness, words))
+}
+
+fn both_ways_for(
+    harness: &Harness,
+    events: &[(Option<&'static str>, String)],
+    inv: &Invocation,
+) -> BothWays {
     let request = inv.umbrella_request().expect("umbrella request");
     let mut runs = [Vec::new(), Vec::new()];
     let mut builds = [Vec::new(), Vec::new()];
@@ -131,6 +139,124 @@ fn a_lint_failure_in_the_shared_build_leaves_format_and_typecheck_clean() {
         "format reports no lint failure: {}",
         runs[1][0].1
     );
+    assert!(leftover_events(&harness).is_empty());
+}
+
+const FORMAT_TARGET: &str = "//a:f";
+const LINT_TARGET: &str = "//a:l";
+const TYPECHECK_TARGET: &str = "//a:t";
+
+fn affected_scopes(harness: &Harness) -> Invocation {
+    let mut inv = umbrella_invocation(harness, &["check", "--output=json"]);
+    inv.targets = dx_testing::cli::strings(&[FORMAT_TARGET, LINT_TARGET, TYPECHECK_TARGET]);
+    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+        format: dx_testing::cli::strings(&[FORMAT_TARGET]),
+        lint: dx_testing::cli::strings(&[FORMAT_TARGET, LINT_TARGET]),
+        ..Default::default()
+    });
+    inv
+}
+
+fn every_target_events(
+    harness: &Harness,
+    failing: &[(&str, &'static str)],
+) -> Vec<(Option<&'static str>, String)> {
+    let mut events = Vec::new();
+    for label in [FORMAT_TARGET, LINT_TARGET, TYPECHECK_TARGET] {
+        for (aspect, tool) in [
+            (FORMAT_ASPECT, "format"),
+            (LINT_ASPECT, "lint"),
+            (TYPECHECK_ASPECT, "typecheck"),
+        ] {
+            let finding = format!("{tool} finding on {label}");
+            let success = !failing.contains(&(label, aspect));
+            events.extend(target_aspect_events(
+                harness, label, aspect, &finding, success,
+            ));
+        }
+    }
+    events
+}
+
+fn finding_messages(out: &str) -> Vec<String> {
+    let mut messages: Vec<String> = json_events(out)
+        .iter()
+        .filter(|event| event["event"] == "diagnostic")
+        .map(|event| event["message"].as_str().unwrap_or_default().to_owned())
+        .collect();
+    messages.sort();
+    messages
+}
+
+#[test]
+fn phases_with_different_targets_share_one_probe_and_one_build_over_their_union() {
+    let harness = umbrella_clean("shared-affected-union");
+    let events = every_target_events(&harness, &[]);
+    let (runs, builds) = both_ways_for(&harness, &events, &affected_scopes(&harness));
+    let scopes: Vec<Vec<String>> = builds[0].iter().map(|argv| build_labels(argv)).collect();
+    assert_eq!(
+        scopes,
+        [
+            vec![FORMAT_TARGET],
+            vec![FORMAT_TARGET, LINT_TARGET],
+            vec![FORMAT_TARGET, LINT_TARGET, TYPECHECK_TARGET],
+        ],
+        "one build per phase on its own"
+    );
+    assert_eq!(builds[1].len(), 1, "one shared build: {:?}", builds[1]);
+    assert_eq!(
+        build_labels(&builds[1][0]),
+        [FORMAT_TARGET, LINT_TARGET, TYPECHECK_TARGET]
+    );
+    let probes = harness.probe_argv.borrow();
+    assert_eq!(probes.len(), 4, "three probes on their own, one shared");
+    assert_eq!(
+        build_labels(&probes[3]),
+        [FORMAT_TARGET, LINT_TARGET, TYPECHECK_TARGET]
+    );
+    assert_eq!(runs[1], runs[0]);
+    assert_eq!(finding_messages(&runs[1][0].1), ["format finding on //a:f"]);
+    assert_eq!(
+        finding_messages(&runs[1][1].1),
+        ["lint finding on //a:f", "lint finding on //a:l"]
+    );
+    assert!(leftover_events(&harness).is_empty());
+}
+
+#[test]
+fn a_failure_on_a_target_only_lint_selected_fails_only_lint() {
+    let harness = umbrella_clean("shared-affected-lint-fails");
+    let failing = [
+        (LINT_TARGET, LINT_ASPECT),
+        (TYPECHECK_TARGET, FORMAT_ASPECT),
+    ];
+    let events = every_target_events(&harness, &failing);
+    let (runs, builds) = both_ways_for(&harness, &events, &affected_scopes(&harness));
+    assert_eq!(builds[1].len(), 1);
+    assert_eq!(runs[1], runs[0]);
+    let codes: Vec<(i32, PhaseKind)> = runs[1]
+        .iter()
+        .map(|(run, _, _)| (run.code, run.kind))
+        .collect();
+    assert_eq!(
+        codes,
+        [
+            (1, PhaseKind::Findings),
+            (1, PhaseKind::Tool),
+            (1, PhaseKind::Findings)
+        ]
+    );
+    let failed_targets = |out: &str| -> Vec<String> {
+        json_events(out)
+            .iter()
+            .filter(|event| event["event"] == "build_failure")
+            .map(|event| event["target"].as_str().unwrap_or_default().to_owned())
+            .collect()
+    };
+    assert!(failed_targets(&runs[1][0].1).is_empty(), "{}", runs[1][0].1);
+    let lint = failed_targets(&runs[1][1].1);
+    assert!(!lint.is_empty(), "{}", runs[1][1].1);
+    assert!(lint.iter().all(|target| target == LINT_TARGET), "{lint:?}");
     assert!(leftover_events(&harness).is_empty());
 }
 

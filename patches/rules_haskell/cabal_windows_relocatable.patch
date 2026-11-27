@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: tweag/rules_haskell#2516
 diff --git a/haskell/private/cabal_wrapper.py b/haskell/private/cabal_wrapper.py
 --- a/haskell/private/cabal_wrapper.py
 +++ b/haskell/private/cabal_wrapper.py

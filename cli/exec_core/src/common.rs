@@ -408,9 +408,7 @@ pub fn print_cache_retries(output: OutputMode, retries: u32, err: &mut dyn Write
     if retries > 0 && dx_output::dx_text_visible(&output) {
         dx_output::write_stderr(
             err,
-            format_args!(
-                "dx: {retries} Bazel call(s) ran again without the remote cache after a remote cache error\n"
-            ),
+            format_args!("dx: {retries} Bazel call(s) ran again after a remote cache error\n"),
         );
     }
 }

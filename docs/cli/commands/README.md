@@ -121,7 +121,7 @@ pages list the rest.
 | `--frozen` | Change no manifest or lock file. | `security`, `license`, `update`. |
 | `--debug`, `--release` | Build in debug or release mode. | `build`, `test`, `run`, `deploy`, `watch`. |
 | `--timings` | Print where build time went. | `build`, `test`, `coverage`, `run`. |
-| `--no-retry` | Do not rerun without the remote cache after a remote cache error. | `build`, `test`, `coverage`, `check`. |
+| `--no-retry` | Do not rerun Bazel after a remote cache error. | `build`, `test`, `coverage`, `check`. |
 | `--min-coverage <percent>`, `--min-changed-line-coverage <percent>` | Fail under this coverage. | `coverage`. |
 
 `dx watch` takes the flags of the command it watches.

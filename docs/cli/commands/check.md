@@ -37,7 +37,7 @@ Args after `--` go to Bazel.
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
-| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--no-retry` | Do not run Bazel again after a remote cache error. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF file. Repeatable. `-` (stdout) is rejected. |
 | `--report lcov=<dest>` | With `--coverage`, write the lcov report of the coverage phase. Without `--coverage`, exits `2`. |
 | `--report sources=<dest>` | With `--coverage`, write the coverage sources report of the coverage phase. Without `--coverage`, exits `2`. |

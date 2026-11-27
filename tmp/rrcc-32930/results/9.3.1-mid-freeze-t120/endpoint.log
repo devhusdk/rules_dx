@@ -1,0 +1,8 @@
+[endpoint +   0.01s] listening on 127.0.0.1:58699, forwarding to 127.0.0.1:56945
+[endpoint +   0.19s] conn 1: forwarding
+[endpoint +   0.32s] now stalling; freezing 1 open connection(s)
+[endpoint +  80.25s] conn 2: accepted, stalling (no TLS ServerHello will be sent)
+[endpoint +  80.25s] conn 1: closed
+[endpoint +  90.26s] conn 2: closed by client
+[endpoint +  90.26s] conn 3: accepted, stalling (no TLS ServerHello will be sent)
+[endpoint +  95.11s] conn 3: closed by client

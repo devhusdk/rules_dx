@@ -1,0 +1,380 @@
+== Bazel 9.3.1, MODE=start REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 17.4s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           3    11.1    13.2      2.0
+  @@+repos+r1           5    11.1    15.2      2.0
+  @@+repos+r2           5    11.1    17.2      2.0
+== gRPC calls (--remote_grpc_log), by status code
+  UNAVAILABLE        calls=   3  longest=   10.0s  total=    10.1s
+      3 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    0.0  took=  10.0s  UNAVAILABLE        GetCapabilities    capabilities
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 8
+  Remote repo contents cache lookup failed for @@platforms: Failed to look up repo @@platforms in the remote rep
+  Failed to upload repo contents to remote cache for repo @@platforms: io.netty.handler.ssl.SslHandshakeTimeoutE
+  Remote repo contents cache lookup failed for @@+repos+r2: Failed to look up repo @@+repos+r2 in the remote rep
+  Remote repo contents cache lookup failed for @@+repos+r0: Failed to look up repo @@+repos+r0 in the remote rep
+  Remote repo contents cache lookup failed for @@+repos+r1: Failed to look up repo @@+repos+r1 in the remote rep
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.netty.handler.ssl.SslHandshakeTimeoutE
+work directory kept: /tmp/rrcc-repro.Ftofhc
+
+== Bazel last_green, MODE=start REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 17.5s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           3    11.1    13.2      2.1
+  @@+repos+r1           5    11.1    15.2      2.0
+  @@+repos+r2           5    11.1    17.2      2.0
+== gRPC calls (--remote_grpc_log), by status code
+  UNAVAILABLE        calls=   3  longest=   10.1s  total=    10.1s
+      3 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    0.0  took=  10.1s  UNAVAILABLE        GetCapabilities    capabilities
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 8
+  Remote repo contents cache lookup failed for @@platforms: Failed to look up repo @@platforms in the remote rep
+  Failed to upload repo contents to remote cache for repo @@platforms: io.netty.handler.ssl.SslHandshakeTimeoutE
+  Remote repo contents cache lookup failed for @@+repos+r2: Failed to look up repo @@+repos+r2 in the remote rep
+  Remote repo contents cache lookup failed for @@+repos+r1: Failed to look up repo @@+repos+r1 in the remote rep
+  Remote repo contents cache lookup failed for @@+repos+r0: Failed to look up repo @@+repos+r0 in the remote rep
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.netty.handler.ssl.SslHandshakeTimeoutE
+work directory kept: /tmp/rrcc-repro.OkwQ5C
+
+== Bazel 9.3.1, MODE=mid ON_STALL=hang REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 277.7s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.2    92.7     92.5
+  @@+repos+r1           4     0.2   185.1     92.4
+  @@+repos+r2           4     0.2   277.6     92.5
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   9  longest=   30.0s  total=   270.3s
+      1 x CallOptions deadline exceeded after 29.999978970s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999973260s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999985413s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.2s  total=     0.2s
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   94.5  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r1
+  start=  124.6  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  154.8  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  186.9  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r2
+  start=  217.0  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+  start=  247.3  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+== endpoint: 0 TLS handshake(s) left unanswered, 4 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: DEADLINE_
+work directory kept: /tmp/rrcc-repro.ys4Rgz
+
+== Bazel last_green, MODE=mid ON_STALL=hang REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 278.5s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.3    92.8     92.4
+  @@+repos+r1           4     0.3   185.2     92.4
+  @@+repos+r2           4     0.3   277.6     92.4
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   9  longest=   30.0s  total=   270.3s
+      1 x CallOptions deadline exceeded after 29.999984822s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999984271s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999985162s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.1s  total=     0.1s
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   94.4  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r1
+  start=  124.6  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  154.8  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  186.8  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r2
+  start=  217.0  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+  start=  247.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+== endpoint: 0 TLS handshake(s) left unanswered, 4 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: DEADLINE_
+work directory kept: /tmp/rrcc-repro.BCVjGT
+
+== Bazel 9.3.1, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 92.9s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.4    80.1     79.7
+  @@+repos+r1           4     0.4    90.4     10.4
+  @@+repos+r2           4     0.4    92.8      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   2  longest=   30.0s  total=    60.1s
+      1 x CallOptions deadline exceeded after 29.999986585s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999987457s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.1s  total=     0.1s
+  UNAVAILABLE        calls=   7  longest=   17.3s  total=    25.3s
+      6 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  17.3s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+  start=   81.7  took=   8.0s  UNAVAILABLE        Write              +repos+r1
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.ADCASz
+
+== Bazel last_green, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 93.6s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.6    80.6     80.0
+  @@+repos+r1           4     0.6    90.9     10.3
+  @@+repos+r2           4     0.6    93.3      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   2  longest=   30.0s  total=    60.1s
+      1 x CallOptions deadline exceeded after 29.999984922s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999986344s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.1s  total=     0.1s
+  UNAVAILABLE        calls=   7  longest=   17.6s  total=    25.7s
+      6 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  17.6s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+  start=   82.1  took=   8.0s  UNAVAILABLE        Write              +repos+r1
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.ARWBPa
+
+== Bazel 9.3.1, MODE=mid ON_STALL=cut REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 15.6s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.5    10.9     10.5
+  @@+repos+r1           4     0.5    13.2      2.3
+  @@+repos+r2           4     0.5    15.6      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   9  longest=    8.1s  total=     8.1s
+      9 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=   8.1s  UNAVAILABLE        Write              +repos+r0
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.yt2L78
+
+== Bazel last_green, MODE=mid ON_STALL=cut REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 15.3s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    10.5     10.4
+  @@+repos+r1           4     0.1    12.8      2.3
+  @@+repos+r2           4     0.1    15.1      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   9  longest=    8.1s  total=     8.1s
+      9 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=   8.1s  UNAVAILABLE        Write              +repos+r0
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.wLhSaF
+
+== Bazel 9.3.1, MODE=mid ON_STALL=hang REPOS=3 CHAIN=1 T=30s R=2 extra: --experimental_circuit_breaker_strategy=failure
+== exit code 0, wall time 277.5s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    92.5     92.4
+  @@+repos+r1           4     0.1   185.0     92.4
+  @@+repos+r2           4     0.1   277.3     92.4
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   9  longest=   30.0s  total=   270.3s
+      1 x CallOptions deadline exceeded after 29.999988368s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999983039s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999987577s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.1  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   94.4  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r1
+  start=  124.6  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  154.8  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  186.9  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r2
+  start=  217.0  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+  start=  247.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+== endpoint: 0 TLS handshake(s) left unanswered, 4 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: DEADLINE_
+work directory kept: /tmp/rrcc-repro.C5lKaZ
+
+== Bazel last_green, MODE=mid ON_STALL=hang REPOS=3 CHAIN=1 T=30s R=2 extra: --experimental_circuit_breaker_strategy=failure
+== exit code 0, wall time 277.7s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    92.5     92.4
+  @@+repos+r1           4     0.1   184.9     92.4
+  @@+repos+r2           4     0.1   277.4     92.4
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   9  longest=   30.0s  total=   270.3s
+      1 x CallOptions deadline exceeded after 29.999988458s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999988679s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999987106s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.1  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   94.4  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r1
+  start=  124.6  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  154.8  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  186.9  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r2
+  start=  217.0  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+  start=  247.3  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+== endpoint: 0 TLS handshake(s) left unanswered, 4 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: DEADLINE_
+work directory kept: /tmp/rrcc-repro.LjM6Mw
+
+== Bazel 9.3.1, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=30s R=2 extra: --experimental_circuit_breaker_strategy=failure
+== exit code 0, wall time 92.7s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    80.1     80.0
+  @@+repos+r1           4     0.1    90.4     10.3
+  @@+repos+r2           4     0.1    92.7      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   2  longest=   30.0s  total=    60.0s
+      1 x CallOptions deadline exceeded after 29.999988188s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999984330s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   7  longest=   17.7s  total=    25.7s
+      6 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.1  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.3  took=  17.7s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+  start=   82.0  took=   8.0s  UNAVAILABLE        Write              +repos+r1
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.HJ6xh4
+
+== Bazel last_green, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=30s R=2 extra: --experimental_circuit_breaker_strategy=failure
+== exit code 0, wall time 93.1s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.2    80.2     80.0
+  @@+repos+r1           4     0.2    90.5     10.3
+  @@+repos+r2           4     0.2    92.8      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   2  longest=   30.0s  total=    60.1s
+      1 x CallOptions deadline exceeded after 29.999987808s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999987637s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   7  longest=   17.7s  total=    25.7s
+      6 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  17.7s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+  start=   82.0  took=   8.0s  UNAVAILABLE        Write              +repos+r1
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.RjBPY5
+
+== Bazel 9.3.1, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=120s R=2 extra: 
+== exit code 0, wall time 95.0s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    90.3     90.2
+  @@+repos+r1           4     0.1    92.6      2.3
+  @@+repos+r2           4     0.1    94.9      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   9  longest=   78.0s  total=    87.9s
+      8 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  78.0s  UNAVAILABLE        Write              +repos+r0
+  start=   80.1  took=   9.9s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.bqqlD3
+
+== Bazel last_green, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=120s R=2 extra: 
+== exit code 0, wall time 95.2s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    90.4     90.2
+  @@+repos+r1           4     0.1    92.7      2.3
+  @@+repos+r2           4     0.1    95.0      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   9  longest=   78.0s  total=    87.9s
+      8 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  78.0s  UNAVAILABLE        Write              +repos+r0
+  start=   80.1  took=   9.9s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.6cVZgc
+

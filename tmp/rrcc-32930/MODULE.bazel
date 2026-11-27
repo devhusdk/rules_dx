@@ -1,0 +1,4 @@
+module(name = "rrcc_repro")
+
+repos = use_extension("//:repos.bzl", "repos")
+use_repo(repos, "all")

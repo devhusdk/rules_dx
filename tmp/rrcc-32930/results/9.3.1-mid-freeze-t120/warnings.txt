@@ -1,0 +1,3 @@
+WARNING: Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILABLE: io exception
+WARNING: Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILABLE: io exception
+WARNING: Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILABLE: io exception

@@ -1,0 +1,23 @@
+== Bazel 9.3.1, MODE=mid ON_STALL=freeze REPOS=3 CHAIN=1 T=120s R=2 extra: 
+== exit code 0, wall time 95.0s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.1    90.3     90.2
+  @@+repos+r1           4     0.1    92.6      2.3
+  @@+repos+r2           4     0.1    94.9      2.3
+== gRPC calls (--remote_grpc_log), by status code
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.0s  total=     0.0s
+  UNAVAILABLE        calls=   9  longest=   78.0s  total=    87.9s
+      8 x io.netty.handler.ssl.SslHandshakeTimeoutException: handshake timed out after 10000ms
+      1 x Keepalive failed. The connection is likely gone
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  78.0s  UNAVAILABLE        Write              +repos+r0
+  start=   80.1  took=   9.9s  UNAVAILABLE        QueryWriteStatus   +repos+r0
+== endpoint: 2 TLS handshake(s) left unanswered, 0 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: UNAVAILAB
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: UNAVAILAB
+work directory kept: /tmp/rrcc-repro.bqqlD3

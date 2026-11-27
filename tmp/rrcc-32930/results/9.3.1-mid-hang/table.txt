@@ -1,0 +1,31 @@
+== Bazel 9.3.1, MODE=mid ON_STALL=hang REPOS=3 CHAIN=1 T=30s R=2 extra: 
+== exit code 0, wall time 277.7s
+== repository fetches (profile; seconds from the start of the profile)
+  repo             events   first    done  longest
+  @@+repos+r0           2     0.2    92.7     92.5
+  @@+repos+r1           4     0.2   185.1     92.4
+  @@+repos+r2           4     0.2   277.6     92.5
+== gRPC calls (--remote_grpc_log), by status code
+  DEADLINE_EXCEEDED  calls=   9  longest=   30.0s  total=   270.3s
+      1 x CallOptions deadline exceeded after 29.999978970s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999973260s. Name resolution delay 0.000000000 seconds. [closed=[], open
+      1 x CallOptions deadline exceeded after 29.999985413s. Name resolution delay 0.000000000 seconds. [closed=[], open
+  NOT_FOUND          calls=   3  longest=    0.0s  total=     0.0s
+      3 x <digest> not found in AC
+  OK                 calls=   1  longest=    0.2s  total=     0.2s
+== failed gRPC calls that took 5s or more (start is seconds from the first failed call)
+  start=    2.0  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r0
+  start=   32.2  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   62.4  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r0
+  start=   94.5  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r1
+  start=  124.6  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  154.8  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r1
+  start=  186.9  took=  30.0s  DEADLINE_EXCEEDED  Write              +repos+r2
+  start=  217.0  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+  start=  247.3  took=  30.0s  DEADLINE_EXCEEDED  QueryWriteStatus   +repos+r2
+== endpoint: 0 TLS handshake(s) left unanswered, 4 PING(s) answered while stalling
+== Bazel warnings about the remote cache: 3
+  Failed to upload repo contents to remote cache for repo @@+repos+r0: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r1: io.grpc.StatusRuntimeException: DEADLINE_
+  Failed to upload repo contents to remote cache for repo @@+repos+r2: io.grpc.StatusRuntimeException: DEADLINE_
+work directory kept: /tmp/rrcc-repro.ys4Rgz

@@ -1,0 +1,8 @@
+[endpoint +   0.01s] listening on 127.0.0.1:40679, forwarding to 127.0.0.1:43883
+[endpoint +   0.22s] conn 1: forwarding
+[endpoint +   0.53s] now stalling; hanging 1 open connection(s)
+[endpoint +  60.16s] conn 1: answered PING #1
+[endpoint + 120.18s] conn 1: answered PING #2
+[endpoint + 180.21s] conn 1: answered PING #3
+[endpoint + 240.23s] conn 1: answered PING #4
+[endpoint + 277.84s] conn 1: closed

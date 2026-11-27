@@ -1,11 +1,12 @@
 # gazelle:ignore
 
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("//android:defs.bzl", "android_native_library")
+load("//android/tests:defs_tests.bzl", "android_native_library_msvc_crt_tests")
+load("//android/tests:ndk_runtime_libs_tests.bzl", "ndk_link_stages_runtime_libs_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("//android:defs.bzl", "android_native_library")
-load("//android/tests:ndk_runtime_libs_tests.bzl", "ndk_link_stages_runtime_libs_test")
 
 package(
     default_testonly = True,
@@ -71,10 +72,14 @@ ndk_link_stages_runtime_libs_test(
     target_under_test = ":native_lib_link_upstream",
 )
 
+android_native_library_msvc_crt_tests(
+    name = "native_lib_msvc_crt_tests",
+    target = ":native_lib_link",
+)
+
 rust_test(
     name = "native_lib_host_test",
     crate = ":native_lib_rust",
-    link_deps = [":native_lib_cc"],
     deps = [":native_lib_build_script"],
 )
 

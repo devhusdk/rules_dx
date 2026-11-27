@@ -83,6 +83,8 @@ single_version_override(
         "//patches/llvm:msvc_coverage.patch",
         "//patches/llvm:mingw_coff_no_timestamp.patch",
         "//patches/llvm:internal_symbolizer_linkmode.patch",
+        "//patches/llvm:runtime_config_reset.patch",
+        "//patches/llvm:runtime_go_race_reset.patch",
     ],
     version = "0.8.27",
 )

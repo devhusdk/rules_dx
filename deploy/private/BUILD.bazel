@@ -296,6 +296,21 @@ rust_binary(
     ],
 )
 
+[rust_binary(
+    name = name,
+    srcs = ["src/bin_{}.rs".format(name)],
+    crate_name = name,
+    crate_root = "src/bin_{}.rs".format(name),
+    visibility = ["//visibility:public"],
+    deps = [":dx_deploy_tools"],
+) for name in [
+    "archiver",
+    "cloudflare_verify",
+    "hasher",
+    "npm_packer",
+    "size_checker",
+]]
+
 rust_test(
     name = "dx_deploy_tools_test",
     size = "small",
@@ -1487,11 +1502,11 @@ deploy_verify_test(
         "//cli/update:python_files",
         "//cli/update:python_interpreter",
         "//deploy/private/native_probe/dx_native_probe:msvc_vcruntime_notice",
-        "@dx_prebuilt//:dx",
+        "@dx_prebuilt//dx:archiver",
         "@dx_tools//:uv",
     ],
     env = {
-        "DX_ARCHIVER": "$(rootpath @dx_prebuilt//:dx)",
+        "DX_ARCHIVER": "$(rootpath @dx_prebuilt//dx:archiver)",
         "DX_MSVC_CONFIG": "$(rootpath :native_probe_msvc_config)",
         "DX_MSVC_NOTICE": "$(rootpath //deploy/private/native_probe/dx_native_probe:msvc_vcruntime_notice)",
         "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
@@ -2246,16 +2261,16 @@ genrule(
     name = "oci_demo_app_layer",
     srcs = ["oci_demo_root/hello.txt"],
     outs = ["oci_demo_app_layer.tar.gz"],
-    cmd = "$(execpath @dx_prebuilt//:dx) archiver --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
-    tools = ["@dx_prebuilt//:dx"],
+    cmd = "$(execpath @dx_prebuilt//dx:archiver) archiver --members $@ app/hello.txt=$(location oci_demo_root/hello.txt)",
+    tools = ["@dx_prebuilt//dx:archiver"],
 )
 
 genrule(
     name = "oci_demo_etc_layer",
     srcs = ["oci_demo_root/demo.conf"],
     outs = ["oci_demo_etc_layer.tar.gz"],
-    cmd = "$(execpath @dx_prebuilt//:dx) archiver --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
-    tools = ["@dx_prebuilt//:dx"],
+    cmd = "$(execpath @dx_prebuilt//dx:archiver) archiver --members $@ etc/demo.conf=$(location oci_demo_root/demo.conf)",
+    tools = ["@dx_prebuilt//dx:archiver"],
 )
 
 genrule(
@@ -2265,8 +2280,8 @@ genrule(
         ":oci_demo_etc_layer",
     ],
     outs = ["oci_demo.tar"],
-    cmd = "$(execpath @dx_prebuilt//:dx) archiver --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
-    tools = ["@dx_prebuilt//:dx"],
+    cmd = "$(execpath @dx_prebuilt//dx:archiver) archiver --image $@ linux/amd64 /app/hello $(location :oci_demo_app_layer) $(location :oci_demo_etc_layer)",
+    tools = ["@dx_prebuilt//dx:archiver"],
 )
 
 oci_deploy(

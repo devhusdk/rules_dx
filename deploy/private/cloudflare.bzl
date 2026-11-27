@@ -6,7 +6,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "deployment")
 load(":validate_cloudflare.bzl", "cloudflare_pages_error")
 
-_DX = Label("@dx_prebuilt//:dx")
+_DX = Label("@dx_prebuilt//dx:cloudflare_verify")
 
 def cloudflare_pages_intent(branch, production_branch):
     """Returns 'production' or 'preview' for a branch."""

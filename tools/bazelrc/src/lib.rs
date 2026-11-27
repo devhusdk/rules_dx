@@ -224,12 +224,12 @@ const RESOURCE_FLAGS: [Flag; 12] = [
         "Keep little spare heap after a garbage collection.",
     ),
     (
-        "startup --host_jvm_args=-XX:MaxRAMPercentage=25",
-        "Cap the Bazel server heap at a quarter of host memory.",
+        "startup --host_jvm_args=-XX:MaxRAMPercentage=50",
+        "Cap the Bazel server heap at half of host memory.",
     ),
     (
-        "common --local_resources=memory=HOST_RAM*.5",
-        "Schedule local actions within half of host memory.",
+        "common --local_resources=memory=HOST_RAM*.25",
+        "Schedule local actions within a quarter of host memory.",
     ),
     (
         "common --local_resources=cpu=HOST_CPUS*.75",
@@ -883,8 +883,8 @@ mod tests {
             [
                 "startup --host_jvm_args=-XX:MaxHeapFreeRatio=30",
                 "startup --host_jvm_args=-XX:MinHeapFreeRatio=10",
-                "startup --host_jvm_args=-XX:MaxRAMPercentage=25",
-                "common --local_resources=memory=HOST_RAM*.5",
+                "startup --host_jvm_args=-XX:MaxRAMPercentage=50",
+                "common --local_resources=memory=HOST_RAM*.25",
                 "common --local_resources=cpu=HOST_CPUS*.75",
                 "startup --max_idle_secs=900",
                 "startup --shutdown_on_low_sys_mem",

@@ -12,6 +12,15 @@ rust_library(
     visibility = ["//cli/cli:__pkg__"],
 )
 
+rust_binary(
+    name = "capture",
+    srcs = ["src/main.rs"],
+    crate_name = "capture",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":capture_lib"],
+)
+
 # keep
 rust_binary(
     name = "fake_tool",

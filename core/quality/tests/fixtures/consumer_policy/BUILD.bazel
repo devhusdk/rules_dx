@@ -914,6 +914,14 @@ quality_family(
     lint = ["ruff"],
 )
 
+quality_family(
+    name = "python_unknown_typecheck_family",
+    disabled = ["format"],
+    family_id = "python",
+    lint = ["ruff"],
+    typecheck = ["nope"],
+)
+
 rubocop_config(
     name = "policy_rubocop_config",
     src = "rubocop.yml",
@@ -933,6 +941,12 @@ workspace_policy(
     name = "python_ruff_policy",
     configs = [":policy_ruff_config"],
     families = [":python_ruff_family"],
+)
+
+workspace_policy(
+    name = "python_unknown_typecheck_policy",
+    configs = [":policy_ruff_config"],
+    families = [":python_unknown_typecheck_family"],
 )
 
 real_source_target(

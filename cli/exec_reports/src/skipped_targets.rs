@@ -87,15 +87,20 @@ pub fn group_skipped(
     workspace: &Path,
     runner: &dyn QueryRunner,
 ) -> Vec<SkipGroup> {
-    group_with(skipped, UNSUPPORTED_JSON, |constraint, labels| {
+    group_with(skipped, UNSUPPORTED_JSON, |constraints, labels| {
         let selection = SelectionContext::for_test_execution(
             invocation.build_mode(),
             invocation.raw_bazel_options(),
             &invocation.bazel_startup_options,
         );
+        let targets: Vec<String> = constraints
+            .iter()
+            .map(|constraint| format!("@rules_dx{constraint}"))
+            .collect();
         let expr = format!(
-            "allpaths({}, @rules_dx{constraint})",
-            dx_plan::resolve::set_expression(labels)
+            "allpaths({}, {})",
+            dx_plan::resolve::set_expression(labels),
+            dx_plan::resolve::set_expression(&targets)
         );
         let argv = selection
             .selection_argv("cquery", &["--output=label".to_owned()], &expr)
@@ -114,38 +119,48 @@ pub fn group_skipped(
     })
 }
 
+/// One cquery covers every language; per-language queries run only for the labels it reaches.
 fn group_with(
     skipped: &[EventGap],
     json: &str,
-    query: impl Fn(&str, &[String]) -> Option<Vec<String>>,
+    query: impl Fn(&[&str], &[String]) -> Option<Vec<String>>,
 ) -> Vec<SkipGroup> {
     let mut remaining: Vec<String> = skipped.iter().filter_map(|gap| gap.label.clone()).collect();
     remaining.sort();
     remaining.dedup();
+    let languages = known_languages(json);
     let mut groups = Vec::new();
     let mut grouped = 0;
-    if !remaining.is_empty() {
-        for (constraint, title, reason) in known_languages(json) {
-            let Some(found) = query(&constraint, &remaining) else {
-                continue;
-            };
-            let hits = remaining
-                .iter()
-                .filter(|label| found.contains(label))
-                .count();
-            if hits == 0 {
-                continue;
-            }
-            remaining.retain(|label| !found.contains(label));
-            grouped += hits;
-            groups.push(SkipGroup {
-                count: hits,
-                language: Some(SkipLanguage { title, reason }),
-            });
-            if remaining.is_empty() {
-                break;
-            }
+    let constraints: Vec<&str> = languages.iter().map(|(c, _, _)| c.as_str()).collect();
+    let found = if remaining.is_empty() || constraints.is_empty() {
+        Vec::new()
+    } else {
+        query(&constraints, &remaining).unwrap_or_default()
+    };
+    remaining.retain(|label| found.contains(label));
+    for (constraint, title, reason) in &languages {
+        if remaining.is_empty() {
+            break;
         }
+        let Some(found) = query(&[constraint.as_str()], &remaining) else {
+            continue;
+        };
+        let hits = remaining
+            .iter()
+            .filter(|label| found.contains(label))
+            .count();
+        if hits == 0 {
+            continue;
+        }
+        remaining.retain(|label| !found.contains(label));
+        grouped += hits;
+        groups.push(SkipGroup {
+            count: hits,
+            language: Some(SkipLanguage {
+                title: title.clone(),
+                reason: reason.clone(),
+            }),
+        });
     }
     let rest = skipped.len().saturating_sub(grouped);
     if rest > 0 {
@@ -230,13 +245,36 @@ mod tests {
         "//core/platforms:dart_unsupported": {"title": "Dart", "platforms": {"a": "x", "b": "y"}}
     }"#;
 
-    fn fake_query(constraint: &str, _labels: &[String]) -> Option<Vec<String>> {
-        match constraint {
-            "//core/platforms:php_unsupported" => {
-                Some(vec!["//a:x".to_owned(), "//a:y".to_owned()])
-            }
-            _ => None,
+    fn fake_query(constraints: &[&str], _labels: &[String]) -> Option<Vec<String>> {
+        constraints
+            .contains(&"//core/platforms:php_unsupported")
+            .then(|| vec!["//a:x".to_owned(), "//a:y".to_owned()])
+    }
+
+    fn counted(
+        calls: &std::cell::RefCell<Vec<usize>>,
+    ) -> impl Fn(&[&str], &[String]) -> Option<Vec<String>> + '_ {
+        move |constraints, labels| {
+            calls.borrow_mut().push(constraints.len());
+            fake_query(constraints, labels)
         }
+    }
+
+    #[test]
+    fn one_query_when_no_language_explains_the_skips() {
+        let calls = std::cell::RefCell::new(Vec::new());
+        let groups = group_with(&[gap("//b:z"), gap("//b:w")], JSON, counted(&calls));
+        assert_eq!(groups, generic(2));
+        assert_eq!(calls.into_inner(), vec![2]);
+    }
+
+    #[test]
+    fn languages_are_queried_only_after_the_union_hits() {
+        let calls = std::cell::RefCell::new(Vec::new());
+        let groups = group_with(&[gap("//a:x"), gap("//b:z")], JSON, counted(&calls));
+        assert_eq!(groups[0].language.as_ref().unwrap().title, "PHP");
+        assert_eq!(groups[1], generic(1)[0]);
+        assert_eq!(calls.into_inner(), vec![2, 1, 1]);
     }
 
     #[test]

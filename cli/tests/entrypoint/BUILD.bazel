@@ -17,6 +17,7 @@ rust_test(
     crate_name = "consumer_dx_entry",
     crate_root = "entrypoint_test.rs",
     data = [
+        "//cli/prebuilt:pins.bzl",
         "@dx_consumer_entry//:consumer_dx_probe",
         "@dx_consumer_entry//:crate_help.txt",
         "@dx_consumer_entry//:public_completion.txt",
@@ -64,6 +65,7 @@ rust_test(
         "DX_PUBLIC_HELP": "$(rootpath @dx_consumer_entry//:public_help.txt)",
         "DX_PUBLIC_STATUS": "$(rootpath @dx_consumer_entry//:public_status.txt)",
         "DX_PUBLIC_VERSION": "$(rootpath @dx_consumer_entry//:public_version.txt)",
+        "DX_PREBUILT_PINS": "$(rootpath //cli/prebuilt:pins.bzl)",
         "DX_STATUS_BARE": "$(rootpath @dx_consumer_entry//:status_bare.txt)",
         "DX_STATUS_CORRUPT_TOOL": "$(rootpath @dx_consumer_entry//:status_corrupt_tool.txt)",
         "DX_STATUS_HEALTHY": "$(rootpath @dx_consumer_entry//:status_healthy.txt)",

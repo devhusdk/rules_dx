@@ -28,8 +28,17 @@ fn root_module_public_label_is_the_source_binary() {
 
 #[test]
 fn the_public_label_runs_real_commands_over_a_consumer_workspace() {
+    let pins = read("DX_PREBUILT_PINS");
+    let release = pins
+        .lines()
+        .find_map(|line| line.strip_prefix("DX_VERSION = \""))
+        .and_then(|rest| rest.strip_suffix('"'))
+        .expect("pins.bzl must define DX_VERSION");
     let version = read("DX_PUBLIC_VERSION");
-    assert!(version.contains("dx 0.0.0"), "version: {version}");
+    assert!(
+        version.contains(&format!("dx {release}")),
+        "version: {version}"
+    );
     let status = read("DX_PUBLIC_STATUS");
     assert!(status.contains("pin: ok"), "status: {status}");
     let completion = read("DX_PUBLIC_COMPLETION");

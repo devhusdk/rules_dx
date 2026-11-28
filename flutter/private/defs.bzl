@@ -72,7 +72,7 @@ _flutter_application_forward = dx_library_forward_rule(
         provides = [DefaultInfo, FlutterApplicationInputsInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],
         required_providers = [(FlutterApplicationInputsInfo, "FlutterApplicationInputsInfo")],
         upstream_providers = [[FlutterApplicationInputsInfo]],
-        quiet_providers = [FlutterApplicationInfo],
+        quiet_providers = [DartAnalyzableInfo, FlutterApplicationInfo],
         runtime = "besteffort",
     ),
 )

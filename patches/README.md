@@ -124,6 +124,7 @@ Some upstream fixes are carried as rules_dx code instead of a patch, such as ext
 | `elfutils` | 0.195 | `aarch64_config.patch` | Root only. `lib/config.h` sets `HAVE_SYS_USER_REGS` on aarch64 Linux and `HAVE_USER_PACK_MASK` when the kernel headers are Linux 5.0 or later, so the aarch64 backend compiles (drop when an elfutils BCR overlay has it) |
 | `rules_go` | 0.65.0 | `lazy_nogo.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`. Consumer fix: #11418 |
 | `rules_go` | 0.65.0 | `lock_extension.patch` | Root only. The `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
+| `rules_go` | 0.65.0 | `root_sdk_toolchains.patch` | Root only. Other modules' Go SDKs register no toolchains for an exec platform the root SDK covers, so each configuration analyzes only the root SDK's Go toolchains |
 | `rules_oci` | 2.3.0 | `descriptor_image.patch` | On a Windows exec platform each layer descriptor action of `oci_image` gets its own `.bat` wrapper and lists `descriptor.sh` as a tool. Consumer fix: #11387 |
 | `rules_oci` | 2.3.0 | `descriptor_util.patch` | The Windows `.bat` wrapper takes a name and calls a script outside its own directory by its execroot path. Consumer fix: #11387 |
 | `rules_oci` | 2.3.0 | `image_index.patch` | `oci_image_index` wraps its shell launcher in a `.bat` on a Windows exec platform. Consumer fix: #11387 |

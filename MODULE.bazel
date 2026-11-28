@@ -247,6 +247,7 @@ single_version_override(
     patches = [
         "//patches/rules_go:lazy_nogo.patch",
         "//patches/rules_go:lock_extension.patch",
+        "//patches/rules_go:root_sdk_toolchains.patch",
     ],
     version = "0.65.0",
 )
@@ -394,6 +395,9 @@ go_sdk.download(
     },
     version = "1.27.4",
 )
+
+go_sdk_dev = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
+use_repo(go_sdk_dev, "go_toolchains")
 
 # floor: equals tested
 bazel_dep(name = "platforms", version = "1.1.0")

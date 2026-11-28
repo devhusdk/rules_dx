@@ -1,0 +1,18 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+rust_test(
+    name = "root_sdk_toolchains_test",
+    size = "small",
+    srcs = ["root_sdk_toolchains_test.rs"],
+    data = ["@go_toolchains//:BUILD.bazel"],
+    env = {"DX_GO_TOOLCHAINS_BUILD": "$(rootpath @go_toolchains//:BUILD.bazel)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

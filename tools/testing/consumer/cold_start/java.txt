@@ -67,7 +67,6 @@ rules_dx++dx_pins+dx_fortran_toolchains
 rules_dx++dx_pins+dx_pins_data
 rules_dx++dx_pins+dx_powershell_toolchains
 rules_dx++dx_pins+dx_windows_support
-rules_dx++dx_pins+rules_dotnet
 rules_dx++dx_pins+rules_julia
 rules_dx++dx_pins+rules_powershell
 rules_dx++dx_pins+rules_ruby

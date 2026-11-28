@@ -11,6 +11,16 @@ real_source_target(
     visibility = ["//tools/ci:__pkg__"],
 )
 
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain_type(
+    name = "bootstrap_toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 exports_files([
     "defs.bzl",
     "extensions.bzl",

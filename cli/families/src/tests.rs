@@ -198,6 +198,13 @@ fn setup_flags_follow_the_named_languages() {
 }
 
 #[test]
+fn cc_toolchains_follow_the_named_languages() {
+    assert!(needs_cc_toolchains(["python", "cc"]));
+    assert!(needs_cc_toolchains(["rust"]));
+    assert!(!needs_cc_toolchains(["go", "java", "python", "core"]));
+}
+
+#[test]
 fn quality_marks_list_each_quality_language_with_its_files() {
     let marks = quality_marks();
     assert_eq!(marks.len(), quality_languages_by_name());

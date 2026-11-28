@@ -15,6 +15,7 @@
     "dub.selections.json"
   ],
   "setup": {
+    "cc_toolchains": true,
     "hubs": [
       {
         "ecosystem": "dub",

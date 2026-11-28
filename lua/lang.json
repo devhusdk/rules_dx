@@ -13,6 +13,7 @@
   ],
   "lockfiles": [],
   "setup": {
+    "cc_toolchains": true,
     "hubs": [
       {
         "ecosystem": "luarocks",

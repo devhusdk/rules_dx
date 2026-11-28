@@ -18,6 +18,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "cc_toolchains": {"type": "boolean"},
         "licenses": {
           "type": "array",
           "items": {

@@ -413,6 +413,25 @@ pub fn render_layer_with(layer: Layer, repo: &str, warnings_as_errors: Option<bo
     out
 }
 
+const CC_OFF_FLAGS: [&str; 5] = [
+    "common:linux --@rules_dx//config:cc_toolchains=false",
+    "common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+    "common:macos --@rules_dx//config:cc_toolchains=false",
+    "common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1",
+    "common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1",
+];
+
+/// The correctness lines of a workspace whose families need no C or C++ toolchain.
+#[must_use]
+pub fn render_cc_off(repo: &str) -> String {
+    let mut out = String::from("\n# No family needs a C or C++ toolchain.\n");
+    for flag in CC_OFF_FLAGS {
+        out.push_str(&flag.replace("@rules_dx//", &format!("@{repo}//")));
+        out.push('\n');
+    }
+    out
+}
+
 #[must_use]
 pub fn layer_warnings_as_errors(text: &str) -> Option<bool> {
     normalized(text).lines().find_map(|line| {

@@ -15,6 +15,7 @@
     "composer.lock"
   ],
   "setup": {
+    "cc_toolchains": true,
     "hubs": [
       {
         "ecosystem": "composer",

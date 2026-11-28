@@ -34,6 +34,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
         "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
@@ -83,6 +84,7 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/families:dx_families",
         "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",
         "//cli/process:dx_process",

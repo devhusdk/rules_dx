@@ -19,6 +19,8 @@ _FIRST = [
     "llvm_fuzzer_macos_x86_64",
 ]
 
+_CC = str(Label("//config:cc_toolchains_on"))
+
 _STAGE0 = str(Label("@llvm//toolchain:bootstrap_stage0_prebuilt_seed"))
 
 _LATER_STAGES = [str(Label("@llvm//toolchain:bootstrap_" + stage)) for stage in ["stage1_from_source", "stage2_lto_and_fdo_instrumented", "stage3_lto_and_fdo_applied"]]
@@ -46,7 +48,7 @@ def cc_hub_tests(name, size):
             expect_equal("hub names end with the toolchain name", [n.partition("_")[2] for n in hub_names], names),
             expect_equal("gcc, msvc and the fuzzer come first, each guard last", names[:len(_FIRST)], _FIRST),
             expect_true("xcode before clang-cl before llvm", _first(rest, "xcode_") < _first(rest, "clang_cl_") and _first(rest, "clang_cl_") < _first(rest, "llvm_")),
-            expect_equal("every toolchain is gated", [n for n, e in zip(names, entries) if not e.target_settings], []),
+            expect_equal("every toolchain is gated on cc_toolchains_on", [e.name for e in entries if _CC not in e.target_settings], []),
             expect_equal("registered llvm toolchains select stage0 only", _stages(entries), [_STAGE0]),
         ],
     )
@@ -58,5 +60,6 @@ def cc_hub_tests(name, size):
             expect_equal("the bootstrap package holds stage1 to stage3", _stages(bootstrap), sorted(_LATER_STAGES)),
             expect_equal("bootstrap names are unique", len({e.name: True for e in bootstrap}), len(bootstrap)),
             expect_equal("every bootstrap toolchain is gated on toolchains_on", [e.name for e in bootstrap if str(Label("//config:toolchains_on")) not in e.target_settings], []),
+            expect_equal("every bootstrap toolchain is gated on cc_toolchains_on", [e.name for e in bootstrap if _CC not in e.target_settings], []),
         ],
     )

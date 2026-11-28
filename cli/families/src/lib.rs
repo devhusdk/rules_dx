@@ -145,6 +145,7 @@ pub struct FamilyMarks {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 struct Setup {
+    cc_toolchains: bool,
     hubs: Vec<Hub>,
     licenses: Vec<License>,
     flags: Vec<String>,
@@ -408,6 +409,16 @@ pub fn setup_flags<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<(String,
         .collect();
     found.sort();
     found
+}
+
+/// Whether a language in `names` sets `setup.cc_toolchains` in its `lang.json`.
+#[must_use]
+pub fn needs_cc_toolchains<'a>(names: impl IntoIterator<Item = &'a str>) -> bool {
+    let names: BTreeSet<&str> = names.into_iter().collect();
+    shipped().into_iter().any(|manifest| {
+        names.contains(manifest.name.as_str())
+            && manifest.setup.is_some_and(|setup| setup.cc_toolchains)
+    })
 }
 
 /// The `setup.hubs[].resolver` labels of `language`'s `lang.json`, sorted.

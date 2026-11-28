@@ -2211,7 +2211,8 @@ impl Case {
     /// `DX_CONSUMER_JSON` snapshot: the first at the workspace root, each later one under `<lang>/`.
     ///
     /// The module gets the first fixture's extension lines, the root's patch overrides and
-    /// `extra_module`; every other fixture file is written as is.
+    /// `extra_module`; every other fixture file is written as is. When no language in `langs`
+    /// needs a C or C++ toolchain, the correctness layer turns them off the way `dx generate` does.
     ///
     /// # Errors
     ///
@@ -2248,6 +2249,12 @@ impl Case {
             if rel != "consumer.MODULE.bazel" {
                 case.write(rel, text);
             }
+        }
+        if !dx_families::needs_cc_toolchains(langs.iter().copied()) {
+            let layer = format!(".dx/bazelrc/{}", dx_preset::Layer::Correctness.file_name());
+            let text = dx_testing::read_text(&case.root().join(&layer));
+            let off = dx_preset::render_cc_off(dx_preset::DEFAULT_REPO);
+            case.write(&layer, &format!("{text}{off}"));
         }
         Ok(case)
     }

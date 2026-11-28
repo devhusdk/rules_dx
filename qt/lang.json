@@ -6,6 +6,9 @@
   "ecosystems": [],
   "manifests": [],
   "lockfiles": [],
+  "setup": {
+    "cc_toolchains": true
+  },
   "tools": [
     "qmlformat",
     "qmllint"

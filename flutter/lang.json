@@ -12,6 +12,9 @@
   "lockfiles": [
     "pubspec.lock"
   ],
+  "setup": {
+    "cc_toolchains": true
+  },
   "tools": [],
   "platforms": [
     "linux_arm64",

@@ -19,7 +19,10 @@ test("getOrder decodes the fixture response", async () => {
 			headers: { "content-type": "application/json" },
 		});
 	}) as typeof fetch;
-	const api = createClient<Ops>(OPERATIONS, { serverUrl: "http://shop.test", fetch: fixture });
+	const api = createClient<Ops>(OPERATIONS, {
+		serverUrl: "http://shop.test",
+		fetch: fixture,
+	});
 	const order = await api.getOrder({ path: { orderId: "7" } });
 	equal(requested.length, 1);
 	equal(requested[0], "http://shop.test/orders/7");

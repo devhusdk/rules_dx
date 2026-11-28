@@ -188,6 +188,8 @@ python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json.
 
 ### `python_grpc_library`
 
+Load it from `@rules_dx//python:grpc.bzl`.
+
 ```python
 python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", grpc = "@pypi//grpcio", dep_group = None, **kwargs)
 ```

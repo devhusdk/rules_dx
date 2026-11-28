@@ -639,7 +639,7 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//python:defs.bzl` | `python_bench` |
 |  |  | `@rules_dx//python:defs.bzl` | `python_doc_shard` |
 |  |  | `@rules_dx//python:defs.bzl` | `python_fuzz_test` |
-|  |  | `@rules_dx//python:defs.bzl` | `python_grpc_library` |
+|  |  | `@rules_dx//python:grpc.bzl` | `python_grpc_library` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_bundle` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_binary` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_library` |

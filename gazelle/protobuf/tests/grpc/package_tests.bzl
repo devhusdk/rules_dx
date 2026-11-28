@@ -1,7 +1,7 @@
 """Analysis tests for protos outside the package of the generating rule."""
 
 load("//core:failure_test.bzl", "failure_test")
-load("//python:defs.bzl", "python_grpc_library")
+load("//python:grpc.bzl", "python_grpc_library")
 load("//typescript/private:proto.bzl", "ts_proto_srcs")
 
 def proto_package_tests(name):

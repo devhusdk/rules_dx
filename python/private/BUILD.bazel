@@ -18,6 +18,7 @@ python_library(
 
 exports_files([
     "defs.bzl",
+    "grpc.bzl",
     "interpreters.bzl",
     "py_cc_toolchain.bzl",
 ])
@@ -27,6 +28,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "grpc.bzl",
         "interpreters.bzl",
         "py_cc_toolchain.bzl",
     ],

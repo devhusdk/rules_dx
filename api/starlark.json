@@ -16281,47 +16281,6 @@
         ]
       },
       {
-        "forwards": [],
-        "name": "python_grpc_library",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "py_proto"
-          },
-          {
-            "default": "\"@pypi//grpcio_tools\"",
-            "mandatory": false,
-            "name": "grpc_tools"
-          },
-          {
-            "default": "\"@pypi//grpcio\"",
-            "mandatory": false,
-            "name": "grpc"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "dep_group"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
         "forwards": [
           {
             "attrs": [
@@ -16617,6 +16576,58 @@
     ],
     "functions": [],
     "load": "@rules_dx//python:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "python_grpc_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "py_proto"
+          },
+          {
+            "default": "\"@pypi//grpcio_tools\"",
+            "mandatory": false,
+            "name": "grpc_tools"
+          },
+          {
+            "default": "\"@pypi//grpcio\"",
+            "mandatory": false,
+            "name": "grpc"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "dep_group"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//python:grpc.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],

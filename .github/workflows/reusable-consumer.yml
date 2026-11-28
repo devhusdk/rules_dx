@@ -657,6 +657,7 @@ jobs:
       - name: Audit against the shared snapshots
         env:
           DX_AUDIT_TODAY: ${{ needs.advisory-snapshots.outputs.retrieved_at }}
+          DX_TRIVY_CACHE: ${{ needs.advisory-snapshots.outputs.trivy == 'true' && format('{0}/.dx/local/advisory/trivy', github.workspace) || '' }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS

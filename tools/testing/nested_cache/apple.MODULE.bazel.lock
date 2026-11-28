@@ -249,10 +249,10 @@
     "https://bcr.bazel.build/modules/rules_cc/0.2.28/source.json": "a14b45d5c79a91705f1c758d89dde606c194b61eee7ebb3e8010c2d84454c90d",
     "https://bcr.bazel.build/modules/rules_cc/0.2.4/MODULE.bazel": "1ff1223dfd24f3ecf8f028446d4a27608aa43c3f41e346d22838a4223980b8cc",
     "https://bcr.bazel.build/modules/rules_cc/0.2.9/MODULE.bazel": "34263f1dca62ea664265438cef714d7db124c03e1ed55ebb4f1dc860164308d1",
-    "https://bcr.bazel.build/modules/rules_dart/0.9.1/MODULE.bazel": "f217634c3a587cfc055e311314aad71a4f0759abab2cab6078417c6063f6ba9e",
-    "https://bcr.bazel.build/modules/rules_dart/0.9.1/source.json": "77adf8baa965216c56313ade09d13ef64ac30eb1a7b3d7bab390e2f3e3fa55b9",
-    "https://bcr.bazel.build/modules/rules_flutter/0.1.0/MODULE.bazel": "0d8d41f3137adef4250cc8de75df2a531f39f44b925fc3225d1c4c81351d49e3",
-    "https://bcr.bazel.build/modules/rules_flutter/0.1.0/source.json": "0a6d7db061fe48cfcd6e565d653344fad0ef5c680263c1711f164e1b39b0b6d1",
+    "https://bcr.bazel.build/modules/rules_dart/0.10.0/MODULE.bazel": "edee7ddb270f7460ddd52628c209bfd2f3ee7fbc0b8c897b2f03c7260c4515dd",
+    "https://bcr.bazel.build/modules/rules_dart/0.10.0/source.json": "37d21024f682828612ec85a7e1fa728e93e1d570db32503fb2df7470d3794ddb",
+    "https://bcr.bazel.build/modules/rules_flutter/0.2.0/MODULE.bazel": "877846a0926f7eb7eecc2d0032cb8129bd795339c1c26236d1832bfd811741a3",
+    "https://bcr.bazel.build/modules/rules_flutter/0.2.0/source.json": "a92eba25fa5be74cef5812f57388b343c06f4aa1b69a257e5518f9436768bb2d",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
     "https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel": "40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8",
     "https://bcr.bazel.build/modules/rules_go/0.33.0/MODULE.bazel": "a2b11b64cd24bf94f57454f53288a5dacfe6cb86453eee7761b7637728c1910c",
@@ -405,759 +405,829 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "@@rules_dx+//dotnet:extensions.bzl%dotnet": {
-      "general": {
-        "bzlTransitiveDigest": "/7j2iZRdafBScYjeZEq4j4mCc4aNHKHuEcnTZctUGI4=",
-        "usagesDigest": "wPU8ZDF/ZcXCudqK3hB0s+cnoMxl/dlgD21pnzLlt6k=",
-        "recordedInputs": [
-          "REPO_MAPPING:rules_dx+,rules_dotnet rules_dx++dx_pins+rules_dotnet"
-        ],
-        "generatedRepoSpecs": {
-          "dx_dotnet_x86_64-apple-darwin": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_aarch64-apple-darwin": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "aarch64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dx_dotnet_toolchains": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
-            "attributes": {
-              "user_repository_name": "dx_dotnet"
-            }
-          },
-          "dotnet_apphost_x86_64-apple-darwin": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_aarch64-apple-darwin": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "aarch64-apple-darwin",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-unknown-linux-gnu",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "x86_64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
-            "attributes": {
-              "platform": "arm64-pc-windows-msvc",
-              "dotnet_version": "10.0.403"
-            }
-          },
-          "dotnet_apphost_toolchains": {
-            "repoRuleId": "@@rules_dx++dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
-            "attributes": {
-              "user_repository_name": "dotnet_apphost"
-            }
-          }
-        }
-      }
-    },
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
-        "bzlTransitiveDigest": "SvJ1CnydZMWbOnZMD5BaQRvuRw1JnUQrVmr6hVAZNe0=",
-        "usagesDigest": "dOMBx3BihW4p6tCDQtbf9fbz4kYXmL8sr82BErLkVU8=",
+        "bzlTransitiveDigest": "3wZvJW1ETatMyUOhOPxGh0wXyIkha0O5Jr38AnGqrFI=",
+        "usagesDigest": "RTgd6e76mGTBgEKo4mtQsGj8k6SVIFDNq3gArg4Ld+w=",
         "recordedInputs": [
+          "REPO_MAPPING:rules_dart+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_darwin_arm64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_arm64",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_linux_amd64 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_linux_arm64 tar.bzl++toolchains+bsd_tar_toolchains_linux_arm64",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
           "REPO_MAPPING:rules_dart+,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
+          "REPO_MAPPING:rules_dart+,ext_pub_deps rules_dart++pub+ext_pub_deps",
           "REPO_MAPPING:rules_dart+,package_metadata package_metadata+",
-          "REPO_MAPPING:rules_dart+,pubspec_reader_linux-arm64 rules_dart++pubspec_reader+pubspec_reader_linux-arm64",
-          "REPO_MAPPING:rules_dart+,pubspec_reader_linux-x64 rules_dart++pubspec_reader+pubspec_reader_linux-x64",
-          "REPO_MAPPING:rules_dart+,pubspec_reader_macos-arm64 rules_dart++pubspec_reader+pubspec_reader_macos-arm64",
-          "REPO_MAPPING:rules_dart+,pubspec_reader_macos-x64 rules_dart++pubspec_reader+pubspec_reader_macos-x64",
-          "REPO_MAPPING:rules_dart+,pubspec_reader_windows-x64 rules_dart++pubspec_reader+pubspec_reader_windows-x64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-linux-arm64 rules_dart++dart+pubspec_reader-linux-arm64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-linux-x64 rules_dart++dart+pubspec_reader-linux-x64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-macos-arm64 rules_dart++dart+pubspec_reader-macos-arm64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-macos-x64 rules_dart++dart+pubspec_reader-macos-x64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-windows-arm64 rules_dart++dart+pubspec_reader-windows-arm64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader-windows-x64 rules_dart++dart+pubspec_reader-windows-x64",
           "REPO_MAPPING:rules_flutter+,rules_dart rules_dart+"
         ],
         "generatedRepoSpecs": {
           "flutter_version_pin": {
             "repoRuleId": "@@rules_flutter+//flutter/private:flutter_version_pin_repo.bzl%flutter_version_pin_repo",
             "attributes": {
-              "flutter_version": "3.47.9"
+              "flutter_version": "3.50.0"
             }
           },
           "flutter_darwin-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:repositories.bzl%flutter_engine_artifacts",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "darwin-arm64",
-              "flutter_version": "3.47.9"
+              "archives": "[{\"artifact\":\"dart-sdk-darwin-arm64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"d96bf733da6ede46f003524b593a2143c7e1cbb5052eab10ffbe789888e09a1c\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-darwin-arm64.zip\"},{\"artifact\":\"darwin-arm64/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"3673d22fa475423bb4da9b5d845ec44d9a683ae6ff876c1875f8b21360416f72\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-arm64/artifacts.zip\"},{\"artifact\":\"darwin-arm64-release/artifacts.zip\",\"output\":\"host-tools-release\",\"sha256\":\"deb78c36a9e114eb72a3cbabaaa0f71a88ec35cda91588f2852e50c69a7dbfd5\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-arm64-release/artifacts.zip\"},{\"artifact\":\"darwin-arm64/font-subset.zip\",\"output\":\"font-subset-tools\",\"sha256\":\"b7fa4e1f9e7235068770488b7af140d6ee5a86a83ae6427fbbb01d34840c5a36\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-arm64/font-subset.zip\"},{\"artifact\":\"material_fonts.zip\",\"output\":\"material-fonts\",\"sha256\":\"e56fa8e9bb4589fde964be3de451f3e5b251e4a1eafb1dc98d94add034dd5a86\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip\"}]",
+              "checks": "[{\"content\":\"3.14.0\",\"message\":\"Flutter 3.50.0 bundles Dart {actual}, and versions.bzl records 3.14.0. Set dart_version in its entry: programs built with this release report it as FlutterVersion.dartVersion.\",\"path\":\"dart-sdk/version\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter/private/repositories.bzl\nload(\"@rules_dart//dart:toolchain.bzl\", \"dart_sdk_files\")\n\n# The bundled Dart SDK, whole and by the use that reads each file (`run`,\n# `aot_run`, `dart2js`, ...), so that an action takes only its own files.\ndart_sdk_files(\n    name = \"dart_sdk\",\n    prefix = \"dart-sdk/\",\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(glob([\"**\"]), visibility = [\"//visibility:public\"])\n\nfilegroup(\n    name = \"shader_lib_files\",\n    srcs = glob([\"host-tools/shader_lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_darwin-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "darwin-arm64-profile/artifacts.zip": "host-tools"
+              "archives": "[{\"artifact\":\"darwin-arm64-profile/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"2507b23b8e6f14c0506145c0d769e7889657c6d784d4c71c051d054854a947e8\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-arm64-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"host-tools/gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "darwin-arm64-profile/artifacts.zip": "45d726afbb4b9266dab3d10a2540b87d999a12dbfb3867448026bbfdf6770b84"
-              },
-              "build_file_content": "exports_files([\"host-tools/gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_darwin-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:repositories.bzl%flutter_engine_artifacts",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "darwin-x64",
-              "flutter_version": "3.47.9"
+              "archives": "[{\"artifact\":\"dart-sdk-darwin-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"6e7f303d4bf0ff7cca820101ca7bf2e5e65025ebd886510f10166a440b64c23f\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-darwin-x64.zip\"},{\"artifact\":\"darwin-x64/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"1e134434aa89b7787b918171c93de8a18b5d973c33fffb16090a78ea706bb72c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64/artifacts.zip\"},{\"artifact\":\"darwin-x64-release/artifacts.zip\",\"output\":\"host-tools-release\",\"sha256\":\"2ede9cef5decb9020698c2d2e1aa3422250b22d27a7d695f7af05f1498507467\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-release/artifacts.zip\"},{\"artifact\":\"darwin-x64/font-subset.zip\",\"output\":\"font-subset-tools\",\"sha256\":\"00a126256488eff3a6e6e6e458ef918b9c5a59bc29fb601e7916380a9b9831da\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64/font-subset.zip\"},{\"artifact\":\"material_fonts.zip\",\"output\":\"material-fonts\",\"sha256\":\"e56fa8e9bb4589fde964be3de451f3e5b251e4a1eafb1dc98d94add034dd5a86\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip\"}]",
+              "checks": "[{\"content\":\"3.14.0\",\"message\":\"Flutter 3.50.0 bundles Dart {actual}, and versions.bzl records 3.14.0. Set dart_version in its entry: programs built with this release report it as FlutterVersion.dartVersion.\",\"path\":\"dart-sdk/version\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter/private/repositories.bzl\nload(\"@rules_dart//dart:toolchain.bzl\", \"dart_sdk_files\")\n\n# The bundled Dart SDK, whole and by the use that reads each file (`run`,\n# `aot_run`, `dart2js`, ...), so that an action takes only its own files.\ndart_sdk_files(\n    name = \"dart_sdk\",\n    prefix = \"dart-sdk/\",\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(glob([\"**\"]), visibility = [\"//visibility:public\"])\n\nfilegroup(\n    name = \"shader_lib_files\",\n    srcs = glob([\"host-tools/shader_lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_darwin-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "darwin-x64-profile/artifacts.zip": "host-tools"
+              "archives": "[{\"artifact\":\"darwin-x64-profile/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"b236f0ad3350c7f355b3765a54f932bb266a8125f229fa46452452295b2505e0\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"host-tools/gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "darwin-x64-profile/artifacts.zip": "c34f18ab9a8a886beb9bd0061ae13501725736b0bcc8083eb7a20faecebfde8e"
-              },
-              "build_file_content": "exports_files([\"host-tools/gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_linux-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:repositories.bzl%flutter_engine_artifacts",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "linux-x64",
-              "flutter_version": "3.47.9"
+              "archives": "[{\"artifact\":\"dart-sdk-linux-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"8644b988218ef1ba4f4219bc31fbdc433f784637227fe945101e2613dbb61dc5\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-linux-x64.zip\"},{\"artifact\":\"linux-x64/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"dedab17bd82a0ce4c7b7a9c94694b0f3ab3d04c02f99c60a37dd2f3982085527\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-x64/artifacts.zip\"},{\"artifact\":\"linux-x64/font-subset.zip\",\"output\":\"font-subset-tools\",\"sha256\":\"4d3c18aece7fe3a20f5953ac20854d1b4a720ac07ed57242f3fd87fac78afd6e\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-x64/font-subset.zip\"},{\"artifact\":\"material_fonts.zip\",\"output\":\"material-fonts\",\"sha256\":\"e56fa8e9bb4589fde964be3de451f3e5b251e4a1eafb1dc98d94add034dd5a86\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip\"}]",
+              "checks": "[{\"content\":\"3.14.0\",\"message\":\"Flutter 3.50.0 bundles Dart {actual}, and versions.bzl records 3.14.0. Set dart_version in its entry: programs built with this release report it as FlutterVersion.dartVersion.\",\"path\":\"dart-sdk/version\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter/private/repositories.bzl\nload(\"@rules_dart//dart:toolchain.bzl\", \"dart_sdk_files\")\n\n# The bundled Dart SDK, whole and by the use that reads each file (`run`,\n# `aot_run`, `dart2js`, ...), so that an action takes only its own files.\ndart_sdk_files(\n    name = \"dart_sdk\",\n    prefix = \"dart-sdk/\",\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(glob([\"**\"]), visibility = [\"//visibility:public\"])\n\nfilegroup(\n    name = \"shader_lib_files\",\n    srcs = glob([\"host-tools/shader_lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_linux-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:repositories.bzl%flutter_engine_artifacts",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "linux-arm64",
-              "flutter_version": "3.47.9"
+              "archives": "[{\"artifact\":\"dart-sdk-linux-arm64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"da1ff36c85e5292136fc484cbcda28be265097484744675d2bcc95b58e920fa6\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-linux-arm64.zip\"},{\"artifact\":\"linux-arm64/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"3c194696c62732855832816392a3f75060c1a0084db7f8c4d06b20d7aeea6bec\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-arm64/artifacts.zip\"},{\"artifact\":\"linux-arm64/font-subset.zip\",\"output\":\"font-subset-tools\",\"sha256\":\"fa58dbb8233c7910eb23c4a67bf771ef8e8fb780bfc9b1193a91a525fcb93193\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-arm64/font-subset.zip\"},{\"artifact\":\"material_fonts.zip\",\"output\":\"material-fonts\",\"sha256\":\"e56fa8e9bb4589fde964be3de451f3e5b251e4a1eafb1dc98d94add034dd5a86\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip\"}]",
+              "checks": "[{\"content\":\"3.14.0\",\"message\":\"Flutter 3.50.0 bundles Dart {actual}, and versions.bzl records 3.14.0. Set dart_version in its entry: programs built with this release report it as FlutterVersion.dartVersion.\",\"path\":\"dart-sdk/version\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter/private/repositories.bzl\nload(\"@rules_dart//dart:toolchain.bzl\", \"dart_sdk_files\")\n\n# The bundled Dart SDK, whole and by the use that reads each file (`run`,\n# `aot_run`, `dart2js`, ...), so that an action takes only its own files.\ndart_sdk_files(\n    name = \"dart_sdk\",\n    prefix = \"dart-sdk/\",\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(glob([\"**\"]), visibility = [\"//visibility:public\"])\n\nfilegroup(\n    name = \"shader_lib_files\",\n    srcs = glob([\"host-tools/shader_lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_windows-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:repositories.bzl%flutter_engine_artifacts",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "windows-x64",
-              "flutter_version": "3.47.9"
+              "archives": "[{\"artifact\":\"dart-sdk-windows-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"2e9d24952e7bda6b9532429f811211d2ac86dd274a212829f1e0916d40ad2f53\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-windows-x64.zip\"},{\"artifact\":\"windows-x64/artifacts.zip\",\"output\":\"host-tools\",\"sha256\":\"7829de07578fefbd494bcfe3d5289bad7afeb41355e011d561781fd21ed08890\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64/artifacts.zip\"},{\"artifact\":\"windows-x64/font-subset.zip\",\"output\":\"font-subset-tools\",\"sha256\":\"d62639aa7e28ae788ab78fede93d73f908f585aa339e0619b6b0ae77f2ffe90b\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64/font-subset.zip\"},{\"artifact\":\"material_fonts.zip\",\"output\":\"material-fonts\",\"sha256\":\"e56fa8e9bb4589fde964be3de451f3e5b251e4a1eafb1dc98d94add034dd5a86\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/fonts/3012db47f3130e62f7cc0beabff968a33cbec8d8/fonts.zip\"}]",
+              "checks": "[{\"content\":\"3.14.0\",\"message\":\"Flutter 3.50.0 bundles Dart {actual}, and versions.bzl records 3.14.0. Set dart_version in its entry: programs built with this release report it as FlutterVersion.dartVersion.\",\"path\":\"dart-sdk/version\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter/private/repositories.bzl\nload(\"@rules_dart//dart:toolchain.bzl\", \"dart_sdk_files\")\n\n# The bundled Dart SDK, whole and by the use that reads each file (`run`,\n# `aot_run`, `dart2js`, ...), so that an action takes only its own files.\ndart_sdk_files(\n    name = \"dart_sdk\",\n    prefix = \"dart-sdk/\",\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(glob([\"**\"]), visibility = [\"//visibility:public\"])\n\nfilegroup(\n    name = \"shader_lib_files\",\n    srcs = glob([\"host-tools/shader_lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-arm": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-arm64",
-              "target_platform": "android-arm",
-              "gen_snapshot_sha256": "6a382f0dd3da769690ef727c77cd8d97450fd4ae621027270472fbd850fa0a52"
+              "archives": "[{\"artifact\":\"android-arm-release/darwin-x64.zip\",\"sha256\":\"5d08253795e370e757920c8a87c47ec701be6f048bdc4ee8843d75830ff58f26\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-arm_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm-profile/darwin-x64.zip\",\"sha256\":\"9a0e9cbc5f67c7807043da41d479000e30046d22c2872fa24a2571cc503321af\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm-profile/darwin-x64.zip": "846e7ab40117ac43da752a9debbec230911031398c6bb9a6f98d184db9feb14b"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-arm64",
-              "target_platform": "android-arm64",
-              "gen_snapshot_sha256": "b3bb81e2e47ab5edea1777ece48c30423dd41451f02c88857af6f058190e9277"
+              "archives": "[{\"artifact\":\"android-arm64-release/darwin-x64.zip\",\"sha256\":\"ceac280a4db0f0adee577332e6bcbd2670a39d3bcfa73c2944b93f0d6f737790\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm64-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm64-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm64-profile/darwin-x64.zip\",\"sha256\":\"450c3fc2364f890c8cd93a1485b7dcd562f19b5cd032861516389a9b40c8c317\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm64-profile/darwin-x64.zip": "44477c5ca1b0c117cecff65f7419dd4b709576cb10eb6b32e3daaad310bd68bc"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-arm64",
-              "target_platform": "android-x64",
-              "gen_snapshot_sha256": "f2e4fb0be2ed0be6e0583c33d7707c8b62845e275fcff3ccf0f34fa821c68569"
+              "archives": "[{\"artifact\":\"android-x64-release/darwin-x64.zip\",\"sha256\":\"9b5b28f01e5d5e5eece3da9324698f0d322deccf9c93999e18d87dca6a66a61c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-x64-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-arm64_android-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-x64-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-x64-profile/darwin-x64.zip\",\"sha256\":\"9a7b60d3792bd471dddb1a70aa5ec72487de159b243b44becab9bdad697d694f\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-x64-profile/darwin-x64.zip": "be2ed236485279dd1d9f8c537bd71daf4ecd8998eacfa5e4f3bd2c92f715bbbb"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-arm": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-x64",
-              "target_platform": "android-arm",
-              "gen_snapshot_sha256": "6a382f0dd3da769690ef727c77cd8d97450fd4ae621027270472fbd850fa0a52"
+              "archives": "[{\"artifact\":\"android-arm-release/darwin-x64.zip\",\"sha256\":\"5d08253795e370e757920c8a87c47ec701be6f048bdc4ee8843d75830ff58f26\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-arm_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm-profile/darwin-x64.zip\",\"sha256\":\"9a0e9cbc5f67c7807043da41d479000e30046d22c2872fa24a2571cc503321af\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm-profile/darwin-x64.zip": "846e7ab40117ac43da752a9debbec230911031398c6bb9a6f98d184db9feb14b"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-x64",
-              "target_platform": "android-arm64",
-              "gen_snapshot_sha256": "b3bb81e2e47ab5edea1777ece48c30423dd41451f02c88857af6f058190e9277"
+              "archives": "[{\"artifact\":\"android-arm64-release/darwin-x64.zip\",\"sha256\":\"ceac280a4db0f0adee577332e6bcbd2670a39d3bcfa73c2944b93f0d6f737790\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm64-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm64-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm64-profile/darwin-x64.zip\",\"sha256\":\"450c3fc2364f890c8cd93a1485b7dcd562f19b5cd032861516389a9b40c8c317\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm64-profile/darwin-x64.zip": "44477c5ca1b0c117cecff65f7419dd4b709576cb10eb6b32e3daaad310bd68bc"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "darwin-x64",
-              "target_platform": "android-x64",
-              "gen_snapshot_sha256": "f2e4fb0be2ed0be6e0583c33d7707c8b62845e275fcff3ccf0f34fa821c68569"
+              "archives": "[{\"artifact\":\"android-x64-release/darwin-x64.zip\",\"sha256\":\"9b5b28f01e5d5e5eece3da9324698f0d322deccf9c93999e18d87dca6a66a61c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-release/darwin-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-x64-release/darwin-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_darwin-x64_android-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-x64-profile/darwin-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-x64-profile/darwin-x64.zip\",\"sha256\":\"9a7b60d3792bd471dddb1a70aa5ec72487de159b243b44becab9bdad697d694f\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-profile/darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-x64-profile/darwin-x64.zip": "be2ed236485279dd1d9f8c537bd71daf4ecd8998eacfa5e4f3bd2c92f715bbbb"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-arm": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "linux-x64",
-              "target_platform": "android-arm",
-              "gen_snapshot_sha256": "342db78157fbcfb5be59115160f9b4db47b7415d9bbb60ce7dc540000ae89401"
+              "archives": "[{\"artifact\":\"android-arm-release/linux-x64.zip\",\"sha256\":\"e71f02d85b2bed3a683de39975bff6be5c6f0514f95ad3cbf2775b0e1016bba5\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-release/linux-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm-release/linux-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-arm_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm-profile/linux-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm-profile/linux-x64.zip\",\"sha256\":\"82ed21f31d3767daaac2b3687e4aa0f27f7b4fa42a646e99b8fa157fbcca61e2\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-profile/linux-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm-profile/linux-x64.zip": "420dea8a11f8fc7849ffa73b06520ea2df8febcf5949f8d4989ca576bb3d5025"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "linux-x64",
-              "target_platform": "android-arm64",
-              "gen_snapshot_sha256": "7cb30a52c62c01f5c302610c73cbeeb550e654c3e67b588a8483e8aa86c742a5"
+              "archives": "[{\"artifact\":\"android-arm64-release/linux-x64.zip\",\"sha256\":\"6efd83aef3479093cbb76ad8973fe8c7d87070089588a1b506491682b4152828\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-release/linux-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm64-release/linux-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm64-profile/linux-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm64-profile/linux-x64.zip\",\"sha256\":\"7135bd2bbb4942a97c1e741cdbe2103484863d16dd865f94e6b0850698a5b9d5\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-profile/linux-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm64-profile/linux-x64.zip": "315844d739d22c4a302edd23becd3ef626c87a3691b55a70df5e1750bea928ae"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "linux-x64",
-              "target_platform": "android-x64",
-              "gen_snapshot_sha256": "f6fc00cdff70b1c199a7a79e8ade75b3cddc95c42ee34e6587892d58355aaaf3"
+              "archives": "[{\"artifact\":\"android-x64-release/linux-x64.zip\",\"sha256\":\"b1fa47655b393c6e42a4cfabe632308e709eab107b287467d969315b1f5c21ba\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-release/linux-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-x64-release/linux-x64.zip has no gen_snapshot\",\"path\":\"gen_snapshot\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_linux-x64_android-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-x64-profile/linux-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-x64-profile/linux-x64.zip\",\"sha256\":\"27b2095b8973caed530994acb4ee87e4a57bc52d283d44f2adb16de32bd4db61\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-profile/linux-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-x64-profile/linux-x64.zip": "5b8ff650bde77a6f3932b7e419a5d2c0af495e621aa9282075d4c0e3a643467b"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-arm": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "windows-x64",
-              "target_platform": "android-arm",
-              "gen_snapshot_sha256": "c24b3da94428838c98257f50376f8fa2c5890bcc4790bf2543c27197e387ec20"
+              "archives": "[{\"artifact\":\"android-arm-release/windows-x64.zip\",\"sha256\":\"13218f205ae2d4a73f4cab82fcb9330fbfd15cb1feb9a1258a9de583daee883a\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-release/windows-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm-release/windows-x64.zip has no gen_snapshot.exe\",\"path\":\"gen_snapshot.exe\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-arm_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm-profile/windows-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm-profile/windows-x64.zip\",\"sha256\":\"e371424e3899a144298d420ad31c476428bd6e53d4b4ab7bdeee52d23f9b6c5c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-profile/windows-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm-profile/windows-x64.zip": "efe143f412d19a2b28e07fd092ccc11ab26ebfa0f82be7a25cc33e474acf8693"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "windows-x64",
-              "target_platform": "android-arm64",
-              "gen_snapshot_sha256": "aa11a34a205b83765738909588f3b74db01a7bee2d7bdeed855281ac7f45c091"
+              "archives": "[{\"artifact\":\"android-arm64-release/windows-x64.zip\",\"sha256\":\"893ac32df8c44fa1774269f0fc0c2234f6e83529b68db2df139fdda9c1295576\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-release/windows-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-arm64-release/windows-x64.zip has no gen_snapshot.exe\",\"path\":\"gen_snapshot.exe\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm64-profile/windows-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-arm64-profile/windows-x64.zip\",\"sha256\":\"bffe700f120df5b947da2459df5f8520ea265835a105066bc768efdf00c372cf\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-profile/windows-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm64-profile/windows-x64.zip": "5320e4c563aaacc1f4e822c9d96109bd0d6a8f528ca247854ff4685b33836556"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_cross_repo.bzl%flutter_cross_compilation_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "host_platform": "windows-x64",
-              "target_platform": "android-x64",
-              "gen_snapshot_sha256": "7f7296ed455ac8b0ccc67955c1956ad16c2d5ccc9298f8733db02e9f906a2c9f"
+              "archives": "[{\"artifact\":\"android-x64-release/windows-x64.zip\",\"sha256\":\"b9e89b74137a140796e219b31dc08c47db82a8799c163ca93fb0c9583cc939dd\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-release/windows-x64.zip\"}]",
+              "checks": "[{\"message\":\"android-x64-release/windows-x64.zip has no gen_snapshot.exe\",\"path\":\"gen_snapshot.exe\"}]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_cross_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_cross_windows-x64_android-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-x64-profile/windows-x64.zip": ""
+              "archives": "[{\"artifact\":\"android-x64-profile/windows-x64.zip\",\"sha256\":\"e4df099b96388b85f059341592ed644b77da16721d5e3de78d7887771dec385d\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-profile/windows-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-x64-profile/windows-x64.zip": "8f13ac3570b8cac05d79a86bb22487a706d12fd3ac8a07ce293467ceece4638f"
-              },
-              "build_file_content": "exports_files([\"gen_snapshot.exe\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_linux_sysroot_x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_linux_sysroot_repo.bzl%flutter_linux_sysroot_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "target_arch": "x64",
-              "sha256": "36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50"
+              "archives": "[{\"artifact\":\"chrome-linux-sysroot.tar.xz (x64)\",\"sha256\":\"36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50\",\"type\":\"tar.xz\",\"url\":\"https://commondatastorage.googleapis.com/chrome-linux-sysroot/36a164623d03f525e3dfb783a5e9b8a00e98e1ddd2b5cff4e449bd016dd27e50\"}]",
+              "checks": "[]",
+              "deletions": {
+                "usr/include/linux/netfilter": "The x64 sysroot has no usr/include/linux/netfilter to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/include/linux/netfilter_ipv4": "The x64 sysroot has no usr/include/linux/netfilter_ipv4 to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/include/linux/netfilter_ipv6": "The x64 sysroot has no usr/include/linux/netfilter_ipv6 to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/lib/x86_64-linux-gnu/perl": "The x64 sysroot has no usr/lib/x86_64-linux-gnu/perl to leave out: the list of its paths that differ only in case is out of date."
+              },
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_linux_sysroot_repo.bzl\nfilegroup(\n    name = \"sysroot_files\",\n    srcs = glob([\n        \"usr/include/gtk-3.0/**\",\n        \"usr/include/glib-2.0/**\",\n        \"usr/include/gio-unix-2.0/**\",\n        \"usr/include/cairo/**\",\n        \"usr/include/pango-1.0/**\",\n        \"usr/include/atk-1.0/**\",\n        \"usr/include/gdk-pixbuf-2.0/**\",\n        \"usr/include/harfbuzz/**\",\n        \"usr/include/freetype2/**\",\n        \"usr/include/fribidi/**\",\n        \"usr/include/at-spi2-atk/2.0/**\",\n        \"usr/include/at-spi-2.0/**\",\n        \"usr/include/dbus-1.0/**\",\n        \"usr/include/pixman-1/**\",\n        \"usr/include/uuid/**\",\n        \"usr/include/libpng16/**\",\n        \"usr/include/libmount/**\",\n        \"usr/include/blkid/**\",\n        \"usr/include/X11/**\",\n        \"usr/lib/x86_64-linux-gnu/glib-2.0/**\",\n        \"usr/lib/x86_64-linux-gnu/dbus-1.0/**\",\n        \"usr/lib/x86_64-linux-gnu/*.so\",\n        \"usr/lib/x86_64-linux-gnu/*.so.*\",\n    ]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_linux_sysroot_arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_linux_sysroot_repo.bzl%flutter_linux_sysroot_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "target_arch": "arm64",
-              "sha256": "2f915d821eec27515c0c6d21b69898e23762908d8d7ccc1aa2a8f5f25e8b7e18"
+              "archives": "[{\"artifact\":\"chrome-linux-sysroot.tar.xz (arm64)\",\"sha256\":\"2f915d821eec27515c0c6d21b69898e23762908d8d7ccc1aa2a8f5f25e8b7e18\",\"type\":\"tar.xz\",\"url\":\"https://commondatastorage.googleapis.com/chrome-linux-sysroot/2f915d821eec27515c0c6d21b69898e23762908d8d7ccc1aa2a8f5f25e8b7e18\"}]",
+              "checks": "[]",
+              "deletions": {
+                "usr/include/linux/netfilter": "The arm64 sysroot has no usr/include/linux/netfilter to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/include/linux/netfilter_ipv4": "The arm64 sysroot has no usr/include/linux/netfilter_ipv4 to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/include/linux/netfilter_ipv6": "The arm64 sysroot has no usr/include/linux/netfilter_ipv6 to leave out: the list of its paths that differ only in case is out of date.",
+                "usr/lib/aarch64-linux-gnu/perl": "The arm64 sysroot has no usr/lib/aarch64-linux-gnu/perl to leave out: the list of its paths that differ only in case is out of date."
+              },
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_linux_sysroot_repo.bzl\nfilegroup(\n    name = \"sysroot_files\",\n    srcs = glob([\n        \"usr/include/gtk-3.0/**\",\n        \"usr/include/glib-2.0/**\",\n        \"usr/include/gio-unix-2.0/**\",\n        \"usr/include/cairo/**\",\n        \"usr/include/pango-1.0/**\",\n        \"usr/include/atk-1.0/**\",\n        \"usr/include/gdk-pixbuf-2.0/**\",\n        \"usr/include/harfbuzz/**\",\n        \"usr/include/freetype2/**\",\n        \"usr/include/fribidi/**\",\n        \"usr/include/at-spi2-atk/2.0/**\",\n        \"usr/include/at-spi-2.0/**\",\n        \"usr/include/dbus-1.0/**\",\n        \"usr/include/pixman-1/**\",\n        \"usr/include/uuid/**\",\n        \"usr/include/libpng16/**\",\n        \"usr/include/libmount/**\",\n        \"usr/include/blkid/**\",\n        \"usr/include/X11/**\",\n        \"usr/lib/aarch64-linux-gnu/glib-2.0/**\",\n        \"usr/lib/aarch64-linux-gnu/dbus-1.0/**\",\n        \"usr/lib/aarch64-linux-gnu/*.so\",\n        \"usr/lib/aarch64-linux-gnu/*.so.*\",\n    ]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_desktop_engine_darwin-x64_release": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "macos",
-              "target_arch": "x64",
-              "mode": "release",
-              "sha256": "ced9711ac3b082462e16667f9bff24b3cf008c0370578a4f078eb30792e37df2",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_darwin-x64_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "macos",
-              "target_arch": "x64",
-              "mode": "debug",
-              "sha256": "990a0104e645b69f841e9e6079ee9033c6efbe2bcb7f9090f770dd7d006d56cb",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_darwin-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "macos",
-              "target_arch": "x64",
-              "mode": "profile",
-              "sha256": "8d153f1c0fb8806bca666cb0e667ea7cb41a6b5bdecf5e539681b10ee67a3152",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-x64_release": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "x64",
-              "mode": "release",
-              "sha256": "30ab0801fddfa1c208f5c3ddb5cce6256ad751c1e25b428d4de09e80869f34d9",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-x64_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "x64",
-              "mode": "debug",
-              "sha256": "9e333f37446a702d7415ae98ff23278e21ccc01714862f4294bf91a70aed8af0",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "x64",
-              "mode": "profile",
-              "sha256": "a670de51f5cfed70add9a3f1d2e42d8084730ec67a4ffc3beaeb630798d5eab4",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-arm64_release": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "arm64",
-              "mode": "release",
-              "sha256": "5abdcc992a46ed29f9d71450154d519693be68e29ebc354faeb1b98b6d236f8d",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-arm64_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "arm64",
-              "mode": "debug",
-              "sha256": "fa16659d9100ecedbbd0558275c5291937276b1f7e0b87847580cd1554dbe03a",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_linux-arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "linux",
-              "target_arch": "arm64",
-              "mode": "profile",
-              "sha256": "4479cb7acffe7e345113e13fc1010dfd1411f1006dee739c4ce42b66ed99ffd2",
-              "cpp_wrapper_sha256": ""
-            }
-          },
-          "flutter_desktop_engine_windows-x64_release": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "windows",
-              "target_arch": "x64",
-              "mode": "release",
-              "sha256": "37c20db268f4c99808e9a95b03d0f10246f6cb81b7aa6497e978ac443175210a",
-              "cpp_wrapper_sha256": "aba9c16ffe1484262ff995fc0f58c4da24fabb15553ed23b18c92b3d2276195c"
-            }
-          },
-          "flutter_desktop_engine_windows-x64_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "windows",
-              "target_arch": "x64",
-              "mode": "debug",
-              "sha256": "d050a048d62e3753a05f9bfc044e1939eca9cb2e8b899723de3ddb37ba0df726",
-              "cpp_wrapper_sha256": "aba9c16ffe1484262ff995fc0f58c4da24fabb15553ed23b18c92b3d2276195c"
-            }
-          },
-          "flutter_desktop_engine_windows-x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_desktop_engine_repo.bzl%flutter_desktop_engine_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "target_os": "windows",
-              "target_arch": "x64",
-              "mode": "profile",
-              "sha256": "1ab477a4561d3b1e871d20ee579012c76449a7cbfb1960b50b98faef31e05904",
-              "cpp_wrapper_sha256": "aba9c16ffe1484262ff995fc0f58c4da24fabb15553ed23b18c92b3d2276195c"
-            }
-          },
-          "flutter_macos_xcframework_release": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_macos_xcframework_repo.bzl%flutter_macos_xcframework_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "mode": "release",
-              "sha256": "644b6657f0d818073aec55b4981383ae5387494c59a41956e54e3d299ef44d31"
-            }
-          },
-          "flutter_macos_xcframework_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_macos_xcframework_repo.bzl%flutter_macos_xcframework_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "mode": "debug",
-              "sha256": "65dbdb5e3e0d24dd219aa24f8ea2404aa7443b9725ae17f24f8207ba86b946c8"
-            }
-          },
-          "flutter_macos_xcframework_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_macos_xcframework_repo.bzl%flutter_macos_xcframework_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "mode": "profile",
-              "sha256": "7dcb649121a123d99c2458d0b825bc1137a597ae5b98e5ef267da40dbc3ff1d4"
-            }
-          },
-          "flutter_stock_web_sdk": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_web_sdk_repo.bzl%flutter_web_sdk_repo",
-            "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "sha256": "64e60ae0200cfdc770c6b38d057540f9414efe634031461be985aa54f97ad45e",
-              "dart_sdk_sha256s": {
-                "darwin-arm64": "98838f49523d869039ffa6cc8b69b59684708cc5160bd500c9792dd5d93a10e0",
-                "darwin-x64": "c32b1d041a1d5764e4d3ca8ad1638cc092c013d8aef2cd476bc1dc85a13566e2",
-                "linux-x64": "06b286505abafc9c484765511648c98565ddc245dfbb63fbb6629f71dc9ddcfa",
-                "linux-arm64": "0e92a65ec5f99c5fd88f9477dedc321972d027731b3fb58264f951a571a1dd12",
-                "windows-x64": "0e372d083382b246e950953e8081c8a6ed60abd804704c95c55f2f2cbba339d6"
+              "archives": "[{\"artifact\":\"darwin-x64-release/FlutterMacOS.framework.zip\",\"output\":\"engine\",\"sha256\":\"a7d86f4effef48d37449e944dfa5b66ba4d0331eede82835fdeaf2ed324d751c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-release/FlutterMacOS.framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_release_library\",\n    srcs = glob([\"engine/FlutterMacOS.framework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {
+                "engine/FlutterMacOS.framework.zip": "engine/FlutterMacOS.framework"
               }
             }
           },
-          "flutter_sky_engine": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_sky_engine_repo.bzl%flutter_sky_engine_repo",
+          "flutter_desktop_engine_darwin-x64_debug": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "sha256": "781667bc5e7e89c7fb41256cefd503c33246084dbd2d095063cca1d779c3f0f6"
+              "archives": "[{\"artifact\":\"darwin-x64/FlutterMacOS.framework.zip\",\"output\":\"engine\",\"sha256\":\"149367cb49c3410dd1466a7e13a0a0910e77003305a02f185e6db73a0b5fff90\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64/FlutterMacOS.framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_debug_library\",\n    srcs = glob([\"engine/FlutterMacOS.framework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {
+                "engine/FlutterMacOS.framework.zip": "engine/FlutterMacOS.framework"
+              }
+            }
+          },
+          "flutter_desktop_engine_darwin-x64_profile": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"darwin-x64-profile/FlutterMacOS.framework.zip\",\"output\":\"engine\",\"sha256\":\"58f39012ae1fa648891de28ea4ad2a8771f836de95185248e49705ad7351d117\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-profile/FlutterMacOS.framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_profile_library\",\n    srcs = glob([\"engine/FlutterMacOS.framework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {
+                "engine/FlutterMacOS.framework.zip": "engine/FlutterMacOS.framework"
+              }
+            }
+          },
+          "flutter_desktop_engine_linux-x64_release": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-x64-release/linux-x64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"46ed1445d5eb47a7ad5414e44810f8a379711c6b97536c668a7172a784a7a317\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-x64-release/linux-x64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_release_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_linux-x64_debug": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-x64-debug/linux-x64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"2eb83474540af7dc341e37b2133cfd0985f34ddfdc52e557752e4bbbcd23ce65\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-x64-debug/linux-x64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_debug_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_linux-x64_profile": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-x64-profile/linux-x64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"7b705f7356846086254976d0a9831c84da501b5aaba78c4570396b40023a3189\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-x64-profile/linux-x64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_profile_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_linux-arm64_release": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-arm64-release/linux-arm64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"08dd4a54b88bcab23f41f7decd339a54f67d53e9bcc94994e097fe57754c763c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-arm64-release/linux-arm64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_release_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_linux-arm64_debug": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-arm64-debug/linux-arm64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"0e679ea85c55dac27aea35a2b9d6652eff96d2b9eeaba715bc436fbfc9dd0a68\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-arm64-debug/linux-arm64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_debug_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_linux-arm64_profile": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"linux-arm64-profile/linux-arm64-flutter-gtk.zip\",\"output\":\"engine\",\"sha256\":\"c0495bc9d872c5eb205900e20f1eba73fc655aef4d7cb71aec1c75b3c11dda5a\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/linux-arm64-profile/linux-arm64-flutter-gtk.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_profile_library\",\n    srcs = glob([\"engine/libflutter_linux_gtk.so\", \"engine/flutter_linux/*.h\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_windows-x64_release": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"windows-x64-release/windows-x64-flutter.zip\",\"output\":\"engine\",\"sha256\":\"cec573a4751c75777188c94adfb43745011da2833d8c6c2130b706ee5e4e3a2c\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64-release/windows-x64-flutter.zip\"},{\"artifact\":\"windows-x64/flutter-cpp-client-wrapper.zip\",\"output\":\"cpp-client-wrapper\",\"sha256\":\"4065a8f3866a73f3937f4e63ce0e65da82b59d932954ec162419eaddcf00814a\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64/flutter-cpp-client-wrapper.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_release_library\",\n    srcs = glob(\n        [\n            \"engine/flutter_windows.dll\",\n            \"engine/flutter_windows.dll.lib\",\n            \"engine/flutter_windows.h\",\n            \"engine/flutter_export.h\",\n            \"engine/flutter_messenger.h\",\n            \"engine/flutter_plugin_registrar.h\",\n            \"engine/flutter_texture_registrar.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/include/flutter/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.cc\",\n        ],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_windows-x64_debug": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"windows-x64-debug/windows-x64-flutter.zip\",\"output\":\"engine\",\"sha256\":\"0e73ce0731bebf85fec81f4714617e9e32695cc3d279331d0db76325dd3ca522\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64-debug/windows-x64-flutter.zip\"},{\"artifact\":\"windows-x64/flutter-cpp-client-wrapper.zip\",\"output\":\"cpp-client-wrapper\",\"sha256\":\"4065a8f3866a73f3937f4e63ce0e65da82b59d932954ec162419eaddcf00814a\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64/flutter-cpp-client-wrapper.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_debug_library\",\n    srcs = glob(\n        [\n            \"engine/flutter_windows.dll\",\n            \"engine/flutter_windows.dll.lib\",\n            \"engine/flutter_windows.h\",\n            \"engine/flutter_export.h\",\n            \"engine/flutter_messenger.h\",\n            \"engine/flutter_plugin_registrar.h\",\n            \"engine/flutter_texture_registrar.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/include/flutter/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.cc\",\n        ],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_desktop_engine_windows-x64_profile": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"windows-x64-profile/windows-x64-flutter.zip\",\"output\":\"engine\",\"sha256\":\"2768d06cfb7cee579a38ed0f928ad21ca49993d4ddcdb87d0013a4753b245654\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64-profile/windows-x64-flutter.zip\"},{\"artifact\":\"windows-x64/flutter-cpp-client-wrapper.zip\",\"output\":\"cpp-client-wrapper\",\"sha256\":\"4065a8f3866a73f3937f4e63ce0e65da82b59d932954ec162419eaddcf00814a\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/windows-x64/flutter-cpp-client-wrapper.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_desktop_engine_repo.bzl\n\nfilegroup(\n    name = \"engine_profile_library\",\n    srcs = glob(\n        [\n            \"engine/flutter_windows.dll\",\n            \"engine/flutter_windows.dll.lib\",\n            \"engine/flutter_windows.h\",\n            \"engine/flutter_export.h\",\n            \"engine/flutter_messenger.h\",\n            \"engine/flutter_plugin_registrar.h\",\n            \"engine/flutter_texture_registrar.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/include/flutter/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.h\",\n            \"cpp-client-wrapper/cpp_client_wrapper/*.cc\",\n        ],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob(\n        [\n            \"engine/FlutterMacOS.framework/Versions/A/FlutterMacOS\",\n            \"engine/libflutter_linux_gtk.so\",\n            \"engine/flutter_windows.dll\",\n            \"engine/gen_snapshot\",\n            \"engine/gen_snapshot.exe\",\n        ],\n        allow_empty = True,\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_macos_xcframework_release": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"darwin-x64-release/framework.zip\",\"sha256\":\"3b66370c1c6aca9cffcc92b92738b37f08bd6053d121e1caa7270a5b46d4e317\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-release/framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_macos_xcframework_repo.bzl\nfilegroup(\n    name = \"xcframework\",\n    srcs = glob([\"FlutterMacOS.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    [\"FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A/FlutterMacOS\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_macos_xcframework_debug": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"darwin-x64/framework.zip\",\"sha256\":\"fc8e382dc5474fb3991c52333aa6c4072d2ad8dfd1fe79d7aa373540253b0041\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64/framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_macos_xcframework_repo.bzl\nfilegroup(\n    name = \"xcframework\",\n    srcs = glob([\"FlutterMacOS.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    [\"FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A/FlutterMacOS\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_macos_xcframework_profile": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"darwin-x64-profile/framework.zip\",\"sha256\":\"e9c0cad704b53eea54b17c64211a00ed96c0c5e35c26fbebfc1a11707bff64b2\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/darwin-x64-profile/framework.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_macos_xcframework_repo.bzl\nfilegroup(\n    name = \"xcframework\",\n    srcs = glob([\"FlutterMacOS.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    [\"FlutterMacOS.xcframework/macos-arm64_x86_64/FlutterMacOS.framework/Versions/A/FlutterMacOS\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk_darwin_arm64": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"flutter-web-sdk.zip\",\"output\":\"web-sdk\",\"sha256\":\"e1efb6b03e3768a72860b1fa9ecc647b1911871a173e99fa7b456cd428087860\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/flutter-web-sdk.zip\"},{\"artifact\":\"dart-sdk-darwin-arm64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"d96bf733da6ede46f003524b593a2143c7e1cbb5052eab10ffbe789888e09a1c\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-darwin-arm64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_web_sdk_repo.bzl\n\nfilegroup(\n    name = \"web_sdk\",\n    srcs = glob([\"web-sdk/**\"]) + glob([\"dart-sdk/lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"web-sdk/**\"]) + glob([\"dart-sdk/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk_darwin_x64": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"flutter-web-sdk.zip\",\"output\":\"web-sdk\",\"sha256\":\"e1efb6b03e3768a72860b1fa9ecc647b1911871a173e99fa7b456cd428087860\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/flutter-web-sdk.zip\"},{\"artifact\":\"dart-sdk-darwin-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"6e7f303d4bf0ff7cca820101ca7bf2e5e65025ebd886510f10166a440b64c23f\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-darwin-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_web_sdk_repo.bzl\n\nfilegroup(\n    name = \"web_sdk\",\n    srcs = glob([\"web-sdk/**\"]) + glob([\"dart-sdk/lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"web-sdk/**\"]) + glob([\"dart-sdk/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk_linux_arm64": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"flutter-web-sdk.zip\",\"output\":\"web-sdk\",\"sha256\":\"e1efb6b03e3768a72860b1fa9ecc647b1911871a173e99fa7b456cd428087860\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/flutter-web-sdk.zip\"},{\"artifact\":\"dart-sdk-linux-arm64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"da1ff36c85e5292136fc484cbcda28be265097484744675d2bcc95b58e920fa6\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-linux-arm64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_web_sdk_repo.bzl\n\nfilegroup(\n    name = \"web_sdk\",\n    srcs = glob([\"web-sdk/**\"]) + glob([\"dart-sdk/lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"web-sdk/**\"]) + glob([\"dart-sdk/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk_linux_x64": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"flutter-web-sdk.zip\",\"output\":\"web-sdk\",\"sha256\":\"e1efb6b03e3768a72860b1fa9ecc647b1911871a173e99fa7b456cd428087860\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/flutter-web-sdk.zip\"},{\"artifact\":\"dart-sdk-linux-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"8644b988218ef1ba4f4219bc31fbdc433f784637227fe945101e2613dbb61dc5\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-linux-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_web_sdk_repo.bzl\n\nfilegroup(\n    name = \"web_sdk\",\n    srcs = glob([\"web-sdk/**\"]) + glob([\"dart-sdk/lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"web-sdk/**\"]) + glob([\"dart-sdk/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk_windows_x64": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"flutter-web-sdk.zip\",\"output\":\"web-sdk\",\"sha256\":\"e1efb6b03e3768a72860b1fa9ecc647b1911871a173e99fa7b456cd428087860\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/flutter-web-sdk.zip\"},{\"artifact\":\"dart-sdk-windows-x64.zip\",\"output\":\"dart-sdk\",\"sha256\":\"2e9d24952e7bda6b9532429f811211d2ac86dd274a212829f1e0916d40ad2f53\",\"strip_prefix\":\"dart-sdk\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/dart-sdk-windows-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_web_sdk_repo.bzl\n\nfilegroup(\n    name = \"web_sdk\",\n    srcs = glob([\"web-sdk/**\"]) + glob([\"dart-sdk/lib/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"web-sdk/**\"]) + glob([\"dart-sdk/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_stock_web_sdk": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_web_sdk_repo.bzl%_flutter_web_sdk_host_repo",
+            "attributes": {
+              "sdks": {
+                "darwin-arm64": "@@rules_flutter++flutter+flutter_stock_web_sdk_darwin_arm64//:BUILD.bazel",
+                "darwin-x64": "@@rules_flutter++flutter+flutter_stock_web_sdk_darwin_x64//:BUILD.bazel",
+                "linux-arm64": "@@rules_flutter++flutter+flutter_stock_web_sdk_linux_arm64//:BUILD.bazel",
+                "linux-x64": "@@rules_flutter++flutter+flutter_stock_web_sdk_linux_x64//:BUILD.bazel",
+                "windows-x64": "@@rules_flutter++flutter+flutter_stock_web_sdk_windows_x64//:BUILD.bazel"
+              }
+            }
+          },
+          "flutter_stock_sky_engine": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
+            "attributes": {
+              "archives": "[{\"artifact\":\"sky_engine.zip\",\"sha256\":\"02cc795dd6e8c7add0bf92c77210392f6e4c8788bc17cb5c7f8c652a56a8b461\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/sky_engine.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "sky_engine/BUILD.bazel": "# Generated by rules_flutter (flutter_sky_engine_repo.bzl)\nload(\"@rules_dart//dart:defs.bzl\", \"dart_library\", \"dart_package_metadata\")\n\n# The engine's licences, which `NOTICES` lists as this package's: flutter_tools\n# reads them from the `LICENSE` of `sky_engine`. The pubspec is what pub\n# resolves `sky_engine` against, under a framework source.\nexports_files([\"LICENSE\", \"pubspec.yaml\"], visibility = [\"//visibility:public\"])\n\n# `package_name` is not cosmetic and not derived: the analyzer resolves the\n# literal `package:sky_engine/_embedder.yaml`, so this exact name is what makes\n# the lookup hit.\ndart_package_metadata(\n    name = \"pubspec-metadata\",\n    package_name = \"sky_engine\",\n)\n\n# The remainder glob carries `_embedder.yaml` alongside\n# `_internal/allowed_experiments.json` and `fix_data/fix_dart_ui.yaml` — the\n# package's non-Dart members, listed by exclusion so a future artifact adding\n# one more does not quietly ship a package with a hole in it.\ndart_library(\n    name = \"sky_engine\",\n    srcs = glob([\"lib/**/*.dart\"]),\n    package = \":pubspec-metadata\",\n    resources = glob(\n        [\"lib/**\"],\n        exclude = [\"lib/**/*.dart\"],\n    ),\n    runtime_independent = True,\n    visibility = [\"//visibility:public\"],\n)\n",
+                "BUILD.bazel": "# Generated by flutter_sky_engine_repo.bzl\n\nalias(\n    name = \"sky_engine\",\n    actual = \"//sky_engine\",\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_stock_android_engine_arm": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_engine_repo.bzl%flutter_android_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "android_arch": "arm",
-              "release_sha256": "d94e84804ceae81891bddc61337089aaa67bd3a5cb641c8093422643fa0c6a2a",
-              "debug_sha256": "ba9433ecdd2d3ccd25795df39dddea976bd473ea5f16dd531eb5f9017f55dbc4"
+              "archives": "[{\"artifact\":\"android-arm-release/artifacts.zip\",\"sha256\":\"ae9c9f892213bd5ed398278f42cfe7bd77e862b8255f8a1a88866e882cc2cb33\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-release/artifacts.zip\"},{\"artifact\":\"android-arm/artifacts.zip\",\"output\":\"debug\",\"sha256\":\"5cce478ce2ddaf43d7da578f53fa72c1e1308fb5ff75f8798d1e6694da8e7f41\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_engine_repo.bzl\n#\n# flutter.jar is a fat jar containing:\n# - Java embedding classes (FlutterActivity, FlutterEngine, etc.)\n# - Native libflutter.so for the target ABI at lib/<abi>/libflutter.so\n#\n# Release (AOT) is `flutter.jar`; debug (JIT) is `debug/flutter.jar`.\n\nexports_files(\n    [\"flutter.jar\", \"debug/flutter.jar\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_engine_arm_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm-profile/artifacts.zip": ""
+              "archives": "[{\"artifact\":\"android-arm-profile/artifacts.zip\",\"sha256\":\"a8c3fc674df02401e06f21a2210e190c628091f3ed3ebf0da457a763254e0230\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm-profile/artifacts.zip": "a49414e66c116bb2fc3ac4c178938c2ee2d7728ad8f96df3443dabe0efec6b04"
-              },
-              "build_file_content": "exports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_stock_android_engine_arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_engine_repo.bzl%flutter_android_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "android_arch": "arm64",
-              "release_sha256": "8f66c3d33d4da133e74912625c201a7ec2f150939646b71a3f1aa84d41e512ae",
-              "debug_sha256": "6310d875038e8539f1c604e39a3803330cd7acebe7ef41b5bbf3256aa6a7636b"
+              "archives": "[{\"artifact\":\"android-arm64-release/artifacts.zip\",\"sha256\":\"79f256b1479bcc20122b37eb2473bb7754a9e07fb80ecc9fb2e672a1913c35b9\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-release/artifacts.zip\"},{\"artifact\":\"android-arm64/artifacts.zip\",\"output\":\"debug\",\"sha256\":\"659a19afdbfd6234980ca8b84acb97fed4e043b31a1e444772186cfd2d3646fe\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_engine_repo.bzl\n#\n# flutter.jar is a fat jar containing:\n# - Java embedding classes (FlutterActivity, FlutterEngine, etc.)\n# - Native libflutter.so for the target ABI at lib/<abi>/libflutter.so\n#\n# Release (AOT) is `flutter.jar`; debug (JIT) is `debug/flutter.jar`.\n\nexports_files(\n    [\"flutter.jar\", \"debug/flutter.jar\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_engine_arm64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-arm64-profile/artifacts.zip": ""
+              "archives": "[{\"artifact\":\"android-arm64-profile/artifacts.zip\",\"sha256\":\"8f42c07a96b9f26a11f13e78c4e030ab911e0b00c1ee9e96cda3c0725dc45eea\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-arm64-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-arm64-profile/artifacts.zip": "60f5a38d7c51248576fbb751a72339a1705eeae6035fc55b6f864d8d425a4224"
-              },
-              "build_file_content": "exports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_stock_android_engine_x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_engine_repo.bzl%flutter_android_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "android_arch": "x64",
-              "release_sha256": "5501d422d8773b0e3d27e5b4b127f4303f663ea32bb1f392e66c79d12cac9146",
-              "debug_sha256": "6594a6ddc44449aa5f176998abb19bdd3e40aa903ed1856724227d64177e7d5a"
+              "archives": "[{\"artifact\":\"android-x64-release/artifacts.zip\",\"sha256\":\"632511419e7114edbebffd3d5569ac7910f7c4e12339f3e6d9e20f52564766cd\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-release/artifacts.zip\"},{\"artifact\":\"android-x64/artifacts.zip\",\"output\":\"debug\",\"sha256\":\"0b4cc321ea5b18d86bcccc301b466c0128a4f16a8be3039dabe98c6321847443\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_engine_repo.bzl\n#\n# flutter.jar is a fat jar containing:\n# - Java embedding classes (FlutterActivity, FlutterEngine, etc.)\n# - Native libflutter.so for the target ABI at lib/<abi>/libflutter.so\n#\n# Release (AOT) is `flutter.jar`; debug (JIT) is `debug/flutter.jar`.\n\nexports_files(\n    [\"flutter.jar\", \"debug/flutter.jar\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_engine_x64_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "android-x64-profile/artifacts.zip": ""
+              "archives": "[{\"artifact\":\"android-x64-profile/artifacts.zip\",\"sha256\":\"bab4e7aa5d40d7b687cc2a6017fdf371bd4c572666afaf7f3771ffe0e9ec6809\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/android-x64-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nexports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
               },
-              "sha256s": {
-                "android-x64-profile/artifacts.zip": "315653fee20c827f6bc414b37d6d6a9ff58a2b92a71fa4d038602365a6df69b1"
-              },
-              "build_file_content": "exports_files([\"flutter.jar\"], visibility = [\"//visibility:public\"])\n"
+              "nested_archives": {}
             }
           },
           "flutter_stock_ios_engine": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_ios_engine_repo.bzl%flutter_ios_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "mode": "release",
-              "sha256": "74ae4aafa7dcef5a96d0a7bddd727fb8c2bf73617d45cb01440c5820952cbf43"
+              "archives": "[{\"artifact\":\"ios-release/artifacts.zip\",\"sha256\":\"22d4b68f7d87bbb570f0297e2c81a681df765b30e07ba908a5c8c77c2aee5e7e\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/ios-release/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_ios_engine_repo.bzl\n\nfilegroup(\n    name = \"Flutter_xcframework\",\n    srcs = glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_stock_ios_engine_debug": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_ios_engine_repo.bzl%flutter_ios_engine_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "mode": "debug",
-              "sha256": "10b01650085f8c8392d131bb426c8ee4d07025bfbd06a2e6e8ba2fe59c58c4e0"
+              "archives": "[{\"artifact\":\"ios/artifacts.zip\",\"sha256\":\"52617776fe85e651579c9fdcfb8ba5af5671db081e68a428884b7cd5e1eb5036\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/ios/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_ios_engine_repo.bzl\n\nfilegroup(\n    name = \"Flutter_xcframework\",\n    srcs = glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    glob([\"**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_ios_engine_profile": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_profile_repo.bzl%flutter_profile_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "downloads": {
-                "ios-profile/artifacts.zip": ""
+              "archives": "[{\"artifact\":\"ios-profile/artifacts.zip\",\"sha256\":\"a6f592526b0b05cea12915ae024b43d9403d88a30193be7b30973daa67abf8c3\",\"url\":\"https://storage.googleapis.com/flutter_infra_release/flutter/371f77202a73e8dff57a8b3bff75bca55c090aee/ios-profile/artifacts.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_profile_repo.bzl\nfilegroup(\n    name = \"Flutter_xcframework_profile\",\n    srcs = glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    [\"gen_snapshot_arm64\"] + glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
               },
-              "sha256s": {
-                "ios-profile/artifacts.zip": "23ff396ef2f16be8d6f80c49b318fbde5df8dd4166a93da9c61548bf1a250b75"
-              },
-              "build_file_content": "filegroup(\n    name = \"Flutter_xcframework_profile\",\n    srcs = glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n\nexports_files(\n    [\"gen_snapshot_arm64\"] + glob([\"Flutter.xcframework/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              "nested_archives": {}
             }
           },
           "flutter_stock_engine": {
             "repoRuleId": "@@rules_flutter+//flutter/private:flutter_stock_engine_repo.bzl%flutter_stock_engine_repo",
             "attributes": {
               "user_repository_name": "flutter",
-              "flutter_version": "3.47.9",
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
+              "flutter_version": "3.50.0",
+              "engine_revision": "371f77202a73e8dff57a8b3bff75bca55c090aee",
               "sha256s": {
-                "flutter_patched_sdk.zip": "65f95eb1a3e2034c87dc701d42d71dea3b493b678d70940dccceb86ef6eb3151",
-                "flutter_patched_sdk_product.zip": "22a67cf5f4922dce11e747b91f9c504ab6f92aef5df5fa0276c30356a9e64f5a"
+                "flutter_patched_sdk.zip": "3f3e33bf33e576502fa91abf44223abd4842844fa279b96c6fbf3c3c5845929a",
+                "flutter_patched_sdk_product.zip": "d4c30b2a6e75925d544674e51fc4dd68ea157bc37b7bcc856754b6dee9df6d2d"
               }
             }
           },
@@ -1166,25 +1236,44 @@
             "attributes": {
               "engine": "@flutter_stock_engine",
               "sdk": "flutter",
-              "version": "3.47.9",
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
+              "version": "3.50.0",
               "material_fonts": "@flutter_{host}//:material-fonts/MaterialIcons-Regular.otf",
               "sysroot_prefix": "flutter",
               "framework_json": ""
             }
           },
           "flutter_dev_root_src": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_dev_root_repo.bzl%flutter_dev_root_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "flutter_version": "3.47.9",
-              "engine_revision": "89c39edfdfae2949f6806e4a315c0c08522238b7",
-              "sha256": "1096d5b48abe6f99d0e947382d97db2f505803ce198000d905ac49044fa64ceb"
+              "archives": "[{\"artifact\":\"3.50.0.tar.gz\",\"output\":\"packages\",\"sha256\":\"6a658d110698a5c3db2af7df4f14eab081997a564690df8be3a46bb1ad05cf68\",\"strip_prefix\":\"flutter-3.50.0/packages\",\"url\":\"https://github.com/flutter/flutter/archive/refs/tags/3.50.0.tar.gz\"},{\"artifact\":\"3.50.0.tar.gz\",\"output\":\"bin/cache/pkg/sky_engine\",\"sha256\":\"6a658d110698a5c3db2af7df4f14eab081997a564690df8be3a46bb1ad05cf68\",\"strip_prefix\":\"flutter-3.50.0/engine/src/flutter/sky/packages/sky_engine\",\"url\":\"https://github.com/flutter/flutter/archive/refs/tags/3.50.0.tar.gz\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "bin/cache/flutter.version.json": "{\n\t\"engineRevision\": \"371f77202a73e8dff57a8b3bff75bca55c090aee\",\n\t\"flutterVersion\": \"3.50.0\",\n\t\"frameworkVersion\": \"3.50.0\"\n}\n",
+                "BUILD.bazel": "# Generated by flutter_dev_root_repo.bzl\n\n# The whole tree, as `dart pub` walks it at run time.\nfilegroup(\n    name = \"dev_root\",\n    srcs = glob([\"**\"], exclude = [\"BUILD.bazel\"]),\n    visibility = [\"//visibility:public\"],\n)\n\n# The anchor `@rules_flutter//flutter/pub` resolves FLUTTER_ROOT from: it sits\n# at a fixed depth (bin/cache/flutter.version.json) below the root.\nfilegroup(\n    name = \"version_manifest\",\n    srcs = [\"bin/cache/flutter.version.json\"],\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
+            }
+          },
+          "flutter_outline_tool_src_files": {
+            "repoRuleId": "@@rules_dart+//dart/private:sdk_fetch.bzl%dart_source_packages",
+            "attributes": {
+              "url": "https://github.com/dart-lang/sdk/archive/refs/tags/3.14.0.tar.gz",
+              "sha256": "f9cdd43f4c05d7f8cbd1caea31e3505d1f81c489d008c063c7bc028364844f65",
+              "strip_prefix": "sdk-3.14.0",
+              "packages": [
+                "kernel",
+                "_fe_analyzer_shared"
+              ]
             }
           },
           "flutter_outline_tool_src": {
-            "repoRuleId": "@@rules_dart+//dart:repositories.bzl%dart_kernel_source",
+            "repoRuleId": "@@rules_dart+//dart:repositories.bzl%dart_sdk_source_tool",
             "attributes": {
-              "dart_version": "3.13.7"
+              "tool": "kernel",
+              "sdk_name": "3.14.0",
+              "source": "@@rules_flutter++flutter+flutter_outline_tool_src_files//:BUILD.bazel",
+              "source_packages": "@@rules_flutter++flutter+flutter_outline_tool_src_files//:BUILD.bazel"
             }
           },
           "flutter_macos_engine": {
@@ -1231,9 +1320,21 @@
                 "web-sdk/kernel/dart2js_platform.dill": "{prefix}//web:dart2js_platform.dill",
                 "web-sdk/kernel/ddc_outline.dill": "{prefix}//web:ddc_outline.dill",
                 "web-sdk/libraries.json": "{prefix}//web:libraries.json",
-                "web-sdk/kernel/ddcLibraryBundle-canvaskit/dart_sdk.js": "{prefix}//web:ddc_dart_sdk.js",
+                "web-sdk/kernel/ddc/canary/dart_sdk.js": "{prefix}//web:ddc_dart_sdk.js",
                 "dart-sdk/lib/dev_compiler/ddc/ddc_module_loader.js": "{prefix}//web:ddc_module_loader.js",
                 "dart-sdk/lib/dev_compiler/web/dart_stack_trace_mapper.js": "{prefix}//web:dart_stack_trace_mapper.js"
+              }
+            }
+          },
+          "flutter_sky_engine": {
+            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_face_repo.bzl%flutter_face_repo",
+            "attributes": {
+              "sdks": {
+                "flutter": "@flutter_stock_engine"
+              },
+              "targets": {
+                "sky_engine": "{prefix}//sky_engine:sky_engine",
+                "LICENSE": "{prefix}//sky_engine:LICENSE"
               }
             }
           },
@@ -1244,7 +1345,7 @@
                 "flutter": "@flutter_stock_engine"
               },
               "targets": {},
-              "extra": "load(\"@rules_flutter//flutter/private:flutter_android_engine_jar.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/debug:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/profile:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/release:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              "extra": "load(\"@rules_flutter//flutter/private:generated_repos.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/debug:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/profile:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-arm/release:engine\",\n    android_abi = \"armeabi-v7a\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\n# What the selected SDK's module AAR carries of the engine: the stripped jar\n# when the engine is not the release's, otherwise nothing.\nfilegroup(\n    name = \"no_aar_engine\",\n)\n\nalias(\n    name = \"aar_engine\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":no_aar_engine\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "flutter_android_engine_arm64": {
@@ -1254,7 +1355,7 @@
                 "flutter": "@flutter_stock_engine"
               },
               "targets": {},
-              "extra": "load(\"@rules_flutter//flutter/private:flutter_android_engine_jar.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/debug:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/profile:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/release:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              "extra": "load(\"@rules_flutter//flutter/private:generated_repos.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/debug:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/profile:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-arm64/release:engine\",\n    android_abi = \"arm64-v8a\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\n# What the selected SDK's module AAR carries of the engine: the stripped jar\n# when the engine is not the release's, otherwise nothing.\nfilegroup(\n    name = \"no_aar_engine\",\n)\n\nalias(\n    name = \"aar_engine\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":no_aar_engine\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "flutter_android_engine_x64": {
@@ -1264,7 +1365,7 @@
                 "flutter": "@flutter_stock_engine"
               },
               "targets": {},
-              "extra": "load(\"@rules_flutter//flutter/private:flutter_android_engine_jar.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/debug:engine\",\n    android_abi = \"x86_64\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/profile:engine\",\n    android_abi = \"x86_64\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/release:engine\",\n    android_abi = \"x86_64\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              "extra": "load(\"@rules_flutter//flutter/private:generated_repos.bzl\", \"flutter_android_engine_jar\")\n\nflutter_android_engine_jar(\n    name = \"flutter_debug_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/debug:engine\",\n    android_abi = \"x86_64\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_profile_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/profile:engine\",\n    android_abi = \"x86_64\",\n)\n\nflutter_android_engine_jar(\n    name = \"flutter_release_stripped\",\n    jar = \"@flutter_stock_engine//android-x64/release:engine\",\n    android_abi = \"x86_64\",\n)\n\n# The stripped engine of `flutter` in the build mode.\nalias(\n    name = \"flutter_stripped\",\n    actual = select({\n        \"@rules_flutter//flutter/private:dbg\": \":flutter_debug_stripped\",\n        \"@rules_flutter//flutter/private:profile\": \":flutter_profile_stripped\",\n        \"//conditions:default\": \":flutter_release_stripped\",\n    }),\n)\n\n# The engine of the selected SDK and the build mode, stripped: debug under\n# `-c dbg`, profile under `-c opt` with `//flutter:profile`, release otherwise.\nalias(\n    name = \"stripped\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":flutter_stripped\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n\n# What the selected SDK's module AAR carries of the engine: the stripped jar\n# when the engine is not the release's, otherwise nothing.\nfilegroup(\n    name = \"no_aar_engine\",\n)\n\nalias(\n    name = \"aar_engine\",\n    actual = select(\n        {\n            \"@flutter_toolchains//:sdk_flutter\": \":no_aar_engine\",\n        },\n        no_match_error = \"No Flutter SDK is declared for --@rules_flutter//flutter:sdk. Declared: flutter.\",\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "flutter_outline_tool": {
@@ -1293,7 +1394,8 @@
           "flutter_sdks": {
             "repoRuleId": "@@rules_flutter+//flutter/private:flutter_sdks_repo.bzl%flutter_sdks_repo",
             "attributes": {
-              "sdks": "{\"flutter\":{\"framework\":\"\",\"version\":\"3.47.9\"}}"
+              "sdks": "{\"flutter\":{\"framework\":\"\",\"version\":\"3.50.0\"}}",
+              "frameworks": {}
             }
           },
           "flutter_toolchains": {
@@ -1301,83 +1403,128 @@
             "attributes": {
               "sdks": [
                 "flutter"
-              ]
+              ],
+              "default_sdk": "flutter",
+              "hosts": {}
             }
           },
           "flutter_chrome_for_testing_linux_arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_chrome_for_testing.bzl%flutter_chrome_for_testing",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "linux-arm64",
-              "version": "157.0.8103.38",
-              "sha256": "b9b910a57b2a15eb3e55000a2339f93a973934a413ebfc6e585a50ec6c42fd6c"
+              "archives": "[{\"artifact\":\"chrome-headless-shell-linux-arm64.zip\",\"sha256\":\"b9b910a57b2a15eb3e55000a2339f93a973934a413ebfc6e585a50ec6c42fd6c\",\"strip_prefix\":\"chrome-headless-shell-linux-arm64\",\"url\":\"https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/linux-arm64/chrome-headless-shell-linux-arm64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_chrome_for_testing.bzl\n\nfilegroup(\n    name = \"chrome\",\n    srcs = [\"chrome-headless-shell\"],\n    data = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_chrome_for_testing_linux64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_chrome_for_testing.bzl%flutter_chrome_for_testing",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "linux64",
-              "version": "157.0.8103.38",
-              "sha256": "deafffa74660b34853a4119c361fd427ac8c9fcb62db51ddb8a797cd83a4ba2d"
+              "archives": "[{\"artifact\":\"chrome-headless-shell-linux64.zip\",\"sha256\":\"deafffa74660b34853a4119c361fd427ac8c9fcb62db51ddb8a797cd83a4ba2d\",\"strip_prefix\":\"chrome-headless-shell-linux64\",\"url\":\"https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/linux64/chrome-headless-shell-linux64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_chrome_for_testing.bzl\n\nfilegroup(\n    name = \"chrome\",\n    srcs = [\"chrome-headless-shell\"],\n    data = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_chrome_for_testing_mac_arm64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_chrome_for_testing.bzl%flutter_chrome_for_testing",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "mac-arm64",
-              "version": "157.0.8103.38",
-              "sha256": "e6a6b13551aa12f951d0891d79282606b13742837c8fa0505e1272bae116ce82"
+              "archives": "[{\"artifact\":\"chrome-headless-shell-mac-arm64.zip\",\"sha256\":\"e6a6b13551aa12f951d0891d79282606b13742837c8fa0505e1272bae116ce82\",\"strip_prefix\":\"chrome-headless-shell-mac-arm64\",\"url\":\"https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/mac-arm64/chrome-headless-shell-mac-arm64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_chrome_for_testing.bzl\n\nfilegroup(\n    name = \"chrome\",\n    srcs = [\"chrome-headless-shell\"],\n    data = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_chrome_for_testing_mac_x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_chrome_for_testing.bzl%flutter_chrome_for_testing",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "mac-x64",
-              "version": "157.0.8103.38",
-              "sha256": "79821745d0a72d2ba752d981284ed0a9e6fa320dad133596941a17dba6186de3"
+              "archives": "[{\"artifact\":\"chrome-headless-shell-mac-x64.zip\",\"sha256\":\"79821745d0a72d2ba752d981284ed0a9e6fa320dad133596941a17dba6186de3\",\"strip_prefix\":\"chrome-headless-shell-mac-x64\",\"url\":\"https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/mac-x64/chrome-headless-shell-mac-x64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_chrome_for_testing.bzl\n\nfilegroup(\n    name = \"chrome\",\n    srcs = [\"chrome-headless-shell\"],\n    data = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_chrome_for_testing_win64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_chrome_for_testing.bzl%flutter_chrome_for_testing",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "platform": "win64",
-              "version": "157.0.8103.38",
-              "sha256": "1ff4540855478ba0848e03f1ef8d455f77d058b38285df91bc34273788a73446"
+              "archives": "[{\"artifact\":\"chrome-headless-shell-win64.zip\",\"sha256\":\"1ff4540855478ba0848e03f1ef8d455f77d058b38285df91bc34273788a73446\",\"strip_prefix\":\"chrome-headless-shell-win64\",\"url\":\"https://storage.googleapis.com/chrome-for-testing-public/157.0.8103.38/win64/chrome-headless-shell-win64.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_chrome_for_testing.bzl\n\nfilegroup(\n    name = \"chrome\",\n    srcs = [\"chrome-headless-shell.exe\"],\n    data = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_emulator_darwin_aarch64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_emulator_repo.bzl%flutter_android_emulator_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "build_id": "14214601",
-              "host": "darwin_aarch64",
-              "sha256": "933743d94124a55213b106dc3369525b57b29cf4cd560993fc3143e70e1423a5"
+              "archives": "[{\"artifact\":\"emulator-darwin_aarch64-14214601.zip\",\"sha256\":\"933743d94124a55213b106dc3369525b57b29cf4cd560993fc3143e70e1423a5\",\"url\":\"https://dl.google.com/android/repository/emulator-darwin_aarch64-14214601.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_emulator_repo.bzl\n\nfilegroup(\n    name = \"emulator\",\n    srcs = [\"emulator/emulator\"],\n    data = glob([\"emulator/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_emulator_linux_x64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_emulator_repo.bzl%flutter_android_emulator_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "build_id": "14214601",
-              "host": "linux_x64",
-              "sha256": "55e7ce272dd27413855c81b4629c107a1553d07a2f77fa55a6049fdca22f4221"
+              "archives": "[{\"artifact\":\"emulator-linux_x64-14214601.zip\",\"sha256\":\"55e7ce272dd27413855c81b4629c107a1553d07a2f77fa55a6049fdca22f4221\",\"url\":\"https://dl.google.com/android/repository/emulator-linux_x64-14214601.zip\"}]",
+              "checks": "[]",
+              "deletions": {
+                "emulator/lib64/gles_mesa": "The emulator 14214601 for linux_x64 has no emulator/lib64/gles_mesa to leave out: the list of what it never loads is out of date.",
+                "emulator/lib64/qt": "The emulator 14214601 for linux_x64 has no emulator/lib64/qt to leave out: the list of what it never loads is out of date.",
+                "emulator/lib64/vulkan/libvulkan_lvp.so": "The emulator 14214601 for linux_x64 has no emulator/lib64/vulkan/libvulkan_lvp.so to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-aarch64": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-aarch64 to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-aarch64-headless": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-aarch64-headless to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-armel": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-armel to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-armel-headless": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-armel-headless to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-i386": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-i386 to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-i386-headless": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-i386-headless to leave out: the list of what it never loads is out of date.",
+                "emulator/qemu/linux-x86_64/qemu-system-x86_64": "The emulator 14214601 for linux_x64 has no emulator/qemu/linux-x86_64/qemu-system-x86_64 to leave out: the list of what it never loads is out of date."
+              },
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_emulator_repo.bzl\n\nfilegroup(\n    name = \"emulator\",\n    srcs = [\"emulator/emulator\"],\n    data = glob([\"emulator/**\"]),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_system_image_arm64_v8a": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_emulator_repo.bzl%flutter_android_system_image_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "abi": "arm64-v8a",
-              "api_level": 35,
-              "revision": "r01",
-              "sha256": "2e966d4573b252d7e4ab30b8069a5ed9945c973a270f97faea626171ce0169b3",
-              "tag": "aosp_atd"
+              "archives": "[{\"artifact\":\"aosp_atd system image arm64-v8a-35_r01\",\"sha256\":\"2e966d4573b252d7e4ab30b8069a5ed9945c973a270f97faea626171ce0169b3\",\"strip_prefix\":\"arm64-v8a\",\"url\":\"https://dl.google.com/android/repository/sys-img/aosp_atd/arm64-v8a-35_r01.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_emulator_repo.bzl\nload(\"@@rules_flutter+//flutter/private:generated_repos.bzl\", \"flutter_android_system_image\")\n\nflutter_android_system_image(\n    name = \"system_image\",\n    abi = \"arm64-v8a\",\n    api_level = 35,\n    properties = \"source.properties\",\n    tag = \"aosp_atd\",\n    files = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_android_system_image_x86_64": {
-            "repoRuleId": "@@rules_flutter+//flutter/private:flutter_android_emulator_repo.bzl%flutter_android_system_image_repo",
+            "repoRuleId": "@@rules_flutter+//flutter/private:archive_repo.bzl%flutter_archive_repo",
             "attributes": {
-              "abi": "x86_64",
-              "api_level": 35,
-              "revision": "r01",
-              "sha256": "2dffbc565912b97dd17d935b68002b248872e0c83473139856bb31634db249dc",
-              "tag": "aosp_atd"
+              "archives": "[{\"artifact\":\"aosp_atd system image x86_64-35_r01\",\"sha256\":\"2dffbc565912b97dd17d935b68002b248872e0c83473139856bb31634db249dc\",\"strip_prefix\":\"x86_64\",\"url\":\"https://dl.google.com/android/repository/sys-img/aosp_atd/x86_64-35_r01.zip\"}]",
+              "checks": "[]",
+              "deletions": {},
+              "files": {
+                "BUILD.bazel": "# Generated by flutter_android_emulator_repo.bzl\nload(\"@@rules_flutter+//flutter/private:generated_repos.bzl\", \"flutter_android_system_image\")\n\nflutter_android_system_image(\n    name = \"system_image\",\n    abi = \"x86_64\",\n    api_level = 35,\n    properties = \"source.properties\",\n    tag = \"aosp_atd\",\n    files = glob(\n        [\"**\"],\n        exclude = [\"BUILD.bazel\", \"REPO.bazel\", \"WORKSPACE\"],\n    ),\n    visibility = [\"//visibility:public\"],\n)\n"
+              },
+              "nested_archives": {}
             }
           },
           "flutter_linux_runtime_amd64": {

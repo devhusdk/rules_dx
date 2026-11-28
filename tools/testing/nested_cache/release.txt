@@ -264,10 +264,10 @@ https://bcr.bazel.build/modules/rules_cc/0.2.28/patches/module_dot_bazel_version
 https://bcr.bazel.build/modules/rules_cc/0.2.28/source.json a14b45d5c79a91705f1c758d89dde606c194b61eee7ebb3e8010c2d84454c90d
 https://bcr.bazel.build/modules/rules_cc/0.2.4/MODULE.bazel 1ff1223dfd24f3ecf8f028446d4a27608aa43c3f41e346d22838a4223980b8cc
 https://bcr.bazel.build/modules/rules_cc/0.2.9/MODULE.bazel 34263f1dca62ea664265438cef714d7db124c03e1ed55ebb4f1dc860164308d1
-https://bcr.bazel.build/modules/rules_dart/0.9.1/MODULE.bazel f217634c3a587cfc055e311314aad71a4f0759abab2cab6078417c6063f6ba9e
-https://bcr.bazel.build/modules/rules_dart/0.9.1/source.json 77adf8baa965216c56313ade09d13ef64ac30eb1a7b3d7bab390e2f3e3fa55b9
-https://bcr.bazel.build/modules/rules_flutter/0.1.0/MODULE.bazel 0d8d41f3137adef4250cc8de75df2a531f39f44b925fc3225d1c4c81351d49e3
-https://bcr.bazel.build/modules/rules_flutter/0.1.0/source.json 0a6d7db061fe48cfcd6e565d653344fad0ef5c680263c1711f164e1b39b0b6d1
+https://bcr.bazel.build/modules/rules_dart/0.10.0/MODULE.bazel edee7ddb270f7460ddd52628c209bfd2f3ee7fbc0b8c897b2f03c7260c4515dd
+https://bcr.bazel.build/modules/rules_dart/0.10.0/source.json 37d21024f682828612ec85a7e1fa728e93e1d570db32503fb2df7470d3794ddb
+https://bcr.bazel.build/modules/rules_flutter/0.2.0/MODULE.bazel 877846a0926f7eb7eecc2d0032cb8129bd795339c1c26236d1832bfd811741a3
+https://bcr.bazel.build/modules/rules_flutter/0.2.0/source.json a92eba25fa5be74cef5812f57388b343c06f4aa1b69a257e5518f9436768bb2d
 https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6
 https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel 40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8
 https://bcr.bazel.build/modules/rules_go/0.41.0/MODULE.bazel 55861d8e8bb0e62cbd2896f60ff303f62ffcb0eddb74ecb0e5c0cbe36fc292c8
@@ -653,8 +653,8 @@ https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4d
 https://github.com/abseil/abseil-cpp/releases/download/20250814.1/abseil-cpp-20250814.1.tar.gz 1692f77d1739bacf3f94337188b78583cf09bab7e420d2dc6c5605a4f86785a1
 https://github.com/apple/swift-argument-parser/archive/refs/tags/1.7.0.tar.gz 84e685f0ca4d069a60193c9e477b6ec5a44016dc789db01e0b17c38b400a922e
 https://github.com/apple/swift-docc-symbolkit/archive/refs/tags/swift-5.10-RELEASE.tar.gz de1d4b6940468ddb53b89df7aa1a81323b9712775b0e33e8254fa0f6f7469a97
-https://github.com/aran/rules_dart/releases/download/v0.9.1/rules_dart-v0.9.1.tar.gz aff7ea3660caab2c862048a91af28c746ca8fe0c7b1a952c9a1c5de9510dbcc0
-https://github.com/aran/rules_flutter/releases/download/v0.1.0/rules_flutter-v0.1.0.tar.gz 508bc0a01b26707eb959ff42f8965d5dddf68f5ef7ef7093fd0d54678955ec4f
+https://github.com/aran/rules_dart/releases/download/v0.10.0/rules_dart-v0.10.0.tar.gz 77a96405ce66f14a4c1db7cf06773d4503c194c8adc47356a27dc531a74fd1e0
+https://github.com/aran/rules_flutter/releases/download/v0.2.0/rules_flutter-v0.2.0.tar.gz efc43cf2a969898c325c42afc105c400860c0d51f1bfbb953a300ef6f1253c67
 https://github.com/aspect-build/rules_jest/releases/download/v0.26.0/rules_jest-v0.26.0.tar.gz fadef7b26dba31a0c7c93a72210514831a9cb85849f2abb3f4ac3cff1c922154
 https://github.com/aspect-build/rules_js/releases/download/v3.6.0/rules_js-v3.6.0.tar.gz 9f7105ff2a247aa7f16b555953c8a1d0fd88b579b57833fb3d1fc02c666f7d3a
 https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz 4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd
@@ -686,8 +686,8 @@ https://github.com/bazel-contrib/buildtools/releases/download/v10.2.0/buildifier
 https://github.com/bazel-contrib/buildtools/releases/download/v10.2.0/buildifier-windows-amd64.exe ae9b0632ff4bc56607b9c8512716b7fd63371387136005d25e94ec668f89361d
 https://github.com/bazel-contrib/jq.bzl/releases/download/v0.4.0/jq.bzl-v0.4.0.tar.gz 21617eb71fb775a748ef5639131ab943ef39946bd2a4ce96ea60b03f985db0c5
 https://github.com/bazel-contrib/rules_cuda/archive/1b8809eba124d1d2ab5c7bda2683cf1d51ad619d.tar.gz 8221706104fd49eb52d5b572fada7eb802a1007ce49eaee36a2daeb51bd90352
-https://github.com/bazel-contrib/rules_d/archive/refs/tags/v0.12.1.tar.gz 87aaf9bc99f0635df22efcbea67a95bce2d8b4fad172012e0314e2cb79149816
-https://github.com/bazel-contrib/rules_dotnet/releases/download/v0.22.2/rules_dotnet-v0.22.2.tar.gz ce35dad18db31cd68323b568dc09c689cc6d75ec16eba1510ccd128bb5f1264e
+https://github.com/bazel-contrib/rules_d/archive/refs/tags/v0.13.1.tar.gz 537cb099e1daec4ddb18e9c39d5be2b80d1cbbdad6dde62e09f3f7ee2a0f8bee
+https://github.com/bazel-contrib/rules_dotnet/releases/download/v0.23.0/rules_dotnet-v0.23.0.tar.gz aff55abade9f0327149075fbfd0c477c86f7e65a0e087b1dd2797445ecfb4b05
 https://github.com/bazel-contrib/rules_go/releases/download/v0.65.0/rules_go-v0.65.0.zip d4a6e93dc63944172bc3b915a11bfa8d7391c9f1fdc11d7e43724f497617f0e5
 https://github.com/bazel-contrib/rules_jvm_external/releases/download/7.2/rules_jvm_external-7.2.tar.gz f1474ba3699f04ab1eab89381d64c9f906952c577524e9a9c8b3949b875bbaa0
 https://github.com/bazel-contrib/rules_kotlin/releases/download/v2.4.21/rules_kotlin-v2.4.21.tar.gz aa3255452dbe9b52da2ba7787f0865f107805885109f39c3d5bafc21a521bcb6

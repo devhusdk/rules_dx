@@ -266,8 +266,6 @@ rules_dx++crate+dx_quality_crates__walkdir-2.5.0
 rules_dx++crate+dx_quality_crates__yansi-1.0.1
 rules_dx++crate+dx_quality_crates__zmij-1.0.23
 rules_dx++d+dx_d_toolchains
-rules_dx++dotnet+dotnet_bootstrap_toolchains
-rules_dx++dotnet+dotnet_toolchains
 rules_dx++dx_licenses+dx_licenses
 rules_dx++dx_pins+dx_coreutils
 rules_dx++dx_pins+dx_coreutils__linux_x86_64

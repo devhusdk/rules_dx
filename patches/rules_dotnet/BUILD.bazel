@@ -4,7 +4,7 @@ exports_files([
     "bootstrap_module.patch",
     "fsharp_pdb_path.patch",
     "target_runtime.patch",
-    "toolchains_gate.patch",
+    "toolchain_aliases.patch",
 ])
 
 real_source_target(

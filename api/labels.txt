@@ -91,6 +91,7 @@
 //cli/launcher:exec_launcher runnable rust_binary
 //cli/ocaml_cc_driver:ocaml_dune runnable rust_binary
 //cli/prebuilt:guard_stub runnable cc_binary
+//cli/release_tree:release_tree_subcommand runnable rust_binary
 //cli/runtime:dx_runtime runnable rust_binary
 //core/quality/capture:capture runnable rust_binary
 //core/quality/lsp_check:lsp_check runnable rust_binary

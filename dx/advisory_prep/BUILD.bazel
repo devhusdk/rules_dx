@@ -33,6 +33,7 @@ rust_binary(
         "//cli/error:dx_error",
         "@crates//:chrono",
         "@crates//:clap",
+        "@rules_rust//rust/runfiles",
     ],
 )
 
@@ -63,6 +64,7 @@ rust_test(
         "@crates//:chrono",
         "@crates//:clap",
         "@crates//:tempfile",
+        "@rules_rust//rust/runfiles",
     ],
 )
 

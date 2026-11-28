@@ -171,7 +171,7 @@ fn ci_setup(
     }
     if dx_advisory_prep::needs_trivy(&options.workspace)? {
         options.trivy = Some(trivy.ok_or_else(|| PrepError::Usage {
-            detail: "--ci needs the bundled trivy (DX_TRIVY and RUNFILES_DIR)".to_owned(),
+            detail: "--ci needs the bundled trivy (DX_TRIVY in the runfiles)".to_owned(),
         })?);
         if let Some(path) = status_file {
             append_text(path, "trivy=true\n")?;
@@ -249,8 +249,9 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
 
 fn bundled_tool(variable: &str) -> Option<PathBuf> {
     let rlocation = std::env::var_os(variable)?;
-    let runfiles = std::env::var_os("RUNFILES_DIR")?;
-    Some(PathBuf::from(runfiles).join(rlocation))
+    runfiles::Runfiles::create()
+        .ok()?
+        .rlocation_from(Path::new(&rlocation), "")
 }
 
 fn limits_from(cli: &Cli) -> FetchLimits {

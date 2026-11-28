@@ -6,7 +6,7 @@ visibility(["//core/..."])
 
 TOOLS = {
     "shellcheck": {
-        "attr": attr.label(default = "@dx_tools//:shellcheck", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_shellcheck", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "shell",

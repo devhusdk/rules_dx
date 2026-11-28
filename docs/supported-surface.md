@@ -7426,6 +7426,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:rustc_output_diagnostics` | `alias` | `@rules_rust//rust/settings:rustc_output_diagnostics` |  |
 | `@rules_dx//config:tool_actionlint` | `label_flag` | `@dx_tools//:actionlint` |  |
 | `@rules_dx//config:tool_avro` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_buildifier` | `label_flag` | `@dx_tools//:buildifier` |  |
 | `@rules_dx//config:tool_capnp` | `label_flag` | `@dx_prebuilt//:capnp` |  |
 | `@rules_dx//config:tool_container_structure_test` | `label_flag` | `@dx_tools//:container_structure_test` |  |
 | `@rules_dx//config:tool_credo` | `label_flag` | pinned |  |
@@ -7448,9 +7449,12 @@ Tag `zig.lock`:
 | `@rules_dx//config:tool_julialint` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_kubeconform` | `label_flag` | `@dx_tools//:kubeconform` |  |
 | `@rules_dx//config:tool_luals` | `label_flag` | pinned |  |
+| `@rules_dx//config:tool_lychee` | `label_flag` | `@dx_tools//:lychee` |  |
+| `@rules_dx//config:tool_markdown_check` | `label_flag` | `@dx_prebuilt//:quality_markdown` |  |
 | `@rules_dx//config:tool_mix_format` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_modfmt` | `label_flag` | `@dx_prebuilt//:dx_modfmt` |  |
 | `@rules_dx//config:tool_nixfmt` | `label_flag` | `@rules_dx//core/quality/tools/nixfmt/bin:nixfmt` |  |
+| `@rules_dx//config:tool_notebook_outputs` | `label_flag` | `@dx_prebuilt//:quality_notebook` |  |
 | `@rules_dx//config:tool_opa` | `label_flag` | `@dx_tools//:opa` |  |
 | `@rules_dx//config:tool_ormolu` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_perlcritic` | `label_flag` | `@rules_dx//config:no_perlcritic` |  |
@@ -7463,11 +7467,13 @@ Tag `zig.lock`:
 | `@rules_dx//config:tool_qmllint` | `label_flag` | `@rules_dx//config:no_qmllint` |  |
 | `@rules_dx//config:tool_regal` | `label_flag` | `@dx_tools//:regal` |  |
 | `@rules_dx//config:tool_ruff` | `label_flag` | `@dx_tools//:ruff` |  |
+| `@rules_dx//config:tool_shellcheck` | `label_flag` | `@dx_tools//:shellcheck` |  |
 | `@rules_dx//config:tool_sorbet` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_staticcheck` | `label_flag` | `@dx_prebuilt//:dx_staticcheck` |  |
 | `@rules_dx//config:tool_stylua` | `label_flag` | `@dx_tools//:stylua` |  |
 | `@rules_dx//config:tool_swift_format` | `label_flag` | `@rules_dx//config:no_swift_format` |  |
 | `@rules_dx//config:tool_swift_lint` | `label_flag` | `@rules_dx//config:no_swift_lint` |  |
+| `@rules_dx//config:tool_taplo` | `label_flag` | `@dx_tools//:taplo` |  |
 | `@rules_dx//config:tool_terraform` | `label_flag` | `@dx_tools//:terraform` |  |
 | `@rules_dx//config:tool_thrift` | `label_flag` | `@dx_prebuilt//:thrift` |  |
 | `@rules_dx//config:tool_trivy` | `label_flag` | `@dx_tools//:trivy` |  |
@@ -7475,6 +7481,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:tool_weeder` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_zig_ast_check` | `label_flag` | `@rules_dx//config:no_zig_ast_check` |  |
 | `@rules_dx//config:tool_zig_fmt` | `label_flag` | `@rules_dx//config:no_zig_fmt` |  |
+| `@rules_dx//config:tool_zizmor` | `label_flag` | `@dx_tools//:zizmor` |  |
 | `@rules_dx//config:toolchain_linker_preference` | `alias` | `@rules_rust//rust/settings:toolchain_linker_preference` |  |
 | `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |
 | `@rules_dx//config:warnings_as_errors` | `bool_flag` | `True` |  |

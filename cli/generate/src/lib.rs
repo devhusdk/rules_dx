@@ -75,8 +75,20 @@ const GITLEAKS_STRICT: &str = include_str!("../../../core/quality/tiers/gitleaks
 
 pub const POLICY_LABEL: &str = "//.dx:policy";
 
-/// Tools whose aspect attr reads `//config:tool_<id>`; the rc points unselected ones at `//config:off_tool`.
-const FLAGGED_TOOLS: &[&str] = &["pydoclint", "ruff", "ty"];
+/// Tools whose aspect attr reads `//config:tool_<id>`, each with the tools that also run it; the rc points the ones no selected tool runs at `//config:off_tool`.
+const FLAGGED_TOOLS: &[(&str, &[&str])] = &[
+    ("actionlint", &[]),
+    ("buildifier", &[]),
+    ("lychee", &[]),
+    ("markdown_check", &[]),
+    ("notebook_outputs", &[]),
+    ("pydoclint", &[]),
+    ("ruff", &[]),
+    ("shellcheck", &["actionlint"]),
+    ("taplo", &[]),
+    ("ty", &[]),
+    ("zizmor", &[]),
+];
 
 #[must_use]
 pub fn base_path(config: &ToolConfig) -> Option<String> {
@@ -532,8 +544,11 @@ fn bazelrc(
     text.push_str(&format!("\n# The workspace policy dx generates from dx.toml.\ncommon --@{repo}//config:workspace={POLICY_LABEL}\n"));
     let off: Vec<&str> = FLAGGED_TOOLS
         .iter()
-        .copied()
-        .filter(|tool| !selected.contains_key(tool))
+        .filter(|(tool, runners)| {
+            !selected.contains_key(tool)
+                && !runners.iter().any(|runner| selected.contains_key(runner))
+        })
+        .map(|(tool, _)| *tool)
         .collect();
     if !off.is_empty() {
         text.push_str("\n# The tools no family runs.\n");

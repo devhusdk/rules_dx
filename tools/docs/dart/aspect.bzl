@@ -5,7 +5,7 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
-_DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
+_DART_TOOLCHAIN = "@rules_dart//dart:exec_tools_toolchain_type"
 
 def _dart_docs_shard(target, ctx):
     if _DartInfo not in target or DocsShardInfo in target:

@@ -106,6 +106,7 @@ common --@rules_dx//config:config_tier=strict
 common --@rules_dx//config:workspace=//.dx:policy
 
 # The tools no family runs.
+common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
 common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
 
 # The clippy tier.

@@ -20,7 +20,7 @@ TOOLS = {
         "shard": "biome",
     },
     "buildifier": {
-        "attr": attr.label(default = "@dx_tools//:buildifier", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_buildifier", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
@@ -34,26 +34,26 @@ TOOLS = {
         "shard": "docstrfmt",
     },
     "lychee": {
-        "attr": attr.label(default = "@dx_tools//:lychee", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_lychee", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "markdown_check": {
-        "attr": attr.label(default = "@dx_prebuilt//:quality_markdown", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_markdown_check", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "notebook_outputs": {
-        "attr": attr.label(default = "@dx_prebuilt//:quality_notebook", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_notebook_outputs", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
     },
     "taplo": {
-        "attr": attr.label(default = "@dx_tools//:taplo", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_taplo", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
@@ -65,7 +65,7 @@ TOOLS = {
         "shard": "vale",
     },
     "zizmor": {
-        "attr": attr.label(default = "@dx_tools//:zizmor", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_zizmor", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "core",
@@ -73,7 +73,7 @@ TOOLS = {
 }
 
 _ACTIONLINT_ATTRS = {
-    "_actionlint_shellcheck": attr.label(default = "@dx_tools//:shellcheck", allow_single_file = True, cfg = "exec", doc = "The pinned shellcheck actionlint runs on run: blocks."),
+    "_actionlint_shellcheck": attr.label(default = "//config:tool_shellcheck", allow_single_file = True, cfg = "exec", doc = "The pinned shellcheck actionlint runs on run: blocks."),
 }
 
 SHARD_SPECS = {

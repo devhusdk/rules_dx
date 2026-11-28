@@ -148,7 +148,15 @@ fn renders_standard() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -211,7 +219,15 @@ fn renders_strict() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -287,7 +303,12 @@ fn renders_no_dx_toml() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
 
     # The clippy tier.
     common --@rules_dx//config:clippy_flag=-Wclippy::all
@@ -414,7 +435,12 @@ fn renders_existing_exports() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -479,7 +505,15 @@ fn renders_no_root_build() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -545,7 +579,15 @@ fn renders_mixed_tiers() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -605,9 +647,17 @@ fn renders_rust() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_ruff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_ty=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The clippy tier.
     common --@rules_dx//config:clippy_flag=-Wclippy::all
@@ -1117,9 +1167,28 @@ fn a_tool_no_family_runs_points_at_the_off_tool() {
         )
     };
     let undetected = rc(None, &["rust"]);
-    for tool in ["pydoclint", "ruff", "ty"] {
+    for tool in [
+        "actionlint",
+        "buildifier",
+        "lychee",
+        "markdown_check",
+        "notebook_outputs",
+        "pydoclint",
+        "ruff",
+        "shellcheck",
+        "taplo",
+        "ty",
+        "zizmor",
+    ] {
         assert!(undetected.contains(&off(tool)), "{undetected}");
     }
+    let workflows = rc(None, &["core"]);
+    assert!(!workflows.contains(&off("actionlint")), "{workflows}");
+    assert!(!workflows.contains(&off("shellcheck")), "{workflows}");
+    assert!(workflows.contains(&off("buildifier")), "{workflows}");
+    let shell = rc(None, &["shell"]);
+    assert!(!shell.contains(&off("shellcheck")), "{shell}");
+    assert!(shell.contains(&off("actionlint")), "{shell}");
     let detected = rc(None, &["python"]);
     assert!(detected.contains(&off("pydoclint")), "{detected}");
     assert!(!detected.contains(&off("ruff")), "{detected}");

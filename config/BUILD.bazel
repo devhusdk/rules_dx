@@ -169,6 +169,48 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_buildifier",
+    build_setting_default = "@dx_tools//:buildifier",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_lychee",
+    build_setting_default = "@dx_tools//:lychee",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_markdown_check",
+    build_setting_default = "@dx_prebuilt//:quality_markdown",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_notebook_outputs",
+    build_setting_default = "@dx_prebuilt//:quality_notebook",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_shellcheck",
+    build_setting_default = "@dx_tools//:shellcheck",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_taplo",
+    build_setting_default = "@dx_tools//:taplo",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_zizmor",
+    build_setting_default = "@dx_tools//:zizmor",
+    scope = "universal",
+)
+
+label_flag(
     name = "tool_hadolint",
     build_setting_default = "@dx_tools//:hadolint",
     scope = "universal",

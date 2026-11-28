@@ -37,6 +37,8 @@ _CLIPPY_STRICT = [
 ]
 
 _TOOL_DEFAULTS = {
+    "//config:tool_actionlint": "@dx_tools//:actionlint",
+    "//config:tool_buildifier": "@dx_tools//:buildifier",
     "//config:tool_credo": "//elixir/private/tools:credo",
     "//config:tool_dart": "//config:no_dart",
     "//config:tool_dialyzer": "//erlang/private/tools:dialyzer",
@@ -46,19 +48,27 @@ _TOOL_DEFAULTS = {
     "//config:tool_jet": "//julia/private/tools/jet:jet",
     "//config:tool_julia_format": "//config:no_julia_format",
     "//config:tool_luals": "//lua/private/tools:luals",
+    "//config:tool_lychee": "@dx_tools//:lychee",
+    "//config:tool_markdown_check": "@dx_prebuilt//:quality_markdown",
     "//config:tool_mix_format": "//elixir/private/tools:mix_format",
+    "//config:tool_notebook_outputs": "@dx_prebuilt//:quality_notebook",
     "//config:tool_perlcritic": "//config:no_perlcritic",
     "//config:tool_perltidy": "//config:no_perltidy",
     "//config:tool_phpcs": "//php/private/tools:phpcs",
     "//config:tool_phpstan": "//php/private/tools:phpstan",
+    "//config:tool_pydoclint": "//core/quality/tools/python:pydoclint",
     "//config:tool_qmlformat": "//config:no_qmlformat",
     "//config:tool_qmllint": "//config:no_qmllint",
     "//config:tool_ruff": "@dx_tools//:ruff",
+    "//config:tool_shellcheck": "@dx_tools//:shellcheck",
     "//config:tool_sorbet": "//ruby/private/tools:sorbet",
     "//config:tool_swift_format": "//config:no_swift_format",
     "//config:tool_swift_lint": "//config:no_swift_lint",
+    "//config:tool_taplo": "@dx_tools//:taplo",
+    "//config:tool_ty": "@dx_tools//:ty",
     "//config:tool_zig_ast_check": "//config:no_zig_ast_check",
     "//config:tool_zig_fmt": "//config:no_zig_fmt",
+    "//config:tool_zizmor": "@dx_tools//:zizmor",
 }
 
 _TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{

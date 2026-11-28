@@ -96,7 +96,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Registers the exact-input real format pipeline action in dx_results.",
         "shard": "core",
-        "shared_attrs": True,
         "suffix": "",
     },
     "real_lint": {
@@ -104,14 +103,12 @@ SHARD_SPECS = {
         "doc": "Registers the exact-input real lint pipeline action in dx_results.",
         "extra_attrs": _ACTIONLINT_ATTRS,
         "shard": "core",
-        "shared_attrs": True,
         "suffix": "",
     },
     "real_typecheck": {
         "capability": "typecheck",
         "doc": "Registers the exact-input real typecheck pipeline action in dx_results.",
         "shard": "core",
-        "shared_attrs": True,
         "suffix": "",
     },
     "real_vale_lint": {

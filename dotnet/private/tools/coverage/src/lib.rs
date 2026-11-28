@@ -251,23 +251,58 @@ fn owner_only_dir(dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
+const DIAG_SHIM: &str = r##"#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+static void lg(const char *fmt, ...) {
+  char buf[600]; va_list ap; va_start(ap, fmt); int n = vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap);
+  const char *p = getenv("DX_SHIM_LOG"); if (!p || n <= 0) return; if (n >= (int)sizeof buf) n = sizeof buf - 1;
+  int fd = syscall(SYS_openat, AT_FDCWD, p, O_WRONLY | O_APPEND | O_CREAT, 0644); if (fd < 0) return;
+  syscall(SYS_write, fd, buf, n); syscall(SYS_close, fd);
+}
+static int hot(const char *p) { return p && (strstr(p, "/tmp") || strstr(p, ".dotnet")) && !strstr(p, "/_tmp/"); }
+#define NEXT(T, name) static __typeof__(T) r; if (!r) r = (__typeof__(T))dlsym(RTLD_NEXT, name)
+int mkdir(const char *p, mode_t m) { NEXT(int (*)(const char *, mode_t), "mkdir"); int x = r(p, m); int e = errno; if (hot(p)) lg("pid=%d mkdir %s %o = %d errno=%d\n", getpid(), p, m, x, x ? e : 0); errno = e; return x; }
+char *mkdtemp(char *t) { NEXT(char *(*)(char *), "mkdtemp"); char *x = r(t); int e = errno; lg("pid=%d mkdtemp %s = %p errno=%d\n", getpid(), t, (void *)x, x ? 0 : e); errno = e; return x; }
+int rename(const char *a, const char *b) { NEXT(int (*)(const char *, const char *), "rename"); int x = r(a, b); int e = errno; if (hot(a) || hot(b)) lg("pid=%d rename %s %s = %d errno=%d\n", getpid(), a, b, x, x ? e : 0); errno = e; return x; }
+int chmod(const char *p, mode_t m) { NEXT(int (*)(const char *, mode_t), "chmod"); int x = r(p, m); int e = errno; if (hot(p)) lg("pid=%d chmod %s %o = %d errno=%d\n", getpid(), p, m, x, x ? e : 0); errno = e; return x; }
+int stat(const char *restrict p, struct stat *restrict s) { NEXT(int (*)(const char *, struct stat *), "stat"); int x = r(p, s); int e = errno; if (hot(p)) lg("pid=%d stat %s = %d errno=%d mode=%o uid=%d\n", getpid(), p, x, x ? e : 0, x ? 0 : s->st_mode, x ? -1 : (int)s->st_uid); errno = e; return x; }
+static int do_open(const char *name, const char *p, int f, mode_t m) { NEXT(int (*)(const char *, int, ...), name); int x = r(p, f, m); int e = errno; if (hot(p)) lg("pid=%d %s %s 0x%x %o = %d errno=%d\n", getpid(), name, p, f, m, x, x < 0 ? e : 0); errno = e; return x; }
+int open(const char *p, int f, ...) { mode_t m = 0; if (f & (O_CREAT | O_TMPFILE)) { va_list ap; va_start(ap, f); m = va_arg(ap, int); va_end(ap); } return do_open("open", p, f, m); }
+int open64(const char *p, int f, ...) { mode_t m = 0; if (f & (O_CREAT | O_TMPFILE)) { va_list ap; va_start(ap, f); m = va_arg(ap, int); va_end(ap); } return do_open("open64", p, f, m); }
+int flock(int fd, int op) { NEXT(int (*)(int, int), "flock"); int x = r(fd, op); int e = errno; lg("pid=%d flock %d %d = %d errno=%d\n", getpid(), fd, op, x, x ? e : 0); errno = e; return x; }
+int ftruncate(int fd, off_t l) { NEXT(int (*)(int, off_t), "ftruncate"); int x = r(fd, l); int e = errno; lg("pid=%d ftruncate %d %ld = %d errno=%d\n", getpid(), fd, (long)l, x, x ? e : 0); errno = e; return x; }
+int pthread_mutex_init(pthread_mutex_t *mu, const pthread_mutexattr_t *a) { NEXT(int (*)(pthread_mutex_t *, const pthread_mutexattr_t *), "pthread_mutex_init"); int x = r(mu, a); if (x) lg("pid=%d pthread_mutex_init = %d\n", getpid(), x); return x; }
+int pthread_mutex_trylock(pthread_mutex_t *mu) { NEXT(int (*)(pthread_mutex_t *), "pthread_mutex_trylock"); int x = r(mu); if (x && x != EBUSY) lg("pid=%d pthread_mutex_trylock = %d\n", getpid(), x); return x; }
+pid_t getsid(pid_t p) { NEXT(pid_t (*)(pid_t), "getsid"); pid_t x = r(p); int e = errno; lg("pid=%d getsid(%d) = %d errno=%d\n", getpid(), p, x, x < 0 ? e : 0); errno = e; return x; }
+"##;
+
+fn diag_shim(dir: &Path) -> Option<PathBuf> {
+    let cc = ["/usr/bin/cc", "/usr/bin/gcc", "/usr/bin/clang"].into_iter().find(|p| Path::new(p).exists());
+    eprintln!("DIAG cc={cc:?}");
+    let cc = cc?;
+    let src = dir.join("shim.c");
+    let so = dir.join("shim.so");
+    fs::write(&src, DIAG_SHIM).ok()?;
+    let out = Command::new(cc).arg("-shared").arg("-fPIC").arg("-o").arg(&so).arg(&src).arg("-ldl").output().ok()?;
+    eprintln!("DIAG cc status={:?} {}", out.status, String::from_utf8_lossy(&out.stderr));
+    out.status.success().then_some(so)
+}
+
 fn diag_trace(dir: &Path) {
-    let mut n = 0;
-    if let Ok(text) = fs::read_to_string(dir.join("strace.txt")) {
-        for line in text.lines() {
-            let hit = line.contains("/tmp") || line.contains("flock") || line.contains("ftruncate") || line.contains("getsid") || line.contains("MAP_SHARED") || (line.contains("= -1") && !line.contains("ENOENT"));
-            if hit && n < 150 {
-                eprintln!("DIAG strace {line}");
-                n += 1;
-            }
-        }
-    }
-    let mut seen = BTreeSet::new();
-    if let Ok(text) = fs::read_to_string(dir.join("host.txt")) {
-        for line in text.lines().filter(|l| l.contains("NETCore.App") && (l.contains("Using") || l.contains("resolved") || l.contains("Resolved"))) {
-            if seen.insert(line.to_owned()) && seen.len() < 20 {
-                eprintln!("DIAG host {line}");
-            }
+    if let Ok(text) = fs::read_to_string(dir.join("shim.log")) {
+        for line in text.lines().take(300) {
+            eprintln!("DIAG shim {line}");
         }
     }
 }
@@ -333,19 +368,11 @@ fn run() -> Result<i32, String> {
     let manifest = root.join("MANIFEST");
     let test_tmp = tmp.join("tmp");
     owner_only_dir(&test_tmp).map_err(|e| format!("cannot create {}: {e}", test_tmp.display()))?;
-    let strace = ["/usr/bin/strace", "/bin/strace"].into_iter().find(|p| Path::new(p).exists());
-    eprintln!("DIAG strace={strace:?}");
-    let mut command = match strace {
-        Some(bin) => {
-            let mut c = Command::new(bin);
-            c.arg("-f").arg("-o").arg(test_tmp.join("strace.txt")).args(["-e", "trace=%file,flock,ftruncate,mmap,getsid", coverlet.as_str()]);
-            c
-        }
-        None => Command::new(&coverlet),
-    };
+    let mut command = Command::new(&coverlet);
+    if let Some(so) = diag_shim(&test_tmp) {
+        command.env("LD_PRELOAD", so).env("DX_SHIM_LOG", test_tmp.join("shim.log"));
+    }
     let status = command
-        .env("COREHOST_TRACE", "1")
-        .env("COREHOST_TRACEFILE", test_tmp.join("host.txt"))
         .args(&args)
         .current_dir(root.join(&config.workspace))
         .env("RUNFILES_DIR", &root)

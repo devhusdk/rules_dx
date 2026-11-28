@@ -126,7 +126,7 @@ powershell_doc_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:powershell_extract"),
             executable = True,
         ),
         "_pwsh": attr.label(

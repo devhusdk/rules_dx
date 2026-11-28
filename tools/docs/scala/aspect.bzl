@@ -14,7 +14,7 @@ real_scala_docs_aspect = aspect(
     attrs = SCALA_VERSION_ATTRS | {
         "_jvm_convert": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:jvm_convert"),
             executable = True,
         ),
         "_scala_extract": attr.label(

@@ -216,6 +216,7 @@ Converts one dart_library public API into a DocIr shard with the pinned `dart do
 | --- | --- | --- | --- |
 | `lib` | `label` | yes | The documented dart_library. |
 | `package` | `string` | no | Package segment of the symbol ids; defaults to the Dart package name of lib. |
+| `_doc` | `label` | no |  |
 | `_extract` | `label` | no |  |
 
 `dx docs` runs the pinned `dart doc` on every `flutter_library` with a `lib/`

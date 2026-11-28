@@ -34,7 +34,7 @@ real_beam_docs_aspect = aspect(
     attrs = {
         "_beam_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:beam_extract"),
             executable = True,
         ),
         "_elixir_dump": attr.label(

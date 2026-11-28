@@ -29,7 +29,7 @@ component_doc_shard = rule(
         "source_prefix": attr.string(doc = "Repo-relative directory of the project."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:component_extract"),
             executable = True,
         ),
     },

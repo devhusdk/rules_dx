@@ -60,7 +60,7 @@ swift_doc_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids. Defaults to the lib name."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:swift_extract"),
             executable = True,
         ),
     },

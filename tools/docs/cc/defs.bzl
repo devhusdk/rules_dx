@@ -127,7 +127,7 @@ def _cc_shard_rule(language, what):
             ),
             "_extract": attr.label(
                 cfg = "exec",
-                default = Label("@dx_prebuilt//:dx"),
+                default = Label("@dx_prebuilt//dx:cc_extract"),
                 executable = True,
             ),
             "_language": attr.string(default = language),

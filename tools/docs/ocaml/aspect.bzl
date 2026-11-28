@@ -28,7 +28,7 @@ real_ocaml_docs_aspect = aspect(
     attrs = {
         "_ocaml_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:ocaml_extract"),
             executable = True,
         ),
         "_odoc": attr.label(

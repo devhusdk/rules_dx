@@ -27,7 +27,7 @@ docs_typescript_shard = rule(
         "source_prefix": attr.string(doc = "Repo-relative directory of the TypeScript project."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:typescript_extract"),
             executable = True,
         ),
     },

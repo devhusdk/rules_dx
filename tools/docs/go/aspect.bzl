@@ -31,7 +31,7 @@ real_go_docs_aspect = aspect(
         ),
         "_go_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:go_extract"),
             executable = True,
         ),
     },

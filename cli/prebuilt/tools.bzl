@@ -89,6 +89,37 @@ def _library(tool, file, source, ext = ".dll", role = "exec", platforms = ["wind
         library = file,
     )
 
+_DOCS_SUBCOMMANDS = {
+    "avro_extract": "@rules_dx//tools/docs/avro/extract:avro_extract",
+    "beam_extract": "@rules_dx//tools/docs/beam/extract:beam_extract",
+    "cc_extract": "@rules_dx//tools/docs/cc/extract:cc_extract",
+    "component_extract": "@rules_dx//tools/docs/components/extract:component_extract",
+    "d_extract": "@rules_dx//tools/docs/d/extract:d_extract",
+    "dart_doc": "@rules_dx//tools/docs/dart/extract:dart_doc",
+    "dart_extract": "@rules_dx//tools/docs/dart/extract:dart_extract",
+    "dotnet_extract": "@rules_dx//tools/docs/dotnet/extract:dotnet_extract",
+    "fortran_extract": "@rules_dx//tools/docs/fortran/extract:fortran_extract",
+    "go_extract": "@rules_dx//tools/docs/go/extract:go_extract",
+    "haskell_extract": "@rules_dx//tools/docs/haskell/extract:haskell_extract",
+    "julia_extract": "@rules_dx//tools/docs/julia/extract:julia_extract",
+    "jvm_convert": "@rules_dx//tools/docs/jvm/convert:jvm_convert",
+    "lua_extract": "@rules_dx//tools/docs/lua/extract:lua_extract",
+    "ocaml_extract": "@rules_dx//tools/docs/ocaml/extract:ocaml_extract",
+    "perl_extract": "@rules_dx//tools/docs/perl/extract:perl_extract",
+    "php_extract": "@rules_dx//tools/docs/php/extract:php_extract",
+    "powershell_extract": "@rules_dx//tools/docs/powershell/extract:powershell_extract",
+    "protobuf_extract": "@rules_dx//tools/docs/protobuf/extract:protobuf_extract",
+    "python_extract": "@rules_dx//tools/docs/python/extract:python_extract",
+    "ruby_extract": "@rules_dx//tools/docs/ruby/extract:ruby_extract",
+    "rust_extract": "@rules_dx//tools/docs/rust/extract:rust_extract",
+    "site_aggregate": "@rules_dx//tools/docs/site/aggregate:site_aggregate",
+    "site_build": "@rules_dx//tools/docs/site/build:site_build",
+    "site_check": "@rules_dx//tools/docs/site/check:site_check",
+    "swift_extract": "@rules_dx//tools/docs/swift/extract:swift_extract",
+    "typescript_extract": "@rules_dx//tools/docs/typescript/extract:typescript_extract",
+    "zig_extract": "@rules_dx//tools/docs/zig/extract:zig_extract",
+}
+
 DX_SUBCOMMANDS = {
     "android_ops": "@rules_dx//android/private/packaging/ops:android_ops",
     "ansible_lock": "@rules_dx//ansible/private/tools/lock:ansible_lock",
@@ -130,7 +161,7 @@ DX_SUBCOMMANDS = {
     "symbols_split": "@rules_dx//deploy/private/symbols:symbols_split",
     "terraform_lock": "@rules_dx//terraform/private/tools/lock:terraform_lock",
     "zig_lock": "@rules_dx//zig/private/tools/lock:zig_lock",
-}
+} | _DOCS_SUBCOMMANDS
 
 TOOLS = {
     "dx": struct(

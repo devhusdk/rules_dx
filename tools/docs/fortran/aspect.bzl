@@ -31,7 +31,7 @@ real_fortran_docs_aspect = aspect(
         ),
         "_fortran_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:fortran_extract"),
             executable = True,
         ),
     },

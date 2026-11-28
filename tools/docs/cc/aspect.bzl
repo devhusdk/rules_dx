@@ -29,7 +29,7 @@ real_cc_docs_aspect = aspect(
     attrs = {
         "_cc_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:cc_extract"),
             executable = True,
         ),
         "_doxygen": attr.label(

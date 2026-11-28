@@ -31,7 +31,7 @@ real_julia_docs_aspect = aspect(
         ),
         "_julia_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:julia_extract"),
             executable = True,
         ),
     },

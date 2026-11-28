@@ -201,7 +201,7 @@ mdbook_site = rule(
         ),
         "_dx": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:site_build"),
             executable = True,
         ),
     },

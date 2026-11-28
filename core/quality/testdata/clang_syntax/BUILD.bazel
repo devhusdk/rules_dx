@@ -80,6 +80,14 @@ cc_library(
 )
 
 cc_library(
+    name = "header_only",
+    hdrs = ["dep.h"],
+    aspect_hints = [":tidy_config"],
+    visibility = ["//core/quality:__pkg__"],
+    tags = ["manual"],
+)
+
+cc_library(
     name = "windows_param_file",
     visibility = ["//core/quality:__pkg__"],
     srcs = ["clean.c"],

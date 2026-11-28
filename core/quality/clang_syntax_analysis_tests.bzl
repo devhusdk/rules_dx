@@ -68,6 +68,21 @@ _sourceless_test = analysistest.make(
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
+def _header_only_impl(ctx):
+    """Checks a header-only library parses and clang-tidies each header, a .h one as a C header."""
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[ClangSyntaxInfo]
+    asserts.equals(env, ["core/quality/testdata/clang_syntax/dep.h"], info.sources)
+    asserts.true(env, "-xc-header" in info.argv[0], "want a C header parse in " + str(info.argv[0]))
+    asserts.equals(env, "", info.tidy_error)
+    asserts.equals(env, 1, len(info.tidy_diagnostics))
+    return analysistest.end(env)
+
+_header_only_test = analysistest.make(
+    _header_only_impl,
+    extra_target_under_test_aspects = [clang_syntax_aspect],
+)
+
 def clang_syntax_analysis_tests(name):
     """Instantiates the clang syntax analysis tests as one suite."""
     _windows_argv_test(
@@ -107,4 +122,9 @@ def clang_syntax_analysis_tests(name):
         size = "small",
         target_under_test = name + "_sourceless_target",
     )
-    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless"])
+    _header_only_test(
+        name = name + "_header_only",
+        size = "small",
+        target_under_test = "//core/quality/testdata/clang_syntax:header_only",
+    )
+    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless", name + "_header_only"])

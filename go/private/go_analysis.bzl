@@ -104,7 +104,7 @@ def _go_analysis_impl(target, ctx):
             return []
         info = upstream[GoAnalysisInfo]
         return [info, OutputGroupInfo(**{"dx_" + tool: depset([report]) for tool, report in info.reports.items()})]
-    if GoArchive not in target:
+    if GoArchive not in target or not hasattr(ctx.rule.files, "srcs"):
         return []
     archive = target[GoArchive]
     (sources, importpath) = _package_sources(target, ctx)

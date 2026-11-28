@@ -241,6 +241,16 @@ fn build_mirror(root: &Path, entries: &[Entry], copies: &BTreeSet<String>) -> io
     )
 }
 
+fn owner_only_dir(dir: &Path) -> io::Result<()> {
+    fs::create_dir_all(dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(())
+}
+
 fn run() -> Result<i32, String> {
     let target_args: Vec<String> = env::args().skip(1).collect();
     let (entries, runfiles_dir) = runfiles_entries()?;
@@ -300,7 +310,8 @@ fn run() -> Result<i32, String> {
     }
     let coverlet = in_mirror(&config.coverlet);
     let manifest = root.join("MANIFEST");
-    let test_tmp = env::var_os("TEST_TMPDIR").unwrap_or_else(|| tmp.clone().into_os_string());
+    let test_tmp = tmp.join("tmp");
+    owner_only_dir(&test_tmp).map_err(|e| format!("cannot create {}: {e}", test_tmp.display()))?;
     let status = Command::new(&coverlet)
         .args(&args)
         .current_dir(root.join(&config.workspace))
@@ -425,6 +436,17 @@ mod tests {
         });
         assert_eq!(args.len(), 7);
         assert_eq!(quote_arg(""), "\"\"");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn owner_only_dir_drops_group_and_other_access() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = PathBuf::from(env::var_os("TEST_TMPDIR").unwrap()).join("owner_only/tmp");
+        owner_only_dir(&dir).unwrap();
+        owner_only_dir(&dir).unwrap();
+        let mode = fs::metadata(&dir).unwrap().permissions().mode();
+        assert_eq!(mode & 0o7777, 0o700);
     }
 
     #[test]

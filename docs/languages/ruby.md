@@ -15,7 +15,7 @@ bazel_dep(name = "rules_dx", version = "<release>")
 Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//dx/launch:dx -- init --apply
 ```
 
 For a Ruby project, `MODULE.bazel` then looks like this:
@@ -124,8 +124,8 @@ The `ruby/tests/fixtures/adopt_ruby` tree shows a full run.
 `rubocop` formats and lints:
 
 ```sh
-bazel run @rules_dx//:dx -- format //app/...
-bazel run @rules_dx//:dx -- lint //app/...
+bazel run @rules_dx//dx/launch:dx -- format //app/...
+bazel run @rules_dx//dx/launch:dx -- lint //app/...
 ```
 
 It runs from the gems of a bundle you declare, and you point `rubocop` at

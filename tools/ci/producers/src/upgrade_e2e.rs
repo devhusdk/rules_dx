@@ -254,7 +254,7 @@ fn consumer_module(version: &str) -> String {
 }
 
 fn dx(dir: &Path, args: &[&str]) -> Result<(), String> {
-    let mut full = vec!["run", "@rules_dx//:dx", "--"];
+    let mut full = vec!["run", "@rules_dx//dx/launch:dx", "--"];
     full.extend_from_slice(args);
     run("bazel", &full, dir)
 }

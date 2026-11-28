@@ -43,7 +43,7 @@ Without `--to`, `dx upgrade` reads `modules/rules_dx/metadata.json` from the reg
 
 1. The `rules_dx` `bazel_dep` version in the root `MODULE.bazel`. It must be one line, `bazel_dep(name = "rules_dx", version = "...")`. A dep in an `include()`d file or spread over several lines is refused and nothing is written.
 2. `MODULE.bazel.lock`, through `bazel mod deps --lockfile_mode=update`. Skipped when absent.
-3. When `--to` differs from this `dx`, the `--to` binary runs `bazel run @rules_dx//:dx -- upgrade --to <to> --apply` and writes the rest. This `dx` returns its exit code.
+3. When `--to` differs from this `dx`, the `--to` binary runs `bazel run @rules_dx//dx/launch:dx -- upgrade --to <to> --apply` and writes the rest. This `dx` returns its exit code.
 4. `.dx/pins`, on every run.
 5. Existing launchers `tools/dx` and `tools/dx.cmd`.
 6. Dx-owned keys of an existing `.vscode/settings.json` and the `uses:` pin in an existing `.github/workflows/ci.yml`. The caller carries no version input.

@@ -51,7 +51,7 @@ pub fn lint_argv(scope: &str, config: &[String]) -> Result<Vec<String>, String> 
     let patterns = parse_scope(scope)?;
     let mut argv: Vec<String> = vec!["run".to_string()];
     argv.extend_from_slice(config);
-    argv.extend(["@rules_dx//:dx", "--", "lint"].map(str::to_string));
+    argv.extend(["@rules_dx//dx/launch:dx", "--", "lint"].map(str::to_string));
     argv.extend(patterns);
     argv.push("--".to_string());
     argv.extend_from_slice(config);

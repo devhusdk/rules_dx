@@ -18,7 +18,7 @@ fn valid_scopes_reach_bazel_as_separate_arguments() {
         Ok(args(&[
             "run",
             "--config=ci",
-            "@rules_dx//:dx",
+            "@rules_dx//dx/launch:dx",
             "--",
             "lint",
             "//...",
@@ -117,7 +117,7 @@ fn the_binary_runs_bazel_without_a_shell() {
         [
             "run",
             "--config=ci",
-            "@rules_dx//:dx",
+            "@rules_dx//dx/launch:dx",
             "--",
             "lint",
             "//...",

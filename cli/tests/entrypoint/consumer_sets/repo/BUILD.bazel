@@ -53,7 +53,7 @@ genrule(
     ],
     cmd = """
 set -eu
-public="$(location @rules_dx//:dx)"
+public="$(location @rules_dx//dx/launch:dx)"
 ok="$$(dirname "$(location sets_ok/MODULE.bazel)")"
 bad="$$(dirname "$(location sets_bad/MODULE.bazel)")"
 nolock="$$(dirname "$(location sets_nolock/MODULE.bazel)")"
@@ -316,7 +316,7 @@ cmp "$$orig/consumer_sets_frontend_uv_lock.orig" "$(location sets_ok/apps/fronte
 cmp "$$orig/consumer_sets_worker_uv_lock.orig" "$(location sets_ok/services/worker/uv.lock)"
 """,
     tools = [
-        "@rules_dx//:dx",
+        "@rules_dx//dx/launch:dx",
     ],
     visibility = ["//visibility:public"],
 )

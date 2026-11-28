@@ -3897,7 +3897,7 @@ mod hooks {
         );
         assert_eq!(updated["description"], "d");
         assert!(matches!(
-            guard_for_agent("bazel run @rules_dx//:dx -- worktree release"),
+            guard_for_agent("bazel run @rules_dx//dx/launch:dx -- worktree release"),
             hook::Guard::Rewrite(_)
         ));
         for command in [
@@ -3910,7 +3910,7 @@ mod hooks {
             "bash -lc 'cd x && tools/dx check'",
             "bash -euo pipefail -c 'tools/dx test'",
             "sh -c \"timeout 5 tools/dx test\"",
-            "bazel run //:dx -- test",
+            "bazel run //dx/launch:dx -- test",
         ] {
             let hook::Guard::Rewrite(output) = guard_for_agent(command) else {
                 panic!("{command} is rewritten");

@@ -15,7 +15,7 @@ bcr_test_module:
       platform: ${{ platform }}
       bazel: ${{ bazel }}
       run_targets:
-        - "@rules_dx//:dx"
+        - "@rules_dx//dx/launch:dx"
       run_flags:
         - "--"
         - "--help"

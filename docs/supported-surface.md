@@ -7556,7 +7556,6 @@ Use a toolchain type when you register your own toolchain.
 
 | Target | Kind |
 | --- | --- |
-| `@rules_dx//:dx` | `alias` |
 | `@rules_dx//:package_json` | `javascript_library` |
 | `@rules_dx//android:declared_emulator` | `declared_emulator` |
 | `@rules_dx//android:emulator_undeclared` | `config_setting` |
@@ -7579,6 +7578,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//cuda:gpu_undeclared` | `config_setting` |
 | `@rules_dx//d:coverage` | `config_setting` |
 | `@rules_dx//dart:runfiles` | `alias` |
+| `@rules_dx//dx/launch:dx` | `alias` |
 | `@rules_dx//flatbuffers:reflection_fbs_schema` | `alias` |
 | `@rules_dx//flatbuffers:runtime_java` | `alias` |
 | `@rules_dx//flatbuffers:runtime_rust` | `alias` |

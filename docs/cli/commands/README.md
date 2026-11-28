@@ -286,7 +286,7 @@ How it picks and runs dx:
    the `<version> <sha256> <asset>` line in the `.dx/pins` file next to that
    `MODULE.bazel`. A binary that does not match is deleted and never run.
 4. Without a pinned hash for the version, the shim runs
-   `bazel run @rules_dx//:dx -- ...` and prints nothing itself. That happens
+   `bazel run @rules_dx//dx/launch:dx -- ...` and prints nothing itself. That happens
    when there is no `bazel_dep` line, the dep spans several lines or is not a
    literal, any `module_name = "rules_dx"` override exists, `.dx/pins` has no
    line for the version, or there is no `MODULE.bazel`. The shim never falls
@@ -337,7 +337,7 @@ dx lints `main` with the target's sources, unless you set it to a label.
 
 ## Supported Surface
 
-`@rules_dx//:dx` runs every command. You load rules from the files below. Every
+`@rules_dx//dx/launch:dx` runs every command. You load rules from the files below. Every
 other file is private: do not load it or depend on it.
 
 The Bazel version in `.bazelversion` is the tested baseline.

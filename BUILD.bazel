@@ -289,12 +289,6 @@ load("//javascript:defs.bzl", "javascript_library")
 
 package(default_visibility = ["//:__subpackages__"])
 
-alias(
-    name = "dx",
-    actual = "@dx_prebuilt//:dx",
-    visibility = ["//visibility:public"],
-)
-
 javascript_library(
     name = "package_json",
     srcs = ["package.json"],
@@ -689,6 +683,7 @@ filegroup(
         "//dotnet/private/tools/coverage:module_srcs",
         "//dx:module_srcs",
         "//dx/advisory_prep:module_srcs",
+        "//dx/launch:module_srcs",
         "//elixir:module_srcs",
         "//elixir/private:module_srcs",
         "//elixir/private/bench:module_srcs",

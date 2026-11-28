@@ -57,7 +57,6 @@
 //config:toolchains bool_flag False
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
-//:dx alias
 //:package_json javascript_library
 //android:android_device platform
 //android:android_emulator platform
@@ -124,6 +123,7 @@
 //deploy:bootstrap_offline runnable rust_binary
 //deploy:linux_amd64 platform
 //deploy:linux_arm64 platform
+//dx/launch:dx alias
 //elixir:toolchain_type toolchain_type
 //erlang:exec_toolchain_type toolchain_type
 //erlang:toolchain_type toolchain_type

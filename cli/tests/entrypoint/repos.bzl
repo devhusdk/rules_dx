@@ -15,7 +15,7 @@ _BUILD_BAZEL = '''genrule(
     ],
     cmd = """
 set -eu
-public="$(location @rules_dx//:dx)"
+public="$(location @rules_dx//dx/launch:dx)"
 crate="$(location @rules_dx//cli/cli:dx)"
 "$$public" --help > "$(location public_help.txt)"
 "$$crate" --help > "$(location crate_help.txt)"
@@ -29,7 +29,7 @@ ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" completion bash --workspace "$$ws" > "$(location public_completion.txt)"
 """,
     tools = [
-        "@rules_dx//:dx",
+        "@rules_dx//dx/launch:dx",
         "@rules_dx//cli/cli:dx",
     ],
     visibility = ["//visibility:public"],
@@ -49,7 +49,7 @@ genrule(
     cmd = """
 set -eu
 export MSYS=winsymlinks:nativestrict
-public="$(location @rules_dx//:dx)"
+public="$(location @rules_dx//dx/launch:dx)"
 out="$$(dirname "$(location status_healthy.txt)")"
 root="$$(mktemp -d)"
 trap 'rm -rf "$$root"' EXIT
@@ -113,7 +113,7 @@ status corrupt_tool 1
 workspace pin 9.9.9 @@DX_VERSION@@
 status pin 0
 """,
-    tools = ["@rules_dx//:dx"],
+    tools = ["@rules_dx//dx/launch:dx"],
     visibility = ["//visibility:public"],
 )
 '''

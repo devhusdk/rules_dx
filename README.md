@@ -82,7 +82,7 @@ It costs:
 
 ## Which dx binary runs
 
-In your module, `@rules_dx//:dx` runs the `dx` binary for your platform. It
+In your module, `@rules_dx//dx/launch:dx` runs the `dx` binary for your platform. It
 is checked against the sha256 in `cli/prebuilt/pins.bzl`. A release pins
 binaries for linux x86_64, linux aarch64, macos aarch64, windows x86_64 and
 windows aarch64.

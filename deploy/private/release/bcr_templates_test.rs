@@ -55,7 +55,7 @@ fn presubmit_covers_five_platforms_and_the_dx_commands() {
         "macos_arm64",
         "windows",
         "ubuntu2204_arm64",
-        "@rules_dx//:dx",
+        "@rules_dx//dx/launch:dx",
         "--help",
         "//:hello_test",
     ] {
@@ -108,7 +108,7 @@ fn presubmit_run_flags_belong_to_the_run_task() {
     assert!(
         host_targets(&text, LINUX)
             .iter()
-            .any(|pair| pair == &("run".to_owned(), "@rules_dx//:dx".to_owned()))
+            .any(|pair| pair == &("run".to_owned(), "@rules_dx//dx/launch:dx".to_owned()))
     );
 }
 

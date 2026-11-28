@@ -108,7 +108,7 @@ def _dx_prebuilt_impl(module_ctx):
     )
 
 dx_prebuilt = module_extension(
-    doc = "Creates @dx_prebuilt, the dx binary behind @rules_dx//:dx and the native launcher.",
+    doc = "Creates @dx_prebuilt, the dx binary behind @rules_dx//dx/launch:dx and the native launcher.",
     implementation = _dx_prebuilt_impl,
     tag_classes = {
         "asset": _asset,

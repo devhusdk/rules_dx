@@ -137,7 +137,7 @@ def hermetic_qualification(
         compiler = compiler,
         coverage = coverage,
         covered = covered,
-        dx = "//:dx" if smoke else None,
+        dx = "//dx/launch:dx" if smoke else None,
         failures = failures,
         fetch_fails = fetch_fails,
         generate = generate,

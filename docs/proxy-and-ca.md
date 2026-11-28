@@ -71,7 +71,7 @@ export CURL_CA_BUNDLE=/etc/ssl/company-ca.pem
 
 For wget, set `ca_certificate` in `~/.wgetrc`.
 
-When the download fails, `tools/dx` prints why on stderr and runs your command through `bazel run @rules_dx//:dx` instead.
+When the download fails, `tools/dx` prints why on stderr and runs your command through `bazel run @rules_dx//dx/launch:dx` instead.
 
 ## tools/dx.cmd
 

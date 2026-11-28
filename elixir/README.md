@@ -58,7 +58,7 @@ the fetch.
 ### Adopt a Mix project
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
-2. Run `bazel run @rules_dx//:dx -- generate --apply`.
+2. Run `bazel run @rules_dx//dx/launch:dx -- generate --apply`.
 3. Run `bazel test //...`.
 
 Each directory with a `mix.exs` gets:

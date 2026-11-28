@@ -1224,7 +1224,7 @@ mod tests {
         assert!(
             calls[1].ends_with(
                 &[
-                    "@rules_dx//:dx",
+                    "@rules_dx//dx/launch:dx",
                     "--",
                     "upgrade",
                     "--to",

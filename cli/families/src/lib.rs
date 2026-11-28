@@ -267,7 +267,7 @@ pub const GITLEAKS: &str = "@rules_dx//core/quality/artifacts:gitleaks";
 /// The `rules_dx` target `dx audit` runs for images.
 pub const TRIVY: &str = "@rules_dx//core/quality/artifacts:trivy";
 /// The `rules_dx` target `dx upgrade` runs.
-pub const DX: &str = "@rules_dx//:dx";
+pub const DX: &str = "@rules_dx//dx/launch:dx";
 /// The `rules_dx` target `dx sync` builds for the environment plans.
 pub const ENV: &str = "@rules_dx//dx:env";
 /// The `rules_dx` target `dx sync` builds for the codegen plans.

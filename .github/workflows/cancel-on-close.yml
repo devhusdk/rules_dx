@@ -25,8 +25,9 @@ jobs:
         run: |
           set -euo pipefail
           gh run list --branch "$HEAD_REF" --limit 200 --json databaseId,status,workflowName \
-            --jq '.[] | select(.status != "completed" and .workflowName != $ENV.SELF) | "\(.databaseId) \(.workflowName)"' |
+            --jq '.[] | select(.status != "completed") | "\(.databaseId) \(.workflowName)"' |
             while read -r id workflow; do
+              [ "$workflow" = "$SELF" ] && continue
               echo "cancel $workflow run $id on $HEAD_REF"
               gh run cancel "$id" || echo "::warning::could not cancel $workflow run $id"
             done

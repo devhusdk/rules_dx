@@ -1,6 +1,8 @@
+load("@rules_dx//core/modules:versions.bzl", "JAVA_MAJOR")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:defs.bzl", "java_package_configuration")
 load("@rules_java//toolchains:default_java_toolchain.bzl", "default_java_toolchain")
+load(":proguard.bzl", "unsupported_proguard_allowlister")
 
 package_group(
     name = "own",
@@ -13,10 +15,16 @@ java_package_configuration(
     packages = [":own"],
 )
 
+unsupported_proguard_allowlister(
+    name = "proguard_allowlister",
+)
+
 [
     default_java_toolchain(
         name = "toolchain_jdk_%s" % version,
+        java_runtime = "@rules_java//toolchains:remotejdk_" + JAVA_MAJOR,
         package_configuration = [":warnings_as_errors"],
+        proguard_allowlister = ":proguard_allowlister",
         source_version = version,
         target_version = version,
         toolchain_definition = False,
@@ -74,7 +82,10 @@ toolchain(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "proguard.bzl",
+    ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )

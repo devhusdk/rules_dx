@@ -10,6 +10,7 @@ pub mod trivy;
 pub mod yanked;
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 
@@ -88,6 +89,8 @@ pub struct PrepareOptions {
     pub archives: BTreeMap<String, PathBuf>,
     pub cpansa_output: Option<PathBuf>,
     pub cpansa_dump: Option<PathBuf>,
+    /// Variables `cpansa_dump` runs with, such as the runfiles its launcher reads.
+    pub cpansa_dump_env: Vec<(OsString, OsString)>,
     pub trivy: Option<PathBuf>,
     pub cargo_index: Option<String>,
     pub pypi_index: Option<String>,
@@ -103,6 +106,7 @@ impl Default for PrepareOptions {
             archives: BTreeMap::new(),
             cpansa_output: None,
             cpansa_dump: None,
+            cpansa_dump_env: Vec::new(),
             trivy: None,
             cargo_index: None,
             pypi_index: None,
@@ -363,7 +367,7 @@ fn prepare_cpan(
                 detail: error.to_string(),
             })?
         }
-        (None, Some(binary)) => run_cpansa_dump(binary)?,
+        (None, Some(binary)) => run_cpansa_dump(binary, &options.cpansa_dump_env)?,
         (None, None) => {
             return Err(PrepError::Usage {
                 detail: "the cpan family needs --cpansa-dump or --cpansa-output".to_owned(),
@@ -374,9 +378,10 @@ fn prepare_cpan(
     cpan_snapshot(database, version, &options.retrieved_at)
 }
 
-fn run_cpansa_dump(binary: &Path) -> Result<String, PrepError> {
+fn run_cpansa_dump(binary: &Path, env: &[(OsString, OsString)]) -> Result<String, PrepError> {
     let program = binary.display().to_string();
     let done = Process::new(binary)
+        .envs(env.iter().map(|(key, value)| (key, value)))
         .output()
         .map_err(|error| PrepError::Fetch {
             program: program.clone(),

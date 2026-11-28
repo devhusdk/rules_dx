@@ -1841,7 +1841,7 @@ fn a_detected_language_writes_its_setup_flags() {
 }
 
 #[test]
-fn only_a_workspace_without_a_cc_family_turns_the_cc_toolchains_off() {
+fn only_a_workspace_whose_languages_need_no_cc_turns_the_cc_toolchains_off() {
     let rc = |toml: Option<&str>, families: &[&str]| {
         text(
             &rendered(&inputs(toml, families, &[])),
@@ -1853,7 +1853,13 @@ fn only_a_workspace_without_a_cc_family_turns_the_cc_toolchains_off() {
         let found = rc(None, families);
         assert!(found.ends_with(&off), "{found}");
     }
-    for families in [&["cc"][..], &["python", "rust"], &["go", "haskell"]] {
+    for families in [
+        &["cc"][..],
+        &["python", "rust"],
+        &["go", "haskell"],
+        &[],
+        &["core", "json", "markdown"],
+    ] {
         let found = rc(None, families);
         assert!(!found.contains("cc_toolchains"), "{found}");
     }

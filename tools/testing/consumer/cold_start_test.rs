@@ -4,7 +4,9 @@ use std::collections::BTreeSet;
 
 use dx_nested::Case;
 use dx_nested::record::Fetches;
-use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
+use prebuilt_guard::{guard_aspects, wrapper_build, wrapper_bzl};
+
+use crate::prebuilt_guard_test::host_stub_pins;
 
 const FOREIGN: &[(&str, &[&str])] = &[
     (
@@ -70,32 +72,6 @@ const FOREIGN: &[(&str, &[&str])] = &[
 ];
 
 const CHECK_ANALYSIS: &[&str] = &["java"];
-
-fn jar_pins() -> String {
-    let registry = dx_testing::env_text("DX_PREBUILT_REGISTRY");
-    let registry = dx_testing::read_text(
-        &dx_testing::rlocation(registry.trim())
-            .unwrap_or_else(|error| panic!("DX_PREBUILT_REGISTRY: {error}")),
-    );
-    let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
-    let mut tags = String::from(
-        "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n",
-    );
-    for line in registry.lines() {
-        let mut fields = line.split_whitespace();
-        let (Some(tool), Some("any")) = (fields.next(), fields.next()) else {
-            continue;
-        };
-        let stub = stubs.join(tool);
-        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
-        let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
-        let url = stub_url(&stub);
-        tags.push_str(&format!(
-            "dx_prebuilt.asset(name = \"{tool}\", os = \"any\", cpu = \"any\", url = \"{url}\", sha256 = \"{sha256}\")\n"
-        ));
-    }
-    tags
-}
 
 const UPSTREAM_REGISTERED: &[&str] = &["rules_android+", "rules_kotlin+"];
 
@@ -241,7 +217,7 @@ fn foreign_fragments(lang: &str) -> &'static [&'static str] {
 
 fn cold_case(name: &str, lang: &str) -> Case {
     let extra = if CHECK_ANALYSIS.contains(&lang) {
-        jar_pins()
+        host_stub_pins()
     } else {
         String::new()
     };

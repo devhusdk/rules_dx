@@ -411,14 +411,21 @@ pub fn setup_flags<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<(String,
     found
 }
 
-/// Whether a language in `names` sets `setup.cc_toolchains` in its `lang.json`.
+/// Whether `names` has a language and none of its languages sets `setup.cc_toolchains` in its `lang.json`.
 #[must_use]
-pub fn needs_cc_toolchains<'a>(names: impl IntoIterator<Item = &'a str>) -> bool {
+pub fn cc_toolchains_off<'a>(names: impl IntoIterator<Item = &'a str>) -> bool {
     let names: BTreeSet<&str> = names.into_iter().collect();
-    shipped().into_iter().any(|manifest| {
-        names.contains(manifest.name.as_str())
-            && manifest.setup.is_some_and(|setup| setup.cc_toolchains)
-    })
+    let languages: Vec<Manifest> = shipped()
+        .into_iter()
+        .filter(|manifest| names.contains(manifest.name.as_str()))
+        .collect();
+    !languages.is_empty()
+        && !languages.iter().any(|manifest| {
+            manifest
+                .setup
+                .as_ref()
+                .is_some_and(|setup| setup.cc_toolchains)
+        })
 }
 
 /// The `setup.hubs[].resolver` labels of `language`'s `lang.json`, sorted.

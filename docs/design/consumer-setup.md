@@ -111,7 +111,7 @@ What a consumer writes beyond its sources:
 ## Manifest
 
 - `setup` is a field of `<lang>/lang.json`. Its keys are `licenses`, `flags`, `hubs` and `cc_toolchains`.
-- `cc_toolchains` is true for a language whose rules need a C or C++ toolchain. When no detected language sets it, `.dx/bazelrc/` turns off the rules_dx C and C++ toolchains and Bazel's host detection on Linux and macOS.
+- `cc_toolchains` is true for a language whose rules need a C or C++ toolchain. When the workspace has a detected language and none sets it, `.dx/bazelrc/` turns off the rules_dx C and C++ toolchains and Bazel's host detection on Linux and macOS.
 - `hubs` holds the ecosystem entries that `locks.md` fixes.
 - `dx init` reads `setup`. No Rust file repeats an extension label, a tag name or a rule-set version.
 

@@ -674,7 +674,7 @@ fn bazelrc(
             text.push('\n');
         }
     }
-    if !dx_families::needs_cc_toolchains(detected.iter().map(String::as_str)) {
+    if dx_families::cc_toolchains_off(detected.iter().map(String::as_str)) {
         text.push_str(&dx_preset::render_cc_off(repo));
     }
     text

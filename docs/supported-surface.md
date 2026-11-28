@@ -7602,6 +7602,7 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//perl:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
+- `@rules_dx//powershell:toolchain_type`
 - `@rules_dx//ruby:toolchain_type`
 - `@rules_dx//zig:target_toolchain_type`
 - `@rules_dx//zig:toolchain_type`
@@ -7676,7 +7677,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//php:runfiles` | `php_library` |
 | `@rules_dx//powershell:dx_coverage` | `alias` |
 | `@rules_dx//powershell:pester` | `alias` |
-| `@rules_dx//powershell:runfiles` | `powershell_library` |
+| `@rules_dx//powershell:runfiles` | `alias` |
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
 | `@rules_dx//rust:prost` | `alias` |
 | `@rules_dx//rust:prost_types` | `alias` |

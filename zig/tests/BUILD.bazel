@@ -100,6 +100,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//zig/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_zig"],
     names = [
         "exec_0000_aarch64-linux",
         "exec_0001_aarch64-macos",

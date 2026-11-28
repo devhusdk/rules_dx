@@ -764,7 +764,7 @@ dx_pins.pin(
     build = "//powershell/private:pwsh.BUILD.bazel",
     compatible_with = "target",
     pins = "//powershell:pins.json",
-    toolchain_type = "@rules_powershell//powershell:toolchain_type",
+    toolchain_type = "//powershell:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_luals",
@@ -1451,7 +1451,10 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "rules_powershell",
-    patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
+    patches = [
+        "//patches/rules_powershell:inline_runfiles_sh.patch",
+        "//patches/rules_powershell:toolchain_type_alias.patch",
+    ],
     pins = "//powershell:pins.json",
 )
 

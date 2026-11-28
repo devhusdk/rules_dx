@@ -227,7 +227,8 @@
 //php:toolchain_type toolchain_type
 //powershell:dx_coverage alias
 //powershell:pester alias
-//powershell:runfiles powershell_library
+//powershell:runfiles alias
+//powershell:toolchain_type toolchain_type
 //qt:linux_arm64 platform
 //qt:linux_x86_64 platform
 //qt:macos_arm64 platform

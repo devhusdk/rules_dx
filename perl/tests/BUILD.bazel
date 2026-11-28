@@ -23,6 +23,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//perl/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_perl"],
     names = [
         "exec_00_x86_64_linux_musl_static",
         "exec_01_aarch64_linux_musl_static",

@@ -1,6 +1,9 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-exports_files(["inline_runfiles_sh.patch"])
+exports_files([
+    "inline_runfiles_sh.patch",
+    "toolchain_type_alias.patch",
+])
 
 real_source_target(
     name = "corpus_starlark",

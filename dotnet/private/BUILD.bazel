@@ -12,6 +12,7 @@ real_source_target(
         "sharpfuzz_check.bzl",
         "symbols.bzl",
         "libfuzzer_dotnet.BUILD.bazel",
+        "toolchains.BUILD.bazel",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
@@ -23,6 +24,7 @@ exports_files([
     "sharpfuzz.bzl",
     "sharpfuzz_check.bzl",
     "symbols.bzl",
+    "toolchains.BUILD.bazel",
 ])
 
 filegroup(
@@ -31,6 +33,7 @@ filegroup(
         "*.bzl",
         "BUILD.bazel",
         "libfuzzer_dotnet.BUILD.bazel",
+        "toolchains.BUILD.bazel",
     ]),
     visibility = ["//:__subpackages__"],
 )

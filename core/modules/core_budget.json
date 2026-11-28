@@ -2,13 +2,13 @@
   "after_test": {
     "modules": 73,
     "lock_bytes": 877656,
-    "lock_extensions": 12,
+    "lock_extensions": 11,
     "external_repos": 230
   },
   "after_check": {
     "modules": 73,
     "lock_bytes": 877656,
-    "lock_extensions": 12,
+    "lock_extensions": 11,
     "external_repos": 230
   }
 }

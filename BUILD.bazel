@@ -538,6 +538,7 @@ filegroup(
         "//core/codegen:module_srcs",
         "//core/codegen/proto:module_srcs",
         "//core/coreutils:module_srcs",
+        "//core/env/private:module_srcs",
         "//core/env/private/proto:module_srcs",
         "//core/env/private/stubs:module_srcs",
         "//core/env/private/tools/env_shard:module_srcs",

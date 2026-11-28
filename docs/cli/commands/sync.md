@@ -45,7 +45,7 @@ Run `dx sync` after you edit a `.capnp`, `.fbs`, or OpenAPI spec that a codegen 
 
 ## Bazel args
 
-dx sets `--@rules_dx//config:clippy_output_diagnostics=true`, `--@rules_dx//config:rustc_output_diagnostics=true`, and `--remote_download_outputs=toplevel`. Pass `--remote_download_outputs=all` or `--remote_download_all` to download everything.
+dx sets `--remote_download_outputs=toplevel`, and in a workspace with Rust also `--@rules_dx//config:clippy_output_diagnostics=true` and `--@rules_dx//config:rustc_output_diagnostics=true`. Pass `--remote_download_outputs=all` or `--remote_download_all` to download everything.
 
 These args exit `2`: `--aspects`, `--output_groups`, `--remote_download_minimal`, `--remote_download_outputs=minimal`, `--build_event_json_file`, `--test_arg`, and the startup options `--bazelrc`, `--home_rc`, `--nohome_rc`, `--system_rc`, `--nosystem_rc`, `--output_base`, `--output_user_root`, `--host_jvm_args`, and `--server_jvm_out`. Pass `--output_base` and `--output_user_root` with `--bazel-startup-option`.
 

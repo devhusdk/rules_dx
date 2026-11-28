@@ -177,16 +177,22 @@ fn licenses_list_the_setup_ids_with_the_quality_marks() {
 
 #[test]
 fn setup_flags_follow_the_named_languages() {
-    let flags = setup_flags(["python", "rust"]);
-    assert_eq!(
-        flags,
-        vec![(
-            "python".to_owned(),
-            vec!["common --modify_execution_info=PySdist.*=+block-network".to_owned()]
-        )]
+    let python = (
+        "python".to_owned(),
+        vec!["common --modify_execution_info=PySdist.*=+block-network".to_owned()],
     );
+    assert_eq!(setup_flags(["python"]), vec![python.clone()]);
+    let rust = (
+        "rust".to_owned(),
+        vec![
+            "build --@rules_dx//config:clippy_output_diagnostics=true".to_owned(),
+            "build --@rules_dx//config:rustc_output_diagnostics=true".to_owned(),
+            "build:windows --@rules_dx//config:toolchain_linker_preference=rust".to_owned(),
+        ],
+    );
+    assert_eq!(setup_flags(["rust", "python"]), vec![python, rust]);
     assert_eq!(
-        setup_flags(["rust"]),
+        setup_flags(["cc", "go"]),
         [] as [(std::string::String, std::vec::Vec<std::string::String>); 0]
     );
 }

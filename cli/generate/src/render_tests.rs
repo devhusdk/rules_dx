@@ -328,6 +328,11 @@ fn renders_no_dx_toml() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # The rust setup flags.
+    build --@rules_dx//config:clippy_output_diagnostics=true
+    build --@rules_dx//config:rustc_output_diagnostics=true
+    build:windows --@rules_dx//config:toolchain_linker_preference=rust
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -626,6 +631,11 @@ fn renders_rust() {
     common --@rules_dx//config:clippy_flag=-Wrust_2018_idioms
     common --@rules_dx//config:clippy_flag=-Wunused_qualifications
     common --@rules_dx//config:clippy_flag=-Dwarnings
+
+    # The rust setup flags.
+    build --@rules_dx//config:clippy_output_diagnostics=true
+    build --@rules_dx//config:rustc_output_diagnostics=true
+    build:windows --@rules_dx//config:toolchain_linker_preference=rust
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -1043,4 +1053,32 @@ fn a_detected_language_writes_its_setup_flags() {
         ".dx/bazelrc/correctness.bazelrc",
     );
     assert!(!without.contains(flag), "{without}");
+}
+
+#[test]
+fn rust_settings_are_written_only_for_a_rust_workspace() {
+    let rc = |families: &[&str]| -> String {
+        let out = rendered(&inputs(None, families, &[]));
+        dx_preset::Layer::ALL
+            .into_iter()
+            .map(|layer| text(&out, &format!(".dx/bazelrc/{}", layer.file_name())))
+            .collect()
+    };
+    let lines = [
+        "build --@rules_dx//config:clippy_output_diagnostics=true",
+        "build --@rules_dx//config:rustc_output_diagnostics=true",
+        "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
+    ];
+    let other = rc(&["python", "core", "cc"]);
+    for setting in [
+        "output_diagnostics",
+        "toolchain_linker_preference",
+        "clippy_flag",
+    ] {
+        assert!(!other.contains(setting), "{other}");
+    }
+    let rust = rc(&["rust"]);
+    for line in lines {
+        assert!(rust.lines().any(|found| found == line), "{line}: {rust}");
+    }
 }

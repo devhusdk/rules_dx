@@ -3454,6 +3454,11 @@ LANGS = json.decode("""{
     },
     "semver": true,
     "setup": {
+      "flags": [
+        "build --@rules_dx//config:clippy_output_diagnostics=true",
+        "build --@rules_dx//config:rustc_output_diagnostics=true",
+        "build:windows --@rules_dx//config:toolchain_linker_preference=rust"
+      ],
       "hubs": [
         {
           "ecosystem": "cargo",

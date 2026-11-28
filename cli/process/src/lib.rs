@@ -497,6 +497,15 @@ pub fn head_settings(repo: &str) -> Vec<String> {
         .collect()
 }
 
+/// Whether the correctness bazelrc text `layer` sets every shared setting spelled with `repo`.
+#[must_use]
+pub fn layer_sets_settings(layer: &str, repo: &str) -> bool {
+    let lines: Vec<&str> = layer.lines().map(str::trim).collect();
+    head_settings(repo)
+        .iter()
+        .all(|setting| lines.contains(&format!("build {setting}").as_str()))
+}
+
 fn launcher_head(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     let opts = policy.startup_opts();
     let mut argv = Vec::with_capacity(2 + opts.len() + startup_options.len());

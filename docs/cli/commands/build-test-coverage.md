@@ -155,7 +155,7 @@ When stdout is not a terminal, dx passes Bazel these quiet flags: `--noshow_prog
 
 dx sets these Bazel flags. If you pass another value after `--`, dx exits `2` before Bazel starts.
 
-- `--@rules_dx//config:clippy_output_diagnostics=true` and `--@rules_dx//config:rustc_output_diagnostics=true`, plus the same settings under `@rules_rust//rust/settings`.
+- In a workspace with Rust, `--@rules_dx//config:clippy_output_diagnostics=true` and `--@rules_dx//config:rustc_output_diagnostics=true`, plus the same settings under `@rules_rust//rust/settings`.
 - `--build_event_json_file` and `--build_event_json_file_path_conversion`.
 - `--remote_download_outputs=toplevel` for `test` and `coverage`. Pass `--remote_download_outputs=all` or `--remote_download_all` to download everything. `--remote_download_minimal` is refused.
 - `--combined_report=lcov` for `coverage`.

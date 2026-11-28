@@ -13,6 +13,7 @@ exports_files([
     "bench_run.sh",
     "coverage_runner.zig",
     "defs.bzl",
+    "toolchains.BUILD.bazel",
 ])
 
 platform(
@@ -47,6 +48,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "mode.bzl",
+        "toolchains.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

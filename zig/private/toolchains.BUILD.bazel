@@ -1,0 +1,358 @@
+toolchain(
+    name = "exec_0000_aarch64-linux",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_aarch64-linux//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "exec_0001_aarch64-macos",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_aarch64-macos//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "exec_0002_aarch64-windows",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_aarch64-windows//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "exec_0003_x86_64-linux",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_x86_64-linux//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "exec_0004_x86_64-macos",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_x86_64-macos//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "exec_0005_x86_64-windows",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@zig_0.17.1_x86_64-windows//:zig_toolchain",
+    toolchain_type = "@rules_dx//zig:toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_32-linux_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_32",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_32-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_32-linux-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_32",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_32-linux-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_32-linux-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_32",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_32-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_32-linux-musl_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_32",
+        "@rules_dx//zig:abi_musl",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_32-linux-musl",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-linux_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-linux-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-linux-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-linux-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-linux-musl_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_musl",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-linux-musl",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_ppc-linux-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:ppc",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:ppc-linux-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_ppc-linux-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:ppc",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:ppc-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_ppc-linux-musl_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:ppc",
+        "@rules_dx//zig:abi_musl",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:ppc-linux-musl",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-linux_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-linux-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-linux-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-linux-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-linux-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-linux-musl_toolchain",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_musl",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-linux-musl",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-macos_toolchain",
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-macos-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-macos-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-macos-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-macos_toolchain",
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-macos-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-macos-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-macos-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-windows_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-windows-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-windows-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-windows-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_x86_64-windows-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:x86_64-windows-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-windows_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-windows-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-windows-none_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_none",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-windows-none",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)
+
+toolchain(
+    name = "target_aarch64-windows-gnu_toolchain",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:aarch64",
+        "@rules_dx//zig:abi_gnu",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@rules_zig//zig/target:aarch64-windows-gnu",
+    toolchain_type = "@rules_dx//zig:target_toolchain_type",
+)

@@ -20,7 +20,6 @@ override single_version_override rules_go
 override single_version_override rules_java
 override single_version_override rules_kotlin
 override single_version_override rules_oci
-override single_version_override rules_perl
 override single_version_override rules_py
 override single_version_override rules_python
 override single_version_override rules_rust

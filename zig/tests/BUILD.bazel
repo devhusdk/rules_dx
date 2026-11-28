@@ -3,6 +3,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
 load("//core/private/testing:defs.bzl", "expect_equal")
+load("//tools/testing:hub_order_tests.bzl", "hub_order_test")
 load("//zig/private:defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name")
 load(":hub_tests.bzl", "zig_hub_tests")
 load(":mode_tests.bzl", "zig_mode_test", "zig_release_fast_failure_test", "zig_zigopts_failure_test")
@@ -93,6 +94,45 @@ dx_wrapper_contract_tests(
         ),
     ],
     file_classes = ["zig"],
+)
+
+hub_order_test(
+    name = "hub_order_test",
+    size = "small",
+    build = "//zig/private:toolchains.BUILD.bazel",
+    names = [
+        "exec_0000_aarch64-linux",
+        "exec_0001_aarch64-macos",
+        "exec_0002_aarch64-windows",
+        "exec_0003_x86_64-linux",
+        "exec_0004_x86_64-macos",
+        "exec_0005_x86_64-windows",
+        "target_aarch64-linux-gnu_toolchain",
+        "target_aarch64-linux-musl_toolchain",
+        "target_aarch64-linux-none_toolchain",
+        "target_aarch64-linux_toolchain",
+        "target_aarch64-macos-none_toolchain",
+        "target_aarch64-macos_toolchain",
+        "target_aarch64-windows-gnu_toolchain",
+        "target_aarch64-windows-none_toolchain",
+        "target_aarch64-windows_toolchain",
+        "target_ppc-linux-gnu_toolchain",
+        "target_ppc-linux-musl_toolchain",
+        "target_ppc-linux-none_toolchain",
+        "target_x86_32-linux-gnu_toolchain",
+        "target_x86_32-linux-musl_toolchain",
+        "target_x86_32-linux-none_toolchain",
+        "target_x86_32-linux_toolchain",
+        "target_x86_64-linux-gnu_toolchain",
+        "target_x86_64-linux-musl_toolchain",
+        "target_x86_64-linux-none_toolchain",
+        "target_x86_64-linux_toolchain",
+        "target_x86_64-macos-none_toolchain",
+        "target_x86_64-macos_toolchain",
+        "target_x86_64-windows-gnu_toolchain",
+        "target_x86_64-windows-none_toolchain",
+        "target_x86_64-windows_toolchain",
+    ],
 )
 
 zig_hub_tests(

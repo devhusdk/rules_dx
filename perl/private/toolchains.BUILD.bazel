@@ -1,0 +1,343 @@
+toolchain(
+    name = "toolchain_00_x86_64_linux_musl_static",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_disabled",
+    ],
+    toolchain = "@perl_x86_64_linux_musl_static//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_01_aarch64_linux_musl_static",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_disabled",
+    ],
+    toolchain = "@perl_aarch64_linux_musl_static//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_02_x86_64_linux_gnu",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_enabled",
+    ],
+    toolchain = "@perl_x86_64_linux_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_03_aarch64_linux_gnu",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_enabled",
+    ],
+    toolchain = "@perl_aarch64_linux_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_04_x86_64_linux_musl",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_linux_musl//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_05_aarch64_linux_musl",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_linux_musl//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_06_x86_64_macos",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:macos",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_macos//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_07_aarch64_macos",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_macos//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_08_x86_64_windows_msvc",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_windows_msvc//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_09_aarch64_windows_msvc",
+    target_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_windows_msvc//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_10_x86_64_windows_gnu",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_windows_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_11_x86_64_windows_strawberry",
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_strawberry",
+    ],
+    toolchain = "@perl_x86_64_windows_strawberry//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:toolchain_type",
+)
+
+toolchain(
+    name = "exec_00_x86_64_linux_musl_static",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_disabled",
+    ],
+    toolchain = "@perl_x86_64_linux_musl_static//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_01_aarch64_linux_musl_static",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_disabled",
+    ],
+    toolchain = "@perl_aarch64_linux_musl_static//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_02_x86_64_linux_gnu",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_enabled",
+    ],
+    toolchain = "@perl_x86_64_linux_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_03_aarch64_linux_gnu",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+        "@rules_dx//perl:xs_enabled",
+    ],
+    toolchain = "@perl_aarch64_linux_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_04_x86_64_linux_musl",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_linux_musl//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_05_aarch64_linux_musl",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_linux_musl//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_06_x86_64_macos",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:macos",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_macos//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_07_aarch64_macos",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_macos//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_08_x86_64_windows_msvc",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_windows_msvc//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_09_aarch64_windows_msvc",
+    exec_compatible_with = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_aarch64_windows_msvc//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_10_x86_64_windows_gnu",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_perl",
+    ],
+    toolchain = "@perl_x86_64_windows_gnu//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)
+
+toolchain(
+    name = "exec_11_x86_64_windows_strawberry",
+    exec_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    target_settings = [
+        "@rules_dx//config:toolchains_on",
+        "@rules_dx//perl:distribution_strawberry",
+    ],
+    toolchain = "@perl_x86_64_windows_strawberry//:toolchain_impl",
+    toolchain_type = "@rules_dx//perl:exec_toolchain_type",
+)

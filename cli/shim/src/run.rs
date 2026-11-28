@@ -176,7 +176,7 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, Launch
     }
 }
 
-const DX: &str = "@rules_dx//:dx";
+const DX: &str = "@rules_dx//dx/launch:dx";
 
 fn via_bazel(args: Vec<OsString>) -> Result<i32, LaunchError> {
     let mut full: Vec<OsString> = vec!["run".into(), DX.into(), "--".into()];

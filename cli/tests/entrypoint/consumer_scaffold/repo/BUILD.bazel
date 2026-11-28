@@ -14,7 +14,7 @@ genrule(
     ],
     cmd = """
 set -eu
-public="$(location @rules_dx//:dx)"
+public="$(location @rules_dx//dx/launch:dx)"
 root="$$(dirname "$(location init_apply.txt)")"
 foreign="$$root/foreign"
 fortree="$$root/fortree"
@@ -63,7 +63,7 @@ grep -q "invalid directory for dx init" "$(location init_bad.txt)"
 test ! -e "$$root/evil"
 """,
     tools = [
-        "@rules_dx//:dx",
+        "@rules_dx//dx/launch:dx",
     ],
     visibility = ["//visibility:public"],
 )

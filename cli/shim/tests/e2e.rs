@@ -252,7 +252,7 @@ fn bumping_only_the_bazel_dep_runs_bazel() {
     assert_eq!(stderr(&output), "");
     assert_eq!(
         std::fs::read_to_string(log).expect("log"),
-        "run @rules_dx//:dx -- x y\n"
+        "run @rules_dx//dx/launch:dx -- x y\n"
     );
     assert_eq!(fixture.server.hits(), 0);
 }
@@ -275,7 +275,10 @@ fn an_override_or_a_missing_hash_runs_bazel() {
     .expect("override");
     assert!(fixture.run_with_bazel(bin.path(), &["b"]).status.success());
     let calls = std::fs::read_to_string(log).expect("log");
-    assert_eq!(calls, "run @rules_dx//:dx -- a\nrun @rules_dx//:dx -- b\n");
+    assert_eq!(
+        calls,
+        "run @rules_dx//dx/launch:dx -- a\nrun @rules_dx//dx/launch:dx -- b\n"
+    );
     assert_eq!(fixture.server.hits(), 0);
 }
 
@@ -294,7 +297,7 @@ fn a_multi_line_dep_runs_bazel() {
     assert_eq!(stderr(&output), "");
     assert_eq!(
         std::fs::read_to_string(log).expect("log"),
-        "run @rules_dx//:dx -- m\n"
+        "run @rules_dx//dx/launch:dx -- m\n"
     );
     assert_eq!(fixture.server.hits(), 0);
 }

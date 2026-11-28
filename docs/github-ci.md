@@ -19,7 +19,7 @@ You pin it to a rules_dx commit.
 2. Write the workflow files:
 
    ```sh
-   bazel run @rules_dx//:dx -- init --apply
+   bazel run @rules_dx//dx/launch:dx -- init --apply
    ```
 
    With `dx` installed, `dx init --apply` does the same. Init writes:

@@ -85,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. On each platform it downloads the published assets, checks the platform archive and the source archive with `gh attestation verify` against the published bundles, and builds a small consumer project whose `bazel_dep` resolves `rules_dx` through a registry: the BCR once it lists the version, otherwise a local registry made from the published `source.json` and the archive's `MODULE.bazel`. It checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
+Publishing starts `release-consumer.yml`. On each platform it downloads the published assets, checks the platform archive and the source archive with `gh attestation verify` against the published bundles, and builds a small consumer project whose `bazel_dep` resolves `rules_dx` through a registry: the BCR once it lists the version, otherwise a local registry made from the published `source.json` and the archive's `MODULE.bazel`. It checks that `@rules_dx//dx/launch:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0

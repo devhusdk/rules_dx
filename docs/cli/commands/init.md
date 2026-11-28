@@ -315,7 +315,7 @@ tools/dx check //...
 ```
 
 Binaries exist for Linux x86_64 and arm64, macOS arm64, and Windows x86_64 and
-arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//:dx -- ...`
+arm64. The download launcher exits `1` and prints the `bazel run @rules_dx//dx/launch:dx -- ...`
 command to use instead when the download fails or the platform has no binary.
 A binary that does not match its pinned sha256 is deleted and never run.
 
@@ -331,7 +331,7 @@ version on line 1, then one `<sha256>  dx-<os>-<arch>` line per release binary:
 The version may only use `0-9`, `A-Z`, `a-z`, `.`, `+` and `-`, and may not
 start with `.`. `dx init` writes no hash lines.
 Without a line for the platform the launcher does not download: it exits `1`
-with the `bazel run @rules_dx//:dx -- ...` command. A binary already in the
+with the `bazel run @rules_dx//dx/launch:dx -- ...` command. A binary already in the
 cache still runs.
 
 The launchers read the version from the one top-level `bazel_dep` named
@@ -353,8 +353,8 @@ When `.dx/pins` is missing or has an invalid version, the launcher exits `1`
 and prints:
 
 ```text
-dx: .dx/pins is missing; refresh it: bazel run @rules_dx//:dx -- init --apply
-dx: .dx/pins has an invalid version '<v>'; refresh it: bazel run @rules_dx//:dx -- init --apply
+dx: .dx/pins is missing; refresh it: bazel run @rules_dx//dx/launch:dx -- init --apply
+dx: .dx/pins has an invalid version '<v>'; refresh it: bazel run @rules_dx//dx/launch:dx -- init --apply
 ```
 
 `dx init --apply` writes a missing launcher and rewrites a dx launcher that

@@ -11,7 +11,7 @@ genrule(
 set -eu
 unset CI
 export MSYS=winsymlinks:nativestrict MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
-public="$$PWD/$(location @rules_dx//:dx)"
+public="$$PWD/$(location @rules_dx//dx/launch:dx)"
 probe="$$PWD/$(location @rules_dx//tools/testing/process_probe)"
 out="$$PWD/$$(dirname "$(location completion_flag.txt)")"
 root="$$(cd "$$(mktemp -d)" && pwd -P)"
@@ -68,7 +68,7 @@ complete_words() {
 (cd "$$start" && export PROCESS_PROBE_CALL_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
 """,
     tools = [
-        "@rules_dx//:dx",
+        "@rules_dx//dx/launch:dx",
         "@rules_dx//tools/testing/process_probe",
     ],
     visibility = ["//visibility:public"],

@@ -15,7 +15,7 @@ bazel_dep(name = "rules_dx", version = "<release>")
 Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//dx/launch:dx -- init --apply
 ```
 
 For a PowerShell project, `MODULE.bazel` then looks like this:
@@ -131,8 +131,8 @@ lint = ["psscriptanalyzer"]
 ```
 
 ```sh
-bazel run @rules_dx//:dx -- format //scripts/...
-bazel run @rules_dx//:dx -- lint //scripts/...
+bazel run @rules_dx//dx/launch:dx -- format //scripts/...
+bazel run @rules_dx//dx/launch:dx -- lint //scripts/...
 ```
 
 - Format runs `Invoke-Formatter`. `dx check --apply` rewrites scripts that

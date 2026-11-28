@@ -58,7 +58,7 @@ def site_unit_tests(name):
                     "Install Bazel via Bazelisk, then run `dx` through Bazel:",
                     "",
                     "```sh",
-                    "bazel run @rules_dx//:dx -- --help",
+                    "bazel run @rules_dx//dx/launch:dx -- --help",
                     "```",
                     "",
                     "- [Quickstart](docs/README.md)",

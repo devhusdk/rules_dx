@@ -346,7 +346,7 @@ fn the_readme_quickstart_runs_as_written() {
     );
     run_in(
         &case,
-        &["run", "@rules_dx//:dx", "--", "check", "//app/..."],
+        &["run", "@rules_dx//dx/launch:dx", "--", "check", "//app/..."],
         "dx check //app/... on a Rust-only package",
     );
     let repos = external_repos(&case);
@@ -363,7 +363,7 @@ fn the_readme_quickstart_runs_as_written() {
     write_text(&root_build_path, &root_build);
     run_in(
         &case,
-        &["run", "@rules_dx//:dx", "--", "test", "//..."],
+        &["run", "@rules_dx//dx/launch:dx", "--", "test", "//..."],
         "dx test //...",
     );
     let core = load_budget("DX_CORE_BUDGET");
@@ -389,7 +389,7 @@ fn the_readme_quickstart_runs_as_written() {
     within_budget("core", &core, "after_test");
     run_in(
         &case,
-        &["run", "@rules_dx//:dx", "--", "check", "//..."],
+        &["run", "@rules_dx//dx/launch:dx", "--", "check", "//..."],
         "dx check //...",
     );
     within_budget("core", &core, "after_check");
@@ -397,7 +397,7 @@ fn the_readme_quickstart_runs_as_written() {
     let started = std::time::Instant::now();
     run_in(
         &case,
-        &["run", "@rules_dx//:dx", "--", "test", "//..."],
+        &["run", "@rules_dx//dx/launch:dx", "--", "test", "//..."],
         "dx test //... with a Python package",
     );
     eprintln!("fetch python after_test: {}s", started.elapsed().as_secs());
@@ -405,7 +405,7 @@ fn the_readme_quickstart_runs_as_written() {
     let started = std::time::Instant::now();
     run_in(
         &case,
-        &["run", "@rules_dx//:dx", "--", "check", "//..."],
+        &["run", "@rules_dx//dx/launch:dx", "--", "check", "//..."],
         "dx check //... with a Python package",
     );
     eprintln!("fetch python after_check: {}s", started.elapsed().as_secs());
@@ -441,7 +441,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let presubmit = read_text(&source.join(".bcr/presubmit.yml"));
     let case = nested::case("quickstart_bcr");
-    // `run @rules_dx//:dx` takes the dx this test built, as a release's `pins.bzl` serves dx.
+    // `run @rules_dx//dx/launch:dx` takes the dx this test built, as a release's `pins.bzl` serves dx.
     let dx = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must name dx"));
     for name in [
         "BUILD.bazel",

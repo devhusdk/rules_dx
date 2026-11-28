@@ -399,7 +399,7 @@ A check validates the selected sets and writes nothing. It takes no [build slot]
 - Checks that run Bazel (`npm`, `cargo`, `maven`) restore any manifest or lock they changed and fail the set with `check_wrote: <paths>`.
 - A check with `--offline` adds `--repository_disable_download` for Bazel sets, or the tool's offline flag.
 - For every set, `--apply --offline` fails with `offline_required` and `--apply --frozen` fails with `frozen_locked`, unless [Dependency Sets](#dependency-sets) says otherwise.
-- In a rules_dx checkout, `tools/dx update --apply dx_crates` repins the lock when `//:dx` fails to build against it.
+- In a rules_dx checkout, `tools/dx update --apply dx_crates` repins the lock when `//dx/launch:dx` fails to build against it.
 
 `--prune` deletes the one-line declarations that `--outdated` lists as `unused:` from `cargo`, `npm`, `uv`, `go` and `ruby` manifests, then refreshes the locks. Multi-line and table declarations stay. Each removal prints on stderr:
 

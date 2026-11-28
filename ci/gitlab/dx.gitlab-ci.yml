@@ -92,9 +92,9 @@ check:
     DX_REPORT: reports/dx.sarif
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif $DX_SCOPE || status=$?
-    - '[ "$[[ inputs.buf_breaking_on_pr ]]" != true ] || [ -z "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --breaking-against $DX_SCOPE || status=$?'
-    - '[ "$[[ inputs.link_check_online ]]" != true ] || [ -n "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --online //... || status=$?'
+    - bazel run @rules_dx//dx/launch:dx -- check --report sarif=reports/dx.sarif $DX_SCOPE || status=$?
+    - '[ "$[[ inputs.buf_breaking_on_pr ]]" != true ] || [ -z "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//dx/launch:dx -- lint --breaking-against $DX_SCOPE || status=$?'
+    - '[ "$[[ inputs.link_check_online ]]" != true ] || [ -n "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//dx/launch:dx -- lint --online //... || status=$?'
     - !reference [.dx_finish, script]
 
 test:
@@ -103,7 +103,7 @@ test:
     DX_REPORT: reports/junit.xml
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- test --report junit=reports/junit.xml $DX_SCOPE || status=$?
+    - bazel run @rules_dx//dx/launch:dx -- test --report junit=reports/junit.xml $DX_SCOPE || status=$?
     - !reference [.dx_finish, script]
   artifacts:
     reports:
@@ -117,7 +117,7 @@ coverage:
     DX_MIN_CHANGED_LINE_COVERAGE: "$[[ inputs.min_changed_line_coverage ]]"
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- coverage --report lcov=reports/coverage.lcov ${DX_MIN_COVERAGE:+--min-coverage "$DX_MIN_COVERAGE"} ${CI_MERGE_REQUEST_IID:+${DX_MIN_CHANGED_LINE_COVERAGE:+--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE"}} $DX_COVERAGE_SCOPE || status=$?
+    - bazel run @rules_dx//dx/launch:dx -- coverage --report lcov=reports/coverage.lcov ${DX_MIN_COVERAGE:+--min-coverage "$DX_MIN_COVERAGE"} ${CI_MERGE_REQUEST_IID:+${DX_MIN_CHANGED_LINE_COVERAGE:+--min-changed-line-coverage "$DX_MIN_CHANGED_LINE_COVERAGE"}} $DX_COVERAGE_SCOPE || status=$?
     - !reference [.dx_finish, script]
 
 fuzz:
@@ -130,7 +130,7 @@ fuzz:
     DX_REPORT: reports/fuzz.log
   script:
     - status=0
-    - bazel run @rules_dx//:dx -- fuzz --time "$[[ inputs.fuzz_time ]]" //... > reports/fuzz.log 2>&1 || status=$?
+    - bazel run @rules_dx//dx/launch:dx -- fuzz --time "$[[ inputs.fuzz_time ]]" //... > reports/fuzz.log 2>&1 || status=$?
     - cat reports/fuzz.log || status=$?
     - '[ "$status" -eq 0 ] || [ ! -d .dx/local/fuzz ] || cp -R .dx/local/fuzz reports/ || status=$?'
     - !reference [.dx_finish, script]
@@ -147,7 +147,7 @@ deploy_dry_run:
     - status=0
     - since="$(git rev-list --max-parents=0 HEAD | tail -n 1)" || status=$?
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ "$[[ inputs.affected_on_pr ]]" != true ] || since="$(git merge-base HEAD origin/HEAD)" || status=$?'
-    - bazel run --lockfile_mode=error @rules_dx//:dx -- deploy --affected --since "$since" < /dev/null > reports/deploy.log 2>&1 || status=$?
+    - bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- deploy --affected --since "$since" < /dev/null > reports/deploy.log 2>&1 || status=$?
     - cat reports/deploy.log || status=$?
     - !reference [.dx_finish, script]
 
@@ -163,8 +163,8 @@ bench:
     - status=0
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || git worktree add --detach .cache/bench-base "$(git merge-base HEAD origin/HEAD)" || status=$?'
     - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || [ ! -f user.bazelrc ] || cp user.bazelrc .cache/bench-base/user.bazelrc || status=$?'
-    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || (cd .cache/bench-base && bazel run @rules_dx//:dx -- bench //... > /dev/null) || status=$?'
-    - bazel run @rules_dx//:dx -- bench ${CI_MERGE_REQUEST_IID:+--compare .cache/bench-base/.dx/local/bench/last.json --max-regression=$[[ inputs.bench_max_regression ]]} //... > reports/bench.txt || status=$?
+    - '[ -z "${CI_MERGE_REQUEST_IID:-}" ] || (cd .cache/bench-base && bazel run @rules_dx//dx/launch:dx -- bench //... > /dev/null) || status=$?'
+    - bazel run @rules_dx//dx/launch:dx -- bench ${CI_MERGE_REQUEST_IID:+--compare .cache/bench-base/.dx/local/bench/last.json --max-regression=$[[ inputs.bench_max_regression ]]} //... > reports/bench.txt || status=$?
     - cat reports/bench.txt || status=$?
     - '[ ! -f .dx/local/bench/last.json ] || cp .dx/local/bench/last.json reports/ || status=$?'
     - !reference [.dx_finish, script]

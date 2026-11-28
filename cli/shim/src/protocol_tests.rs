@@ -159,7 +159,7 @@ fn platforms_map_to_the_five_assets() {
 fn unsupported_platform_text() {
     assert_eq!(
         unsupported_platform("1.2.3", "linux", "riscv64").to_string(),
-        "dx: no dx 1.2.3 binary for linux riscv64; supported: linux x86_64/arm64, macos arm64, windows x86_64/arm64; use bazel run @rules_dx//:dx -- ..."
+        "dx: no dx 1.2.3 binary for linux riscv64; supported: linux x86_64/arm64, macos arm64, windows x86_64/arm64; use bazel run @rules_dx//dx/launch:dx -- ..."
     );
 }
 

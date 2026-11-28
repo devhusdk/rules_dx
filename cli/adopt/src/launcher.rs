@@ -296,13 +296,13 @@ set -eu
 DX_PINS=.dx/pins
 fail() {
   echo "dx: $1" >&2
-  echo "dx: run it through Bazel instead: bazel run @rules_dx//:dx -- <your arguments>" >&2
+  echo "dx: run it through Bazel instead: bazel run @rules_dx//dx/launch:dx -- <your arguments>" >&2
   exit 1
 }
 via_bazel() {
   echo "dx: $1, building from source through Bazel" >&2
   shift
-  exec bazel run @rules_dx//:dx -- "$@"
+  exec bazel run @rules_dx//dx/launch:dx -- "$@"
 }
 root=$(CDPATH="" cd -- "$(dirname -- "$0")/.." && pwd)
 os=
@@ -641,7 +641,7 @@ move /y "%DX_PART%" "%BIN%" >nul 2>&1
 call :clean
 if exist "%BIN%" goto run
 echo dx: could not install %BIN% 1>&2
-echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- ^<your arguments^> 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//dx/launch:dx -- ^<your arguments^> 1>&2
 exit /b 1
 :run
 "%BIN%" %*
@@ -649,7 +649,7 @@ exit /b %errorlevel%
 :mismatch
 call :clean
 echo dx: sha256 mismatch for %DX_URL%: want '%WANT%', got '%GOT%'; refusing to run it 1>&2
-echo dx: run it through Bazel instead: bazel run @rules_dx//:dx -- ^<your arguments^> 1>&2
+echo dx: run it through Bazel instead: bazel run @rules_dx//dx/launch:dx -- ^<your arguments^> 1>&2
 exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
@@ -707,7 +707,7 @@ if not defined DX_IS (
 endlocal & set "DX_DEP=" & set /a DX_N+=1 >nul & set "VERSION=%V%"
 exit /b 0
 :bazel
-bazel run @rules_dx//:dx -- %*
+bazel run @rules_dx//dx/launch:dx -- %*
 exit /b %errorlevel%
 "#;
 
@@ -1757,7 +1757,7 @@ mod tests {
                         && err.ends_with(", building from source through Bazel\n"),
                     "{err}"
                 );
-                let want = format!("run @rules_dx//:dx -- {}", args.join(" "));
+                let want = format!("run @rules_dx//dx/launch:dx -- {}", args.join(" "));
                 assert_eq!(self.bazel_calls(), vec![want]);
                 assert!(self.cached().is_empty(), "{:?}", self.cached());
                 err
@@ -2054,7 +2054,7 @@ mod tests {
             assert!(err.contains("noexec mount"), "{err}");
             assert!(err.contains("DX_CACHE_DIR"), "{err}");
             assert!(
-                err.contains("bazel run @rules_dx//:dx -- <your arguments>"),
+                err.contains("bazel run @rules_dx//dx/launch:dx -- <your arguments>"),
                 "{err}"
             );
             assert_eq!(fx.downloads(), 0);
@@ -2559,7 +2559,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 assert!(out.is_empty() && err.is_empty(), "{out}{err}");
                 let calls =
                     std::fs::read_to_string(self.base.join("bazel.log")).unwrap_or_default();
-                let want = format!("run @rules_dx//:dx -- {}", args.join(" "));
+                let want = format!("run @rules_dx//dx/launch:dx -- {}", args.join(" "));
                 assert_eq!(calls.trim(), want);
                 assert!(self.cache_files().is_empty(), "{:?}", self.cache_files());
             }

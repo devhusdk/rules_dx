@@ -665,7 +665,7 @@ mod tests {
                 "@rules_dx//deploy/private/release:cosign",
                 "@rules_dx//core/quality/artifacts:gitleaks",
                 "@rules_dx//core/quality/artifacts:trivy",
-                "@rules_dx//:dx",
+                "@rules_dx//dx/launch:dx",
                 "@rules_dx//dx:env",
                 "@rules_dx//dx:codegen",
                 "@rules_dx//tools/docs/site:scope_tools",
@@ -675,7 +675,7 @@ mod tests {
                 "@rules_dx//rust/private/ide:flycheck",
             ]
         );
-        assert!(command_roots("", &[]).contains(&"//:dx".to_owned()));
+        assert!(command_roots("", &[]).contains(&"//dx/launch:dx".to_owned()));
     }
 
     #[test]

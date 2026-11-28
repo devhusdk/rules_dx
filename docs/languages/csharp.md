@@ -15,7 +15,7 @@ bazel_dep(name = "rules_dx", version = "<release>")
 Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//dx/launch:dx -- init --apply
 ```
 
 For a C# project, `MODULE.bazel` then looks like this:
@@ -90,9 +90,9 @@ The `csharp/tests/fixtures/adopt_csharp` tree shows a full run.
 three, so you install nothing:
 
 ```sh
-bazel run @rules_dx//:dx -- format //app/...
-bazel run @rules_dx//:dx -- lint //app/...
-bazel run @rules_dx//:dx -- typecheck //app/...
+bazel run @rules_dx//dx/launch:dx -- format //app/...
+bazel run @rules_dx//dx/launch:dx -- lint //app/...
+bazel run @rules_dx//dx/launch:dx -- typecheck //app/...
 ```
 
 `roslyn` analyzes every framework in a `target_frameworks` list, for the host

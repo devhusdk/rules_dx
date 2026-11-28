@@ -124,17 +124,17 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/consumer"
           version="${TAG#v}"
-          printed="$(bazel run @rules_dx//:dx -- --version)"
+          printed="$(bazel run @rules_dx//dx/launch:dx -- --version)"
           echo "$printed"
           case "$printed" in
             *"$version"*) ;;
             *) echo "dx printed '$printed', want $version" >&2; exit 1 ;;
           esac
-          files="$(bazel cquery --output=files @rules_dx//:dx)"
+          files="$(bazel cquery --output=files @rules_dx//dx/launch:dx)"
           echo "$files"
           case "$files" in
             *"dx_prebuilt/$KEY/dx"*) ;;
-            *) echo "@rules_dx//:dx is not the dx_prebuilt/$KEY/dx download" >&2; exit 1 ;;
+            *) echo "@rules_dx//dx/launch:dx is not the dx_prebuilt/$KEY/dx download" >&2; exit 1 ;;
           esac
           {
             echo "### $CELL"

@@ -457,7 +457,7 @@ def quick_start(root, lang, title):
     out.append(
         "Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):\n"
     )
-    out.append("```sh\nbazel run @rules_dx//:dx -- init --apply\n```\n")
+    out.append("```sh\nbazel run @rules_dx//dx/launch:dx -- init --apply\n```\n")
     module = read(root, "%s/consumer.MODULE.bazel" % consumer)
     if module is not None:
         module = module.replace(

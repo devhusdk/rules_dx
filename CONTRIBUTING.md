@@ -254,6 +254,6 @@ Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+
 
 ## The local dx copy
 
-`.dx/local/launcher` holds a copy (about 50 MB) of the last dx you built. `tools/dx worktree add`, `release` and `hook` run that copy without rebuilding, so they never wait on Bazel. Any other `tools/dx` command, or `bazel build //:dx`, rebuilds dx first when its source changed. Both launchers run dx from the copy, so a running dx never locks `bazel-bin`; `dx.exe.old.*` files may stay while an old dx is still running.
+`.dx/local/launcher` holds a copy (about 50 MB) of the last dx you built. `tools/dx worktree add`, `release` and `hook` run that copy without rebuilding, so they never wait on Bazel. Any other `tools/dx` command, or `bazel build //dx/launch:dx`, rebuilds dx first when its source changed. Both launchers run dx from the copy, so a running dx never locks `bazel-bin`; `dx.exe.old.*` files may stay while an old dx is still running.
 
 You can delete the copy any time; `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots.

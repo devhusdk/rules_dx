@@ -189,7 +189,7 @@ pub fn platform(os: &str, arch: &str) -> Option<Platform> {
 #[must_use]
 pub fn unsupported_platform(version: &str, os: &str, arch: &str) -> LaunchError {
     LaunchError::failure(format!(
-        "no dx {version} binary for {os} {arch}; supported: {SUPPORTED}; use bazel run @rules_dx//:dx -- ..."
+        "no dx {version} binary for {os} {arch}; supported: {SUPPORTED}; use bazel run @rules_dx//dx/launch:dx -- ..."
     ))
 }
 pub fn effective_arch(

@@ -52,7 +52,7 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-        tools=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx @rules_dx//tools/ci/producers:producers_bin)
+        tools=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//dx/launch:dx @rules_dx//tools/ci/producers:producers_bin)
         bazel build "$@" "${tools[@]}"
         root="$(bazel info "$@" execution_root)"
         bin="${RUNNER_TEMP:-/tmp}/dx-bin"

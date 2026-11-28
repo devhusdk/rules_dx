@@ -137,7 +137,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Validate workflow inputs
         id: validate
@@ -227,7 +227,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Run the checks
         env:
@@ -270,7 +270,7 @@ jobs:
             echo "::group::$id"
             rc=0
             log="$logs/$id.log"
-            bazel run "$@" @rules_dx//:dx -- "${args[@]}" < /dev/null 2>&1 | tee "$log" || rc=$?
+            bazel run "$@" @rules_dx//dx/launch:dx -- "${args[@]}" < /dev/null 2>&1 | tee "$log" || rc=$?
             echo "::endgroup::"
             if [ "$scope" = --affected ] && grep -qx 'no affected targets' "$log"; then
               ran+=" (nothing affected)"
@@ -370,7 +370,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- run @rules_dx//:dx -- --version
+          bazel run "$@" @rules_dx//dx/launch:dx -- run @rules_dx//dx/launch:dx -- --version
       - name: Run coverage with optional threshold
         if: ${{ always() }}
         env:
@@ -400,7 +400,7 @@ jobs:
               echo skipped > "${RUNNER_TEMP}/dx_changed_lines.rc"
             fi
           fi
-          bazel run "$@" @rules_dx//:dx -- coverage --output=json "${extra[@]}" "$scope" -- "$@" > "$reports/coverage.ndjson"
+          bazel run "$@" @rules_dx//dx/launch:dx -- coverage --output=json "${extra[@]}" "$scope" -- "$@" > "$reports/coverage.ndjson"
           rc=$?
           echo "$rc" > "${RUNNER_TEMP:-/tmp}"/dx_coverage.rc
           exit "$rc"
@@ -528,7 +528,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Prepare one advisory snapshot set
         id: prepare
@@ -586,7 +586,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Open the advisory bump pull request
         env:
@@ -595,7 +595,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           gh auth setup-git
-          bazel run "$@" @rules_dx//:dx -- update advisory --pr
+          bazel run "$@" @rules_dx//dx/launch:dx -- update advisory --pr
   security-audit:
     needs: [validate, advisory-snapshots]
     timeout-minutes: 30
@@ -640,13 +640,13 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Resolve hermetic Gitleaks
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- tool_resolve --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN -- "$@"
+          bazel run "$@" @rules_dx//dx/launch:dx -- tool_resolve --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN -- "$@"
       - name: Restore the advisory snapshots this run prepared
         if: ${{ needs.advisory-snapshots.outputs.status != 'empty' || needs.advisory-snapshots.outputs.trivy == 'true' }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -660,7 +660,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- security //...
+          bazel run "$@" @rules_dx//dx/launch:dx -- security //...
   fuzz:
     name: fuzz
     needs: [validate]
@@ -693,7 +693,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Find the last fuzz corpus
         id: corpus
@@ -727,7 +727,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- fuzz --time "${FUZZ_TIME:-300s}" //...
+          bazel run "$@" @rules_dx//dx/launch:dx -- fuzz --time "${FUZZ_TIME:-300s}" //...
       - name: Check the upload holds no secret
         id: scan-corpus
         if: ${{ success() && github.ref == format('refs/heads/{0}', steps.corpus.outputs.branch) }}
@@ -790,7 +790,7 @@ jobs:
           else
             args=(--affected --since "$(git rev-list --max-parents=0 HEAD | tail -n 1)")
           fi
-          bazel run --lockfile_mode=error @rules_dx//:dx -- deploy "${args[@]}" < /dev/null
+          bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- deploy "${args[@]}" < /dev/null
   bench:
     name: bench
     needs: [validate]
@@ -823,7 +823,7 @@ jobs:
               tools/dx completion bash > /dev/null
             fi
           else
-            bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
+            bazel run --lockfile_mode=error @rules_dx//dx/launch:dx -- completion bash > /dev/null
           fi
       - name: Run the benchmarks
         shell: bash
@@ -838,7 +838,7 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           if [ "$EVENT" = pull_request ]; then
             status=0
-            bazel run "$@" @rules_dx//:dx -- bench --compare "$BASE_REF" "--max-regression=${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?
+            bazel run "$@" @rules_dx//dx/launch:dx -- bench --compare "$BASE_REF" "--max-regression=${REGRESSION_PCT:-20}" //... | tee "$RUNNER_TEMP/bench.txt" || status=$?
             {
               echo "## dx bench"
               echo '```'
@@ -847,7 +847,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit "$status"
           fi
-          bazel run "$@" @rules_dx//:dx -- bench //...
+          bazel run "$@" @rules_dx//dx/launch:dx -- bench //...
       - name: Check the upload holds no secret
         id: scan-bench
         if: ${{ github.event_name == 'push' && !cancelled() }}

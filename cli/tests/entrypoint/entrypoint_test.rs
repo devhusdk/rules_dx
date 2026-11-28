@@ -22,7 +22,7 @@ fn root_module_public_label_is_the_source_binary() {
     assert_eq!(
         read("DX_PUBLIC_HELP"),
         read("DX_CRATE_HELP"),
-        "in the root module, @rules_dx//:dx must stay the source binary @rules_dx//cli/cli:dx"
+        "in the root module, @rules_dx//dx/launch:dx must stay the source binary @rules_dx//cli/cli:dx"
     );
 }
 

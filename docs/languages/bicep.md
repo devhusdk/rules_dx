@@ -15,7 +15,7 @@ bazel_dep(name = "rules_dx", version = "<release>")
 Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):
 
 ```sh
-bazel run @rules_dx//:dx -- init --apply
+bazel run @rules_dx//dx/launch:dx -- init --apply
 ```
 
 For a Bicep project, `MODULE.bazel` then looks like this:

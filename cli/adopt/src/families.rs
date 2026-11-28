@@ -118,6 +118,11 @@ pub fn consumer_quality_marks(root: &Path) -> Option<BTreeSet<String>> {
     (!crate::module_deps::is_rules_dx_root(root)).then(|| quality_marks(root))
 }
 
+#[must_use]
+pub fn consumer_file_extensions(root: &Path) -> Option<BTreeSet<String>> {
+    (!crate::module_deps::is_rules_dx_root(root)).then(|| file_extensions(root))
+}
+
 /// Whether a BUILD file under `root` calls `deployment` or a `*_deploy` macro
 /// loaded from rules_dx `deploy:defs.bzl`.
 pub(crate) fn has_deployment(root: &Path) -> bool {
@@ -422,6 +427,18 @@ mod tests {
         assert!(!marks.contains(".rs"), "{marks:?}");
         write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n").unwrap();
         assert_eq!(consumer_quality_marks(dir.path()), None);
+    }
+
+    #[test]
+    fn docs_treat_a_workspace_without_module_deps_as_a_consumer_and_rules_dx_not() {
+        let dir = scratch("families").unwrap();
+        write(dir.path(), MODULE_FILE, "").unwrap();
+        write(dir.path(), "src/a.go", "").unwrap();
+        let extensions = consumer_file_extensions(dir.path()).expect("consumer extensions");
+        assert!(extensions.contains(".go"), "{extensions:?}");
+        assert!(!extensions.contains(".rs"), "{extensions:?}");
+        write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n").unwrap();
+        assert_eq!(consumer_file_extensions(dir.path()), None);
     }
 
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {

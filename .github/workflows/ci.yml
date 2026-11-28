@@ -404,7 +404,8 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel mod tidy "$@"
+          # mod tidy runs buildozer from disk, and a remote-cached repository is not on disk.
+          bazel --noexperimental_remote_repo_contents_cache mod tidy "$@"
           git diff --exit-code -- MODULE.bazel
       - name: Write job summary
         if: always()

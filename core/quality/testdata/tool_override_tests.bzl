@@ -39,6 +39,7 @@ _TOOL_FLAG = "//config:tool_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
 _PYTHON_TOOL_FLAGS = ["//config:tool_pydoclint", "//config:tool_ruff", "//config:tool_ty"]
 _PYTHON_TOOLS_OFF = {str(Label(flag)): str(Label("//config:off_tool")) for flag in _PYTHON_TOOL_FLAGS}
+_PYTHON_OFF_SETTINGS = dict(_PYTHON_TOOLS_OFF, **{str(Label("//config:workspace")): str(Label("//config:default_workspace_policy"))})
 TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "shared", "tool_overrides"]
 
 _override_subject = config_subject_rule([], [DxSubjectInfo])
@@ -894,14 +895,14 @@ def _python_off_impl(ctx):
     asserts.true(env, ruff.split("/")[-1] in ["off_tool", "off_tool.exe"], "want the off tool, got " + ruff)
     return analysistest.end(env)
 
-_python_off_test = analysistest.make(_python_off_impl, config_settings = _PYTHON_TOOLS_OFF)
+_python_off_test = analysistest.make(_python_off_impl, config_settings = _PYTHON_OFF_SETTINGS)
 
 def python_off_tests(name, subject):
     """Instantiates the proofs that the python tool flags accept the off tool."""
     _python_off_test(
         name = name + "_aspects_test",
         size = "small",
-        target_under_test = _subject(name + "_aspects_test_subject", subject, "default"),
+        target_under_test = subject,
     )
     tests = [":" + name + "_aspects_test"]
     for flag in _PYTHON_TOOL_FLAGS:

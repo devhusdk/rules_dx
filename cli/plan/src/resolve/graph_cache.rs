@@ -16,10 +16,6 @@ impl<'a> PersistentGraphQuery<'a> {
     }
 }
 
-fn cache_path(workspace: &Path) -> PathBuf {
-    dx_path::state::local_dir(workspace).join(dx_path::state::RULE_GRAPH)
-}
-
 fn is_graph_input(name: &str) -> bool {
     matches!(
         name,
@@ -70,10 +66,41 @@ fn cache_key(argv: &[String], workspace: &Path) -> Option<String> {
     Some(dx_digest::sha256_hex(text.as_bytes()))
 }
 
-fn read_cached(path: &Path, key: &str) -> Option<Vec<u8>> {
-    let bytes = std::fs::read(path).ok()?;
-    let (head, body) = bytes.split_at_checked(key.len() + 1)?;
-    (head.strip_suffix(b"\n")? == key.as_bytes()).then(|| body.to_vec())
+pub struct GraphCache {
+    path: PathBuf,
+    key: Option<String>,
+}
+
+impl GraphCache {
+    pub fn new(workspace: &Path, file: &str, argv: &[String]) -> Self {
+        GraphCache {
+            path: dx_path::state::local_dir(workspace).join(file),
+            key: cache_key(argv, workspace),
+        }
+    }
+
+    pub fn read(&self) -> Option<Vec<u8>> {
+        let key = self.key.as_deref()?;
+        let bytes = std::fs::read(&self.path).ok()?;
+        let (head, body) = bytes.split_at_checked(key.len() + 1)?;
+        (head.strip_suffix(b"\n")? == key.as_bytes()).then(|| body.to_vec())
+    }
+
+    pub fn write(&self, body: &[u8]) {
+        let Some(key) = self.key.as_deref() else {
+            return;
+        };
+        let mut content = Vec::with_capacity(key.len() + 1 + body.len());
+        content.extend_from_slice(key.as_bytes());
+        content.push(b'\n');
+        content.extend_from_slice(body);
+        let written = self
+            .path
+            .parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| dx_atomic_fs::write_atomic(&self.path, &content));
+        drop(written);
+    }
 }
 
 impl QueryRunner for PersistentGraphQuery<'_> {
@@ -81,9 +108,8 @@ impl QueryRunner for PersistentGraphQuery<'_> {
         if !is_graph_query(argv) {
             return self.inner.run_query(argv, cwd);
         }
-        let key = cache_key(argv, cwd);
-        let path = cache_path(cwd);
-        if let Some(stdout) = key.as_deref().and_then(|key| read_cached(&path, key)) {
+        let cache = GraphCache::new(cwd, dx_path::state::RULE_GRAPH, argv);
+        if let Some(stdout) = cache.read() {
             return Ok(QueryResult {
                 code: Some(0),
                 stdout,
@@ -91,18 +117,8 @@ impl QueryRunner for PersistentGraphQuery<'_> {
             });
         }
         let result = self.inner.run_query(argv, cwd)?;
-        if let Some(key) = key
-            && result.code == Some(0)
-        {
-            let mut content = Vec::with_capacity(key.len() + 1 + result.stdout.len());
-            content.extend_from_slice(key.as_bytes());
-            content.push(b'\n');
-            content.extend_from_slice(&result.stdout);
-            let written = path
-                .parent()
-                .map_or(Ok(()), std::fs::create_dir_all)
-                .and_then(|()| dx_atomic_fs::write_atomic(&path, &content));
-            drop(written);
+        if result.code == Some(0) {
+            cache.write(&result.stdout);
         }
         Ok(result)
     }

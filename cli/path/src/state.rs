@@ -28,6 +28,7 @@ pub const FINGERPRINT: &str = "fingerprint";
 pub const SYNC_LOCK: &str = "sync.lock";
 pub const SYNC_FINGERPRINT: &str = "sync.fingerprint";
 pub const RULE_GRAPH: &str = "rule_graph";
+pub const SKIPPED_TARGETS: &str = "skipped_targets";
 
 pub const LOCAL_ENTRIES: [&str; 13] = [
     SETUPS,
@@ -45,7 +46,7 @@ pub const LOCAL_ENTRIES: [&str; 13] = [
     SYNC_FINGERPRINT,
 ];
 
-pub const CLEAN_ENTRIES: [&str; 15] = [
+pub const CLEAN_ENTRIES: [&str; 16] = [
     SETUPS,
     ENVIRONMENTS,
     GENERATED,
@@ -61,6 +62,7 @@ pub const CLEAN_ENTRIES: [&str; 15] = [
     FINGERPRINT,
     SYNC_FINGERPRINT,
     RULE_GRAPH,
+    SKIPPED_TARGETS,
 ];
 
 #[must_use]

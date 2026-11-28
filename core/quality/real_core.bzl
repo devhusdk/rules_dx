@@ -665,7 +665,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             dep_lists = [f.path for f in dep_lists],
             env = tool_env_entries.get(tool, []),
             upstream = [f.path for f in (found.upstream if found != None else [])],
-            search_paths = [f.path for f in options.get("search_paths", [])],
+            search_paths = options.get("search_paths", []),
             path_tools = [_path_tool(helper) for helper in options.get("path_tools", [])],
         )
 

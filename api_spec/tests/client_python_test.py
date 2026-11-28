@@ -1,11 +1,6 @@
-import os
-import sys
 import unittest
 
 import httpx
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from petstore_py.api.default import get_pet, list_pets
 from petstore_py.client import Client
 
@@ -20,9 +15,13 @@ class ClientPythonTest(unittest.TestCase):
     def test_get_pet_decodes_fixture_response(self):
         client = Client(base_url="http://petstore.test")
         client.set_httpx_client(
-            httpx.Client(base_url="http://petstore.test", transport=httpx.MockTransport(handler))
+            httpx.Client(
+                base_url="http://petstore.test", transport=httpx.MockTransport(handler)
+            )
         )
         pet = get_pet.sync(pet_id="7", client=client)
+        if pet is None:
+            self.fail("get_pet returned no pet")
         self.assertEqual(pet.id, 7)
         self.assertEqual(pet.name, "Rex")
         self.assertEqual(pet.tag, "dog")

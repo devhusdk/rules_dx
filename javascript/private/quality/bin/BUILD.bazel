@@ -161,6 +161,11 @@ js_binary(
     env = {"BAZEL_BINDIR": "."},
 )
 
+js_binary(
+    name = "openapi_ts_client_generated",
+    entry_point = "openapi_ts_client.mjs",
+)
+
 redocly_bin.redocly_binary(name = "redocly_generated")
 
 js_binary(
@@ -339,6 +344,12 @@ js_tool(
     name = "gplint",
     entry_point = ":gplint_generated__entry_point",
     js_binary = ":gplint_generated",
+)
+
+js_tool(
+    name = "openapi_ts_client",
+    entry_point = "openapi_ts_client.mjs",
+    js_binary = ":openapi_ts_client_generated",
 )
 
 js_tool(

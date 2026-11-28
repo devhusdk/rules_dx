@@ -78,7 +78,7 @@ Owns the OpenAPI and AsyncAPI documents of one package for dx quality.
 
 ### `api_spec_python_client`
 
-Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library.
+Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library; usable as a Python dep.
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -111,6 +111,7 @@ Generates one self-contained TypeScript client from an OpenAPI root of an api_sp
 | `root` | `label` | no | The root document; required when the spec has more than one. |
 | `spec` | `label` | yes | The api_spec_library to generate from. |
 | `_config` | `label` | no |  |
+| `_isolate` | `label` | no |  |
 | `_preflight` | `label` | no |  |
 | `_redocly` | `label` | no |  |
 

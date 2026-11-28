@@ -28,7 +28,7 @@ _DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
 
 _RUNTIME = Label("@dx_prebuilt//:runtime")
 
-_DX = Label("@dx_prebuilt//:dx")
+_DX = Label("@dx_prebuilt//dx:android_ops")
 
 _ADB = Label("@dx_android_sdk//:adb")
 

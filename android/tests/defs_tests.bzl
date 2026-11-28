@@ -56,7 +56,7 @@ def _apk_set_action_impl(ctx):
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv if actions else []
     asserts.true(env, len(argv) >= 3, str(argv))
-    asserts.equals(env, "dx", argv[0].replace("\\", "/").split("/")[-1].removesuffix(".exe") if argv else "", str(argv))
+    asserts.equals(env, "android_ops", argv[0].replace("\\", "/").split("/")[-1].removesuffix(".exe") if argv else "", str(argv))
     asserts.equals(env, ["android_ops", "apk-set"], argv[1:3], str(argv))
     return analysistest.end(env)
 

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//qt/private:corpus.bzl", "qt_corpus")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -20,6 +20,15 @@ rust_library(
         package_name = "qt/private/tools/qt_rust_bridge",
         normal = True,
     ),
+)
+
+rust_binary(
+    name = "qt_rust_bridge_subcommand",
+    srcs = ["src/bin_qt_rust_bridge_subcommand.rs"],
+    crate_name = "qt_rust_bridge_subcommand",
+    crate_root = "src/bin_qt_rust_bridge_subcommand.rs",
+    visibility = ["//visibility:public"],
+    deps = [":qt_rust_bridge"],
 )
 
 alias(

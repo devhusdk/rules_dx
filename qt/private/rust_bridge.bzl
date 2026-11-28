@@ -67,7 +67,7 @@ qt_rust_bridge = rule(
     attrs = {
         "bridges": attr.label_list(allow_files = [".rs"], allow_empty = False, mandatory = True, doc = "Rust files holding one #[cxx_qt::bridge] module each."),
         "generator": attr.label(cfg = "exec", executable = True, doc = "Bridge generator; defaults to `dx qt_rust_bridge`."),
-        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//dx:qt_rust_bridge"), executable = True, cfg = "exec"),
     },
 )
 
@@ -119,7 +119,7 @@ qt_rust_runtime_files = rule(
     attrs = {
         "files": attr.label(allow_files = [".h", ".cpp", ".rs"], default = _CXX_QT_FILES, doc = "CXX-Qt crate headers, C++ sources and bridges."),
         "generator": attr.label(cfg = "exec", executable = True, doc = "Bridge generator; defaults to `dx qt_rust_bridge`."),
-        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//dx:qt_rust_bridge"), executable = True, cfg = "exec"),
     },
 )
 

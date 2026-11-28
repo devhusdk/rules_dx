@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 # gazelle:resolve rust capnp @dx_capnproto_rust//:capnp
 # gazelle:resolve rust capnpc @dx_capnproto_rust//:capnpc
@@ -21,6 +21,15 @@ rust_library(
         "@dx_capnproto_rust//:capnp",
         "@dx_capnproto_rust//:capnpc",
     ],
+)
+
+rust_binary(
+    name = "capnpc_rust_dx_subcommand",
+    srcs = ["bin_capnpc_rust_dx_subcommand.rs"],
+    crate_name = "capnpc_rust_dx_subcommand",
+    crate_root = "bin_capnpc_rust_dx_subcommand.rs",
+    visibility = ["//visibility:public"],
+    deps = [":capnpc_rust_dx"],
 )
 
 rust_test(

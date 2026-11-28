@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//appimage:__subpackages__"])
 
@@ -31,6 +31,19 @@ rust_library(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
     ],
+)
+
+rust_binary(
+    name = "appimage_packer",
+    srcs = ["src/bin_appimage_packer.rs"],
+    crate_name = "appimage_packer",
+    crate_root = "src/bin_appimage_packer.rs",
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [":appimage_packer_lib"],
 )
 
 rust_test(

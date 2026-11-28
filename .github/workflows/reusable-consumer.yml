@@ -211,7 +211,10 @@ jobs:
           disk-cache: false
           repository-cache: false
           external-cache: false
-          bazelrc: ${{ runner.os == 'Windows' && format('common --repository_cache={0}:/_bazel-repo', startsWith(github.workspace, 'D:') && 'D' || 'C') || '' }}
+          bazelrc: |
+            build --notrack_incremental_state
+            build --nokeep_state_after_build
+            ${{ runner.os == 'Windows' && format('common --repository_cache={0}:/_bazel-repo', startsWith(github.workspace, 'D:') && 'D' || 'C') || '' }}
       - name: Configure the remote cache credential helper
         uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@01b9bd4792fce3d503a6b83b034d4c57315d22a0 # main
       - name: Write the Bazel preset layers

@@ -353,7 +353,7 @@ fn scenario(root: &Path, work: &Path, from: &str, to: &str, local: bool) -> Resu
         let mut text = read(&module)?;
         writeln!(
             text,
-            "\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\ndx_prebuilt_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\ndx_prebuilt_source.from_source()\ndx_gazelle_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\ndx_gazelle_source.from_source()",
+            "\nlocal_path_override(module_name = \"rules_dx\", path = \"{}\")\ndx_prebuilt_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\ndx_prebuilt_source.from_source()\ndx_gazelle_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\ndx_gazelle_source.from_source()\nphp_launcher_source = use_extension(\"@rules_dx//php:extensions.bzl\", \"php\")\nphp_launcher_source.from_source()\nqt_launcher_source = use_extension(\"@rules_dx//qt:extensions.bzl\", \"qt\")\nqt_launcher_source.from_source()",
             root.display()
         )
         .unwrap_or_default();

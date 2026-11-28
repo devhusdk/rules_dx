@@ -1274,12 +1274,14 @@ mod tests {
     }
 
     #[test]
-    fn release_pins_of_unreleased_is_empty() {
-        let pins = release_pins(crate::DX_VERSION).expect("pins");
-        assert_eq!(pins, LauncherPins::unreleased());
-        for asset in RELEASE_ASSETS {
-            assert_eq!(pins.get(asset), Some(""));
-        }
+    fn release_pins_are_the_checked_in_pins() {
+        let embedded = pins_from_bzl(include_str!("../../prebuilt/pins.bzl"), crate::DX_VERSION)
+            .expect("pins");
+        assert_eq!(release_pins(crate::DX_VERSION).expect("pins"), embedded);
+        assert_eq!(
+            release_pins("0.0.0-unreleased").expect("pins"),
+            LauncherPins::unreleased()
+        );
     }
 
     #[test]

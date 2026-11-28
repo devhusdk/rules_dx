@@ -417,6 +417,7 @@ def consumer_build(assets, go_assets = []):
     """Returns the hub BUILD text that selects a prebuilt dx and Go lint tools by os and cpu."""
     if not [a for a in assets + go_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
+    dx_pinned = [a for a in assets if a.repo]
     lines = [
         'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")',
         'load("@rules_dx//cli/prebuilt:fail.bzl", "dx_unavailable")',
@@ -425,7 +426,7 @@ def consumer_build(assets, go_assets = []):
         "",
         "alias(",
         '    name = "dx",',
-        "    actual = " + _select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") + ",",
+        "    actual = " + (_select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") if dx_pinned else json.encode(SOURCE_LABEL)) + ",",
         ")",
     ]
     for tool, label in sorted(SOURCE_TOOLS.items()):
@@ -433,7 +434,7 @@ def consumer_build(assets, go_assets = []):
             "",
             "alias(",
             '    name = "{}",'.format(tool),
-            "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") + ",",
+            "    actual = " + (_select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") if dx_pinned else json.encode(label)) + ",",
             ")",
         ]
     for tool, label in sorted(GO_TOOLS.items()):

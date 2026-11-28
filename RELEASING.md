@@ -81,7 +81,7 @@ It fails when:
 
 After you fix the cause, run the workflow again with the same command.
 
-When the files are uploaded, the `pins` job fills `PINS` in `main`'s `cli/prebuilt/pins.bzl` from the attested manifests and pushes it to the `release/pins-v0.1.0` branch. It opens the pull request when GitHub Actions may open pull requests in this repository, and otherwise the run summary prints the command. Open it and merge it:
+When the files are uploaded, the `pins` job fills `PINS` in `main`'s `cli/prebuilt/pins.bzl` from the attested manifests and pushes it to the `release/pins-v0.1.0` branch. With the `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY` secrets it opens the pull request as that App, so CI runs on it. Otherwise the run summary prints the command. Open it and merge it:
 
 ```sh
 gh pr create --base main --head release/pins-v0.1.0 --fill

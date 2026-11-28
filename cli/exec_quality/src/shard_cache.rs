@@ -78,9 +78,9 @@ pub(crate) fn run_sharded(
                 .collect(),
             labels: BTreeSet::new(),
         };
-        let probed = events
-            .as_deref()
-            .and_then(|events| probe_result(events, &foreign, env.workspace, false));
+        let probed = events.as_deref().and_then(|events| {
+            probe_result(events, &foreign, env.workspace, code == BAZEL_BUILD_FAILED)
+        });
         match probed {
             Some(probed) if probed.is_subset(&cached) => {
                 if probed != cached {

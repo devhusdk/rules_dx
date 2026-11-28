@@ -694,16 +694,7 @@ impl FakeRunner {
                 signal: None,
             });
         };
-        let mut lines = shard_events(shards, bep, None)?;
-        if let Some(reason) = &self.probe_aborted {
-            lines.push(
-                serde_json::json!({
-                    "id": {"targetConfigured": {"label": "//test:broken"}},
-                    "aborted": {"reason": reason},
-                })
-                .to_string(),
-            );
-        }
+        let mut lines = shard_events(shards, bep, None, self.probe_aborted.as_deref())?;
         lines.push(
             self.probe_metrics
                 .clone()
@@ -718,8 +709,14 @@ impl FakeRunner {
 }
 
 /// Writes one shard file per name and returns the events that report them as
-/// the `dx_shards` output of `//test:corpus`, or of `aspect` on it.
-fn shard_events(shards: &[String], bep: &str, aspect: Option<&str>) -> io::Result<Vec<String>> {
+/// the `dx_shards` output of `//test:corpus`, or of `aspect` on it, plus an
+/// `//test:broken` target aborted for `aborted`.
+fn shard_events(
+    shards: &[String],
+    bep: &str,
+    aspect: Option<&str>,
+    aborted: Option<&str>,
+) -> io::Result<Vec<String>> {
     let files = shards
         .iter()
         .enumerate()
@@ -736,7 +733,7 @@ fn shard_events(shards: &[String], bep: &str, aspect: Option<&str>) -> io::Resul
     if let Some(aspect) = aspect {
         id["aspect"] = serde_json::json!(aspect);
     }
-    Ok(vec![
+    let mut lines = vec![
         serde_json::json!({
             "id": {"namedSet": {"id": "shards"}},
             "namedSetOfFiles": {"files": files},
@@ -747,7 +744,17 @@ fn shard_events(shards: &[String], bep: &str, aspect: Option<&str>) -> io::Resul
             "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "shards"}]}]},
         })
         .to_string(),
-    ])
+    ];
+    if let Some(reason) = aborted {
+        lines.push(
+            serde_json::json!({
+                "id": {"targetConfigured": {"label": "//test:broken"}},
+                "aborted": {"reason": reason},
+            })
+            .to_string(),
+        );
+    }
+    Ok(lines)
 }
 
 /// The probe aspect a check build runs alongside its own aspects, if any.
@@ -795,7 +802,10 @@ impl Runner for FakeRunner {
                     .iter()
                     .position(|line| line.contains("\"lastMessage\""))
                     .unwrap_or(lines.len());
-                lines.splice(last..last, shard_events(shards, bep, Some(probe))?);
+                lines.splice(
+                    last..last,
+                    shard_events(shards, bep, Some(probe), self.probe_aborted.as_deref())?,
+                );
             }
             std::fs::write(bep, lines.join("\n"))?;
         }

@@ -200,12 +200,27 @@ fn an_unreadable_folded_probe_falls_back_to_a_probe_build() {
     let mut harness = clean_harness("probe-cached-unknown");
     harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
     assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
-    harness.failed_labels.push("//test:corpus".to_owned());
-    harness.run(&["lint", "--output=text"]);
+    harness.probe_aborted = Some("NO_BUILD".to_owned());
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
     assert_eq!(harness.probe_argv.borrow().len(), 2);
     let builds = harness.build_argv.borrow();
     assert_eq!(builds.len(), 3);
-    assert_eq!(aspects_of(&builds[2]), aspects_of(&builds[0]));
+    let all = dx_plan::plan::spec(dx_plan::args::Command::Lint)
+        .aspects
+        .len();
+    assert_eq!(aspects_of(&builds[2]).len(), all);
+}
+
+#[test]
+fn a_failed_build_trusts_its_folded_probe() {
+    let mut harness = clean_harness("probe-cached-failed");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    harness.bazel_code = dx_exec_core::common::BAZEL_BUILD_FAILED;
+    harness.probe_aborted = Some("ANALYSIS_FAILURE".to_owned());
+    harness.run(&["lint", "--output=text"]);
+    assert_eq!(harness.probe_argv.borrow().len(), 1, "no second probe");
+    assert_eq!(harness.build_argv.borrow().len(), 2);
 }
 
 #[test]

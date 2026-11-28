@@ -118,6 +118,7 @@ _STARLARK_SRCS = [
     "//powershell:extensions.bzl",
     "//python:defs.bzl",
     "//python:extensions.bzl",
+    "//python:grpc.bzl",
     "//qt:defs.bzl",
     "//qt:extensions.bzl",
     "//rego:defs.bzl",

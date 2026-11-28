@@ -42,6 +42,25 @@ def snapshot_root():
     return root
 
 
+def entry_bzl(root, lang, name):
+    """Returns the top-level <lang>/*.bzl basename that defines name, preferring defs.bzl."""
+    pattern = re.compile(
+        r"^(%s\s*=|def %s\()" % (re.escape(name), re.escape(name)), re.M
+    )
+    others = sorted(
+        n
+        for n in os.listdir(os.path.join(root, lang))
+        if n.endswith(".bzl") and n != "defs.bzl"
+    )
+    for bzl in ["defs.bzl"] + others:
+        path = os.path.join(root, lang, bzl)
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                if pattern.search(f.read()):
+                    return bzl
+    return "defs.bzl"
+
+
 def exports(root):
     found = {}
     for lang in sorted(os.listdir(root)):
@@ -50,8 +69,9 @@ def exports(root):
             continue
         with open(path, encoding="utf-8") as f:
             names = sorted(set(json.load(f).get("entry_points", [])))
-        if names:
-            found["@rules_dx//%s:defs.bzl" % lang] = names
+        for name in names:
+            load = "@rules_dx//%s:%s" % (lang, entry_bzl(root, lang, name))
+            found.setdefault(load, []).append(name)
     return found
 
 

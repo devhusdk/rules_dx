@@ -5970,20 +5970,6 @@ Macro or function.
 | `tags` | no | `None` |
 | `kwargs` | no |  |
 
-#### `python_grpc_library`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
-| `py_proto` | yes |  |
-| `grpc_tools` | no | `"@pypi//grpcio_tools"` |
-| `grpc` | no | `"@pypi//grpcio"` |
-| `dep_group` | no | `None` |
-| `kwargs` | no |  |
-
 #### `python_library`
 
 Macro or function.
@@ -6070,6 +6056,22 @@ Tag `uv.project`:
 | `name` | `name` | no | `""` |
 | `pyproject` | `label` | yes |  |
 | `version` | `string` | no | `""` |
+
+### `@rules_dx//python:grpc.bzl`
+
+#### `python_grpc_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `py_proto` | yes |  |
+| `grpc_tools` | no | `"@pypi//grpcio_tools"` |
+| `grpc` | no | `"@pypi//grpcio"` |
+| `dep_group` | no | `None` |
+| `kwargs` | no |  |
 
 ### `@rules_dx//qt:defs.bzl`
 

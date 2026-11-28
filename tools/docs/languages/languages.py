@@ -130,6 +130,24 @@ def shard_owner(root, shard):
     return None
 
 
+def defines(text, name):
+    """True when the Starlark text defines or assigns name at top level."""
+    pattern = r"^(%s\s*=|def %s\()" % (re.escape(name), re.escape(name))
+    return re.search(pattern, text or "", re.M) is not None
+
+
+def entry_bzl(root, lang, name):
+    """Returns the top-level <lang>/*.bzl that defines name, preferring defs.bzl."""
+    defs = "%s/defs.bzl" % lang
+    if defines(read(root, defs), name):
+        return defs
+    for bzl in sorted(os.listdir(os.path.join(root, lang))):
+        path = "%s/%s" % (lang, bzl)
+        if bzl.endswith(".bzl") and defines(read(root, path), name):
+            return path
+    return defs
+
+
 def read(root, path):
     try:
         with open(os.path.join(root, path), encoding="utf-8") as f:
@@ -513,8 +531,11 @@ def page(root, lang, rows):
         if body:
             out.append(body + "\n")
     out.append("## Rules\n")
+    files = {name: entry_bzl(root, lang, name) for name in names}
     if names:
-        shown = ", ".join('"%s"' % n for n in names[:3])
+        shown = ", ".join(
+            '"%s"' % n for n in [n for n in names if files[n] == defs][:3]
+        )
         out.append(
             "`load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//%s:defs.bzl`:\n"
             % lang
@@ -526,7 +547,11 @@ def page(root, lang, rows):
         out.append("None.\n")
     for name in names:
         out.append("### `%s`\n" % name)
-        out.extend(render(name, describe(root, defs, name)))
+        if files[name] != defs:
+            out.append(
+                "Load it from `@rules_dx//%s:%s`.\n" % os.path.split(files[name])
+            )
+        out.extend(render(name, describe(root, files[name], name)))
     out.append("## Tools and package files\n")
     out.append("dx runs these tools and reads these package files for %s:\n" % title)
     out.append(

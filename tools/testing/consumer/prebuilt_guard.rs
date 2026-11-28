@@ -315,7 +315,6 @@ pub fn stub_url(path: &Path) -> String {
 pub struct BundleTool {
     pub name: String,
     pub launcher: String,
-    pub missing: BTreeSet<String>,
 }
 
 impl BundleTool {
@@ -330,29 +329,26 @@ pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
         .filter(|line| !line.is_empty())
         .map(
             |line| match line.split_whitespace().collect::<Vec<_>>()[..] {
-                [name, launcher, ref missing @ ..] => Ok(BundleTool {
+                [name, launcher] => Ok(BundleTool {
                     name: name.to_owned(),
                     launcher: launcher.to_owned(),
-                    missing: missing.iter().map(|key| (*key).to_owned()).collect(),
                 }),
-                _ => Err(format!("want `<name> <launcher> [<missing>...]`: {line}")),
+                _ => Err(format!("want `<name> <launcher>`: {line}")),
             },
         )
         .collect()
 }
 
-pub fn stub_bundle(tools: &[BundleTool], windows: bool) -> std::io::Result<Vec<u8>> {
+pub fn stub_bundle(tool: &BundleTool, windows: bool) -> std::io::Result<Vec<u8>> {
     let mut tar = dx_archive::TarWriter::new();
-    for tool in tools {
-        let launcher = format!("bin/{}", tool.launcher);
-        tar.add_file(&launcher, format!("stub {}\n", tool.name).as_bytes(), 0o755)?;
-        if windows {
-            tar.add_file(
-                &format!("{launcher}.cmd"),
-                format!("@echo stub {}\r\n", tool.name).as_bytes(),
-                0o755,
-            )?;
-        }
+    let launcher = format!("bin/{}", tool.launcher);
+    tar.add_file(&launcher, format!("stub {}\n", tool.name).as_bytes(), 0o755)?;
+    if windows {
+        tar.add_file(
+            &format!("{launcher}.cmd"),
+            format!("@echo stub {}\r\n", tool.name).as_bytes(),
+            0o755,
+        )?;
     }
     tar.finish()
 }
@@ -586,22 +582,19 @@ mod tests {
     }
 
     #[test]
-    fn bundle_tools_read_the_launcher_and_missing_platforms() {
+    fn bundle_tools_read_the_name_and_launcher() {
         let tools =
-            bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n\n")
-                .expect("parses");
+            bundle_tools("ansible_lint_tool ansible_lint\nyamllint yamllint\n\n").expect("parses");
         assert_eq!(
             tools,
             [
                 BundleTool {
                     name: "ansible_lint_tool".to_owned(),
                     launcher: "ansible_lint".to_owned(),
-                    missing: BTreeSet::from(["windows_arm64".to_owned()]),
                 },
                 BundleTool {
                     name: "yamllint".to_owned(),
                     launcher: "yamllint".to_owned(),
-                    missing: BTreeSet::new(),
                 },
             ]
         );
@@ -610,13 +603,14 @@ mod tests {
             "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"
         );
         assert!(bundle_tools("yamllint\n").is_err());
+        assert!(bundle_tools("ansible_lint_tool ansible_lint windows_arm64\n").is_err());
     }
 
     #[test]
-    fn the_stub_bundle_has_a_launcher_per_tool() {
-        let tools = bundle_tools("cfn_lint cfn_lint\nyamllint yamllint\n").expect("parses");
+    fn the_stub_bundle_holds_the_one_tool_launcher() {
+        let tools = bundle_tools("cfn_lint cfn_lint\n").expect("parses");
         let names = |windows| {
-            let archive = stub_bundle(&tools, windows).expect("writes");
+            let archive = stub_bundle(&tools[0], windows).expect("writes");
             let mut names = Vec::new();
             dx_archive::visit(
                 std::io::Cursor::new(archive),
@@ -630,16 +624,8 @@ mod tests {
             .expect("reads");
             names
         };
-        assert_eq!(names(false), ["bin/cfn_lint", "bin/yamllint"]);
-        assert_eq!(
-            names(true),
-            [
-                "bin/cfn_lint",
-                "bin/cfn_lint.cmd",
-                "bin/yamllint",
-                "bin/yamllint.cmd"
-            ]
-        );
+        assert_eq!(names(false), ["bin/cfn_lint"]);
+        assert_eq!(names(true), ["bin/cfn_lint", "bin/cfn_lint.cmd"]);
     }
 
     #[test]

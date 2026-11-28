@@ -156,30 +156,26 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Build the Python quality tools bundles
+      - name: Build one archive per Python quality tool and host
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/python-tools-out"
           rm -rf "$out"
           mkdir -p "$out"
-          hosts=(linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64)
-          targets=()
-          for host in "${hosts[@]}"; do
-            targets+=("//core/quality/tools/python_bundle:dx_python_tools_${host//-/_}")
-          done
-          bazel build "${targets[@]}"
+          target=//core/quality/tools/python_bundle:release_assets
+          bazel build "$target"
           root="$(bazel info execution_root)"
-          for host in "${hosts[@]}"; do
-            built="$root/$(bazel cquery --output=files "//core/quality/tools/python_bundle:dx_python_tools_${host//-/_}")"
-            asset="$out/dx-python-tools-$host.tar.gz"
-            cp "$built" "$asset"
-            case "$host" in
-              windows-*) want="./bin/yamllint.cmd" ;;
-              *) want="./bin/yamllint" ;;
-            esac
-            tar -tzf "$asset" | grep -Fx "$want" >/dev/null || { echo "$asset has no $want" >&2; exit 1; }
+          bazel cquery --output=files "$target" | while read -r built; do
+            cp "$root/$built" "$out/"
           done
-          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${targets[@]}"
+          for asset in "$out"/*.tar.gz; do
+            case "${asset##*/}" in
+              *-windows-*) want='^\./bin/[a-z_]+\.cmd$' ;;
+              *) want='^\./bin/[a-z_]+$' ;;
+            esac
+            test "$(tar -tzf "$asset" | grep -cE "$want")" -eq 1 || { echo "$asset has no single bin/ launcher" >&2; exit 1; }
+          done
+          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "$target"
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

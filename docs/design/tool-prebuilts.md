@@ -100,7 +100,7 @@ core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 - zanuda reads `.cmt` files of the consumer's OCaml, whose toolchain has no Windows cell.
 - weeder reads `.hie` files and is built with the consumer's GHC. `windows_arm64` is unsupported.
 - hlint, ormolu and nixfmt: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the locked source archive.
-- Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`, compiling nothing. ansible-lint is unsupported on Windows.
+- Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-<tool>-<host>.tar.gz` archive per tool and host from a python-build-standalone interpreter and the wheels of that tool's locked dependency closure in `uv.lock`, compiling nothing, so a consumer downloads only the Python tools it runs. ansible-lint is unsupported on Windows.
 
 ## Source build inputs
 

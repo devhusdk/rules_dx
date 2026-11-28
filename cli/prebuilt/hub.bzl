@@ -309,19 +309,22 @@ def dx_subcommand_build(consumer, guard = False):
     return "\n".join(lines)
 
 def plan_python_tools(version, pins, url_template, overrides):
-    """Returns plan_assets of the python_tools bundle, one archive repo per pinned platform."""
-    return plan_assets("python_tools", version, pins, url_template, overrides, exe = "python_tools", repo_prefix = "dx_python_tools_prebuilt_")
+    """Returns {tool: plan_assets of tool} for every Python tool, one archive repo per pinned tool and platform."""
+    return {
+        tool: plan_assets(tool, version, pins, url_template, overrides.get(tool, {}), exe = tool, repo_prefix = "dx_{}_prebuilt_".format(tool))
+        for tool in PYTHON_BUNDLE_TOOLS
+    }
 
 _BUNDLE_LOAD = 'load("@rules_dx//cli/prebuilt:bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")'
 
-def with_python_tools(build, assets, guard = False):
-    """Returns the hub BUILD text build plus python_tool_<name> for each bundled Python tool."""
-    pinned = [a for a in assets if a.repo]
+def with_python_tools(build, python_tools, guard = False):
+    """Returns the hub BUILD text build plus python_tool_<name> for each Python tool, each from its own archive."""
     lines = []
-    for name, tool in sorted(PYTHON_BUNDLE_TOOLS.items()):
-        missing = ["{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu]) for os, cpu in [split_key(key) for key in tool.missing]]
-        served = [a for a in pinned if a.key not in missing]
-        actual = _select([(":python_" + a.key, ":python_tool_{}_{}".format(name, a.key)) for a in served], tool.source) if served else _source_actual(tool.source, guard)
+    keys = {}
+    for name, assets in sorted(python_tools.items()):
+        source = PYTHON_BUNDLE_TOOLS[name].source
+        pinned = [a for a in assets if a.repo]
+        actual = _select([(":python_" + a.key, ":python_tool_{}_{}".format(name, a.key)) for a in pinned], source) if pinned else _source_actual(source, guard)
         lines += [
             "",
             "alias(",
@@ -330,32 +333,33 @@ def with_python_tools(build, assets, guard = False):
             '    visibility = ["//visibility:public"],',
             ")",
         ]
-        for a in served:
+        for a in pinned:
+            keys[a.key] = a
             lines += [
+                "",
+                "dx_bundle_tree(",
+                '    name = "python_tools_{}_{}",'.format(name, a.key),
+                '    srcs = ["@{}//:files"],'.format(a.repo),
+                ")",
                 "",
                 "dx_bundle_tool(",
                 '    name = "python_tool_{}_{}",'.format(name, a.key),
-                '    launcher = "bin/{}{}",'.format(tool.launcher, ".cmd" if a.os == "windows" else ""),
-                '    tree = ":python_tools_{}",'.format(a.key),
+                '    launcher = "bin/{}{}",'.format(PYTHON_BUNDLE_TOOLS[name].launcher, ".cmd" if a.os == "windows" else ""),
+                '    tree = ":python_tools_{}_{}",'.format(name, a.key),
                 ")",
             ]
-    for a in pinned:
+    for key, a in sorted(keys.items()):
         lines += [
             "",
-            "dx_bundle_tree(",
-            '    name = "python_tools_{}",'.format(a.key),
-            '    srcs = ["@{}//:files"],'.format(a.repo),
-            ")",
-            "",
             "config_setting(",
-            '    name = "python_{}",'.format(a.key),
+            '    name = "python_{}",'.format(key),
             "    constraint_values = [",
             '        "@platforms//os:{}",'.format(a.os),
             '        "@platforms//cpu:{}",'.format(a.cpu),
             "    ],",
             ")",
         ]
-    loads = [_BUNDLE_LOAD] if pinned else []
+    loads = [_BUNDLE_LOAD] if keys else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def unsupported_message(assets):

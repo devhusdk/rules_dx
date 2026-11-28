@@ -5,7 +5,7 @@ This page fixes how dx supplies a quality tool on a host where upstream ships no
 ## Hosts
 
 - The qualified hosts are `linux_x86_64`, `linux_arm64`, `macos_arm64` and `windows_x86_64`.
-- `windows_arm64` resolves to the `windows_x86_64` artifact and runs it emulated, except deadnix, selene, topiary and progenitor, which the release builds natively on `windows_arm64`. A `windows_arm64` pin that is missing falls back to `windows_x86_64`.
+- `windows_arm64` resolves to the `windows_x86_64` artifact and runs it emulated. No tool gets a native `windows_arm64` build unless upstream ships one.
 - A support row lists a host only when a matrix case ran there.
 - An unlisted host carries an `unsupported` reason, and the tool attribute resolves to `dx_unavailable_tool` there.
 

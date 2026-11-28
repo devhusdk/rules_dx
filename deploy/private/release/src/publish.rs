@@ -57,6 +57,7 @@ pub enum PublishError {
     Sbom(SbomError),
     Notice(NoticeError),
     NoBcrLog,
+    ModuleVersion(String),
     Render(dx_fingerprint::FingerprintError),
 }
 
@@ -89,6 +90,10 @@ impl fmt::Display for PublishError {
                 write!(f, "publish dry-run: NOTICE validation failed: {source}")
             }
             Self::NoBcrLog => f.write_str("publish dry-run: no BCR dry-run log"),
+            Self::ModuleVersion(version) => write!(
+                f,
+                "publish dry-run: MODULE.bazel module() does not declare version {version:?}, the version dx prints"
+            ),
             Self::Render(source) => write!(f, "publish dry-run: cannot render JSON: {source}"),
         }
     }
@@ -103,9 +108,11 @@ impl std::error::Error for PublishError {
             Self::Sbom(source) => Some(source),
             Self::Notice(source) => Some(source),
             Self::Render(source) => Some(source),
-            Self::Missing { .. } | Self::SpdxNoDigest | Self::SpdxEmptyDigest | Self::NoBcrLog => {
-                None
-            }
+            Self::Missing { .. }
+            | Self::SpdxNoDigest
+            | Self::SpdxEmptyDigest
+            | Self::NoBcrLog
+            | Self::ModuleVersion(_) => None,
         }
     }
 }
@@ -275,7 +282,13 @@ fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), PublishError> 
     require_contains(&release_tests_log, "tests pass", "release tests log")?;
     let module_text = read_text(&inputs.module_bazel, "MODULE.bazel")?;
     require_contains(&module_text, "name = \"rules_dx\"", "MODULE.bazel")?;
-    require_contains(&module_text, "version = \"0.0.0\"", "MODULE.bazel")?;
+    let module_block = module_text
+        .split_once("module(")
+        .and_then(|(_, rest)| rest.split_once(')'))
+        .map_or("", |(block, _)| block);
+    if !module_block.contains(&format!("version = \"{}\"", inputs.expected.version)) {
+        return Err(PublishError::ModuleVersion(inputs.expected.version.clone()));
+    }
     let verify_log = read_text(&inputs.verify_refusal_log, "install verifier refusal log")?;
     require_contains(
         &verify_log,
@@ -498,7 +511,10 @@ mod tests {
         let module_bazel = write_text(
             dir,
             "MODULE.bazel",
-            "name = \"rules_dx\"\nversion = \"0.0.0\"\n",
+            &format!(
+                "module(\n    name = \"rules_dx\",\n    version = \"{}\",\n)\nbazel_dep(name = \"x\", version = \"9.9.9\")\n",
+                release.expected.version
+            ),
         );
         let verify_refusal_log = write_text(
             dir,
@@ -835,6 +851,26 @@ mod tests {
                     ..
                 }
             ),
+            "got {error:?}"
+        );
+    }
+
+    #[test]
+    fn a_module_version_other_than_the_printed_one_fails() {
+        let dir = scratch();
+        let release = release();
+        let inputs = valid_inputs(dir.path(), &release);
+        std::fs::write(
+            &inputs.module_bazel,
+            format!(
+                "module(\n    name = \"rules_dx\",\n    version = \"9.9.9\",\n)\nbazel_dep(name = \"x\", version = \"{}\")\n",
+                release.expected.version
+            ),
+        )
+        .expect("module");
+        let error = publish_dry_run_check(&inputs).expect_err("another version must fail");
+        assert!(
+            matches!(&error, PublishError::ModuleVersion(version) if *version == release.expected.version),
             "got {error:?}"
         );
     }

@@ -203,7 +203,7 @@ pub const CONSUMER_WORKFLOW_REPO: &str = "rules_dx";
 
 pub const CONSUMER_WORKFLOW_PATH: &str = ".github/workflows/reusable-consumer.yml";
 
-pub const CONSUMER_WORKFLOW_PIN: &str = "6291f73dc0e35bc25033e69c2ae0a8af29bf5cfe";
+pub const CONSUMER_WORKFLOW_PIN: &str = "80f9d6432abd03b697028da6d2cee1f07436ea37";
 
 pub const RELEASE_WORKFLOW_PATH: &str = ".github/workflows/reusable-release.yml";
 
@@ -1639,7 +1639,7 @@ mod tests {
             .expect("pins")
             .to_lines(DX_VERSION);
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
-        std::fs::write(&pin, "0.0.1\n").expect("stale");
+        std::fs::write(&pin, "0.0.0\n").expect("stale");
         let again = entries(|a| apply_init(&root, "demo", a)).expect("init again");
         assert!(again.iter().any(|p| p == ".dx/pins"));
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);

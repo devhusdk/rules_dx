@@ -416,6 +416,20 @@ fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
         .ok_or(error)
 }
 
+pub fn rules_dx_version(source: &Path) -> Result<String, String> {
+    let path = source.join("MODULE.bazel");
+    let text =
+        std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    text.lines()
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("version = \"")?
+                .strip_suffix("\",")
+        })
+        .map(str::to_owned)
+        .ok_or_else(|| format!("{} declares no module version", path.display()))
+}
+
 pub fn rules_dx_source() -> Result<PathBuf, String> {
     let module = find_runfile("MODULE.bazel").map_err(|error| {
         format!(
@@ -1169,6 +1183,7 @@ mod tests {
         let source = rules_dx_source().unwrap();
         assert!(source.join("MODULE.bazel").is_file(), "{source:?}");
         assert!(source.join(".bazelversion").is_file(), "{source:?}");
+        assert!(!rules_dx_version(&source).unwrap().is_empty());
     }
 
     #[test]

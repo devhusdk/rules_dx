@@ -160,7 +160,7 @@ jobs:
             files="$files $tool_asset"
           done
           for tool in topiary progenitor; do
-            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64; do
+            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
               tool_asset="dx-$tool-$host"
               test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
@@ -199,7 +199,7 @@ jobs:
           files="$files dx-haskell-sha256sums.txt"
           : > out/dx-tool-sha256sums.txt
           for tool in dx-deadnix dx-selene; do
-            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64; do
+            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
               tool_asset="$tool-$host"
               test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
@@ -223,7 +223,7 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 92 || { echo "want 92 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 90 || { echo "want 90 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
@@ -231,7 +231,7 @@ jobs:
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
           test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 18 || { echo "want 18 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
-          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 59 || { echo "want 59 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 57 || { echo "want 57 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
       - name: Build and verify the source archive
         env:

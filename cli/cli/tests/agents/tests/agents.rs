@@ -162,7 +162,7 @@ fn hook(commands: &[(String, String)], event: &str) -> String {
         .map_or_else(|| panic!("no {event} hook"), |(_, command)| command.clone())
 }
 
-fn cache_dx(env: &Env) {
+fn cache_dx(env: &Env, version: &str) {
     let os = if cfg!(target_os = "macos") {
         "macos"
     } else {
@@ -173,7 +173,7 @@ fn cache_dx(env: &Env) {
     } else {
         "x86_64"
     };
-    let dir = env.home.join(".cache/dx/bin/0.0.0");
+    let dir = env.home.join(".cache/dx/bin").join(version);
     std::fs::create_dir_all(&dir).expect("cache dir");
     std::fs::copy(env_file("DX_BIN"), dir.join(format!("dx-{os}-{arch}"))).expect("cache dx");
 }
@@ -195,12 +195,17 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     )
     .unwrap();
     dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
+    let version = dx_testing::rules_dx_source()
+        .and_then(|source| dx_testing::rules_dx_version(&source))
+        .expect("rules_dx version");
     write(
         &root.join("MODULE.bazel"),
-        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        &format!(
+            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{version}\")\n"
+        ),
     );
     init(&root, &env);
-    cache_dx(&env);
+    cache_dx(&env, &version);
     dx_test_scratch::git(&root, &root, &["add", "."]).unwrap();
     dx_test_scratch::git(&root, &root, &["commit", "--quiet", "-m", "base"]).unwrap();
     dx_test_scratch::git(

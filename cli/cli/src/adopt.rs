@@ -136,6 +136,7 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_adopt::{DX_VERSION, MODULE_VERSION};
 
     #[test]
     fn from_adopt_classifies_by_cause() {
@@ -180,7 +181,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("status-missing-pipe-").unwrap();
         std::fs::write(
             scratch.path().join("MODULE.bazel"),
-            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+            format!("bazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
         )
         .expect("module");
         let inv = invocation(&["status", "--output=json"]);
@@ -213,7 +214,7 @@ mod tests {
         dx_adopt::write_version_pin(scratch.path(), "9.9.9").expect("drifted pin");
         std::fs::write(
             scratch.path().join("MODULE.bazel"),
-            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+            format!("bazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
         )
         .expect("module");
         let inv = invocation(&["status", "--output=json"]);
@@ -340,10 +341,10 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-cmd-quiet-status-").unwrap();
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join(".dx")).expect("dx");
-        std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
+        std::fs::write(root.join(".dx/pins"), format!("{DX_VERSION}\n")).expect("pin");
         std::fs::write(
             root.join("MODULE.bazel"),
-            "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+            format!("bazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"),
         )
         .expect("module");
         let (code, out, _err) = run(&inv, &root);

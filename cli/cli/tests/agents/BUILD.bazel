@@ -13,6 +13,7 @@ rust_test(
     data = [
         "//:.claude/settings.json",
         "//:AGENTS.md",
+        "//:MODULE.bazel",
         "//cli/cli:dx",
         "//cli/cli/tests/fake_generate",
     ],

@@ -1251,7 +1251,7 @@ mod tests {
     #[test]
     fn this_dx_with_an_older_dep_edits_refreshes_and_moves_the_pin() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-older-dep-", OLD);
-        std::fs::write(root.join("MODULE.bazel"), dep("0.0.1")).expect("module");
+        std::fs::write(root.join("MODULE.bazel"), dep("0.0.0")).expect("module");
         let runner = Recorder::default();
         let (code, out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
         assert_eq!(code, 0, "{out}{err}");
@@ -1423,7 +1423,7 @@ mod tests {
             .to_lines(module());
         let pin_file = root.join(".dx/pins");
         assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
-        std::fs::write(&pin_file, "0.0.1\n").expect("stale");
+        std::fs::write(&pin_file, "0.0.0\n").expect("stale");
         assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);
         assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
     }

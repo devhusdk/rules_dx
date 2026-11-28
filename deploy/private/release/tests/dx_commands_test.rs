@@ -120,9 +120,14 @@ fn completion(consumer: &Consumer) -> Result<(), String> {
 }
 
 fn upgrade(consumer: &Consumer) -> Result<(), String> {
+    let pins = read_text(&consumer.case.root().join(".dx/pins"));
+    let version = pins
+        .split_whitespace()
+        .next()
+        .ok_or("init wrote an empty .dx/pins")?;
     expect(
         consumer,
-        &["upgrade", "--to", "0.0.0"],
+        &["upgrade", "--to", version],
         0,
         &["upgrade current"],
     )

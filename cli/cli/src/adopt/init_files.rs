@@ -949,8 +949,10 @@ mod tests {
     fn apply_adds_no_family_module_for_a_shell_workspace() {
         let scratch = dx_test_scratch::scratch("dx-init-family-deps-").unwrap();
         let root = scratch.path();
-        let module =
-            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+        let module = format!(
+            "module(name = \"app\")\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
+            dx_adopt::MODULE_VERSION
+        );
         std::fs::write(root.join("MODULE.bazel"), module).expect("write");
         std::fs::write(root.join("app.sh"), "").expect("write");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), root);

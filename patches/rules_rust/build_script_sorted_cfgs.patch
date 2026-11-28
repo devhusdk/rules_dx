@@ -1,0 +1,64 @@
+Upstream: none (not yet sent upstream)
+diff --git a/cargo/private/cargo_build_script_runner/lib.rs b/cargo/private/cargo_build_script_runner/lib.rs
+--- a/cargo/private/cargo_build_script_runner/lib.rs
++++ b/cargo/private/cargo_build_script_runner/lib.rs
+@@ -237,6 +237,7 @@ impl BuildScriptOutput {
+         exec_root: &str,
+         out_dir: &str,
+     ) -> CompileAndLinkFlags {
++        let mut cfgs = Vec::new();
+         let mut compile_flags = Vec::new();
+         let mut link_flags = Vec::new();
+         let mut link_search_paths = Vec::new();
+@@ -245,7 +246,7 @@ impl BuildScriptOutput {
+ 
+         for flag in outputs {
+             match flag {
+-                BuildScriptOutput::Cfg(e) => compile_flags.push(format!("--cfg={e}")),
++                BuildScriptOutput::Cfg(e) => cfgs.push(format!("--cfg={e}")),
+                 BuildScriptOutput::Flags(e) => compile_flags.push(e.to_owned()),
+                 BuildScriptOutput::LinkArg(e) => compile_flags.push(format!("-Clink-arg={e}")),
+                 BuildScriptOutput::CdylibLinkArg(e) => {
+@@ -261,8 +262,12 @@ impl BuildScriptOutput {
+             }
+         }
+ 
++        // Build scripts may print cfgs in hash order; rustc ignores their order.
++        cfgs.sort();
++        cfgs.append(&mut compile_flags);
++
+         CompileAndLinkFlags {
+-            compile_flags: compile_flags.join("\n"),
++            compile_flags: cfgs.join("\n"),
+             link_flags: Self::redact_flags(&link_flags.join("\n"), exec_root, out_dir),
+             link_search_paths: Self::redact_flags(
+                 &link_search_paths.join("\n"),
+@@ -379,7 +384,7 @@ mod tests {
+                 // -Lblah was output as a rustc-flags, so even though it probably _should_ be a link
+                 // flag, we don't treat it like one.
+                 compile_flags:
+-                    "-Lblah\n--cfg=feature=awesome\n-Clink-arg=-weak_framework\n-Clink-arg=Metal"
++                    "--cfg=feature=awesome\n-Lblah\n-Clink-arg=-weak_framework\n-Clink-arg=Metal"
+                         .to_owned(),
+                 link_flags: "-lsdfsdf".to_owned(),
+                 link_search_paths: "-L${pwd}/bleh".to_owned(),
+@@ -476,6 +481,19 @@ non-assignment-instructions-are-ignored",
+         from_read_buffer_to_env_and_flags_test_impl(buff);
+     }
+ 
++    #[test]
++    fn cfgs_are_sorted() {
++        let outputs = [
++            BuildScriptOutput::Cfg("feature=\"b\"".to_owned()),
++            BuildScriptOutput::Flags("-Lblah".to_owned()),
++            BuildScriptOutput::Cfg("feature=\"a\"".to_owned()),
++        ];
++        assert_eq!(
++            BuildScriptOutput::outputs_to_flags(&outputs, "/root", "").compile_flags,
++            "--cfg=feature=\"a\"\n--cfg=feature=\"b\"\n-Lblah"
++        );
++    }
++
+     #[test]
+     fn invalid_utf8() {
+         let buff = Cursor::new(

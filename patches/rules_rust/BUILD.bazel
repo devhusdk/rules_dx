@@ -1,6 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "build_script_debug_info.patch",
+    "build_script_sorted_cfgs.patch",
     "cargo_build_script_apple_deployment_target.patch",
     "cargo_toml_env_vars_flag.patch",
     "clippy_metadata_inputs.patch",
@@ -12,6 +14,7 @@ exports_files([
     "pipelined_rmeta_path.patch",
     "rust_analyzer_rustc_lib.patch",
     "static_archive_link_arg.patch",
+    "toolchain_linker_wrapper.patch",
     "windows_exec_foreign_target_cc_linker.patch",
 ])
 

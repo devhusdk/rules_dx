@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "465e4da1f3a84fe7d644087bde5c43069308b6eefe56a90bc7d84f19382830c2",
+  "checksum": "7a3db9bedc2ae27a0614aa2bc15e0efafc208f40b7cce27981745fd67a4c2293",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9352,16 +9352,23 @@
     "tree-sitter 0.26.12": {
       "build_script_attrs": {
         "build_script_env": {
-          "CFLAGS": "$(DX_BS_CFLAGS)",
-          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
-          "HOST_AR": "$(DX_BS_HOST_AR)",
-          "HOST_CC": "$(DX_BS_HOST_CC)",
-          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
-          "HOST_CXX": "$(DX_BS_HOST_CXX)",
-          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
-          "TARGET_AR": "$(DX_BS_TARGET_AR)",
-          "TARGET_CC": "$(DX_BS_TARGET_CC)",
-          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          "common": {
+            "CFLAGS": "$(DX_BS_CFLAGS)",
+            "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
+            "HOST_AR": "$(DX_BS_HOST_AR)",
+            "HOST_CC": "$(DX_BS_HOST_CC)",
+            "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+            "HOST_CXX": "$(DX_BS_HOST_CXX)",
+            "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+            "TARGET_AR": "$(DX_BS_TARGET_AR)",
+            "TARGET_CC": "$(DX_BS_TARGET_CC)",
+            "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          },
+          "selects": {
+            "x86_64-pc-windows-msvc": {
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@rules_dx+//rust/private/tools/msvc_paths:msvc_lib)"
+            }
+          }
         },
         "deps": [
           {
@@ -9382,7 +9389,15 @@
         "links": "tree-sitter",
         "toolchains": [
           "@@rules_dx+//rust:build_script_cc_env"
-        ]
+        ],
+        "tools": {
+          "common": [],
+          "selects": {
+            "x86_64-pc-windows-msvc": [
+              "@@rules_dx+//rust/private/tools/msvc_paths:msvc_lib"
+            ]
+          }
+        }
       },
       "common_attrs": {
         "crate_features": [
@@ -9500,16 +9515,23 @@
     "tree-sitter-ocaml 0.24.0": {
       "build_script_attrs": {
         "build_script_env": {
-          "CFLAGS": "$(DX_BS_CFLAGS)",
-          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
-          "HOST_AR": "$(DX_BS_HOST_AR)",
-          "HOST_CC": "$(DX_BS_HOST_CC)",
-          "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
-          "HOST_CXX": "$(DX_BS_HOST_CXX)",
-          "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
-          "TARGET_AR": "$(DX_BS_TARGET_AR)",
-          "TARGET_CC": "$(DX_BS_TARGET_CC)",
-          "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          "common": {
+            "CFLAGS": "$(DX_BS_CFLAGS)",
+            "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
+            "HOST_AR": "$(DX_BS_HOST_AR)",
+            "HOST_CC": "$(DX_BS_HOST_CC)",
+            "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
+            "HOST_CXX": "$(DX_BS_HOST_CXX)",
+            "HOST_CXXFLAGS": "$(DX_BS_HOST_CXXFLAGS)",
+            "TARGET_AR": "$(DX_BS_TARGET_AR)",
+            "TARGET_CC": "$(DX_BS_TARGET_CC)",
+            "TARGET_CXX": "$(DX_BS_TARGET_CXX)"
+          },
+          "selects": {
+            "x86_64-pc-windows-msvc": {
+              "AR_x86_64_pc_windows_msvc": "$(execpath @@rules_dx+//rust/private/tools/msvc_paths:msvc_lib)"
+            }
+          }
         },
         "deps": [
           {
@@ -9525,7 +9547,15 @@
         ],
         "toolchains": [
           "@@rules_dx+//rust:build_script_cc_env"
-        ]
+        ],
+        "tools": {
+          "common": [],
+          "selects": {
+            "x86_64-pc-windows-msvc": [
+              "@@rules_dx+//rust/private/tools/msvc_paths:msvc_lib"
+            ]
+          }
+        }
       },
       "common_attrs": {
         "deps": [

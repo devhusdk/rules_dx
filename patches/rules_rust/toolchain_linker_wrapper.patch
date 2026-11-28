@@ -1,0 +1,80 @@
+Upstream: bazelbuild/rules_rust#4463
+diff --git a/rust/private/toolchain.bzl b/rust/private/toolchain.bzl
+--- a/rust/private/toolchain.bzl
++++ b/rust/private/toolchain.bzl
+@@ -589,6 +589,13 @@
+     if ctx.file.dlltool:
+         all_files_depsets.append(depset([ctx.file.dlltool]))
+ 
++    # rustc runs the wrapper; `linker` stays in the sysroot, which rustc puts on its PATH.
++    linker = sysroot.linker
++    linker_wrapper = ctx.attr._linker_wrapper[DefaultInfo].files
++    if linker_wrapper.to_list():
++        linker = linker_wrapper.to_list()[0]
++        all_files_depsets.append(linker_wrapper)
++
+     # Parse the version string once so downstream rules can branch on the
+     # semver components without re-parsing. `None` for empty or non-semver
+     # values (e.g. unset, or channel labels like "nightly" without a version).
+@@ -614,7 +621,7 @@
+         libstd_dylib_and_allocator_ccinfo = make_local_ccinfo(ctx.attr.allocator_library[CcInfo], "std", True),
+         libstd_dylib_and_global_allocator_ccinfo = make_local_ccinfo(ctx.attr.global_allocator_library[CcInfo], "std", True),
+         make_libstd_and_allocator_ccinfo = make_ccinfo,
+-        linker = sysroot.linker,
++        linker = linker,
+         linker_preference = linker_preference,
+         linker_type = ctx.attr.linker_type or None,
+         coverage_supported = bool(ctx.file.llvm_cov) and ctx.attr.rust_std[rust_common.stdlib_info].has_profiler_builtins,
+@@ -956,6 +963,10 @@
+         "_linker_preference": attr.label(
+             default = Label("//rust/settings:toolchain_linker_preference"),
+         ),
++        "_linker_wrapper": attr.label(
++            default = Label("//rust/settings:toolchain_linker_wrapper"),
++            doc = "Label to the flag naming the linker wrapper, analysed in this toolchain's configuration.",
++        ),
+         "_no_std": attr.label(
+             default = Label("//rust/settings:no_std"),
+         ),
+diff --git a/rust/settings/BUILD.bazel b/rust/settings/BUILD.bazel
+--- a/rust/settings/BUILD.bazel
++++ b/rust/settings/BUILD.bazel
+@@ -40,6 +40,7 @@
+     "third_party_dir",
+     "toolchain_generated_sysroot",
+     "toolchain_linker_preference",
++    "toolchain_linker_wrapper",
+     "unpretty",
+     "zself_profile_events",
+ )
+@@ -138,6 +139,8 @@
+ 
+ toolchain_linker_preference()
+ 
++toolchain_linker_wrapper()
++
+ unpretty()
+ 
+ zself_profile_events()
+diff --git a/rust/settings/settings.bzl b/rust/settings/settings.bzl
+--- a/rust/settings/settings.bzl
++++ b/rust/settings/settings.bzl
+@@ -300,6 +300,18 @@
+     )
+ 
+ # buildifier: disable=unnamed-macro
++def toolchain_linker_wrapper():
++    """A flag naming the linker that `rust_toolchain` passes to rustc instead of `rust_toolchain.linker`, kept in exec configurations."""
++    native.filegroup(
++        name = "no_toolchain_linker_wrapper",
++    )
++    native.label_flag(
++        name = "toolchain_linker_wrapper",
++        build_setting_default = ":no_toolchain_linker_wrapper",
++        scope = "universal",
++    )
++
++# buildifier: disable=unnamed-macro
+ def clippy_toml():
+     """This setting is used by the clippy rules. See https://bazelbuild.github.io/rules_rust/rust_clippy.html
+ 

@@ -17,6 +17,11 @@ on:
         type: boolean
         required: false
         default: false
+      crates:
+        description: Also repin the cargo-bazel-lock.json files of the @crates, @dx_quality_crates and @dx_thrift_crates hubs with CARGO_BAZEL_REPIN=workspace on linux_x86_64.
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -186,6 +191,12 @@ jobs:
         run: |
           bazel build --noshow_progress //tools/ci/producers:producers_bin
           "$(bazel info bazel-bin)/tools/ci/producers/producers_bin" --lock-merge "$LOCKS" MODULE.bazel.lock
+      - name: Repin the crate lockfiles
+        if: inputs.crates
+        env:
+          CARGO_BAZEL_ISOLATED: "true"
+          CARGO_BAZEL_REPIN: workspace
+        run: bazel fetch --noshow_progress --repo=@crates --repo=@dx_quality_crates --repo=@dx_thrift_crates
       - name: Normalise
         run: bazel mod deps --noshow_progress --lockfile_mode=update
       - name: Merge the nested records
@@ -208,6 +219,7 @@ jobs:
             tools/testing/nested_cache/*.txt
             tools/testing/nested_cache/*.MODULE.bazel.lock
             third_party/jvm/rules_android_maven_install.json
+            **/cargo-bazel-lock.json
           if-no-files-found: error
       - name: Push to the pull request
         if: inputs.pr != ''
@@ -216,7 +228,7 @@ jobs:
           PR: ${{ inputs.pr }}
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json)" ]; then
+          if [ -z "$(git status --porcelain -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json '*cargo-bazel-lock.json')" ]; then
             echo "The locks are unchanged"
             exit 0
           fi
@@ -228,6 +240,6 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json
-          git commit -m "lock: refresh the per-platform extension entries, the nested cache sets and the android maven pin"
+          git add -- MODULE.bazel.lock tools/testing/nested_cache third_party/jvm/rules_android_maven_install.json '*cargo-bazel-lock.json'
+          git commit -m "lock: refresh the per-platform extension entries, the nested cache sets, the android maven pin and the crate pins"
           git push origin "HEAD:refs/heads/$head"

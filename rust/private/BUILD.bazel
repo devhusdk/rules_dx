@@ -37,7 +37,6 @@ exports_files([
 exports_files(
     [
         "edition.bzl",
-        "pdb.bzl",
         "probe.bzl",
     ],
     visibility = ["//:__subpackages__"],
@@ -55,7 +54,6 @@ real_source_target(
         "build_script_cc_env.bzl",
         "defs.bzl",
         "edition.bzl",
-        "pdb.bzl",
         "probe.bzl",
         "selene.BUILD.bazel",
     ],

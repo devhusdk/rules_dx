@@ -18,7 +18,7 @@ pub use metrics::{
     ActionSummary, BuildTotals, MnemonicTime, collect_action_summary, collect_build_totals,
     collect_bytes_received,
 };
-pub use outputs::{OutputAccount, collect_account};
+pub use outputs::{OutputAccount, OutputEvents, collect_account, read_output_events};
 pub use test_outputs::{
     TestEvents, TestResultFile, TestResultRecord, TestSummaryRecord, UnbuiltTest,
     collect_test_events,

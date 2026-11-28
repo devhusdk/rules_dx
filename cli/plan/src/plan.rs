@@ -19,7 +19,7 @@ pub use generate::{
 };
 pub use managed::{managed_aspects, plan_managed, plan_managed_with_roots};
 pub use quality::{
-    Selection, command_aspects, plan_build, plan_build_with, plan_docs, plan_probe,
+    Selection, command_aspects, command_probes, plan_build, plan_build_with, plan_docs, plan_probe,
     plan_shared_build, plan_shared_probe,
 };
 pub(crate) use quality::{workflow_bazel_labels, workflow_scope_labels};

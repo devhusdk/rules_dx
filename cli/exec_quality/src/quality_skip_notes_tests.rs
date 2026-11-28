@@ -1,4 +1,5 @@
 use super::{read_skip_notes, skip_notice};
+use dx_exec_core::common::read_output_events;
 
 fn target(label: &str, set: &str) -> [String; 1] {
     [serde_json::json!({
@@ -31,7 +32,11 @@ fn a_tool_dropped_by_two_targets_is_noted_once() {
     let bep = dir.path().join("events.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     assert_eq!(
-        read_skip_notes(&bep, &dx_bep::Foreign::default(), dir.path()),
+        read_skip_notes(
+            &read_output_events(&bep).expect("events"),
+            &dx_bep::Foreign::default(),
+            dir.path()
+        ),
         vec![note.trim_end().to_owned()]
     );
 }
@@ -48,7 +53,8 @@ fn a_foreign_aspect_s_skip_notes_are_left_out() {
         aspects: ["q:a.bzl%real_lint_aspect".to_owned()].into(),
         labels: std::collections::BTreeSet::new(),
     };
-    assert!(read_skip_notes(&bep, &foreign, dir.path()).is_empty());
+    let events = read_output_events(&bep).expect("events");
+    assert!(read_skip_notes(&events, &foreign, dir.path()).is_empty());
 }
 
 #[test]

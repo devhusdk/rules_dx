@@ -26,10 +26,12 @@ fn shared_build(
     let [format, lint] = scopes;
     super::SharedBuild {
         bep: std::path::PathBuf::from("unused.json"),
+        events: None,
         members: vec![
             member(Command::Format, &["q:f.bzl%format", "q:f.bzl%both"], format),
             member(Command::Lint, &["q:f.bzl%lint", "q:f.bzl%both"], lint),
         ],
+        probes: ["q:f.bzl%probe".to_owned()].into(),
         bazel_options: Vec::new(),
         code: 1,
         failing: failing.map(|failing| {
@@ -80,6 +82,11 @@ fn a_failure_goes_to_every_phase_that_passed_its_aspect() {
         "unknown aspect"
     );
     assert_eq!(codes(None), (1, 1), "unreadable events");
+    assert_eq!(
+        codes(Some(&[Some("q:f.bzl%probe")])),
+        (0, 0),
+        "folded probe"
+    );
 }
 
 #[test]
@@ -115,7 +122,10 @@ fn each_phase_leaves_out_the_targets_only_other_phases_selected() {
     );
     let format = build.foreign(Command::Format);
     assert_eq!(format.labels, ["//a:l".to_owned()].into());
-    assert_eq!(format.aspects, ["q:f.bzl%lint".to_owned()].into());
+    assert_eq!(
+        format.aspects,
+        ["q:f.bzl%lint".to_owned(), "q:f.bzl%probe".to_owned()].into()
+    );
     let lint = build.foreign(Command::Lint);
     assert_eq!(lint.labels, ["//a:g".to_owned()].into());
     let same = shared_build([labels(&["//..."]), labels(&["//..."])], None);

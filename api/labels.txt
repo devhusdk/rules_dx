@@ -85,15 +85,19 @@
 //cc:gcc_linux_libstdcxx alias
 //cli/cli:dx runnable rust_binary
 //cli/codegen_shard:codegen_shard_writer runnable rust_binary
+//cli/compile_check:compile_check runnable rust_binary
 //cli/coverage_summary:coverage_summary runnable rust_binary
 //cli/env:env runnable rust_binary
 //cli/launcher:exec_launcher runnable rust_binary
+//cli/ocaml_cc_driver:ocaml_dune runnable rust_binary
 //cli/prebuilt:guard_stub runnable cc_binary
 //cli/runtime:dx_runtime runnable rust_binary
+//core/quality/capture:capture runnable rust_binary
 //core/quality/lsp_check:lsp_check runnable rust_binary
 //core/quality/markdown:quality_markdown runnable rust_binary
 //core/quality/notebook:quality_notebook runnable rust_binary
 //core/quality/runner:quality_runner runnable rust_binary
+//core/quality/tools/diff:buf_diff runnable rust_binary
 //core/quality/tools/python:ansible_lint runnable py_binary
 //core/quality/tools/python:cfn_lint runnable py_binary
 //core/quality/tools/python:check_jsonschema runnable py_binary

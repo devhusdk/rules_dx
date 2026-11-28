@@ -1,5 +1,6 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client)."""
 
+load("@rules_py//py:defs.bzl", "PyInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
@@ -52,9 +53,9 @@ def _preflight(ctx, info, root):
     )
     return stamp
 
-def _client_providers(ctx, out, language):
+def _client_providers(ctx, out, language, runfiles = None):
     return [
-        DefaultInfo(files = depset([out])),
+        DefaultInfo(files = depset([out]), runfiles = runfiles),
         dx_quality_sources([], [], str(ctx.label)),
     ] + codegen_library_providers(ctx, "openapi", language, out, getattr(ctx.attr, "package", ""))
 
@@ -62,17 +63,27 @@ def _client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
     root = _root(ctx, info, "api_spec_typescript_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".ts")
+    raw = ctx.actions.declare_file(ctx.label.name + ".redocly.ts")
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
         executable = ctx.executable._redocly,
         inputs = depset([stamp, ctx.file._config], transitive = [info.files]),
-        outputs = [out],
-        arguments = ["generate-client", root.path, "--output=" + out.path, "--config=" + ctx.file._config.path] + OPENAPI_TYPESCRIPT_FLAGS,
+        outputs = [raw],
+        arguments = ["generate-client", root.path, "--output=" + raw.path, "--config=" + ctx.file._config.path] + OPENAPI_TYPESCRIPT_FLAGS,
         env = _ENV,
         execution_requirements = {"block-network": "1"},
         mnemonic = "OpenapiTypescriptClient",
         resource_set = dx_heavy_resources,
         progress_message = "redocly generate-client " + root.short_path,
+    )
+    ctx.actions.run(
+        executable = ctx.executable._isolate,
+        inputs = [raw],
+        outputs = [out],
+        arguments = [raw.path, out.path],
+        env = _ENV,
+        mnemonic = "OpenapiTypescriptIsolate",
+        progress_message = "Annotating " + out.short_path + " for isolatedDeclarations",
     )
     return _client_providers(ctx, out, "typescript")
 
@@ -84,6 +95,7 @@ api_spec_typescript_client = rule(
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_config": attr.label(default = Label("//api_spec/private/codegen:redocly.yaml"), allow_single_file = True),
+        "_isolate": attr.label(default = Label("//javascript/private/quality/bin:openapi_ts_client"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("@dx_prebuilt//dx:api_spec_preflight"), executable = True, cfg = "exec"),
         "_redocly": attr.label(default = Label("//javascript/private/quality/bin:redocly"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
@@ -145,11 +157,19 @@ def _python_client_impl(ctx):
         mnemonic = "OpenapiPythonClient",
         progress_message = "openapi-python-client " + root.short_path,
     )
-    return _client_providers(ctx, out, "python")
+    rlocation = out.short_path[3:] if out.short_path.startswith("../") else ctx.workspace_name + "/" + out.short_path
+    return [PyInfo(
+        transitive_sources = depset([out]),
+        transitive_pyi_files = depset(),
+        imports = depset([rlocation.rpartition("/")[0]]),
+        pyi_imports = depset(),
+        virtual_dependencies = depset(),
+        virtual_resolutions = depset(),
+    )] + _client_providers(ctx, out, "python", ctx.runfiles(files = [out]))
 
 api_spec_python_client = rule(
     implementation = _python_client_impl,
-    doc = "Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library.",
+    doc = "Generates one Python client package directory with openapi-python-client from an OpenAPI root of an api_spec_library; usable as a Python dep.",
     attrs = {
         "out": attr.string(doc = "Output directory name; defaults to NAME."),
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),

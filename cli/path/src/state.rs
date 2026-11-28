@@ -15,6 +15,7 @@ pub const LEASES: &str = "leases";
 pub const COMMIT_LOCK: &str = ".commit.lock";
 pub const COMMIT_LOCK_HOLDER: &str = ".commit.lock.holder";
 pub const RESULTS: &str = "results.json";
+pub const SHARDS: &str = "shards.json";
 pub const DOCS: &str = "docs";
 pub const TIMINGS: &str = "timings";
 pub const FUZZ: &str = "fuzz";
@@ -44,7 +45,7 @@ pub const LOCAL_ENTRIES: [&str; 13] = [
     SYNC_FINGERPRINT,
 ];
 
-pub const CLEAN_ENTRIES: [&str; 14] = [
+pub const CLEAN_ENTRIES: [&str; 15] = [
     SETUPS,
     ENVIRONMENTS,
     GENERATED,
@@ -55,6 +56,7 @@ pub const CLEAN_ENTRIES: [&str; 14] = [
     DOCS,
     PROFILE,
     RESULTS,
+    SHARDS,
     LEASES,
     FINGERPRINT,
     SYNC_FINGERPRINT,

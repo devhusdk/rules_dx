@@ -12,13 +12,23 @@ static int is_file(const char *path) {
   if (file == NULL) {
     return 0;
   }
-  fclose(file);
-  return 1;
+  return fclose(file) == 0;
+}
+
+static int append(char *buf, size_t *used, const char *text) {
+  size_t pos = *used;
+  while (*text != '\0' && pos + 1 < PATH_MAX_LEN) {
+    buf[pos++] = *text++;
+  }
+  buf[pos] = '\0';
+  *used = pos;
+  return *text == '\0';
 }
 
 static int join(char *buf, const char *dir, const char *rest) {
-  int n = snprintf(buf, PATH_MAX_LEN, "%s/%s", dir, rest);
-  return n > 0 && n < PATH_MAX_LEN;
+  size_t used = 0;
+  return append(buf, &used, dir) && append(buf, &used, "/") &&
+         append(buf, &used, rest);
 }
 
 static int from_manifest(char *buf, const char *manifest, const char *key) {
@@ -32,11 +42,11 @@ static int from_manifest(char *buf, const char *manifest, const char *key) {
   while (!found && fgets(line, sizeof(line), file) != NULL) {
     if (strncmp(line, key, len) == 0 && line[len] == ' ') {
       line[strcspn(line, "\r\n")] = '\0';
-      found = snprintf(buf, PATH_MAX_LEN, "%s", line + len + 1) < PATH_MAX_LEN;
+      size_t used = 0;
+      found = append(buf, &used, line + len + 1);
     }
   }
-  fclose(file);
-  return found;
+  return fclose(file) == 0 && found;
 }
 
 static const char *packaged_stock(const char *argv0, char *buf) {
@@ -52,7 +62,8 @@ static const char *packaged_stock(const char *argv0, char *buf) {
     return buf;
   }
   char tree[PATH_MAX_LEN];
-  if (snprintf(tree, sizeof(tree), "%s.runfiles", argv0) < PATH_MAX_LEN &&
+  size_t used = 0;
+  if (append(tree, &used, argv0) && append(tree, &used, ".runfiles") &&
       join(buf, tree, STOCK_RLOCATION) && is_file(buf)) {
     return buf;
   }
@@ -78,14 +89,14 @@ int cli_run(int argc, char **argv, FILE *out, FILE *err) {
   char packaged[PATH_MAX_LEN];
   char resolved[PATH_MAX_LEN];
   const char *path = getenv("STOCK_FILE");
-  int i = 1;
-  if (i + 1 < argc && strcmp(argv[i], "--file") == 0) {
-    path = argv[i + 1];
-    i += 2;
+  int arg = 1;
+  if (arg + 1 < argc && strcmp(argv[arg], "--file") == 0) {
+    path = argv[arg + 1];
+    arg += 2;
   }
   path = path != NULL ? user_path(path, resolved)
                       : packaged_stock(argv[0], packaged);
-  const char *command = i < argc ? argv[i] : "list";
+  const char *command = arg < argc ? argv[arg] : "list";
 
   store_t store;
   char message[64] = "";
@@ -102,10 +113,10 @@ int cli_run(int argc, char **argv, FILE *out, FILE *err) {
     }
   } else if (strcmp(command, "total") == 0) {
     fprintf(out, "total %lld\n", (long long)store_total_cents(&store));
-  } else if (strcmp(command, "get") == 0 && i + 1 < argc) {
-    const store_item *item = store_find(&store, argv[i + 1]);
+  } else if (strcmp(command, "get") == 0 && arg + 1 < argc) {
+    const store_item *item = store_find(&store, argv[arg + 1]);
     if (item == NULL) {
-      fprintf(err, "stock: no item %s\n", argv[i + 1]);
+      fprintf(err, "stock: no item %s\n", argv[arg + 1]);
       code = 4;
     } else {
       fprintf(out, "%s %lld\n", item->name, (long long)item->qty);

@@ -33,6 +33,21 @@ static int write_large_stock(const char *path, int items) {
   return fclose(file) == 0;
 }
 
+static int append(char *buf, size_t cap, size_t *used, const char *text) {
+  size_t pos = *used;
+  while (*text != '\0' && pos + 1 < cap) {
+    buf[pos++] = *text++;
+  }
+  buf[pos] = '\0';
+  *used = pos;
+  return *text == '\0';
+}
+
+static int concat(char *buf, size_t cap, const char *head, const char *tail) {
+  size_t used = 0;
+  return append(buf, cap, &used, head) && append(buf, cap, &used, tail);
+}
+
 int main(void) {
   CHECK(__STDC_VERSION__ >= 201112L);
   CHECK(store_schema() == 2);
@@ -76,7 +91,7 @@ int main(void) {
   const char *tmp = getenv("TEST_TMPDIR");
   CHECK(tmp != NULL);
   char large[512];
-  snprintf(large, sizeof(large), "%s/large_stock.json", tmp);
+  CHECK(concat(large, sizeof(large), tmp, "/large_stock.json"));
   CHECK(write_large_stock(large, 100));
   CHECK(store_load(large, &store, err, sizeof(err)) == 0);
   CHECK(store.count == 100);

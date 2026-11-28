@@ -264,23 +264,29 @@ def _tidy_capture(log):
 
 CcHeaderLanguageInfo = provider(
     doc = "Whether the .h headers of a C/C++ target are C++ headers.",
-    fields = {"cpp": "bool: the target, its upstream or a transitive dep holds a C++ file or selects a C++ standard."},
+    fields = {"cpp": "bool: the target, its upstream or a dep whose headers reach it holds a C++ file or selects a C++ standard."},
 )
 
 _CPP_EXTENSIONS = ["C", "H", "c++", "cc", "cpp", "cu", "cuh", "cxx", "h++", "hh", "hpp", "hxx", "ipp", "tcc"]
 _CPP_STD_PREFIXES = ("-std=c++", "-std=gnu++", "--std=c++", "--std=gnu++", "/std:c++", "-std:c++")
+
+def _cpp_std_copts(rule):
+    """Returns the copts of a rule that select a C++ standard."""
+    copts = getattr(rule.attr, "copts", [])
+    if type(copts) != "list":
+        return []
+    return [opt for opt in copts if type(opt) == "string" and opt.startswith(_CPP_STD_PREFIXES)]
 
 def _holds_cpp(rule):
     for name in ["srcs", "hdrs", "textual_hdrs"]:
         for f in getattr(rule.files, name, []):
             if f.extension in _CPP_EXTENSIONS:
                 return True
-    copts = getattr(rule.attr, "copts", [])
-    return type(copts) == "list" and len([opt for opt in copts if type(opt) == "string" and opt.startswith(_CPP_STD_PREFIXES)]) > 0
+    return len(_cpp_std_copts(rule)) > 0
 
 def _header_language_impl(_target, ctx):
     cpp = _holds_cpp(ctx.rule)
-    for name in ["upstream", "deps", "implementation_deps"]:
+    for name in ["upstream", "deps"]:
         value = getattr(ctx.rule.attr, name, None)
         deps = value if type(value) == "list" else [value]
         for dep in deps:
@@ -290,8 +296,9 @@ def _header_language_impl(_target, ctx):
 
 _header_language_aspect = aspect(
     implementation = _header_language_impl,
-    doc = "Marks a C/C++ target whose own files, copts or transitive deps are C++.",
-    attr_aspects = ["upstream", "deps", "implementation_deps"],
+    doc = "Marks a C/C++ target whose own files, copts or header-exporting deps are C++.",
+    attr_aspects = ["upstream", "deps"],
+    required_providers = [CcInfo],
 )
 
 def _compile_actions(target):
@@ -327,11 +334,11 @@ def _header_parse_actions(target, ctx, identity):
     )
     context = target[CcInfo].compilation_context
     inputs = depset(transitive = [cc_toolchain.all_files, context.headers])
-    cpp = target[CcHeaderLanguageInfo].cpp
+    cpp = CcHeaderLanguageInfo in target and target[CcHeaderLanguageInfo].cpp
     actions = []
     for hdr in hdrs:
         language = _HEADER_LANGUAGES["cpp" if cpp else upstream_source_class(hdr.extension)]
-        user_flags = ctx.fragments.cpp.copts + (ctx.fragments.cpp.conlyopts if language.action == ACTION_NAMES.c_compile else ctx.fragments.cpp.cxxopts)
+        user_flags = ctx.fragments.cpp.copts + (ctx.fragments.cpp.conlyopts if language.action == ACTION_NAMES.c_compile else ctx.fragments.cpp.cxxopts + _cpp_std_copts(ctx.rule))
         variables = cc_common.create_compile_variables(
             feature_configuration = config,
             cc_toolchain = cc_toolchain,

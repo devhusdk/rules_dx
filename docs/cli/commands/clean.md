@@ -50,7 +50,7 @@ It deletes these entries of `.dx/local/`:
 - `setups`, `environments`, `generated`;
 - `bin`, `bin.next`, `bin.prev`;
 - `ide`, `docs`, `profile`;
-- `results.json`, `fingerprint`, `sync.fingerprint`;
+- `results.json`, `shards.json`, `fingerprint`, `sync.fingerprint`;
 - the entries in `leases` that no running process holds.
 
 It keeps:

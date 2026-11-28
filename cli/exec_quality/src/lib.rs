@@ -16,6 +16,7 @@ mod quality_reconcile;
 mod quality_reports;
 mod quality_security;
 mod results;
+mod shard_cache;
 
 use crate::check_build::{SharedChecks, SharedRead};
 use crate::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
@@ -25,6 +26,7 @@ use crate::quality_reports::{
     Snapshots, StandardReports, verified_snapshots, write_standard_reports,
 };
 use crate::results::{Collected, collect_results, invert_repo_mapping};
+use crate::shard_cache::{Sharded, ShardedBuild, run_build, run_sharded};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_exec_core::bazel_hint::{recorded, refine};
 use dx_exec_core::common::{
@@ -32,14 +34,13 @@ use dx_exec_core::common::{
     CODE_BAZEL_SIGNALLED, CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED,
     CODE_UNREADABLE_BEP, Env, Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
     REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
-    check_stdout_write, collect_output_account, emit_built, emit_event, findings_summary,
-    operational_output, own_account, pre_exec, preset_rewritten, read_actions, read_output_events,
-    remove_scratch, report_dx_error, report_failure, resolve_failed, run_bazel_output, server_died,
-    temp_path_not_utf8, warn_scope_excluded,
+    check_stdout_write, emit_built, emit_event, findings_summary, operational_output, own_account,
+    pre_exec, preset_rewritten, read_actions, read_output_events, remove_scratch, report_dx_error,
+    report_failure, resolve_failed, server_died, temp_path_not_utf8, warn_scope_excluded,
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
-use dx_exec_reports::build_failures::{report_build_failures, report_own_build_failures};
+use dx_exec_reports::build_failures::report_own_build_failures;
 use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     ActionCounts, DiagnosticEvent, FindingCounts, FinishedCounts, NoticeEvent, OutputMode,
@@ -260,16 +261,32 @@ pub(crate) fn probe_shards(
     shards
 }
 
-/// Reads the shards the probe reported. When the probe exited with a build
-/// failure, targets that failed to load, analyze or build are skipped so the
-/// rest still narrow; any other missing or aborted target means the shard set
-/// is unknown and the caller runs every shard.
 fn read_probe_shards(bep: &Path, workspace: &Path, build_failed: bool) -> Option<BTreeSet<String>> {
-    let account = collect_output_account(bep, SHARD_OUTPUT_GROUP, workspace).ok()?;
+    let events = read_output_events(bep).ok()?;
+    probe_result(
+        &events,
+        &dx_bep::Foreign::default(),
+        workspace,
+        build_failed,
+    )
+}
+
+/// Reads the shards the probe aspects reported. A target skipped as
+/// incompatible needs no shard. When the build failed, targets that failed to
+/// load, analyze or build are skipped so the rest still narrow; any other
+/// missing or aborted target means the shard set is unknown and the caller
+/// runs every shard.
+pub(crate) fn probe_result(
+    events: &dx_bep::OutputEvents,
+    foreign: &dx_bep::Foreign,
+    workspace: &Path,
+    build_failed: bool,
+) -> Option<BTreeSet<String>> {
+    let account = own_account(events, SHARD_OUTPUT_GROUP, workspace, foreign).ok()?;
     let failed_only = account
         .gaps
         .iter()
-        .all(|gap| build_failed && gap.outcome() == "failed_to_build");
+        .all(|gap| gap.is_skipped() || (build_failed && gap.outcome() == "failed_to_build"));
     if account.problem.is_some() || !failed_only || !account.ended {
         return None;
     }
@@ -411,9 +428,8 @@ fn run_quality_request(
         (&resolved, consumer),
         bep_text,
         stdout_report,
-        shared.is_none(),
     );
-    let (build, probe_counts) = match planned {
+    let build = match planned {
         Ok(planned) => planned,
         Err(exit) => return exit,
     };
@@ -437,18 +453,21 @@ fn run_quality_request(
             ),
             Err(exit) => return exit,
         },
-        None => match run_quality_build(request, &mut env, kind, &build, &bep, probe_counts) {
-            Ok(run) => (
-                run,
-                BepRead {
-                    path: bep.clone(),
-                    foreign: dx_bep::Foreign::default(),
-                    owned: true,
-                    events: None,
-                },
-            ),
-            Err(exit) => return exit,
-        },
+        None => {
+            let sharding = shared.is_none().then_some((&resolved, consumer, bep_text));
+            match run_quality_build(request, &mut env, kind, &build, &bep, sharding) {
+                Ok((run, foreign, events)) => (
+                    run,
+                    BepRead {
+                        path: bep.clone(),
+                        foreign,
+                        owned: true,
+                        events,
+                    },
+                ),
+                Err(exit) => return exit,
+            }
+        }
     };
     let bazel_code = build_run.code;
     let compile_only = build_run.compile_only;
@@ -521,38 +540,74 @@ struct BuildRun {
     actions: Option<ActionCounts>,
 }
 
+type Sharding<'a> = (&'a ResolvedScope, Option<Consumer<'a>>, &'a str);
+
+/// Runs one command's check build. With `sharding`, the build runs only the
+/// shard aspects its targets need; otherwise it runs `build` as planned.
 fn run_quality_build(
     request: &QualityRequest,
     env: &mut Env<'_>,
     kind: &mut PhaseKind,
     build: &BuildPlan,
     bep: &Path,
-    probe_counts: Option<ActionCounts>,
-) -> Result<BuildRun, i32> {
-    let bazel_code = match run_bazel_output(
-        request.common.output,
-        env.out,
-        env.err,
-        env.workspace,
-        env.runner,
-        &build.argv,
-        &[],
-    ) {
-        Ok(code) => code,
-        Err(exit) => {
-            remove_scratch(bep);
-            *kind = PhaseKind::Host;
-            return Err(exit);
+    sharding: Option<Sharding<'_>>,
+) -> Result<(BuildRun, dx_bep::Foreign, Option<Rc<dx_bep::OutputEvents>>), i32> {
+    let sharded = match sharding {
+        Some((resolved, consumer, bep_text)) => {
+            let plan = |selection: Selection<'_>| {
+                plan_build_with(
+                    request.command,
+                    resolved,
+                    &request.bazel_options,
+                    bep_text,
+                    &request.bazel_startup_options,
+                    Selection {
+                        consumer,
+                        unsafe_fixes: request.unsafe_fixes,
+                        online: request.online,
+                        ..selection
+                    },
+                )
+                .ok()
+                .map(|plan| plan.argv)
+            };
+            let sharded = ShardedBuild {
+                commands: &[request.command],
+                request,
+                scope: resolved,
+                consumer,
+                bep,
+            };
+            run_sharded(&sharded, env, kind, &plan)?
+        }
+        None => None,
+    };
+    let Sharded {
+        code: bazel_code,
+        actions: action_counts,
+        probes,
+        events,
+    } = match sharded {
+        Some(sharded) => sharded,
+        None => {
+            let mut actions = None;
+            let code = run_build(request, env, kind, &build.argv, bep, &mut actions)?;
+            Sharded {
+                code,
+                actions,
+                probes: BTreeSet::new(),
+                events: None,
+            }
         }
     };
-    let action_counts = match (probe_counts, read_actions(bep, env.actions)) {
-        (Some(probe), Some(build)) => Some(probe + build),
-        (probe, build) => probe.or(build),
+    let foreign = dx_bep::Foreign {
+        aspects: probes,
+        labels: BTreeSet::new(),
     };
     let (compile_only, build_stage) = if bazel_code == 0 {
         (false, false)
     } else {
-        match report_build_failures(bep, request.common.output, env.out, env.err) {
+        match report_own_build_failures(bep, &foreign, request.common.output, env.out, env.err) {
             Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
                 remove_scratch(bep);
@@ -560,12 +615,13 @@ fn run_quality_build(
             }
         }
     };
-    Ok(BuildRun {
+    let run = BuildRun {
         code: bazel_code,
         compile_only,
         build_stage,
         actions: action_counts,
-    })
+    };
+    Ok((run, foreign, events))
 }
 
 fn shared_build_run(
@@ -680,27 +736,18 @@ fn plan_quality_build(
     (resolved, consumer): (&ResolvedScope, Option<Consumer<'_>>),
     bep_text: &str,
     stdout_report: bool,
-    probe: bool,
-) -> Result<(BuildPlan, Option<ActionCounts>), i32> {
-    let (workspace, runner, temp_dir, pid, nonce, actions) = (
-        env.workspace,
-        env.runner,
-        env.temp_dir,
-        env.pid,
-        env.nonce,
-        env.actions,
-    );
-    let mut build = match plan_build_with(
+) -> Result<BuildPlan, i32> {
+    let build = match plan_build_with(
         request.command,
         resolved,
         &request.bazel_options,
         bep_text,
         &request.bazel_startup_options,
         Selection {
-            shards: None,
             consumer,
             unsafe_fixes: request.unsafe_fixes,
             online: request.online,
+            ..Selection::default()
         },
     )
     .map_err(|error| format!("{error}"))
@@ -710,44 +757,7 @@ fn plan_quality_build(
     };
     *kind = PhaseKind::Tool;
     announce_quality_start(request, env, resolved, &build.summary, stdout_report)?;
-    if !probe {
-        return Ok((build, None));
-    }
-    let mut probe_counts = None;
-    match probe_shards(
-        &[request.command],
-        request,
-        resolved,
-        workspace,
-        runner,
-        temp_dir,
-        pid,
-        nonce,
-        actions,
-        &mut probe_counts,
-        consumer,
-    ) {
-        Ok(Some(shards)) => {
-            if let Ok(narrowed) = plan_build_with(
-                request.command,
-                resolved,
-                &request.bazel_options,
-                bep_text,
-                &request.bazel_startup_options,
-                Selection {
-                    shards: Some(&shards),
-                    consumer,
-                    unsafe_fixes: request.unsafe_fixes,
-                    online: request.online,
-                },
-            ) {
-                build = narrowed;
-            }
-        }
-        Ok(None) => {}
-        Err(stop) => return Err(probe_stop_exit(&stop, request, env, kind)),
-    }
-    Ok((build, probe_counts))
+    Ok(build)
 }
 
 pub(crate) fn probe_stop_exit(

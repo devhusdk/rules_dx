@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}
 jobs:
   docs:
-    uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@f60638f8c6ee10c9eea84be5fd6bbb9b4c5e2a4b
+    uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@6291f73dc0e35bc25033e69c2ae0a8af29bf5cfe
     with:
       docs_scope: "//..."
       site: "//docs:site"

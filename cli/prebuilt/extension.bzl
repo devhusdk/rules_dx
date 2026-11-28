@@ -4,7 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file"
 load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "downloads_bzl", "dx_subcommand_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "with_jars", "with_native_tools", "with_python_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
-load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS")
+load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS")
 
 visibility("public")
 
@@ -71,7 +71,7 @@ _from_source = tag_class(
 )
 
 def _dx_prebuilt_impl(module_ctx):
-    plan = plan_root(module_ctx.modules, tools = ["dx", "go", "python_tools"] + NATIVE_TOOLS + JAR_TOOLS)
+    plan = plan_root(module_ctx.modules, tools = ["dx", "go"] + NATIVE_TOOLS + JAR_TOOLS + sorted(PYTHON_BUNDLE_TOOLS))
     if plan.error:
         fail(plan.error)
     rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
@@ -96,8 +96,8 @@ def _dx_prebuilt_impl(module_ctx):
         native_tools = plan_native_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
         declare_downloads(assets + go_assets + [a for tool in sorted(native_tools) for a in native_tools[tool]])
         _declare_jars(jars)
-        python_tools = plan_python_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("python_tools", {}))
-        _declare_bundles(python_tools)
+        python_tools = plan_python_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
+        _declare_bundles([a for tool in sorted(python_tools) for a in python_tools[tool]])
         build = with_native_tools(consumer_build(assets, go_assets), native_tools, consumer = True)
         build = with_python_tools(build, python_tools)
         hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars), "downloads.bzl": downloads_bzl(native_tools), "dx/BUILD.bazel": dx_subcommand_build(consumer = True)})

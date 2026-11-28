@@ -1,6 +1,6 @@
 """The rules_dx tools a release ships prebuilt, and how a consumer finds each one."""
 
-visibility(["//cli/...", "//core/quality", "//tools/ci"])
+visibility(["//cli/...", "//core/quality", "//core/quality/tools/python_bundle", "//tools/ci"])
 
 RELEASE_OS = {
     "linux": "linux",
@@ -87,6 +87,31 @@ def _library(tool, file, source, ext = ".dll", role = "exec", platforms = ["wind
         member = "",
         main_class = "",
         library = file,
+    )
+
+_PYTHON_SOURCE = "@rules_dx//core/quality/tools/python:"
+
+PYTHON_BUNDLE_TOOLS = {
+    "ansible_lint_tool": struct(launcher = "ansible_lint", source = _PYTHON_SOURCE + "ansible_lint_tool", missing = ["windows_arm64"]),
+    "cfn_lint": struct(launcher = "cfn_lint", source = _PYTHON_SOURCE + "cfn_lint", missing = []),
+    "cmakelint": struct(launcher = "cmakelint", source = _PYTHON_SOURCE + "cmakelint", missing = []),
+    "djlint": struct(launcher = "djlint", source = _PYTHON_SOURCE + "djlint", missing = []),
+    "docstrfmt": struct(launcher = "docstrfmt", source = _PYTHON_SOURCE + "docstrfmt", missing = []),
+    "mbake": struct(launcher = "mbake", source = _PYTHON_SOURCE + "mbake", missing = []),
+    "sqlfluff": struct(launcher = "sqlfluff", source = _PYTHON_SOURCE + "sqlfluff", missing = []),
+    "yamllint": struct(launcher = "yamllint", source = _PYTHON_SOURCE + "yamllint", missing = []),
+}
+
+def _python(tool):
+    return struct(
+        asset = "dx-" + tool.launcher.replace("_", "-") + "-{os}-{cpu}.tar.gz",
+        role = "exec",
+        platforms = [key for key in _NATIVE if key not in tool.missing],
+        fallbacks = {},
+        source = tool.source,
+        member = "",
+        main_class = "",
+        library = "",
     )
 
 _DOCS_SUBCOMMANDS = {
@@ -289,30 +314,7 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    "python_tools": struct(
-        asset = "dx-python-tools-{os}-{cpu}.tar.gz",
-        role = "exec",
-        platforms = _NATIVE,
-        fallbacks = {},
-        source = "",
-        member = "",
-        main_class = "",
-        library = "",
-    ),
-}
-
-_PYTHON_SOURCE = "@rules_dx//core/quality/tools/python:"
-
-PYTHON_BUNDLE_TOOLS = {
-    "ansible_lint_tool": struct(launcher = "ansible_lint", source = _PYTHON_SOURCE + "ansible_lint_tool", missing = ["windows_arm64"]),
-    "cfn_lint": struct(launcher = "cfn_lint", source = _PYTHON_SOURCE + "cfn_lint", missing = []),
-    "cmakelint": struct(launcher = "cmakelint", source = _PYTHON_SOURCE + "cmakelint", missing = []),
-    "djlint": struct(launcher = "djlint", source = _PYTHON_SOURCE + "djlint", missing = []),
-    "docstrfmt": struct(launcher = "docstrfmt", source = _PYTHON_SOURCE + "docstrfmt", missing = []),
-    "mbake": struct(launcher = "mbake", source = _PYTHON_SOURCE + "mbake", missing = []),
-    "sqlfluff": struct(launcher = "sqlfluff", source = _PYTHON_SOURCE + "sqlfluff", missing = []),
-    "yamllint": struct(launcher = "yamllint", source = _PYTHON_SOURCE + "yamllint", missing = []),
-}
+} | {name: _python(tool) for name, tool in PYTHON_BUNDLE_TOOLS.items()}
 
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
@@ -336,11 +338,8 @@ def asset_name(tool, key):
     return TOOLS[tool].asset.format(tool = tool, os = os, cpu = cpu)
 
 def python_hub_lines():
-    """Returns one "<name> <launcher> [<missing key>...]" line per PYTHON_BUNDLE_TOOLS entry, sorted."""
-    return sorted([
-        " ".join([name, tool.launcher] + sorted(tool.missing))
-        for name, tool in PYTHON_BUNDLE_TOOLS.items()
-    ])
+    """Returns one "<name> <launcher>" line per PYTHON_BUNDLE_TOOLS entry, sorted."""
+    return sorted([name + " " + tool.launcher for name, tool in PYTHON_BUNDLE_TOOLS.items()])
 
 def target_tools():
     """Returns the sorted names of the tools that run on the target platform."""

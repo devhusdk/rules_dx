@@ -115,7 +115,7 @@ write_file(
     ],
 )
 
-# The tools of the python_tools bundle, one "<name> <launcher> [<missing platform key>...]" line each.
+# The Python tools released as one archive each, one "<name> <launcher>" line each.
 write_file(
     name = "python_hub_targets",
     out = "python_hub_targets.txt",

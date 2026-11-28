@@ -22,6 +22,16 @@ const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
 const HASKELL_TOOLS: [&str; 4] = ["hpc_lcov", "weeder", "hlint", "ormolu"];
 const RELEASE_TOOLS: [&str; 4] = ["deadnix", "kcov", "nixfmt", "selene"];
+const PYTHON_TOOLS: [&str; 8] = [
+    "ansible_lint_tool",
+    "cfn_lint",
+    "cmakelint",
+    "djlint",
+    "docstrfmt",
+    "mbake",
+    "sqlfluff",
+    "yamllint",
+];
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nSCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nPINS = {}\n";
 
 fn hash(n: usize) -> String {
@@ -149,10 +159,10 @@ fn tool_manifest() -> String {
     ] {
         lines.push(format!("{}  {companion}\n", hash(9)));
     }
-    for asset in assets("python_tools") {
+    for asset in PYTHON_TOOLS.iter().flat_map(|tool| assets(tool)) {
         lines.push(format!("{}  {asset}\n", hash(8)));
     }
-    assert_eq!(lines.len(), 23);
+    assert_eq!(lines.len(), 57);
     lines.concat()
 }
 
@@ -315,11 +325,14 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             .or_insert_with(Vec::new)
             .push((entry.key, hash(4)));
     }
-    for entry in registry()
-        .into_iter()
-        .filter(|e| RELEASE_TOOLS.contains(&e.tool.as_str()) || e.tool == "python_tools")
-    {
-        let n = if entry.tool == "python_tools" { 8 } else { 7 };
+    for entry in registry().into_iter().filter(|e| {
+        RELEASE_TOOLS.contains(&e.tool.as_str()) || PYTHON_TOOLS.contains(&e.tool.as_str())
+    }) {
+        let n = if PYTHON_TOOLS.contains(&entry.tool.as_str()) {
+            8
+        } else {
+            7
+        };
         by_tool
             .entry(entry.tool)
             .or_insert_with(Vec::new)

@@ -1,6 +1,7 @@
+load("@rules_dx//cli/prebuilt:tools.bzl", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load(":bundle.bzl", "python_tools_bundle")
+load(":bundle.bzl", "python_tool_bundle")
 
 package(default_visibility = ["//core/quality:__subpackages__"])
 
@@ -10,58 +11,52 @@ sh_binary(
 )
 
 _PLATFORMS = {
-    "linux_arm64": ("aarch64-unknown-linux-gnu", "python_3_12_aarch64_unknown_linux_gnu", False, []),
-    "linux_x86_64": ("x86_64-unknown-linux-gnu", "python_3_12_x86_64_unknown_linux_gnu", False, []),
-    "macos_arm64": ("aarch64-apple-darwin", "python_3_12_aarch64_apple_darwin", False, []),
-    "windows_arm64": (
-        "aarch64-pc-windows-msvc",
-        "python_3_12_aarch64_pc_windows_msvc",
-        True,
-        [
-            "ansible-lint",
-            "ansible-core",
-            "cryptography",
-        ],
-    ),
-    "windows_x86_64": ("x86_64-pc-windows-msvc", "python_3_12_x86_64_pc_windows_msvc", True, []),
+    "linux_arm64": ("aarch64-unknown-linux-gnu", "python_3_12_aarch64_unknown_linux_gnu", False),
+    "linux_x86_64": ("x86_64-unknown-linux-gnu", "python_3_12_x86_64_unknown_linux_gnu", False),
+    "macos_arm64": ("aarch64-apple-darwin", "python_3_12_aarch64_apple_darwin", False),
+    "windows_arm64": ("aarch64-pc-windows-msvc", "python_3_12_aarch64_pc_windows_msvc", True),
+    "windows_x86_64": ("x86_64-pc-windows-msvc", "python_3_12_x86_64_pc_windows_msvc", True),
+}
+
+_PROJECTS = {
+    "ansible_lint_tool": ("//core/quality/tools/python", "ansible-lint"),
+    "cfn_lint": ("//core/quality/tools/python", "cfn-lint"),
+    "cmakelint": ("//core/quality/tools/python", "cmakelint"),
+    "djlint": ("//core/quality/tools/python", "djlint"),
+    "docstrfmt": ("//core/quality/tools/python/docstrfmt", "docstrfmt"),
+    "mbake": ("//core/quality/tools/python", "mbake"),
+    "sqlfluff": ("//core/quality/tools/python/sqlfluff", "sqlfluff"),
+    "yamllint": ("//core/quality/tools/python", "yamllint"),
 }
 
 [
-    python_tools_bundle(
-        name = "dx_python_tools_" + platform,
-        lock_files = [
-            "//core/quality/tools/python:uv.lock",
-            "//core/quality/tools/python/docstrfmt:uv.lock",
-            "//core/quality/tools/python/sqlfluff:uv.lock",
-        ],
-        projects = {
-            "//core/quality/tools/python:pyproject.toml": "python-tools:ansible_lint,cfn_lint,cmakelint,djlint,mbake,yamllint",
-            "//core/quality/tools/python/docstrfmt:pyproject.toml": "docstrfmt:docstrfmt",
-            "//core/quality/tools/python/sqlfluff:pyproject.toml": "sqlfluff:sqlfluff",
-        },
-        python_files = "@{}//:files".format(repo),
-        python_marker = "@{}//:BUILD.bazel".format(repo),
-        skip_packages = skip,
+    python_tool_bundle(
+        name = asset_name(tool, platform).removesuffix(".tar.gz"),
+        launcher = PYTHON_BUNDLE_TOOLS[tool].launcher,
+        lock_file = _PROJECTS[tool][0] + ":uv.lock",
+        package = _PROJECTS[tool][1],
+        project = _PROJECTS[tool][0] + ":pyproject.toml",
+        python_files = "@{}//:files".format(_PLATFORMS[platform][1]),
+        python_marker = "@{}//:BUILD.bazel".format(_PLATFORMS[platform][1]),
         tags = ["manual"],
         tool_bootstrap = "//core/quality/tools/python:tool_bootstrap.py",
-        tool_sources = [
-            "//core/quality/tools/python:{}_main.py".format(tool)
-            for tool in [
-                "ansible_lint",
-                "cfn_lint",
-                "cmakelint",
-                "djlint",
-                "docstrfmt",
-                "mbake",
-                "sqlfluff",
-                "yamllint",
-            ]
-        ],
-        uv_platform = uv_platform,
-        windows = windows,
+        tool_main = "//core/quality/tools/python:{}_main.py".format(PYTHON_BUNDLE_TOOLS[tool].launcher),
+        uv_platform = _PLATFORMS[platform][0],
+        windows = _PLATFORMS[platform][2],
     )
-    for platform, (uv_platform, repo, windows, skip) in _PLATFORMS.items()
+    for tool in sorted(PYTHON_BUNDLE_TOOLS)
+    for platform in TOOLS[tool].platforms
 ]
+
+filegroup(
+    name = "release_assets",
+    srcs = [
+        asset_name(tool, platform).removesuffix(".tar.gz")
+        for tool in sorted(PYTHON_BUNDLE_TOOLS)
+        for platform in TOOLS[tool].platforms
+    ],
+    tags = ["manual"],
+)
 
 real_source_target(
     name = "corpus_starlark",

@@ -604,23 +604,23 @@ fn producers_are_empty_without_a_comment_or_for_other_formats() {
 }
 
 fn pe_with_rich(entries: &[(u16, u16, u32)]) -> Vec<u8> {
-    let key = 0x1234_5678u32;
+    let mask = 0x1234_5678u32;
     let mut image = pe(0x8664, 3, None);
     image.copy_within(0x40..0x1bc, 0x80);
     put(&mut image, 0x3c, &0x80u32.to_le_bytes());
-    put(&mut image, 0x40, &(0x536e_6144 ^ key).to_le_bytes());
+    put(&mut image, 0x40, &(0x536e_6144 ^ mask).to_le_bytes());
     for slot in 1..4 {
-        put(&mut image, 0x40 + slot * 4, &key.to_le_bytes());
+        put(&mut image, 0x40 + slot * 4, &mask.to_le_bytes());
     }
     let mut at = 0x50;
     for (prodid, build, count) in entries {
         let id = (u32::from(*prodid) << 16) | u32::from(*build);
-        put(&mut image, at, &(id ^ key).to_le_bytes());
-        put(&mut image, at + 4, &(count ^ key).to_le_bytes());
+        put(&mut image, at, &(id ^ mask).to_le_bytes());
+        put(&mut image, at + 4, &(count ^ mask).to_le_bytes());
         at += 8;
     }
     put(&mut image, at, b"Rich");
-    put(&mut image, at + 4, &key.to_le_bytes());
+    put(&mut image, at + 4, &mask.to_le_bytes());
     image
 }
 

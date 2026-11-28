@@ -1,6 +1,7 @@
 """Coverage analysis tests for OCaml wrappers."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//cc/private/quality:cc.bzl", "real_cc_lint_aspect")
 
 def _coverage_files_impl(ctx):
     env = analysistest.begin(ctx)
@@ -120,3 +121,15 @@ _dune_runs_dx_test = analysistest.make(_dune_runs_dx_impl)
 def ocaml_dune_runs_dx_test(name, target_under_test):
     """Asserts the dune step runs the ocaml_dune hub binary with `ocaml_dune` and every conda-ocaml-* program links to it."""
     _dune_runs_dx_test(name = name, size = "small", target_under_test = target_under_test)
+
+def _dune_not_cc_impl(ctx):
+    env = analysistest.begin(ctx)
+    lint = [a for a in analysistest.target_under_test(env).actions if a.mnemonic == "DxRealQualityLint"]
+    asserts.equals(env, [], lint)
+    return analysistest.end(env)
+
+_dune_not_cc_test = analysistest.make(_dune_not_cc_impl, extra_target_under_test_aspects = [real_cc_lint_aspect])
+
+def ocaml_dune_not_cc_test(name, target_under_test):
+    """Asserts the cc lint shard leaves a dune library alone although it provides CcInfo for its stubs."""
+    _dune_not_cc_test(name = name, size = "small", target_under_test = target_under_test)

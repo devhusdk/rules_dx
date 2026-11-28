@@ -8,6 +8,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo", "OCamlDepsProvider", "OCamlImportProvider")
 load("//core:wrapper.bzl", "dx_language_kwargs")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//ocaml/private/toolchain:ocaml.bzl", "cc_drivers", "native_cc_env")
 load("//ocaml/private/toolchain:repos.bzl", "EXEC_TOOLCHAIN_TYPE")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
@@ -235,6 +236,7 @@ def _dune_library_impl(ctx):
         cc_info,
         OCamlCcInfo(direct = cc_info, archived = cc_info),
         OutputGroupInfo(archive = depset([archive])),
+        QualitySourcesInfo(direct_sources = {}),
     ]
 
 _dx_dune_library = rule(

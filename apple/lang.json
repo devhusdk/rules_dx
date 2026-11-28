@@ -7,6 +7,7 @@
   "manifests": [],
   "lockfiles": [],
   "setup": {
+    "cc_toolchains": true,
     "licenses": [
       {
         "id": "apple-xcode-license",

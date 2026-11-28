@@ -15,6 +15,7 @@
     "Cargo.lock"
   ],
   "setup": {
+    "cc_toolchains": true,
     "flags": [
       "build --@rules_dx//config:clippy_output_diagnostics=true",
       "build --@rules_dx//config:rustc_output_diagnostics=true",

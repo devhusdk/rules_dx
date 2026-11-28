@@ -15,6 +15,7 @@
     "fpm.lock.json"
   ],
   "setup": {
+    "cc_toolchains": true,
     "hubs": [
       {
         "ecosystem": "fpm",

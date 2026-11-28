@@ -50,6 +50,17 @@ config_setting(
     flag_values = {":toolchains": "true"},
 )
 
+bool_flag(
+    name = "cc_toolchains",
+    build_setting_default = True,
+    scope = "universal",
+)
+
+config_setting(
+    name = "cc_toolchains_on",
+    flag_values = {":cc_toolchains": "true"},
+)
+
 config_setting(
     name = "config_tier_strict",
     flag_values = {":config_tier": "strict"},

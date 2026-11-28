@@ -15,6 +15,7 @@
     "Manifest.bazel.json"
   ],
   "setup": {
+    "cc_toolchains": true,
     "hubs": [
       {
         "ecosystem": "julia",

@@ -9,6 +9,7 @@
   "manifests": [],
   "lockfiles": [],
   "setup": {
+    "cc_toolchains": true,
     "licenses": [
       {
         "id": "visual-studio-build-tools",

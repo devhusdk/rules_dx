@@ -177,6 +177,7 @@ fn schema_rejects_a_bad_setup() {
         serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("schema");
     let bad = serde_json::json!({"setup": {
+        "cc_toolchains": "yes",
         "extra": [],
         "flags": [""],
         "licenses": [{"id": "x"}],
@@ -184,6 +185,7 @@ fn schema_rejects_a_bad_setup() {
     }});
     let found = schema_problems(&bad, &schema);
     for want in [
+        "setup.cc_toolchains: expected boolean",
         "setup.extra: not in the schema",
         "setup.flags: empty string",
         "setup.licenses.platforms: missing",

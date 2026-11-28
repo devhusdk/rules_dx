@@ -7425,6 +7425,7 @@ Tag `zig.lock`:
 | Setting | Kind | Default | Values |
 | --- | --- | --- | --- |
 | `@rules_dx//config:buf_breaking_against` | `label_flag` | `@rules_dx//config:buf_breaking_none` |  |
+| `@rules_dx//config:cc_toolchains` | `bool_flag` | `True` |  |
 | `@rules_dx//config:clippy_flag` | `alias` | `@rules_rust//rust/settings:clippy_flag` |  |
 | `@rules_dx//config:clippy_output_diagnostics` | `alias` | `@rules_rust//rust/settings:clippy_output_diagnostics` |  |
 | `@rules_dx//config:config_tier` | `string_flag` | `strict` | `standard`, `strict` |

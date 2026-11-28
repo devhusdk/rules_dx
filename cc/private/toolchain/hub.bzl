@@ -8,6 +8,7 @@ load("//core:toolchain.bzl", "toolchain_target")
 
 CC_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:toolchain_type"
 
+_CC = str(Label("//config:cc_toolchains_on"))
 _GCC = str(Label("//cc/private/toolchain:gcc_selected"))
 _MSVC = str(Label("//cc/private/toolchain:msvc_selected"))
 _ON = str(Label("//config:toolchains_on"))
@@ -31,12 +32,12 @@ _MSVC_SUFFIX = {
 def _platform(os, cpu):
     return ["@platforms//os:" + os, "@platforms//cpu:" + cpu]
 
-def _entry(name, toolchain, exec_compatible_with = None, target_compatible_with = None, target_settings = None):
+def _entry(name, toolchain, target_settings, exec_compatible_with = None, target_compatible_with = None):
     return struct(
         name = name,
         exec_compatible_with = exec_compatible_with,
         target_compatible_with = target_compatible_with,
-        target_settings = target_settings,
+        target_settings = [_CC] + target_settings,
         toolchain = str(Label(toolchain)),
     )
 

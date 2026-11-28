@@ -46,6 +46,7 @@ LANGS = json.decode("""{
       ]
     },
     "setup": {
+      "cc_toolchains": true,
       "licenses": [
         {
           "id": "android-sdk-license",
@@ -230,6 +231,7 @@ LANGS = json.decode("""{
       "macos_arm64"
     ],
     "setup": {
+      "cc_toolchains": true,
       "licenses": [
         {
           "id": "apple-xcode-license",
@@ -637,6 +639,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "licenses": [
         {
           "id": "visual-studio-build-tools",
@@ -872,6 +875,7 @@ LANGS = json.decode("""{
       "file_extensions": []
     },
     "setup": {
+      "cc_toolchains": true,
       "licenses": [
         {
           "id": "cuda-eula",
@@ -976,6 +980,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "dub",
@@ -1478,6 +1483,9 @@ LANGS = json.decode("""{
       "macos_arm64",
       "windows_x86_64"
     ],
+    "setup": {
+      "cc_toolchains": true
+    },
     "title": "Flutter",
     "tools": [],
     "unsupported": {
@@ -1572,6 +1580,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "fpm",
@@ -1838,6 +1847,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "cabal",
@@ -2234,6 +2244,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "julia",
@@ -2479,6 +2490,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "luarocks",
@@ -2738,6 +2750,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "flags": [
         "build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox"
       ],
@@ -2923,6 +2936,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "composer",
@@ -3197,6 +3211,9 @@ LANGS = json.decode("""{
         ".qml"
       ]
     },
+    "setup": {
+      "cc_toolchains": true
+    },
     "title": "Qt",
     "tools": [
       "qmlformat",
@@ -3468,6 +3485,7 @@ LANGS = json.decode("""{
     },
     "semver": true,
     "setup": {
+      "cc_toolchains": true,
       "flags": [
         "build --@rules_dx//config:clippy_output_diagnostics=true",
         "build --@rules_dx//config:rustc_output_diagnostics=true",
@@ -3777,6 +3795,7 @@ LANGS = json.decode("""{
     },
     "semver": false,
     "setup": {
+      "cc_toolchains": true,
       "hubs": [
         {
           "ecosystem": "swiftpm",

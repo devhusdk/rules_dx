@@ -550,6 +550,7 @@
         ]
       },
       "setup": {
+        "cc_toolchains": true,
         "licenses": [
           {
             "id": "android-sdk-license",
@@ -654,6 +655,7 @@
     {
       "name": "apple",
       "setup": {
+        "cc_toolchains": true,
         "licenses": [
           {
             "id": "apple-xcode-license",
@@ -908,6 +910,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "licenses": [
           {
             "id": "visual-studio-build-tools",
@@ -1037,6 +1040,7 @@
         "file_extensions": []
       },
       "setup": {
+        "cc_toolchains": true,
         "licenses": [
           {
             "id": "cuda-eula",
@@ -1102,6 +1106,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "dub",
@@ -1384,6 +1389,12 @@
       }
     },
     {
+      "name": "flutter",
+      "setup": {
+        "cc_toolchains": true
+      }
+    },
+    {
       "docs": {
         "aspects": [
           "real_fortran_docs_aspect"
@@ -1445,6 +1456,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "fpm",
@@ -1605,6 +1617,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "cabal",
@@ -1867,6 +1880,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "julia",
@@ -2022,6 +2036,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "luarocks",
@@ -2174,6 +2189,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "flags": [
           "build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox"
         ],
@@ -2289,6 +2305,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "composer",
@@ -2460,6 +2477,9 @@
         "file_extensions": [
           ".qml"
         ]
+      },
+      "setup": {
+        "cc_toolchains": true
       }
     },
     {
@@ -2615,6 +2635,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "flags": [
           "build --@rules_dx//config:clippy_output_diagnostics=true",
           "build --@rules_dx//config:rustc_output_diagnostics=true",
@@ -2804,6 +2825,7 @@
         }
       },
       "setup": {
+        "cc_toolchains": true,
         "hubs": [
           {
             "ecosystem": "swiftpm",

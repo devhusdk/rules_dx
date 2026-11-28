@@ -257,6 +257,13 @@ fn renders_standard() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # No family needs a C or C++ toolchain.
+    common:linux --@rules_dx//config:cc_toolchains=false
+    common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --@rules_dx//config:cc_toolchains=false
+    common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -425,6 +432,13 @@ fn renders_strict() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # No family needs a C or C++ toolchain.
+    common:linux --@rules_dx//config:cc_toolchains=false
+    common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --@rules_dx//config:cc_toolchains=false
+    common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -830,6 +844,13 @@ fn renders_existing_exports() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # No family needs a C or C++ toolchain.
+    common:linux --@rules_dx//config:cc_toolchains=false
+    common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --@rules_dx//config:cc_toolchains=false
+    common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -1000,6 +1021,13 @@ fn renders_no_root_build() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # No family needs a C or C++ toolchain.
+    common:linux --@rules_dx//config:cc_toolchains=false
+    common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --@rules_dx//config:cc_toolchains=false
+    common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -1171,6 +1199,13 @@ fn renders_mixed_tiers() {
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
+
+    # No family needs a C or C++ toolchain.
+    common:linux --@rules_dx//config:cc_toolchains=false
+    common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --@rules_dx//config:cc_toolchains=false
+    common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+    common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
     == .dx/bazelrc/performance.bazelrc
     == .dx/bazelrc/resources.bazelrc
     == .dx/config/gitleaks/base.toml
@@ -1803,6 +1838,30 @@ fn a_detected_language_writes_its_setup_flags() {
         ".dx/bazelrc/correctness.bazelrc",
     );
     assert!(!without.contains(flag), "{without}");
+}
+
+#[test]
+fn only_a_workspace_without_a_cc_family_turns_the_cc_toolchains_off() {
+    let rc = |toml: Option<&str>, families: &[&str]| {
+        text(
+            &rendered(&inputs(toml, families, &[])),
+            ".dx/bazelrc/correctness.bazelrc",
+        )
+    };
+    let off = dx_preset::render_cc_off("rules_dx");
+    for families in [&["go"][..], &["java", "python", "core"]] {
+        let found = rc(None, families);
+        assert!(found.ends_with(&off), "{found}");
+    }
+    for families in [&["cc"][..], &["python", "rust"], &["go", "haskell"]] {
+        let found = rc(None, families);
+        assert!(!found.contains("cc_toolchains"), "{found}");
+    }
+    let named = rc(
+        Some("schema_version = 1\n[families.cc]\ntier = \"standard\"\n"),
+        &["python"],
+    );
+    assert!(!named.contains("cc_toolchains"), "{named}");
 }
 
 #[test]

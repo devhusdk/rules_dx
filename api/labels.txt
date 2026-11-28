@@ -1,4 +1,5 @@
 //config:buf_breaking_against label_flag ":buf_breaking_none"
+//config:cc_toolchains bool_flag True
 //config:clippy_flag alias "@rules_rust//rust/settings:clippy_flag"
 //config:clippy_output_diagnostics alias "@rules_rust//rust/settings:clippy_output_diagnostics"
 //config:config_tier string_flag "strict" ["standard", "strict"]

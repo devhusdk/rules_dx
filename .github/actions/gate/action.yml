@@ -8,45 +8,12 @@ inputs:
     description: Where dx check --coverage writes its lcov report.
     required: false
     default: ""
-  baseline:
-    description: Name for this job's failing labels on main, such as check-linux_x86_64. A dispatched run on main reads and writes main-baseline-<name>.
-    required: false
-    default: ""
+  name:
+    description: Name of this job's Bazel profiles artifact after profiles-, such as check-linux_x86_64.
+    required: true
 runs:
   using: composite
   steps:
-    - name: Find the last main baseline
-      id: previous
-      if: ${{ inputs.baseline != '' && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-        REPO: ${{ github.repository }}
-        NAME: main-baseline-${{ inputs.baseline }}
-        HEAD_SHA: ${{ github.sha }}
-      shell: bash
-      run: |
-        candidates="$(gh api "repos/$REPO/actions/artifacts?name=$NAME&per_page=100" --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "main" and .workflow_run.head_repository_id == .workflow_run.repository_id)] | sort_by(.created_at) | reverse | .[:10][] | "\(.id) \(.workflow_run.id) \(.workflow_run.head_sha)"')"
-        while read -r id run sha; do
-          [ -n "$id" ] || continue
-          status="$(gh api "repos/$REPO/compare/$sha...$HEAD_SHA" --jq .status)"
-          case "$status" in ahead | identical) ;; *) echo "gate: skip $NAME from run $run, $sha is $status of HEAD"; continue ;; esac
-          echo "gate: $NAME from run $run at $sha"
-          { echo "id=$id"; echo "run=$run"; } >> "$GITHUB_OUTPUT"
-          if [ "$status" = ahead ]; then
-            git fetch --no-tags --depth=1 origin "$sha"
-            echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          fi
-          exit 0
-        done <<<"$candidates"
-        echo "gate: no $NAME artifact from an ancestor of HEAD yet"
-    - name: Download the last main baseline
-      if: ${{ steps.previous.outputs.id != '' }}
-      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-      with:
-        artifact-ids: ${{ steps.previous.outputs.id }}
-        run-id: ${{ steps.previous.outputs.run }}
-        github-token: ${{ github.token }}
-        path: ${{ runner.temp }}/baseline-previous
     - name: Build the gate tools
       shell: bash
       run: |
@@ -63,8 +30,7 @@ runs:
         done
     - name: Pin the affected base
       env:
-        EVENT_NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'push' || github.event_name }}
-        PUSH_BEFORE: ${{ steps.previous.outputs.sha || github.event.before }}
+        EVENT_NAME: ${{ github.event_name }}
         MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
       shell: bash
       run: |
@@ -100,43 +66,6 @@ runs:
       shell: bash
       run: |
         "${RUNNER_TEMP:-/tmp}/dx-bin/producers_bin" --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
-    - name: Record the failing labels
-      id: failing
-      if: ${{ !cancelled() && inputs.baseline != '' && (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') }}
-      env:
-        NAME: main-baseline-${{ inputs.baseline }}
-        OUTCOME: ${{ steps.check.outcome }}
-      shell: bash
-      run: |
-        out="$RUNNER_TEMP/failing/$NAME.json"
-        mkdir -p "${out%/*}"
-        previous=""
-        if [ -d "$RUNNER_TEMP/baseline-previous" ]; then
-          previous="$(find "$RUNNER_TEMP/baseline-previous" -name '*.json' -print -quit)"
-        fi
-        if [ "$OUTCOME" = success ] && [ -z "$previous" ]; then
-          echo '{"labels":[]}' > "$out"
-          exit 0
-        fi
-        args=(--failing-labels --out "$out" --dx "$RUNNER_TEMP/gate.json")
-        if [ -n "$previous" ]; then
-          args+=(--previous "$previous")
-        fi
-        "$RUNNER_TEMP/dx-bin/producers_bin" "${args[@]}"
-    - name: Check the failing labels hold no secret
-      id: scan-failing
-      if: ${{ !cancelled() && steps.failing.outcome == 'success' }}
-      uses: ./.github/actions/assert-no-secret
-      with:
-        path: ${{ runner.temp }}/failing
-    - name: Upload the failing labels
-      if: ${{ !cancelled() && steps.scan-failing.outcome == 'success' && steps.previous.outcome == 'success' && (steps.check.outcome == 'success' || steps.check.outcome == 'failure') }}
-      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-      with:
-        name: main-baseline-${{ inputs.baseline }}
-        path: ${{ runner.temp }}/failing
-        retention-days: 30
-        overwrite: true
     - name: Check the Bazel profiles hold no secret
       id: scan-profiles
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
@@ -147,7 +76,7 @@ runs:
       if: ${{ !cancelled() && steps.scan-profiles.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: profiles-${{ inputs.baseline || format('{0}-{1}', runner.os, runner.arch) }}
+        name: profiles-${{ inputs.name }}
         path: ${{ runner.temp }}/dx-profiles
         retention-days: 7
         if-no-files-found: ignore

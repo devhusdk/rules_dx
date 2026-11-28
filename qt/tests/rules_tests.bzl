@@ -466,7 +466,7 @@ def _bridge_test_impl(ctx):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.true(env, argv[0].removesuffix(".exe").endswith("/dx"), "action runs " + argv[0])
+    asserts.true(env, argv[0].removesuffix(".exe").endswith("/qt_rust_bridge_subcommand"), "action runs " + argv[0])
     asserts.equals(env, ["qt_rust_bridge", "qt", "qt/tests/fixtures/qt_rust/model/ledger_model.rs", "qt/tests/fixtures/qt_rust/model/ledger_model"], argv[1:5], str(argv))
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))

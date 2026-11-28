@@ -304,3 +304,37 @@ fn ci_with_trivy_inputs_and_no_bundled_trivy_is_refused() {
     let error = ci_setup(&mut options, None, None).expect_err("refused");
     assert!(error.to_string().contains("DX_TRIVY"), "{error}");
 }
+
+#[test]
+fn a_bundled_tool_is_pointed_at_the_manifest_or_the_runfiles_tree() {
+    let tree = tempfile::tempdir().expect("temp tree");
+    assert_eq!(
+        runfiles_env(None, Some(tree.path().to_path_buf())),
+        vec![(OsString::from("RUNFILES_DIR"), tree.path().into())]
+    );
+    let inner = tree.path().join("MANIFEST");
+    std::fs::write(&inner, "").expect("writes the manifest");
+    assert_eq!(
+        runfiles_env(None, Some(tree.path().to_path_buf())),
+        vec![
+            (OsString::from("RUNFILES_MANIFEST_FILE"), inner.into()),
+            (OsString::from("RUNFILES_DIR"), tree.path().into()),
+        ]
+    );
+    assert_eq!(
+        runfiles_env(Some("/r/MANIFEST".into()), None),
+        vec![(
+            OsString::from("RUNFILES_MANIFEST_FILE"),
+            "/r/MANIFEST".into()
+        )]
+    );
+    assert!(runfiles_env(None, None).is_empty());
+}
+
+#[test]
+fn an_explicit_cpansa_dump_runs_with_the_inherited_env() {
+    let options =
+        options_from(parse(&["--cpansa-dump", "/bin/cpansa_dump"]), None).expect("parses");
+    assert_eq!(options.cpansa_dump, Some(PathBuf::from("/bin/cpansa_dump")));
+    assert!(options.cpansa_dump_env.is_empty());
+}

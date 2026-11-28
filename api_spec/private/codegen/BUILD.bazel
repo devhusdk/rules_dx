@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//api_spec/private:__pkg__"])
 
@@ -21,6 +21,18 @@ rust_library(
     visibility = ["//cli/cli:__pkg__"],
     deps = ["//core/quality/adapter:quality_adapter"],
 )
+
+[rust_binary(
+    name = name,
+    srcs = ["bin_{}.rs".format(name)],
+    crate_name = name,
+    crate_root = "bin_{}.rs".format(name),
+    visibility = ["//visibility:public"],
+    deps = [":codegen"],
+) for name in [
+    "api_spec_preflight",
+    "oapi_codegen",
+]]
 
 rust_test(
     name = "codegen_test",

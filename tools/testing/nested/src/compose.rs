@@ -103,11 +103,12 @@ pub fn windows_support_override() -> String {
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 4] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
     "lock_extension",
     "windows_golden_comparator",
     "flutter_extension_loads",
     "host_independent_extension",
+    "sdk_source_once",
 ];
 
 /// The root MODULE.bazel of rules_dx.

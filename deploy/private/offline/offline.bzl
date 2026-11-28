@@ -108,8 +108,8 @@ def offline_bundle(name, advisory, launchers, advisory_meta):
             name = stem + "_line",
             srcs = [":" + out],
             outs = [sidecar],
-            tools = [Label("@dx_prebuilt//:dx")],
-            cmd = "$(location " + str(Label("@dx_prebuilt//:dx")) + ") hasher $(location :" + out + ") $(OUTS)",
+            tools = [Label("@dx_prebuilt//dx:hasher")],
+            cmd = "$(location " + str(Label("@dx_prebuilt//dx:hasher")) + ") hasher $(location :" + out + ") $(OUTS)",
         )
         tree.append(":" + out)
         sidecars.setdefault(dir, []).append(":" + sidecar)

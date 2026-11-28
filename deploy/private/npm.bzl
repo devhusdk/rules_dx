@@ -7,7 +7,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "deployment")
 load(":validate_npm.bzl", "npm_access_error", "npm_package_error", "npm_provenance_error", "npm_registry_url_error", "npm_tag_error")
 
-_DX = Label("@dx_prebuilt//:dx")
+_DX = Label("@dx_prebuilt//dx:npm_packer")
 
 def npm_effective_provenance(access, provenance):
     """Resolves the default provenance policy for an access mode."""

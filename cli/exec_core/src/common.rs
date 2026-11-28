@@ -468,12 +468,26 @@ pub fn collect_own_account(
     workspace: &Path,
     foreign: &dx_bep::Foreign,
 ) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
+    own_account(&read_output_events(bep)?, group, workspace, foreign)
+}
+
+pub fn read_output_events(bep: &Path) -> Result<dx_bep::OutputEvents, dx_error::DxError> {
     let file = std::fs::File::open(bep)
         .map_err(|err| dx_error::DxError::failure(format!("{UNREADABLE_BEP_PREFIX}{err}")))?;
+    Ok(dx_bep::read_output_events(BufReader::new(file)))
+}
+
+pub fn own_account(
+    events: &dx_bep::OutputEvents,
+    group: &str,
+    workspace: &Path,
+    foreign: &dx_bep::Foreign,
+) -> Result<dx_bep::OutputAccount, dx_error::DxError> {
     let config = dx_bep::CollectorConfig::new(group)
         .map_err(|err| dx_error::DxError::failure(format!("invalid BEP config: {err}")))?
         .without(foreign.clone());
-    dx_bep::collect_account(BufReader::new(file), &config, &FsArtifacts, Some(workspace))
+    events
+        .account(&config, &FsArtifacts, Some(workspace))
         .map_err(|err| dx_error::DxError::failure(format!("invalid build events: {err}")))
 }
 

@@ -1201,6 +1201,7 @@ dx_pins.archive(
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
+        "//patches/rules_haskell:cabal_windows_relocatable.patch",
     ],
     pins = "//haskell:pins.json",
 )
@@ -1877,6 +1878,7 @@ single_version_override(
         "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:flutter_extension_loads.patch",
         "//patches/rules_flutter:host_independent_extension.patch",
+        "//patches/rules_flutter:sdk_source_once.patch",
     ],
     version = "0.2.0",
 )

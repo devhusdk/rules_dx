@@ -451,7 +451,7 @@ erlang_release = rule(
             providers = [_ErlangAppInfo],
             doc = "erlang_app targets to include, with their dependencies.",
         ),
-        "_release_tree": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_release_tree": attr.label(default = Label("@dx_prebuilt//dx:release_tree"), executable = True, cfg = "exec"),
     },
     provides = [DefaultInfo],
 )

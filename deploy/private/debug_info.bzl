@@ -52,7 +52,7 @@ _split = rule(
             cfg = "exec",
         ),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:symbols_split"),
             executable = True,
             cfg = "exec",
         ),
@@ -134,7 +134,7 @@ _dsym_pair = rule(
             cfg = "exec",
         ),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:symbols_dsym"),
             executable = True,
             cfg = "exec",
         ),
@@ -210,7 +210,7 @@ _pdb_pair = rule(
             mandatory = True,
         ),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:symbols_pdb"),
             executable = True,
             cfg = "exec",
         ),

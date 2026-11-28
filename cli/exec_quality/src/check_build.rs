@@ -1,8 +1,7 @@
-use crate::{probe_shards, probe_stop_exit};
+use crate::shard_cache::{Sharded, ShardedBuild, run_sharded};
 use dx_bep::{Foreign, aspect_key, target_key};
 use dx_exec_core::common::{
-    BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
-    server_died,
+    BAZEL_INTERRUPTED, Env, PhaseKind, own_account, read_output_events, server_died,
 };
 use dx_output::ActionCounts;
 use dx_plan::args::{Command, QualityRequest, UmbrellaRequest};
@@ -10,6 +9,7 @@ use dx_plan::plan::{Consumer, OUTPUT_GROUP, Selection, command_aspects, plan_sha
 use dx_plan::resolve::{ResolvedScope, resolve, widen_config_scopes};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 pub struct SharedChecks {
     pending: Vec<QualityRequest>,
@@ -18,7 +18,9 @@ pub struct SharedChecks {
 
 struct SharedBuild {
     bep: PathBuf,
+    events: Option<Rc<dx_bep::OutputEvents>>,
     members: Vec<Member>,
+    probes: BTreeSet<String>,
     bazel_options: Vec<String>,
     code: i32,
     failing: Option<BTreeSet<Failing>>,
@@ -35,6 +37,7 @@ type Failing = (Option<String>, Option<String>);
 
 pub(crate) struct SharedRead {
     pub(crate) bep: PathBuf,
+    pub(crate) events: Option<Rc<dx_bep::OutputEvents>>,
     pub(crate) foreign: Foreign,
     pub(crate) code: i32,
     pub(crate) actions: Option<ActionCounts>,
@@ -91,6 +94,7 @@ impl SharedChecks {
         }
         Ok(self.build.as_ref().map(|build| SharedRead {
             bep: build.bep.clone(),
+            events: build.events.clone(),
             foreign: build.foreign(request.command),
             code: build.phase_code(request.command),
             actions,
@@ -196,60 +200,41 @@ impl SharedBuild {
         let Some(bep_text) = bep.to_str() else {
             return Ok(None);
         };
-        let mut probe_counts = None;
-        let shards = match probe_shards(
-            &commands,
+        let plan = |selection: Selection<'_>| {
+            plan_shared_build(
+                &commands,
+                &scope,
+                &request.bazel_options,
+                bep_text,
+                &request.bazel_startup_options,
+                Selection {
+                    consumer,
+                    unsafe_fixes: request.unsafe_fixes,
+                    online: request.online,
+                    ..selection
+                },
+            )
+            .ok()
+            .map(|plan| plan.argv)
+        };
+        let sharded = ShardedBuild {
+            commands: &commands,
             request,
-            &scope,
-            env.workspace,
-            env.runner,
-            env.temp_dir,
-            env.pid,
-            env.nonce,
-            env.actions,
-            &mut probe_counts,
+            scope: &scope,
             consumer,
-        ) {
-            Ok(shards) => shards,
-            Err(stop) => return Err(probe_stop_exit(&stop, request, env, kind)),
+            bep: &bep,
         };
-        let selection = Selection {
-            shards: shards.as_ref(),
-            consumer,
-            unsafe_fixes: request.unsafe_fixes,
-            online: request.online,
-        };
-        let Ok(plan) = plan_shared_build(
-            &commands,
-            &scope,
-            &request.bazel_options,
-            bep_text,
-            &request.bazel_startup_options,
-            selection,
-        ) else {
+        let Some(Sharded {
+            code,
+            actions,
+            probes,
+            events,
+        }) = run_sharded(&sharded, env, kind, &plan)?
+        else {
             return Ok(None);
         };
-        let code = match run_bazel_output(
-            request.common.output,
-            env.out,
-            env.err,
-            env.workspace,
-            env.runner,
-            &plan.argv,
-            &[],
-        ) {
-            Ok(code) => code,
-            Err(exit) => {
-                dx_atomic_fs::discard_file(&bep);
-                *kind = PhaseKind::Host;
-                return Err(exit);
-            }
-        };
-        let actions = match (probe_counts, read_actions(&bep, env.actions)) {
-            (Some(probe), Some(build)) => Some(probe + build),
-            (probe, build) => probe.or(build),
-        };
-        let failing = failing_targets(&bep, code, env);
+        let events = events.or_else(|| read_output_events(&bep).ok().map(Rc::new));
+        let failing = failing_targets(events.as_deref(), code, env, &probes);
         let members = members
             .iter()
             .map(|(command, resolved)| Member {
@@ -263,7 +248,9 @@ impl SharedBuild {
             .collect();
         let build = SharedBuild {
             bep,
+            events,
             members,
+            probes,
             bazel_options: request.bazel_options.clone(),
             code,
             failing,
@@ -297,6 +284,7 @@ impl SharedBuild {
                 .iter()
                 .flat_map(|member| member.aspects.iter())
                 .filter(|aspect| !own_aspects.contains(aspect))
+                .chain(&self.probes)
                 .cloned()
                 .collect(),
             labels: others
@@ -320,14 +308,23 @@ impl SharedBuild {
     }
 }
 
-fn failing_targets(bep: &std::path::Path, code: i32, env: &Env<'_>) -> Option<BTreeSet<Failing>> {
+fn failing_targets(
+    events: Option<&dx_bep::OutputEvents>,
+    code: i32,
+    env: &Env<'_>,
+    probes: &BTreeSet<String>,
+) -> Option<BTreeSet<Failing>> {
     if code == 0 {
         return Some(BTreeSet::new());
     }
     if server_died(code) || code == BAZEL_INTERRUPTED {
         return None;
     }
-    let account = collect_output_account(bep, OUTPUT_GROUP, env.workspace).ok()?;
+    let probes = Foreign {
+        aspects: probes.clone(),
+        labels: BTreeSet::new(),
+    };
+    let account = own_account(events?, OUTPUT_GROUP, env.workspace, &probes).ok()?;
     if account.problem.is_some() || !account.ended {
         return None;
     }

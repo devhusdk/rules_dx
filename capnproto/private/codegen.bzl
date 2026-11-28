@@ -29,7 +29,7 @@ _PRIVATE_ATTRS = {
         cfg = "exec",
     ),
     "_capnpc_rust_dx": attr.label(
-        default = Label("@dx_prebuilt//:dx"),
+        default = Label("@dx_prebuilt//dx:capnpc_rust_dx"),
         executable = True,
         cfg = "exec",
     ),

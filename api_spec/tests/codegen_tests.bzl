@@ -9,7 +9,7 @@ def _go_client_action_impl(ctx):
     action = actions[0]
     asserts.equals(env, {"GOFLAGS": "-mod=mod", "GOPROXY": "off"}, action.env)
     argv = action.argv
-    asserts.true(env, argv[0].removesuffix(".exe").endswith("/dx"), "action runs " + argv[0])
+    asserts.true(env, argv[0].removesuffix(".exe").endswith("/oapi_codegen"), "action runs " + argv[0])
     asserts.equals(env, "oapi_codegen", argv[1])
     for arg in argv:
         asserts.false(env, arg.startswith("/"), "absolute argument " + arg)

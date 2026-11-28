@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library")
+load("//rust:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//android:__subpackages__"])
 
@@ -26,6 +26,15 @@ rust_library(
         "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:tempfile",
     ],
+)
+
+rust_binary(
+    name = "android_ops",
+    srcs = ["src/bin_android_ops.rs"],
+    crate_name = "android_ops",
+    crate_root = "src/bin_android_ops.rs",
+    visibility = ["//visibility:public"],
+    deps = [":ops"],
 )
 
 real_source_target(

@@ -5,6 +5,12 @@ load("//cc/private/quality:cc.bzl", "CcShardProbeInfo")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core/private/testing:providers.bzl", "DxSubjectInfo")
 load("//core/quality:families/core_probe.bzl", "CoreShardProbeInfo")
+load(
+    "//core/quality:merged_probe.bzl",
+    "real_merged_format_probe_aspect",
+    "real_merged_lint_probe_aspect",
+    "real_merged_typecheck_probe_aspect",
+)
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(
     "//core/quality/testdata:all_languages.bzl",
@@ -491,10 +497,17 @@ _FACADE_PROBES = {
     "typecheck": real_typecheck_probe_aspect,
 }
 
+_MERGED_PROBES = {
+    "format": real_merged_format_probe_aspect,
+    "lint": real_merged_lint_probe_aspect,
+    "typecheck": real_merged_typecheck_probe_aspect,
+}
+
 def _real_family_probe_subject_impl(ctx):
     fields = {"label": _label_text(ctx.attr.target.label)}
     for capability in ["lint", "format", "typecheck"]:
         facade = _probe_shards_of(getattr(ctx.attr, capability + "_facade"))
+        merged = _probe_shards_of(getattr(ctx.attr, capability + "_merged"))
         united = {}
         for family, info in _FAMILY_INFOS.items():
             dep = getattr(ctx.attr, capability + "_" + family)
@@ -505,6 +518,8 @@ def _real_family_probe_subject_impl(ctx):
         fields[capability + "_facade"] = _joined(facade)
         fields[capability + "_families"] = _joined(families)
         fields[capability + "_equal"] = str(families == list(facade))
+        fields[capability + "_merged"] = _joined(merged)
+        fields[capability + "_merged_equal"] = str(families == list(merged))
     return [
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = fields),
@@ -514,6 +529,8 @@ def _family_probe_attrs():
     attrs = {"target": attr.label(mandatory = True)}
     for capability, aspect in _FACADE_PROBES.items():
         attrs[capability + "_facade"] = attr.label(aspects = [aspect], mandatory = True)
+    for capability, aspect in _MERGED_PROBES.items():
+        attrs[capability + "_merged"] = attr.label(aspects = [aspect], mandatory = True)
     for capability, probes in _FAMILY_PROBES.items():
         for family, aspect in probes.items():
             attrs[capability + "_" + family] = attr.label(aspects = [aspect], mandatory = True)
@@ -521,13 +538,14 @@ def _family_probe_attrs():
 
 _real_family_probe_subject = rule(
     implementation = _real_family_probe_subject_impl,
-    doc = "Compares the per-family shard probes with the facade probe for each capability.",
+    doc = "Compares the per-family shard probes with the facade and merged probes for each capability.",
     attrs = _family_probe_attrs(),
 )
 
 def real_family_probe_subject(name, target, **kwargs):
-    """Observes, per capability, the family probes of `target` next to the facade probe."""
+    """Observes, per capability, the family probes of `target` next to the facade and merged probes."""
     attrs = {capability + "_facade": target for capability in _FACADE_PROBES}
+    attrs |= {capability + "_merged": target for capability in _MERGED_PROBES}
     for capability, probes in _FAMILY_PROBES.items():
         for family in probes:
             attrs[capability + "_" + family] = target

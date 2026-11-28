@@ -623,7 +623,6 @@ fn conformance_quality_bzl(manifests: &BTreeMap<String, Value>) -> Result<String
     Ok(text)
 }
 
-/// Splits `<kind>=<path>... -- <lang.json>...` into named paths and inputs.
 /// One shard probe per capability over the config of every family that probes it.
 fn merged_probe_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result<String, String> {
     let core = core_manifests(core)?;
@@ -666,7 +665,8 @@ fn merged_probe_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result
             "real_make_merged_probe_aspect".to_owned(),
             "real_make_merged_probe_aspect".to_owned(),
         ));
-    let mut text = format!("\"\"\"Shard probes over every family, one per capability. {REFRESH}\"\"\"\n\n");
+    let mut text =
+        format!("\"\"\"Shard probes over every family, one per capability. {REFRESH}\"\"\"\n\n");
     text.push_str(&load_lines(&loads));
     for (capability, labels) in &by_capability {
         let cfgs = labels
@@ -683,6 +683,7 @@ fn merged_probe_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result
     Ok(text)
 }
 
+/// Splits `<kind>=<path>... -- <lang.json>...` into named paths and inputs.
 fn parse(args: &[OsString]) -> Result<(BTreeMap<&str, PathBuf>, Vec<PathBuf>), String> {
     let mut named = BTreeMap::new();
     let mut rest = args.iter();
@@ -1044,6 +1045,68 @@ mod tests {
             .into();
         let error = table_symbols(&files, &[TOOLS]).unwrap_err();
         assert!(error.contains("share the table prefix _X_"), "{error}");
+    }
+
+    fn probing(bzl: &str, probes: Value) -> Value {
+        serde_json::json!({"quality": {"bzl": bzl, "probes": probes}})
+    }
+
+    #[test]
+    fn merged_probe_bzl_lists_each_probing_family_under_its_capabilities() {
+        let mut manifests = sample();
+        manifests.insert(
+            "go".to_owned(),
+            probing(
+                "go/private/quality:go.bzl",
+                serde_json::json!({
+                    "format": ["real_go_format_probe_aspect"],
+                    "lint": ["real_go_lint_probe_aspect"],
+                    "typecheck": [],
+                }),
+            ),
+        );
+        let core = serde_json::json!({"quality": [
+            {"bzl": "core/quality:families/core.bzl", "family": "core", "owner": "other", "classes": ["x"]},
+            {"bzl": "core/quality:families/core_probe.bzl", "probes": {"lint": ["real_core_lint_probe_aspect"]}},
+        ], "docs": []});
+        assert_eq!(
+            merged_probe_bzl(&manifests, &core).unwrap(),
+            format!(
+                "\"\"\"Shard probes over every family, one per capability. {REFRESH}\"\"\"\n\n\
+                 load(\"//core/quality:families/core_probe.bzl\", _CORE_PROBE_CFG = \"QUALITY_CFG\")\n\
+                 load(\"//core/quality:real_core.bzl\", \"real_make_merged_probe_aspect\")\n\
+                 load(\"//go/private/quality:go.bzl\", _GO_CFG = \"QUALITY_CFG\")\n\
+                 load(\"//py/private/quality:py.bzl\", _PY_CFG = \"QUALITY_CFG\")\n\
+                 \n\
+                 real_merged_format_probe_aspect = real_make_merged_probe_aspect(\n    [\n        _GO_CFG,\n    ],\n    \"format\",\n)\n\
+                 \n\
+                 real_merged_lint_probe_aspect = real_make_merged_probe_aspect(\n    [\n        _CORE_PROBE_CFG,\n        _GO_CFG,\n        _PY_CFG,\n    ],\n    \"lint\",\n)\n"
+            )
+        );
+    }
+
+    #[test]
+    fn merged_probe_bzl_rejects_two_configs_with_one_name() {
+        let manifests = BTreeMap::from([
+            (
+                "a".to_owned(),
+                probing(
+                    "a/private/quality:x.bzl",
+                    serde_json::json!({"lint": ["real_a_lint_probe_aspect"]}),
+                ),
+            ),
+            (
+                "b".to_owned(),
+                probing(
+                    "b/private/quality:x.bzl",
+                    serde_json::json!({"lint": ["real_b_lint_probe_aspect"]}),
+                ),
+            ),
+        ]);
+        assert_eq!(
+            merged_probe_bzl(&manifests, &no_core()).unwrap_err(),
+            "a/private/quality:x.bzl and b/private/quality:x.bzl share the config name _X_CFG"
+        );
     }
 
     #[test]

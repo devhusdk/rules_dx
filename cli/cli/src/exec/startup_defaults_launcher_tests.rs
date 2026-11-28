@@ -1,12 +1,13 @@
 use dx_adopt::defaults::DX_OUTPUT_ENV;
+use dx_adopt::{DX_VERSION, MODULE_VERSION};
 
 #[test]
 fn the_dx_process_reads_verbose_and_rejects_flag_values() {
     let scratch = dx_test_scratch::scratch("dx-defaults-process-").unwrap();
     let root = scratch.path().to_path_buf();
     std::fs::create_dir_all(root.join(".dx")).expect("dx");
-    std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
-    std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
+    std::fs::write(root.join("MODULE.bazel"), sample_module()).expect("module");
+    std::fs::write(root.join(".dx/pins"), format!("{DX_VERSION}\n")).expect("pin");
     let run = |words: &[&str]| {
         let output = assert_cmd::Command::new(dx_binary())
             .current_dir(&root)
@@ -36,7 +37,11 @@ fn the_dx_process_reads_verbose_and_rejects_flag_values() {
     scratch.close().expect("cleanup");
 }
 
-const SAMPLE_MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+fn sample_module() -> String {
+    format!(
+        "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(name = \"rules_dx\", version = \"{MODULE_VERSION}\")\n"
+    )
+}
 
 fn dx_binary() -> std::path::PathBuf {
     let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
@@ -87,16 +92,16 @@ fn assert_startup_outcome(out: &str, code: &str, exit: i32) {
 
 fn sample_workspace(name: &str) -> dx_test_scratch::TempDir {
     let scratch = dx_test_scratch::scratch(name).unwrap();
-    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::write(scratch.path().join("MODULE.bazel"), sample_module()).expect("module");
     std::fs::create_dir_all(scratch.path().join(".dx")).expect("dx");
-    std::fs::write(scratch.path().join(".dx/pins"), "0.0.0\n").expect("pin");
+    std::fs::write(scratch.path().join(".dx/pins"), format!("{DX_VERSION}\n")).expect("pin");
     scratch
 }
 
 #[test]
 fn startup_argument_failures_report_structured_json() {
     let scratch = dx_test_scratch::scratch("dx-startup-json-usage-").unwrap();
-    std::fs::write(scratch.path().join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
+    std::fs::write(scratch.path().join("MODULE.bazel"), sample_module()).expect("module");
     let root = scratch.path();
     let (code, out, err) = run_dx(root, &["lint", ":oops", "--output=json"], &[]);
     assert_eq!(code, Some(2), "{err}");

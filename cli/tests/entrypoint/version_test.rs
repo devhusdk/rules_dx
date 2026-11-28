@@ -21,8 +21,8 @@ fn status_fixtures_take_the_release_version_from_pins() {
             || line.contains("/.dx/pins")
             || line.starts_with("workspace ");
         assert!(
-            !tracks_rules_dx || !line.contains("0.0.0"),
-            "fixture line pins the literal 0.0.0: {line}"
+            !tracks_rules_dx || !line.contains(version),
+            "fixture line pins the literal {version}: {line}"
         );
     }
 }

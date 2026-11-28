@@ -1,4 +1,4 @@
-use shapes_rs::dx::api::{root_as_shape, Shape, ShapeArgs};
+use shapes_rs::dx::api::{Shape, ShapeArgs, root_as_shape};
 use shapes_rs::dx::base::Point;
 
 #[test]

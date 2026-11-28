@@ -114,7 +114,11 @@ fn gzip_with_node(text: &str) -> Vec<u8> {
         .env_clear();
     keep_system_vars(&mut command);
     let done = command.output().expect("run node");
-    assert!(done.status.success(), "{}", String::from_utf8_lossy(&done.stderr));
+    assert!(
+        done.status.success(),
+        "{}",
+        String::from_utf8_lossy(&done.stderr)
+    );
     done.stdout
 }
 

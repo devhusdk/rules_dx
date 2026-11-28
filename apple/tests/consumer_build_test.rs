@@ -30,7 +30,9 @@ fn module_body(module: &str) -> String {
         .lines()
         .filter(|line| {
             let line = line.trim_start();
-            !line.starts_with('#') && !line.starts_with("module(") && !line.starts_with("bazel_dep(")
+            !line.starts_with('#')
+                && !line.starts_with("module(")
+                && !line.starts_with("bazel_dep(")
         })
         .map(|line| format!("{line}\n"))
         .collect()

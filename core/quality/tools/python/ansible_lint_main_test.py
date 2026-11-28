@@ -103,7 +103,9 @@ class AnsibleLintMainTest(unittest.TestCase):
                 mock.patch.dict(sys.modules),
                 mock.patch.object(sys, "path", [root] + sys.path),
                 mock.patch.object(
-                    sys, "meta_path", [ansible_windows._SourceFixFinder()] + sys.meta_path
+                    sys,
+                    "meta_path",
+                    [ansible_windows._SourceFixFinder()] + sys.meta_path,
                 ),
                 mock.patch.object(os.path, "sep", "\\"),
             ):

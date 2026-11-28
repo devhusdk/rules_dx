@@ -57,7 +57,9 @@ class _Dumper:
         for current, _, files in os.walk(self.root):
             for name in files:
                 path = pathlib.Path(current) / name
-                self.names[os.path.realpath(path)] = path.relative_to(self.root).as_posix()
+                self.names[os.path.realpath(path)] = path.relative_to(
+                    self.root
+                ).as_posix()
         self.sources = {}
         self.objects = []
 
@@ -71,7 +73,11 @@ class _Dumper:
         if real in self.names:
             return self.names[real]
         try:
-            return pathlib.Path(os.path.abspath(path)).relative_to(self.root.absolute()).as_posix()
+            return (
+                pathlib.Path(os.path.abspath(path))
+                .relative_to(self.root.absolute())
+                .as_posix()
+            )
         except ValueError as error:
             raise RuntimeError(f"{source.path} is not under the staged root") from error
 
@@ -84,7 +90,9 @@ class _Dumper:
 
     def _line(self, file, kind, name, start=0):
         """Returns the 1-based line of the first declaration of a name from a line on."""
-        word = re.compile(_DECLARATIONS[kind].format(name=re.escape(name)), re.IGNORECASE)
+        word = re.compile(
+            _DECLARATIONS[kind].format(name=re.escape(name)), re.IGNORECASE
+        )
         lines = self._lines(file)
         for index in range(max(start, 1) - 1, len(lines)):
             text = lines[index].split("!")[0]
@@ -140,7 +148,10 @@ class _Dumper:
             signature = f"{attributes} {signature}"
         returns = None
         if is_function and procedure.retvar is not None:
-            returns = {"type": procedure.retvar.full_type, "doc": _doc(procedure.retvar)}
+            returns = {
+                "type": procedure.retvar.full_type,
+                "doc": _doc(procedure.retvar),
+            }
             signature += f" result({procedure.retvar.name})"
         self._add(
             kind,
@@ -163,7 +174,15 @@ class _Dumper:
         head = "type" + (f", {attributes}" if attributes else "")
         if extends:
             head += f", extends({extends})"
-        record = self._add("type", path, ftype, module, f"{head} :: {ftype.name}", extends=extends, module=module)
+        record = self._add(
+            "type",
+            path,
+            ftype,
+            module,
+            f"{head} :: {ftype.name}",
+            extends=extends,
+            module=module,
+        )
         for variable in ftype.variables:
             if variable.permission != "public":
                 continue
@@ -186,7 +205,9 @@ class _Dumper:
                 f"{path}.{binding.name}",
                 binding,
                 path,
-                f"{kind} :: {binding.name} => {target}" if target and target != binding.name else f"{kind} :: {binding.name}",
+                f"{kind} :: {binding.name} => {target}"
+                if target and target != binding.name
+                else f"{kind} :: {binding.name}",
                 module=module,
                 after=record["line"],
             )
@@ -199,11 +220,25 @@ class _Dumper:
         signature = f"{head} :: {variable.name}"
         if variable.initial:
             signature += f" = {variable.initial}"
-        self._add("variable", f"{module}.{variable.name}", variable, module, signature, module=module)
+        self._add(
+            "variable",
+            f"{module}.{variable.name}",
+            variable,
+            module,
+            signature,
+            module=module,
+        )
 
     def module(self, module):
         """Records one module and everything public in it."""
-        self._add("module", module.name, module, "", f"module {module.name}", module=module.name)
+        self._add(
+            "module",
+            module.name,
+            module,
+            "",
+            f"module {module.name}",
+            module=module.name,
+        )
         name = module.name
         for variable in module.variables:
             if variable.permission == "public":
@@ -214,7 +249,12 @@ class _Dumper:
         for interface in module.interfaces:
             if interface.permission != "public":
                 continue
-            procedures = [proc.name for proc in list(interface.subroutines) + list(interface.functions) + list(getattr(interface, "modprocs", []))]
+            procedures = [
+                proc.name
+                for proc in list(interface.subroutines)
+                + list(interface.functions)
+                + list(getattr(interface, "modprocs", []))
+            ]
             self._add(
                 "interface",
                 f"{name}.{interface.name}",

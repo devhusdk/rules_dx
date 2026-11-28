@@ -381,7 +381,11 @@ mod tests {
 
     #[test]
     fn shard_carries_its_fields() {
-        let built = shard("//core/env:alpha".into(), "rust".into(), vec![entry("K", "v")]);
+        let built = shard(
+            "//core/env:alpha".into(),
+            "rust".into(),
+            vec![entry("K", "v")],
+        );
         assert_eq!(built.producer, "//core/env:alpha");
         assert_eq!(built.integration, "rust");
         assert_eq!(built.entries, vec![entry("K", "v")]);

@@ -99,10 +99,16 @@ def stage(rows, imports, workspace, package, root, label, library):
             continue
         location = _rlocation_path(workspace, short_path)
         rel = next(
-            (location[len(imp) + 1 :] for imp in imports if location.startswith(imp + "/")),
+            (
+                location[len(imp) + 1 :]
+                for imp in imports
+                if location.startswith(imp + "/")
+            ),
             _repo_relative_path(short_path),
         )
-        if not (rel.startswith(package + "/") or rel in (package + ".py", package + ".pyi")):
+        if not (
+            rel.startswith(package + "/") or rel in (package + ".py", package + ".pyi")
+        ):
             continue
         if rel in originals:
             raise StageError(

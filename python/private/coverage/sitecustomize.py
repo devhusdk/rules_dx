@@ -8,7 +8,11 @@ import threading
 
 def _manifest(path):
     with open(path, encoding="utf-8") as handle:
-        return [line.strip().replace("\\", "/") for line in handle if line.strip().endswith(".py")]
+        return [
+            line.strip().replace("\\", "/")
+            for line in handle
+            if line.strip().endswith(".py")
+        ]
 
 
 def _executable_lines(path):
@@ -38,7 +42,9 @@ def _install():
         known = decided.get(filename)
         if known is None:
             normal = filename.replace("\\", "/")
-            known = next((s for s in sources if normal.endswith("/" + s) or normal == s), "")
+            known = next(
+                (s for s in sources if normal.endswith("/" + s) or normal == s), ""
+            )
             decided[filename] = known
         return known
 

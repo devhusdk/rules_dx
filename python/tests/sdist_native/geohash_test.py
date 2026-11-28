@@ -20,7 +20,9 @@ def pe_imports(data: bytes) -> list[str]:
     rva = struct.unpack_from("<I", data, dirs + 8)[0]
     sections = []
     for i in range(nsections):
-        _, vsize, va, rawsize, raw = struct.unpack_from("<8sIIII", data, opt + opt_size + 40 * i)
+        _, vsize, va, rawsize, raw = struct.unpack_from(
+            "<8sIIII", data, opt + opt_size + 40 * i
+        )
         sections.append((va, max(vsize, rawsize), raw))
 
     def offset(r: int) -> int:

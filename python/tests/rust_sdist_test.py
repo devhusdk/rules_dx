@@ -21,7 +21,9 @@ def pe_imports(data: bytes) -> list[str]:
     rva = struct.unpack_from("<I", data, dirs + 8)[0]
     sections = []
     for i in range(nsections):
-        _, vsize, va, rawsize, raw = struct.unpack_from("<8sIIII", data, opt + opt_size + 40 * i)
+        _, vsize, va, rawsize, raw = struct.unpack_from(
+            "<8sIIII", data, opt + opt_size + 40 * i
+        )
         sections.append((va, max(vsize, rawsize), raw))
 
     def offset(r: int) -> int:
@@ -82,7 +84,9 @@ class RustSdistTest(unittest.TestCase):
 
 class CargoConfigTest(unittest.TestCase):
     def test_vendored_and_offline(self):
-        text = pathlib.Path(os.environ["TEST_SRCDIR"], os.environ["CARGO_CONFIG"]).read_text()
+        text = pathlib.Path(
+            os.environ["TEST_SRCDIR"], os.environ["CARGO_CONFIG"]
+        ).read_text()
         self.assertIn("offline = true", text)
         self.assertIn("replace-with", text)
 

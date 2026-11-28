@@ -13,7 +13,11 @@ fn implicit_bundle_has_module_and_bindings() {
         .iter()
         .find(|path| path.extension().is_some_and(|ext| ext == "wasm"))
         .unwrap_or_else(|| panic!("no .wasm in {files:?}"));
-    assert!(std::fs::read(wasm).expect("wasm is readable").starts_with(b"\0asm"));
+    assert!(
+        std::fs::read(wasm)
+            .expect("wasm is readable")
+            .starts_with(b"\0asm")
+    );
     let js = files
         .iter()
         .find(|path| path.extension().is_some_and(|ext| ext == "js"))

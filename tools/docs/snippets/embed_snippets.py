@@ -11,7 +11,9 @@ import re
 import sys
 
 PAGES = ["docs/github-ci.md"]
-MARKER = re.compile(r"^( *)<!-- snippet: (\S+) -->\n( *)```(\w*)\n.*?^\3```\n", re.M | re.S)
+MARKER = re.compile(
+    r"^( *)<!-- snippet: (\S+) -->\n( *)```(\w*)\n.*?^\3```\n", re.M | re.S
+)
 
 
 def render(text, root):
@@ -23,7 +25,12 @@ def render(text, root):
             indent + line if line.strip() else line for line in body.splitlines(True)
         )
         return "%s<!-- snippet: %s -->\n%s```%s\n%s%s```\n" % (
-            indent, path, indent, lang, lines, indent,
+            indent,
+            path,
+            indent,
+            lang,
+            lines,
+            indent,
         )
 
     return MARKER.sub(block, text)
@@ -49,7 +56,8 @@ def main():
                 handle.write(fresh)
     if check and stale:
         sys.exit(
-            "%s out of date; run bazel run //tools/docs/snippets:update" % ", ".join(stale)
+            "%s out of date; run bazel run //tools/docs/snippets:update"
+            % ", ".join(stale)
         )
 
 

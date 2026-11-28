@@ -80,9 +80,7 @@ class CmakelintMainTest(unittest.TestCase):
     def test_non_ascii_utf8_file(self):
         """A UTF-8 file with non-ASCII comments is read without a decode error."""
         with tempfile.TemporaryDirectory() as directory:
-            code, out, _ = run(
-                directory, "CMakeLists.txt", "# café ☃\n" + CLEAN
-            )
+            code, out, _ = run(directory, "CMakeLists.txt", "# café ☃\n" + CLEAN)
         self.assertEqual((code, out), (0, ""))
 
 

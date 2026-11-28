@@ -215,7 +215,14 @@ class StageTestCase(unittest.TestCase):
         manifest = self.base / "srcs.tsv"
         out = self.base / "out.json"
         argv = ["--root", self.root, "--package", "pkg", "--docstyle", "google"]
-        argv += ["--out", str(out), "--sources", str(sources), "--imports", str(imports)]
+        argv += [
+            "--out",
+            str(out),
+            "--sources",
+            str(sources),
+            "--imports",
+            str(imports),
+        ]
         argv += ["--workspace", "ws", "--label", "//lib:docs", "--library", "//lib:pkg"]
         argv += ["--manifest", str(manifest)]
         self.assertEqual(griffe_dump.main(argv), 0)

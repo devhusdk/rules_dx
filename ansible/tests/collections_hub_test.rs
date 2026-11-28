@@ -18,8 +18,11 @@ fn find(dir: &Path, suffix: &Path) -> Option<PathBuf> {
 #[test]
 fn hub_has_dxtest_tiny() {
     let root = PathBuf::from(std::env::var_os("TEST_SRCDIR").expect("TEST_SRCDIR"));
-    let manifest = find(&root, Path::new("ansible_collections/ansible/posix/MANIFEST.json"))
-        .expect("hub has no ansible.posix MANIFEST.json");
+    let manifest = find(
+        &root,
+        Path::new("ansible_collections/ansible/posix/MANIFEST.json"),
+    )
+    .expect("hub has no ansible.posix MANIFEST.json");
     let base = manifest.parent().expect("manifest dir");
     assert!(
         base.join("plugins/modules/acl.py").is_file(),

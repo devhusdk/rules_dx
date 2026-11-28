@@ -5,8 +5,7 @@ use documentation_ir::proto::{DocIr, Symbol};
 
 use super::{
     ArgsError, CheckError, Inputs, anchor_name, check, first_field, has_empty_link_target,
-    inline_targets,
-    link_targets, parse_args, resolve_route, split_reference, tidy,
+    inline_targets, link_targets, parse_args, resolve_route, split_reference, tidy,
 };
 
 fn args(list: &[&str]) -> Vec<String> {

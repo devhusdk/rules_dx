@@ -351,7 +351,10 @@ pub(crate) fn module_graph(
             dx_error::DxError::infra(format!("cannot read MODULE.bazel of {id}: {error}"))
         })?;
         let deps = graph.deps.entry(file.name.clone()).or_default();
-        for call in module.calls_named("bazel_dep").filter(|call| !dev_only(call)) {
+        for call in module
+            .calls_named("bazel_dep")
+            .filter(|call| !dev_only(call))
+        {
             let name = call.str("name").ok_or_else(|| {
                 dx_error::DxError::infra(format!(
                     "cannot read MODULE.bazel of {id}: computed bazel_dep"
@@ -368,7 +371,10 @@ pub(crate) fn module_graph(
         }
         let mut names = Names::of(std::slice::from_ref(&module), &file.name);
         names.multiple.clone_from(multiple);
-        for call in module.calls_named("use_extension").filter(|call| !dev_only(call)) {
+        for call in module
+            .calls_named("use_extension")
+            .filter(|call| !dev_only(call))
+        {
             let bzl = binding_label(call, "extension_bzl_file");
             let name = match call
                 .positional
@@ -1070,7 +1076,10 @@ mod tests {
         assert_eq!(graph.deps.get("user"), Some(&set(&["leaf", "ruleset"])));
         assert_eq!(graph.registers, set(&[BUILTIN_TOOLS]));
         assert!(!graph.registered.contains_key("ruleset"));
-        assert_eq!(closure(&set(&["leaf"]), &graph.deps), set(&["leaf", "user"]));
+        assert_eq!(
+            closure(&set(&["leaf"]), &graph.deps),
+            set(&["leaf", "user"])
+        );
         assert_eq!(
             closure(&set(&["ruleset"]), &graph.deps),
             set(&["ruleset", "user"])
@@ -1254,7 +1263,9 @@ mod tests {
         assert_eq!(widen("//p:stale.patch"), hidden);
         assert_eq!(
             overrides_that_widen(
-                &files("single_version_override(module_name = \"a\", patches = [\"//p:pip.patch\"])\n"),
+                &files(
+                    "single_version_override(module_name = \"a\", patches = [\"//p:pip.patch\"])\n"
+                ),
                 &set(&["b"]),
                 &read,
                 &|_| None,

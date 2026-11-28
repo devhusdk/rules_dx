@@ -10,7 +10,12 @@ fn configs_have_no_unexpected_warning() {
     assert_eq!(configs.len(), 2, "two configs");
     for config in configs {
         let flag = format!("-config={}", path_text(&config));
-        let out = run(&buildifier, &[&flag, "-mode=check", "-lint=warn", &build], &[]).expect("run buildifier");
+        let out = run(
+            &buildifier,
+            &[&flag, "-mode=check", "-lint=warn", &build],
+            &[],
+        )
+        .expect("run buildifier");
         let text = out.combined();
         assert!(
             out.status.success() || !text.contains("unexpected warning"),

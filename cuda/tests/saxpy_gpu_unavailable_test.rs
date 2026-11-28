@@ -21,15 +21,29 @@ fn a_host_without_a_visible_gpu_fails_as_unavailable() {
     let facts = dx_testing::read_json(&outputs.join("gpu_facts.json")).unwrap();
     assert_eq!(facts["schema"], "dx.cuda.gpu_facts.v1", "{facts}");
     assert_eq!(facts["status"], "unavailable", "{facts}");
-    assert_eq!(facts["reason"], first.trim_start_matches("unavailable: "), "{facts}");
-    assert_eq!(facts["declared"]["min_compute_capability"], "8.9", "{facts}");
+    assert_eq!(
+        facts["reason"],
+        first.trim_start_matches("unavailable: "),
+        "{facts}"
+    );
+    assert_eq!(
+        facts["declared"]["min_compute_capability"], "8.9",
+        "{facts}"
+    );
     assert_eq!(facts["declared"]["min_driver"], "13.0", "{facts}");
     assert_eq!(facts["declared"]["runtime"], "13.4", "{facts}");
-    assert_eq!(facts["declared"]["device_compute_capability"], "12.0", "{facts}");
+    assert_eq!(
+        facts["declared"]["device_compute_capability"], "12.0",
+        "{facts}"
+    );
     assert_eq!(facts["declared"]["device_driver"], "13.4", "{facts}");
     assert_eq!(facts["runtime"], "13.4", "{facts}");
     assert!(facts["device"].is_null(), "{facts}");
-    assert_eq!(facts["checks"], dx_testing::serde_json::json!([]), "{facts}");
+    assert_eq!(
+        facts["checks"],
+        dx_testing::serde_json::json!([]),
+        "{facts}"
+    );
     let logged = run
         .stdout
         .lines()

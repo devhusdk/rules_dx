@@ -63,7 +63,6 @@ def load_tools(path=PINS_PATH):
 TOOLS: dict[str, dict[str, Any]] = load_tools()
 
 
-
 def _require_tool(name):
     found = shutil.which(name)
     if found is not None:

@@ -319,7 +319,9 @@ class VerifyOnlyPathTest(unittest.TestCase):
             mock.patch.object(update, "_source_dir", return_value=empty),
             mock.patch.object(update, "_check_hadolint_shellcheck"),
         ):
-            with open(os.path.join(empty, "lock.json"), "w", encoding="utf-8") as handle:
+            with open(
+                os.path.join(empty, "lock.json"), "w", encoding="utf-8"
+            ) as handle:
                 handle.write("{}\n")
             self.assertIsNone(update.main(["--verify-only"]))
 
@@ -328,7 +330,11 @@ class PinsTest(unittest.TestCase):
     def test_version_expands_in_every_string(self):
         self.assertEqual(
             update.expand(
-                {"url": "https://x/v{version}/a-{version}.tgz", "n": 3, "l": ["{version}"]},
+                {
+                    "url": "https://x/v{version}/a-{version}.tgz",
+                    "n": 3,
+                    "l": ["{version}"],
+                },
                 "1.2.3",
             ),
             {"url": "https://x/v1.2.3/a-1.2.3.tgz", "n": 3, "l": ["1.2.3"]},
@@ -344,7 +350,9 @@ class PinsTest(unittest.TestCase):
                             "demo": {
                                 "version": "4.5.6",
                                 "release_page": "https://x/tag/v{version}",
-                                "cells": {"linux_x86_64": {"url": "https://x/{version}/d"}},
+                                "cells": {
+                                    "linux_x86_64": {"url": "https://x/{version}/d"}
+                                },
                             }
                         }
                     },
@@ -365,12 +373,22 @@ class PinsTest(unittest.TestCase):
 class LockTest(unittest.TestCase):
     def test_lock_is_sorted_json_keyed_by_tool_and_platform(self):
         content = update._lock_content(
-            {"demo": {"windows_x86_64": {"tool": "demo", "size": 2}, "linux_x86_64": {"size": 1}}}
+            {
+                "demo": {
+                    "windows_x86_64": {"tool": "demo", "size": 2},
+                    "linux_x86_64": {"size": 1},
+                }
+            }
         )
         self.assertEqual(
             content,
             json.dumps(
-                {"demo": {"linux_x86_64": {"size": 1}, "windows_x86_64": {"size": 2, "tool": "demo"}}},
+                {
+                    "demo": {
+                        "linux_x86_64": {"size": 1},
+                        "windows_x86_64": {"size": 2, "tool": "demo"},
+                    }
+                },
                 indent=1,
             )
             + "\n",

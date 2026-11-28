@@ -1,6 +1,9 @@
-#![expect(unsafe_code, reason = "exports an unmangled C symbol for the native linker fixture")]
+#![expect(
+    unsafe_code,
+    reason = "exports an unmangled C symbol for the native linker fixture"
+)]
 
-use std::ffi::{c_char, CStr};
+use std::ffi::{CStr, c_char};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn share_total(text: *const c_char) -> i64 {

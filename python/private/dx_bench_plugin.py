@@ -40,4 +40,6 @@ def pytest_unconfigure(config):
     if not path.is_file() or not path.stat().st_size:
         return
     document = convert(json.loads(path.read_text(encoding="utf-8")))
-    pathlib.Path(out_dir, "dx-bench.json").write_text(json.dumps(document), encoding="utf-8")
+    pathlib.Path(out_dir, "dx-bench.json").write_text(
+        json.dumps(document), encoding="utf-8"
+    )

@@ -319,10 +319,10 @@ def native_config_unit_tests(name):
                 "bound_config_targets falls back to the policy and lets a hint win",
                 _names(bound_config_targets(
                     struct(aspect_hints = [_TARGET_RUFF]),
-                    {"ruff": _TARGET_POLICY_RUFF, "dart": _TARGET_DART},
+                    {"dart": _TARGET_DART, "ruff": _TARGET_POLICY_RUFF},
                     "//q:t",
                 )),
-                {"ruff": "hint", "dart": "dart"},
+                {"dart": "dart", "ruff": "hint"},
             ),
             expect_equal(
                 "bound_config_targets uses the policy for a rule without aspect_hints",

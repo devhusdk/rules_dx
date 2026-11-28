@@ -35,7 +35,9 @@ def terms_text(body, content_type):
 
 def terms_sha256(url):
     """Fetches url and returns the sha256 of its terms text."""
-    request = urllib.request.Request(url, headers={"User-Agent": "rules_dx-terms-check"})
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "rules_dx-terms-check"}
+    )
     with urllib.request.urlopen(request, timeout=60) as response:
         body = response.read()
         content_type = response.headers.get("Content-Type", "")
@@ -44,7 +46,10 @@ def terms_sha256(url):
 
 def pins(source):
     """Returns (id, url, sha256) for each licence entry in core/licenses/pins.json."""
-    return [(name, entry["url"], entry["terms_sha256"]) for name, entry in sorted(json.loads(source).items())]
+    return [
+        (name, entry["url"], entry["terms_sha256"])
+        for name, entry in sorted(json.loads(source).items())
+    ]
 
 
 def main(argv):
@@ -67,7 +72,11 @@ def main(argv):
         if actual == pinned:
             print("{}: unchanged".format(name))
         else:
-            print("{}: terms changed: {} (pinned {}, now {})".format(name, url, pinned, actual))
+            print(
+                "{}: terms changed: {} (pinned {}, now {})".format(
+                    name, url, pinned, actual
+                )
+            )
             changed = True
     return 1 if changed else 0
 

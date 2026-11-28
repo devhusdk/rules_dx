@@ -43,7 +43,10 @@ fn binary_holds_device_code_and_links_cublas_without_libcudart() {
         "static runtime must not need libcudart: {needed:?}"
     );
     let major = std::env::var("DX_CUDA_MAJOR").unwrap();
-    for soname in [format!("libcublas.so.{major}"), format!("libcublasLt.so.{major}")] {
+    for soname in [
+        format!("libcublas.so.{major}"),
+        format!("libcublasLt.so.{major}"),
+    ] {
         assert!(
             needed.iter().any(|lib| *lib == soname),
             "{soname} must be linked from the pinned component: {needed:?}"

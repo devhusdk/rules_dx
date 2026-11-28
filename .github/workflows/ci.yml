@@ -361,29 +361,6 @@ jobs:
         run: |
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
-  cancel-dispatched:
-    name: cancel the closed pull request's dispatched runs
-    if: ${{ github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != github.event.repository.default_branch }}
-    timeout-minutes: 5
-    runs-on: ubuntu-slim
-    permissions:
-      actions: write
-    steps:
-      - name: Cancel queued and running evidence and lock-refresh runs on the head branch
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          for workflow in evidence.yml lock-refresh.yml; do
-            gh run list --workflow "$workflow" --branch "$HEAD_REF" --event workflow_dispatch --limit 100 --json databaseId,status \
-              --jq '.[] | select(.status != "completed") | .databaseId' |
-              while read -r id; do
-                echo "cancel $workflow run $id on $HEAD_REF"
-                gh run cancel "$id" || echo "::warning::could not cancel $workflow run $id"
-              done
-          done
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     if: ${{ github.event_name == 'workflow_dispatch' }}

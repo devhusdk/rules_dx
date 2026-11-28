@@ -1,0 +1,32 @@
+name: cancel-on-close
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  cancel:
+    name: cancel the closed pull request's runs
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref != github.event.repository.default_branch }}
+    timeout-minutes: 5
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel queued and running runs on the head branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          SELF: ${{ github.workflow }}
+        run: |
+          set -euo pipefail
+          gh run list --branch "$HEAD_REF" --limit 200 --json databaseId,status,workflowName \
+            --jq '.[] | select(.status != "completed" and .workflowName != $ENV.SELF) | "\(.databaseId) \(.workflowName)"' |
+            while read -r id workflow; do
+              echo "cancel $workflow run $id on $HEAD_REF"
+              gh run cancel "$id" || echo "::warning::could not cancel $workflow run $id"
+            done

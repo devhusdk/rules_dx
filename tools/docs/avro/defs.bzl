@@ -79,7 +79,7 @@ docs_avro_shard = rule(
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:avro_extract"),
             executable = True,
         ),
     },

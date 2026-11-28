@@ -19,7 +19,7 @@ def _dart_docs_shard(target, ctx):
     root = own.package_root + "/lib/" if own.package_root else "lib/"
     if ctx.toolchains[_DART_TOOLCHAIN] == None or not [f for f in info.srcs if repo_relative_path(f.short_path).startswith(root) and f.extension == "dart"]:
         return None
-    return dart_shard_action(ctx, info, own.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_extract).shard
+    return dart_shard_action(ctx, info, own.package_name, "_dx_docs/" + ctx.label.name, ctx.executable._dart_doc, ctx.executable._dart_extract).shard
 
 def _real_dart_docs_aspect_impl(target, ctx):
     shard = _dart_docs_shard(target, ctx)
@@ -31,9 +31,14 @@ real_dart_docs_aspect = aspect(
     implementation = _real_dart_docs_aspect_impl,
     doc = "Puts the Dart docs shard of a target in dx_results and dx_docs_shards.",
     attrs = {
+        "_dart_doc": attr.label(
+            cfg = "exec",
+            default = Label("@dx_prebuilt//dx:dart_doc"),
+            executable = True,
+        ),
         "_dart_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:dart_extract"),
             executable = True,
         ),
     },

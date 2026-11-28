@@ -32,7 +32,7 @@ real_python_docs_aspect = aspect(
         ),
         "_py_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:python_extract"),
             executable = True,
         ),
     },

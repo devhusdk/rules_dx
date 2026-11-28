@@ -34,7 +34,7 @@ real_powershell_docs_aspect = aspect(
         ),
         "_pwsh_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:powershell_extract"),
             executable = True,
         ),
         "_pwsh_script": attr.label(

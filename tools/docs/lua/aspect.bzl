@@ -26,7 +26,7 @@ real_lua_docs_aspect = aspect(
     attrs = {
         "_lua_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:lua_extract"),
             executable = True,
         ),
         "_lua_filter": attr.label(

@@ -112,7 +112,7 @@ docs_fortran_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:fortran_extract"),
             executable = True,
         ),
     },

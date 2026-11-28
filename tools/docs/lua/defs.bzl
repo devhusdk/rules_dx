@@ -102,7 +102,7 @@ docs_lua_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:lua_extract"),
             executable = True,
         ),
         "_filter": attr.label(

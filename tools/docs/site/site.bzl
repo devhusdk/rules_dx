@@ -122,7 +122,7 @@ def _docs_api_impl(ctx):
     args.add("--api-tree", tree.path)
     args.add("--records", records)
     ctx.actions.run(
-        executable = ctx.executable._dx,
+        executable = ctx.executable._aggregate,
         arguments = [args],
         inputs = shards,
         outputs = [tree, summary, api, records],
@@ -131,7 +131,7 @@ def _docs_api_impl(ctx):
     )
     checked = ctx.actions.declare_file(name + ".checked")
     check = ctx.actions.args()
-    check.add(ctx.executable._dx)
+    check.add(ctx.executable._check)
     check.add(checked)
     check.add("site_check")
     check.add("--book", ctx.file.book_toml)
@@ -144,7 +144,7 @@ def _docs_api_impl(ctx):
         command = "check=$1; out=$2; shift 2; \"$check\" \"$@\" && : > \"$out\"",
         arguments = [check],
         inputs = shards + ctx.files.prose + [ctx.file.book_toml, api, records],
-        tools = [ctx.executable._dx],
+        tools = [ctx.executable._check],
         outputs = [checked],
         mnemonic = "DxDocsCheck",
         progress_message = "Checking the links of %{label}",
@@ -175,9 +175,14 @@ def _docs_api_attrs(aspects):
         "prose": attr.label_list(doc = "The prose pages beside the API reference.", allow_files = [".md"], mandatory = True),
         "libraries": attr.label_list(doc = "The libraries to document, or targets that already return a DocsShardInfo.", mandatory = True, aspects = aspects),
         "source_url": attr.string(doc = "URL prefix that source paths link under."),
-        "_dx": attr.label(
+        "_aggregate": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:site_aggregate"),
+            executable = True,
+        ),
+        "_check": attr.label(
+            cfg = "exec",
+            default = Label("@dx_prebuilt//dx:site_check"),
             executable = True,
         ),
     }

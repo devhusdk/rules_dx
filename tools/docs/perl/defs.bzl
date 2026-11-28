@@ -100,7 +100,7 @@ docs_perl_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:perl_extract"),
             executable = True,
         ),
     },

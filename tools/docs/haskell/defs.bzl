@@ -120,7 +120,7 @@ haskell_doc_shard = rule(
         "package": attr.string(doc = "Package name for haddock and the symbol ids. Defaults to the lib name."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:haskell_extract"),
             executable = True,
         ),
     },

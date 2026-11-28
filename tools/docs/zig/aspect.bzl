@@ -31,7 +31,7 @@ real_zig_docs_aspect = aspect(
         ),
         "_zig_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:zig_extract"),
             executable = True,
         ),
     },

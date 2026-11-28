@@ -56,7 +56,7 @@ real_typescript_docs_aspect = aspect(
     attrs = {
         "_ts_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:typescript_extract"),
             executable = True,
         ),
         "_typedoc": attr.label(

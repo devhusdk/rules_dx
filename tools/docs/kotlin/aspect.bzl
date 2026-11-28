@@ -13,7 +13,7 @@ real_kotlin_docs_aspect = aspect(
     attrs = {
         "_jvm_convert": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:jvm_convert"),
             executable = True,
         ),
         "_kotlin_extract": attr.label(

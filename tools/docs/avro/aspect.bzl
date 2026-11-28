@@ -24,7 +24,7 @@ real_avro_docs_aspect = aspect(
     attrs = {
         "_avro_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:avro_extract"),
             executable = True,
         ),
         "_avro_tools": attr.label(

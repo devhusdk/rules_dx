@@ -25,7 +25,7 @@ real_haskell_docs_aspect = aspect(
     attrs = {
         "_haskell_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:haskell_extract"),
             executable = True,
         ),
     },

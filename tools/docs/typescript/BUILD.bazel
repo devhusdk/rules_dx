@@ -27,12 +27,12 @@ rust_test(
     data = [
         "//tools/docs/typescript/fixture:geometry_docs",
         "//tools/docs/typescript/fixture:geometry_docs.typedoc.json",
-        "@dx_prebuilt//:dx",
+        "@dx_prebuilt//dx:typescript_extract",
     ],
     env = {
         "DX_FIXTURE_SHARD": "$(rootpath //tools/docs/typescript/fixture:geometry_docs)",
         "DX_FIXTURE_TYPEDOC": "$(rootpath //tools/docs/typescript/fixture:geometry_docs.typedoc.json)",
-        "DX_TYPESCRIPT_EXTRACT": "$(rootpath @dx_prebuilt//:dx)",
+        "DX_TYPESCRIPT_EXTRACT": "$(rootpath @dx_prebuilt//dx:typescript_extract)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],

@@ -34,7 +34,7 @@ real_rust_docs_aspect = aspect(
     attrs = {
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:rust_extract"),
             executable = True,
         ),
         "_process_wrapper": attr.label(

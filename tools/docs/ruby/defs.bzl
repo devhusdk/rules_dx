@@ -176,7 +176,7 @@ docs_ruby_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:ruby_extract"),
             executable = True,
         ),
         "_yard": attr.label(

@@ -82,7 +82,7 @@ docs_go_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:go_extract"),
             executable = True,
         ),
     },

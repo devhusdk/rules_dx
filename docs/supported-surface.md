@@ -7618,6 +7618,7 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
 | `@rules_dx//cli/ocaml_cc_driver:ocaml_dune` | `rust_binary` |
 | `@rules_dx//cli/prebuilt:guard_stub` | `cc_binary` |
+| `@rules_dx//cli/release_tree:release_tree_subcommand` | `rust_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
 | `@rules_dx//core/quality/capture:capture` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |

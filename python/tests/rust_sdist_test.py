@@ -1,6 +1,7 @@
 """Builds rpds-py from its sdist offline on linux x86_64 and windows x86_64."""
 
 import hashlib
+import importlib
 import os
 import pathlib
 import struct
@@ -19,7 +20,7 @@ def pe_imports(data: bytes) -> list[str]:
     magic = struct.unpack_from("<H", data, opt)[0]
     dirs = opt + (112 if magic == 0x20B else 96)
     rva = struct.unpack_from("<I", data, dirs + 8)[0]
-    sections = []
+    sections: list[tuple[int, int, int]] = []
     for i in range(nsections):
         _, vsize, va, rawsize, raw = struct.unpack_from("<8sIIII", data, opt + opt_size + 40 * i)
         sections.append((va, max(vsize, rawsize), raw))
@@ -51,6 +52,7 @@ class RustSdistTest(unittest.TestCase):
 
     def test_installed_from_source(self):
         wheel = metadata.distribution("rpds-py").read_text("WHEEL")
+        assert wheel is not None, "rpds-py has no WHEEL file"
         tags = [line for line in wheel.splitlines() if line.startswith("Tag:")]
         self.assertTrue(tags)
         platform = "win_amd64" if sys.platform == "win32" else "linux_x86_64"
@@ -62,20 +64,23 @@ class RustSdistTest(unittest.TestCase):
         dist = metadata.distribution("rpds-py")
         self.assertEqual(dist.version, "2026.9.1")
         record = dist.read_text("RECORD")
+        assert record is not None, "rpds-py has no RECORD file"
         print("wheel RECORD sha256", hashlib.sha256(record.encode()).hexdigest())
         self.assertIn("rpds/__init__.py", record)
 
     @unittest.skipUnless(sys.platform == "win32", "PE imports only exist on Windows")
     def test_windows_extension_imports(self):
-        from rpds import rpds
+        # rpds.rpds is the compiled extension; the package stub does not export it.
+        pyd = importlib.import_module("rpds.rpds").__file__
+        assert pyd is not None, "rpds.rpds has no __file__"
 
-        data = pathlib.Path(rpds.__file__).read_bytes()
+        data = pathlib.Path(pyd).read_bytes()
         dlls = pe_imports(data)
-        print("pyd", rpds.__file__)
+        print("pyd", pyd)
         print("pyd sha256", hashlib.sha256(data).hexdigest())
         print("ext suffix", sysconfig.get_config_var("EXT_SUFFIX"))
         print("imports", dlls)
-        self.assertTrue(rpds.__file__.endswith(sysconfig.get_config_var("EXT_SUFFIX")))
+        self.assertTrue(pyd.endswith(sysconfig.get_config_var("EXT_SUFFIX")))
         self.assertTrue(any(d.startswith("python3") for d in dlls), dlls)
         self.assertIn("vcruntime140.dll", dlls)
 

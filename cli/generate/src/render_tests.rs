@@ -156,7 +156,7 @@ fn renders_standard() {
     == .dx/config/ruff/base.toml
     <standard tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <standard tier>
     == BUILD.bazel
     exports_files(["README.md"])
 
@@ -216,7 +216,7 @@ fn renders_strict() {
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <strict tier>
     == BUILD.bazel
     exports_files(["README.md"])
 
@@ -335,7 +335,7 @@ fn renders_no_dx_toml() {
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <strict tier>
     == .dx/config/yamlfmt/base.yaml
     <standard and strict tier>
     "#);
@@ -408,7 +408,7 @@ fn renders_existing_exports() {
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <strict tier>
     == .dx/config/yamlfmt/base.yaml
     <standard and strict tier>
     == BUILD
@@ -470,7 +470,7 @@ fn renders_no_root_build() {
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <strict tier>
     == BUILD.bazel
     # dx:begin exports
     exports_files(
@@ -533,7 +533,7 @@ fn renders_mixed_tiers() {
     == .dx/config/ruff/base.toml
     <strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <standard tier>
     == BUILD.bazel
     exports_files(["README.md"])
 
@@ -631,7 +631,7 @@ fn renders_rust() {
     == .dx/config/gitleaks/base.toml
     <standard and strict tier>
     == .dx/config/typos/base.toml
-    <standard and strict tier>
+    <standard tier>
     "#);
 }
 

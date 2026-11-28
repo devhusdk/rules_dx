@@ -7,7 +7,6 @@ load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//dotnet/private/coverage:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 load("//dotnet/private:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
-load(":proto.bzl", "csharp_proto_srcs")
 load("//dotnet/private:sharpfuzz.bzl", "sharpfuzz_fuzz")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 
@@ -78,23 +77,6 @@ _csharp_forward_test = dx_executable_forward_rule(
         coverage_providers = dx_dotnet_test_coverage,
     ),
 )
-
-def csharp_proto_library(name, proto, deps = None, visibility = None, **kwargs):
-    """Compiles a proto_library to C# with protoc; deps should hold Google.Protobuf."""
-    csharp_proto_srcs(
-        name = name + "_srcs",
-        proto = proto,
-        visibility = ["//visibility:private"],
-        tags = kwargs.get("tags", None),
-        testonly = kwargs.get("testonly", None),
-    )
-    csharp_library(
-        name = name,
-        srcs = [":" + name + "_srcs"],
-        deps = deps,
-        visibility = visibility,
-        **kwargs
-    )
 
 def csharp_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over csharp_library; target_frameworks defaults to net10.0, out defaults to name and warnings are errors."""

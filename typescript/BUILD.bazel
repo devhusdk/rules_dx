@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "defs.bzl",
     "extensions.bzl",
+    "proto.bzl",
     "README.md",
     "lang.json",
     "pins.json",
@@ -20,6 +21,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "proto.bzl",
     ],
     tags = ["corpus"],
 )

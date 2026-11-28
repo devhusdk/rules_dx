@@ -18,7 +18,6 @@ load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
 load("//typescript/private/quality:tsc_gate.bzl", "tsc_gate")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
-load(":proto.bzl", "ts_proto_srcs")
 
 visibility(["//..."])
 
@@ -294,25 +293,6 @@ def typescript_library(name, srcs = None, declaration_srcs = None, visibility = 
 def typescript_config(name, **kwargs):
     """Declares a tsconfig.json target over ts_config; takes the same attributes and provides TsConfigInfo."""
     _ts_config(name = name, **kwargs)
-
-def typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs):
-    """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package."""
-    ts_proto_srcs(
-        name = name + "_srcs",
-        proto = proto,
-        visibility = ["//visibility:private"],
-        tags = kwargs.get("tags", None),
-        testonly = kwargs.get("testonly", None),
-    )
-    if kwargs.get("tsconfig", None) != None and kwargs.get("isolated_typecheck", None) == None:
-        kwargs["isolated_typecheck"] = False
-    typescript_library(
-        name = name,
-        srcs = [":" + name + "_srcs"],
-        deps = deps,
-        visibility = visibility,
-        **kwargs
-    )
 
 _typescript_binary_forward = dx_executable_forward_rule(
     _TYPESCRIPT,

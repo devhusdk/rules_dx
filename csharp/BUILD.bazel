@@ -8,6 +8,7 @@ filegroup(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "proto.bzl",
         "//csharp/private:module_srcs",
         "//csharp/private/ide:module_srcs",
         "//csharp/private/lock:module_srcs",
@@ -21,6 +22,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "proto.bzl",
     ],
     tags = ["corpus"],
 )
@@ -37,6 +39,7 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
+    "proto.bzl",
 ])
 
 exports_files(

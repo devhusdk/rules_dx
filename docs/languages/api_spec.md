@@ -117,6 +117,8 @@ Generates one self-contained TypeScript client from an OpenAPI root of an api_sp
 
 ### `api_spec_protobuf_doc_shard`
 
+Load it from `@rules_dx//api_spec:proto.bzl`.
+
 ```python
 api_spec_protobuf_doc_shard(name, proto, package = "", **kwargs)
 ```

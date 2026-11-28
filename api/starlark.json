@@ -541,34 +541,7 @@
   {
     "aspects": [],
     "extensions": [],
-    "functions": [
-      {
-        "forwards": [],
-        "name": "api_spec_protobuf_doc_shard",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "package"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      }
-    ],
+    "functions": [],
     "load": "@rules_dx//api_spec:defs.bzl",
     "macros": [],
     "providers": [
@@ -768,6 +741,43 @@
         "test": false
       }
     ]
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "api_spec_protobuf_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//api_spec:proto.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
   },
   {
     "aspects": [],
@@ -5743,37 +5753,6 @@
         ]
       },
       {
-        "forwards": [],
-        "name": "csharp_proto_library",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "deps"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "visibility"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
         "forwards": [
           {
             "attrs": [
@@ -5857,6 +5836,48 @@
     ],
     "functions": [],
     "load": "@rules_dx//csharp:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "csharp_proto_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//csharp:proto.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],
@@ -20953,37 +20974,6 @@
       },
       {
         "forwards": [],
-        "name": "typescript_proto_library",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "deps"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "visibility"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
-        "forwards": [],
         "name": "typescript_test",
         "params": [
           {
@@ -21084,6 +21074,48 @@
     ],
     "functions": [],
     "load": "@rules_dx//typescript:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "typescript_proto_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//typescript:proto.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],

@@ -2,6 +2,7 @@
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//cli/exec_os:defs.bzl", "ExecOsInfo")
+load(":defs.bzl", "csharp_library")
 
 _PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
 
@@ -74,3 +75,20 @@ csharp_proto_srcs = rule(
     toolchains = [config_common.toolchain_type(_PROTO_TOOLCHAIN, mandatory = True)],
     doc = "Generates the <Name>.cs files of one proto_library.",
 )
+
+def csharp_proto_library(name, proto, deps = None, visibility = None, **kwargs):
+    """Compiles a proto_library to C# with protoc; deps should hold Google.Protobuf."""
+    csharp_proto_srcs(
+        name = name + "_srcs",
+        proto = proto,
+        visibility = ["//visibility:private"],
+        tags = kwargs.get("tags", None),
+        testonly = kwargs.get("testonly", None),
+    )
+    csharp_library(
+        name = name,
+        srcs = [":" + name + "_srcs"],
+        deps = deps,
+        visibility = visibility,
+        **kwargs
+    )

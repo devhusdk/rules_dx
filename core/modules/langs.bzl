@@ -177,7 +177,7 @@ LANGS = json.decode("""{
           "real_protobuf_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/generation.bzl",
+      "bzl": "core/quality:families/protobuf.bzl",
       "classes": [
         "api_spec",
         "api_spec_ref"
@@ -187,13 +187,13 @@ LANGS = json.decode("""{
       ],
       "probes": {
         "format": [
-          "real_generation_format_probe_aspect"
+          "real_protobuf_format_probe_aspect"
         ],
         "lint": [
-          "real_generation_lint_probe_aspect"
+          "real_protobuf_lint_probe_aspect"
         ],
         "typecheck": [
-          "real_generation_typecheck_probe_aspect"
+          "real_protobuf_typecheck_probe_aspect"
         ]
       }
     },
@@ -386,7 +386,15 @@ LANGS = json.decode("""{
       ],
       "file_extensions": [
         ".avsc"
-      ]
+      ],
+      "probes": {
+        "lint": [
+          "real_generation_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_generation_typecheck_probe_aspect"
+        ]
+      }
     },
     "title": "Avro",
     "tools": [

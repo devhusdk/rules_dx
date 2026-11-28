@@ -12,6 +12,7 @@ package(default_visibility = [
 exports_files([
     "defs.bzl",
     "kwargs.bzl",
+    "proto.bzl",
 ])
 
 js_build_tool(

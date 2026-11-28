@@ -347,8 +347,8 @@ Language rules:
 
 - `@rules_dx//android:defs.bzl`: Android libraries.
 - `@rules_dx//ansible:defs.bzl`: Ansible.
-- `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs, and
-  `api_spec_protobuf_doc_shard` for Protobuf API docs.
+- `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs.
+- `@rules_dx//api_spec:proto.bzl`: `api_spec_protobuf_doc_shard` for Protobuf API docs.
 - `@rules_dx//apple:defs.bzl`: iOS apps, tests, frameworks and libraries, and macOS apps.
 - `@rules_dx//asciidoc:defs.bzl`: AsciiDoc.
 - `@rules_dx//astro:defs.bzl`: Astro.
@@ -498,10 +498,10 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_go_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_library` |
-|  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_protobuf_doc_shard` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_python_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_rust_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_typescript_client` |
+|  |  | `@rules_dx//api_spec:proto.bzl` | `api_spec_protobuf_doc_shard` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `AppImageInfo` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_ios_export` |
@@ -534,7 +534,7 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_bench` |
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_doc_shard` |
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_fuzz_test` |
-|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_proto_library` |
+|  |  | `@rules_dx//csharp:proto.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_binary` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_component_library` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_doc_shard` |
@@ -690,7 +690,7 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_doc_shard` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_playwright_test` |
-|  |  | `@rules_dx//typescript:defs.bzl` | `typescript_proto_library` |
+|  |  | `@rules_dx//typescript:proto.bzl` | `typescript_proto_library` |
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_build` |
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_doc_shard` |
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_test` |

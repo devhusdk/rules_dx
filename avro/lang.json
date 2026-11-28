@@ -39,6 +39,14 @@
       "typecheck": [
         "real_avro_typecheck_aspect"
       ]
+    },
+    "probes": {
+      "lint": [
+        "real_generation_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_generation_typecheck_probe_aspect"
+      ]
     }
   },
   "docs": {

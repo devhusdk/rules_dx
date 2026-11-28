@@ -961,6 +961,14 @@ Rule.
 | `root` | `label` | no | `None` |
 | `spec` | `label` | yes |  |
 
+#### `ApiSpecInfo`
+
+Provider.
+
+Fields: `files`, `roots`.
+
+### `@rules_dx//api_spec:proto.bzl`
+
 #### `api_spec_protobuf_doc_shard`
 
 Macro or function.
@@ -971,12 +979,6 @@ Macro or function.
 | `proto` | yes |  |
 | `package` | no | `""` |
 | `kwargs` | no |  |
-
-#### `ApiSpecInfo`
-
-Provider.
-
-Fields: `files`, `roots`.
 
 ### `@rules_dx//appimage:defs.bzl`
 
@@ -2715,18 +2717,6 @@ Macro or function.
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
-#### `csharp_proto_library`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
-| `deps` | no | `None` |
-| `visibility` | no | `None` |
-| `kwargs` | no |  |
-
 #### `csharp_test`
 
 Macro or function.
@@ -2750,6 +2740,20 @@ Tag `nuget.lock`:
 | --- | --- | --- | --- |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
+
+### `@rules_dx//csharp:proto.bzl`
+
+#### `csharp_proto_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
 
 ### `@rules_dx//cuda:defs.bzl`
 
@@ -7230,18 +7234,6 @@ Macro or function.
 | `env_inherit` | no | `None` |
 | `kwargs` | no |  |
 
-#### `typescript_proto_library`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
-| `deps` | no | `None` |
-| `visibility` | no | `None` |
-| `kwargs` | no |  |
-
 #### `typescript_test`
 
 Macro or function.
@@ -7277,6 +7269,20 @@ No tags.
 Module extension.
 
 No tags.
+
+### `@rules_dx//typescript:proto.bzl`
+
+#### `typescript_proto_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
 
 ### `@rules_dx//vue:defs.bzl`
 

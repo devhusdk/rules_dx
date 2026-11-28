@@ -11,7 +11,7 @@ load("//core/quality:compile_check.bzl", "COMPILE_CHECK_TOOLS", "compile_check_h
 load("//core/quality:families/core.bzl", _CORE_HOOKS = "HOOKS", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS", _real_biome_format_aspect = "real_biome_format_aspect", _real_biome_lint_aspect = "real_biome_lint_aspect", _real_docstrfmt_format_aspect = "real_docstrfmt_format_aspect", _real_format_aspect = "real_format_aspect", _real_lint_aspect = "real_lint_aspect", _real_typecheck_aspect = "real_typecheck_aspect", _real_vale_lint_aspect = "real_vale_lint_aspect")
 load("//core/quality:families/core_probe.bzl", _real_core_format_probe_aspect = "real_core_format_probe_aspect", _real_core_lint_probe_aspect = "real_core_lint_probe_aspect", _real_core_typecheck_probe_aspect = "real_core_typecheck_probe_aspect")
 load("//core/quality:families/cue.bzl", _CUE_HOOKS = "HOOKS", _CUE_SHARD_SPECS = "SHARD_SPECS", _CUE_TOOLS = "TOOLS", _real_cue_format_aspect = "real_cue_format_aspect", _real_cue_typecheck_aspect = "real_cue_typecheck_aspect")
-load("//core/quality:families/generation.bzl", _GENERATION_HOOKS = "HOOKS", _GENERATION_RECOGNIZERS = "RECOGNIZERS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_format_probe_aspect = "real_generation_format_probe_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
+load("//core/quality:families/generation.bzl", _GENERATION_HOOKS = "HOOKS", _GENERATION_SHARD_SPECS = "SHARD_SPECS", _GENERATION_TOOLS = "TOOLS", _real_avro_lint_aspect = "real_avro_lint_aspect", _real_avro_typecheck_aspect = "real_avro_typecheck_aspect", _real_capnp_lint_aspect = "real_capnp_lint_aspect", _real_capnp_typecheck_aspect = "real_capnp_typecheck_aspect", _real_flatbuffers_lint_aspect = "real_flatbuffers_lint_aspect", _real_flatbuffers_typecheck_aspect = "real_flatbuffers_typecheck_aspect", _real_generation_lint_probe_aspect = "real_generation_lint_probe_aspect", _real_generation_typecheck_probe_aspect = "real_generation_typecheck_probe_aspect", _real_thrift_lint_aspect = "real_thrift_lint_aspect", _real_thrift_typecheck_aspect = "real_thrift_typecheck_aspect")
 load("//core/quality:families/html_template.bzl", _HTML_TEMPLATE_HOOKS = "HOOKS", _HTML_TEMPLATE_SHARD_SPECS = "SHARD_SPECS", _HTML_TEMPLATE_TOOLS = "TOOLS", _real_html_template_format_aspect = "real_html_template_format_aspect", _real_html_template_lint_aspect = "real_html_template_lint_aspect")
 load("//core/quality:families/jsonnet.bzl", _JSONNET_HOOKS = "HOOKS", _JSONNET_SHARD_SPECS = "SHARD_SPECS", _JSONNET_TOOLS = "TOOLS", _real_jsonnet_format_aspect = "real_jsonnet_format_aspect", _real_jsonnet_lint_aspect = "real_jsonnet_lint_aspect")
 load("//core/quality:families/latex.bzl", _LATEX_HOOKS = "HOOKS", _LATEX_SHARD_SPECS = "SHARD_SPECS", _LATEX_TOOLS = "TOOLS", _real_latex_format_aspect = "real_latex_format_aspect", _real_latex_lint_aspect = "real_latex_lint_aspect")
@@ -19,6 +19,7 @@ load("//core/quality:families/nix.bzl", _NIX_HOOKS = "HOOKS", _NIX_SHARD_SPECS =
 load("//core/quality:families/oci_image.bzl", _OCI_IMAGE_HOOKS = "HOOKS", _OCI_IMAGE_SHARD_SPECS = "SHARD_SPECS", _OCI_IMAGE_TOOLS = "TOOLS", _real_oci_image_lint_aspect = "real_oci_image_lint_aspect", _real_oci_image_typecheck_aspect = "real_oci_image_typecheck_aspect")
 load("//core/quality:families/php.bzl", _PHP_HOOKS = "HOOKS", _PHP_SHARD_SPECS = "SHARD_SPECS", _PHP_TOOLS = "TOOLS", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_lint_probe_aspect = "real_php_lint_probe_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _real_php_typecheck_probe_aspect = "real_php_typecheck_probe_aspect")
 load("//core/quality:families/pkl.bzl", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect")
+load("//core/quality:families/protobuf.bzl", _PROTOBUF_HOOKS = "HOOKS", _PROTOBUF_RECOGNIZERS = "RECOGNIZERS", _PROTOBUF_SHARD_SPECS = "SHARD_SPECS", _PROTOBUF_TOOLS = "TOOLS", _real_protobuf_format_aspect = "real_protobuf_format_aspect", _real_protobuf_format_probe_aspect = "real_protobuf_format_probe_aspect", _real_protobuf_lint_aspect = "real_protobuf_lint_aspect", _real_protobuf_lint_probe_aspect = "real_protobuf_lint_probe_aspect", _real_protobuf_typecheck_aspect = "real_protobuf_typecheck_aspect", _real_protobuf_typecheck_probe_aspect = "real_protobuf_typecheck_probe_aspect")
 load("//core/quality:families/shell.bzl", _SHELL_HOOKS = "HOOKS", _SHELL_SHARD_SPECS = "SHARD_SPECS", _SHELL_TOOLS = "TOOLS", _real_shell_format_aspect = "real_shell_format_aspect", _real_shell_lint_aspect = "real_shell_lint_aspect")
 load("//core/quality:families/text.bzl", _TEXT_HOOKS = "HOOKS", _TEXT_SHARD_SPECS = "SHARD_SPECS", _TEXT_TOOLS = "TOOLS", _real_text_lint_aspect = "real_text_lint_aspect")
 load("//core/quality:families/typst.bzl", _TYPST_HOOKS = "HOOKS", _TYPST_SHARD_SPECS = "SHARD_SPECS", _TYPST_TOOLS = "TOOLS", _real_typst_format_aspect = "real_typst_format_aspect", _real_typst_lint_aspect = "real_typst_lint_aspect")
@@ -163,17 +164,9 @@ real_flatbuffers_lint_aspect = _real_flatbuffers_lint_aspect
 
 real_flatbuffers_typecheck_aspect = _real_flatbuffers_typecheck_aspect
 
-real_generation_format_probe_aspect = _real_generation_format_probe_aspect
-
 real_generation_lint_probe_aspect = _real_generation_lint_probe_aspect
 
 real_generation_typecheck_probe_aspect = _real_generation_typecheck_probe_aspect
-
-real_protobuf_format_aspect = _real_protobuf_format_aspect
-
-real_protobuf_lint_aspect = _real_protobuf_lint_aspect
-
-real_protobuf_typecheck_aspect = _real_protobuf_typecheck_aspect
 
 real_thrift_lint_aspect = _real_thrift_lint_aspect
 
@@ -210,6 +203,18 @@ real_php_typecheck_probe_aspect = _real_php_typecheck_probe_aspect
 real_pkl_format_aspect = _real_pkl_format_aspect
 
 real_pkl_typecheck_aspect = _real_pkl_typecheck_aspect
+
+real_protobuf_format_aspect = _real_protobuf_format_aspect
+
+real_protobuf_format_probe_aspect = _real_protobuf_format_probe_aspect
+
+real_protobuf_lint_aspect = _real_protobuf_lint_aspect
+
+real_protobuf_lint_probe_aspect = _real_protobuf_lint_probe_aspect
+
+real_protobuf_typecheck_aspect = _real_protobuf_typecheck_aspect
+
+real_protobuf_typecheck_probe_aspect = _real_protobuf_typecheck_probe_aspect
 
 real_shell_format_aspect = _real_shell_format_aspect
 
@@ -587,9 +592,9 @@ real_zig_typecheck_probe_aspect = _real_zig_typecheck_probe_aspect
 # END GENERATED LANG ASPECT EXPORTS
 
 # BEGIN GENERATED FAMILY TABLES
-_FAMILY_TOOLS = _ANDROID_SDK_TOOLS | _ANSIBLE_TOOLS | _BICEP_TOOLS | _CC_TOOLS | _CLOUDFORMATION_TOOLS | _CMAKE_TOOLS | _CORE_TOOLS | _CUE_TOOLS | _GENERATION_TOOLS | _HTML_TEMPLATE_TOOLS | _JSONNET_TOOLS | _LATEX_TOOLS | _NIX_TOOLS | _OCI_IMAGE_TOOLS | _PHP_TOOLS | _PKL_TOOLS | _SHELL_TOOLS | _TEXT_TOOLS | _TYPST_TOOLS | _XML_TOOLS | _YAML_TOOLS | _D_TOOLS | _DART_TOOLS | _DOCKERFILE_TOOLS | _DOTNET_TOOLS | _BEAM_TOOLS | _FORTRAN_TOOLS | _GO_TOOLS | _HASKELL_TOOLS | _JVM_TOOLS | _JS_TOOLS | _JULIA_TOOLS | _KOTLIN_TOOLS | _KUBERNETES_TOOLS | _LUA_TOOLS | _MAKE_TOOLS | _OCAML_TOOLS | _PERL_TOOLS | _POWERSHELL_TOOLS | _PYTHON_TOOLS | _REGO_TOOLS | _RUBY_TOOLS | _RUST_TOOLS | _SCALA_TOOLS | _SQL_TOOLS | _SWIFT_TOOLS | _TERRAFORM_TOOLS | _ZIG_TOOLS
-_FAMILY_SHARD_SPECS = _ANDROID_SDK_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _BICEP_SHARD_SPECS | _CC_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _CMAKE_SHARD_SPECS | _CORE_SHARD_SPECS | _CUE_SHARD_SPECS | _GENERATION_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _JSONNET_SHARD_SPECS | _LATEX_SHARD_SPECS | _NIX_SHARD_SPECS | _OCI_IMAGE_SHARD_SPECS | _PHP_SHARD_SPECS | _PKL_SHARD_SPECS | _SHELL_SHARD_SPECS | _TEXT_SHARD_SPECS | _TYPST_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _DOTNET_SHARD_SPECS | _BEAM_SHARD_SPECS | _FORTRAN_SHARD_SPECS | _GO_SHARD_SPECS | _HASKELL_SHARD_SPECS | _JVM_SHARD_SPECS | _JS_SHARD_SPECS | _JULIA_SHARD_SPECS | _KOTLIN_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _LUA_SHARD_SPECS | _MAKE_SHARD_SPECS | _OCAML_SHARD_SPECS | _PERL_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _PYTHON_SHARD_SPECS | _REGO_SHARD_SPECS | _RUBY_SHARD_SPECS | _RUST_SHARD_SPECS | _SCALA_SHARD_SPECS | _SQL_SHARD_SPECS | _SWIFT_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _ZIG_SHARD_SPECS
-_FAMILY_HOOKS = _ANDROID_SDK_HOOKS | _ANSIBLE_HOOKS | _BICEP_HOOKS | _CC_HOOKS | _CLOUDFORMATION_HOOKS | _CMAKE_HOOKS | _CORE_HOOKS | _CUE_HOOKS | _GENERATION_HOOKS | _HTML_TEMPLATE_HOOKS | _JSONNET_HOOKS | _LATEX_HOOKS | _NIX_HOOKS | _OCI_IMAGE_HOOKS | _PHP_HOOKS | _PKL_HOOKS | _SHELL_HOOKS | _TEXT_HOOKS | _TYPST_HOOKS | _XML_HOOKS | _YAML_HOOKS | _D_HOOKS | _DART_HOOKS | _DOCKERFILE_HOOKS | _DOTNET_HOOKS | _BEAM_HOOKS | _FORTRAN_HOOKS | _GO_HOOKS | _HASKELL_HOOKS | _JVM_HOOKS | _JS_HOOKS | _JULIA_HOOKS | _KOTLIN_HOOKS | _KUBERNETES_HOOKS | _LUA_HOOKS | _MAKE_HOOKS | _OCAML_HOOKS | _PERL_HOOKS | _POWERSHELL_HOOKS | _PYTHON_HOOKS | _REGO_HOOKS | _RUBY_HOOKS | _RUST_HOOKS | _SCALA_HOOKS | _SQL_HOOKS | _SWIFT_HOOKS | _TERRAFORM_HOOKS | _ZIG_HOOKS
+_FAMILY_TOOLS = _ANDROID_SDK_TOOLS | _ANSIBLE_TOOLS | _BICEP_TOOLS | _CC_TOOLS | _CLOUDFORMATION_TOOLS | _CMAKE_TOOLS | _CORE_TOOLS | _CUE_TOOLS | _GENERATION_TOOLS | _HTML_TEMPLATE_TOOLS | _JSONNET_TOOLS | _LATEX_TOOLS | _NIX_TOOLS | _OCI_IMAGE_TOOLS | _PHP_TOOLS | _PKL_TOOLS | _PROTOBUF_TOOLS | _SHELL_TOOLS | _TEXT_TOOLS | _TYPST_TOOLS | _XML_TOOLS | _YAML_TOOLS | _D_TOOLS | _DART_TOOLS | _DOCKERFILE_TOOLS | _DOTNET_TOOLS | _BEAM_TOOLS | _FORTRAN_TOOLS | _GO_TOOLS | _HASKELL_TOOLS | _JVM_TOOLS | _JS_TOOLS | _JULIA_TOOLS | _KOTLIN_TOOLS | _KUBERNETES_TOOLS | _LUA_TOOLS | _MAKE_TOOLS | _OCAML_TOOLS | _PERL_TOOLS | _POWERSHELL_TOOLS | _PYTHON_TOOLS | _REGO_TOOLS | _RUBY_TOOLS | _RUST_TOOLS | _SCALA_TOOLS | _SQL_TOOLS | _SWIFT_TOOLS | _TERRAFORM_TOOLS | _ZIG_TOOLS
+_FAMILY_SHARD_SPECS = _ANDROID_SDK_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _BICEP_SHARD_SPECS | _CC_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _CMAKE_SHARD_SPECS | _CORE_SHARD_SPECS | _CUE_SHARD_SPECS | _GENERATION_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _JSONNET_SHARD_SPECS | _LATEX_SHARD_SPECS | _NIX_SHARD_SPECS | _OCI_IMAGE_SHARD_SPECS | _PHP_SHARD_SPECS | _PKL_SHARD_SPECS | _PROTOBUF_SHARD_SPECS | _SHELL_SHARD_SPECS | _TEXT_SHARD_SPECS | _TYPST_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _DOTNET_SHARD_SPECS | _BEAM_SHARD_SPECS | _FORTRAN_SHARD_SPECS | _GO_SHARD_SPECS | _HASKELL_SHARD_SPECS | _JVM_SHARD_SPECS | _JS_SHARD_SPECS | _JULIA_SHARD_SPECS | _KOTLIN_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _LUA_SHARD_SPECS | _MAKE_SHARD_SPECS | _OCAML_SHARD_SPECS | _PERL_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _PYTHON_SHARD_SPECS | _REGO_SHARD_SPECS | _RUBY_SHARD_SPECS | _RUST_SHARD_SPECS | _SCALA_SHARD_SPECS | _SQL_SHARD_SPECS | _SWIFT_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _ZIG_SHARD_SPECS
+_FAMILY_HOOKS = _ANDROID_SDK_HOOKS | _ANSIBLE_HOOKS | _BICEP_HOOKS | _CC_HOOKS | _CLOUDFORMATION_HOOKS | _CMAKE_HOOKS | _CORE_HOOKS | _CUE_HOOKS | _GENERATION_HOOKS | _HTML_TEMPLATE_HOOKS | _JSONNET_HOOKS | _LATEX_HOOKS | _NIX_HOOKS | _OCI_IMAGE_HOOKS | _PHP_HOOKS | _PKL_HOOKS | _PROTOBUF_HOOKS | _SHELL_HOOKS | _TEXT_HOOKS | _TYPST_HOOKS | _XML_HOOKS | _YAML_HOOKS | _D_HOOKS | _DART_HOOKS | _DOCKERFILE_HOOKS | _DOTNET_HOOKS | _BEAM_HOOKS | _FORTRAN_HOOKS | _GO_HOOKS | _HASKELL_HOOKS | _JVM_HOOKS | _JS_HOOKS | _JULIA_HOOKS | _KOTLIN_HOOKS | _KUBERNETES_HOOKS | _LUA_HOOKS | _MAKE_HOOKS | _OCAML_HOOKS | _PERL_HOOKS | _POWERSHELL_HOOKS | _PYTHON_HOOKS | _REGO_HOOKS | _RUBY_HOOKS | _RUST_HOOKS | _SCALA_HOOKS | _SQL_HOOKS | _SWIFT_HOOKS | _TERRAFORM_HOOKS | _ZIG_HOOKS
 # END GENERATED FAMILY TABLES
 
 _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
@@ -646,7 +651,7 @@ _CFG = real_config(
     shard_specs = _FAMILY_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
-    source_recognizers = _GENERATION_RECOGNIZERS + [_RUST_RECOGNIZER, _CC_RECOGNIZER, _JVM_RECOGNIZER],
+    source_recognizers = _PROTOBUF_RECOGNIZERS + [_RUST_RECOGNIZER, _CC_RECOGNIZER, _JVM_RECOGNIZER],
     harness_sources = _RUST_HARNESS_SOURCES,
     toolchain = _RUST_TOOLCHAIN,
     check_policy = True,

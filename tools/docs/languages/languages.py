@@ -440,7 +440,7 @@ def api_docs(root, lang, rows, extra):
         out.append("There is no API doc tool for this language yet.\n")
         return with_readme(out, extra, "API docs")
     owner = shard_owner(root, shard)
-    source = "%s/defs.bzl" % owner if owner else shard_bzl(root, shard)
+    source = entry_bzl(root, owner, shard) if owner else shard_bzl(root, shard)
     path = source if owner or not core_exports(root, shard) else CORE_DEFS
     out.append(
         "`tools/dx docs` builds the API docs with `%s`; see [docs](../cli/commands/docs.md).\n"

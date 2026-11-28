@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: cancel-on-close-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cancel:
     name: cancel the closed pull request's runs

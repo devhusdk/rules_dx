@@ -17,23 +17,7 @@
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           {
-            "context": "check (linux_x86_64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "check (linux_arm64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "check (macos_arm64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "check (windows_x86_64)",
-            "integration_id": 15368
-          },
-          {
-            "context": "check (windows_arm64)",
+            "context": "ci",
             "integration_id": 15368
           }
         ]

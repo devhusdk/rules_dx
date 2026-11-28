@@ -12,7 +12,6 @@ rust_binary(
         "src/blocker_refs.rs",
         "src/evidence.rs",
         "src/evidence_inputs.rs",
-        "src/failing_labels.rs",
         "src/lock_merge.rs",
         "src/main.rs",
         "src/release_cell.rs",

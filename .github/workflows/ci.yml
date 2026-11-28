@@ -21,9 +21,69 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: changes (code, or docs only)
+    if: ${{ github.event_name != 'workflow_dispatch' && github.event.action != 'closed' }}
+    timeout-minutes: 5
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      statuses: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - name: Require settled evidence statuses
+        if: ${{ github.event_name == 'merge_group' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          sha="${HEAD_REF##*-}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "gate: no PR head sha in $HEAD_REF" >&2; exit 1; }
+          bad="$(gh api --paginate "repos/$REPO/commits/$sha/statuses" --jq '.[] | [.context, .state] | @tsv' \
+            | awk -F'\t' '$1 ~ /^evidence\// && !seen[$1]++ && $2 != "success" { print $1 " (" $2 ")" }')"
+          if [ -n "$bad" ]; then
+            echo "gate: evidence statuses not green on $sha:" >&2
+            echo "$bad" >&2
+            exit 1
+          fi
+      - name: Find whether the change touches more than docs
+        id: diff
+        env:
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          git init -q "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          if [ -n "$MERGE_GROUP_BASE" ]; then
+            git -C "$GITHUB_WORKSPACE" fetch -q --depth=1 --no-tags --filter=blob:none origin "$MERGE_GROUP_BASE" "$GITHUB_SHA"
+            base="$MERGE_GROUP_BASE"
+          else
+            git -C "$GITHUB_WORKSPACE" fetch -q --depth=2 --no-tags --filter=blob:none origin "$GITHUB_SHA"
+            base="$GITHUB_SHA^1"
+          fi
+          files="$(git -C "$GITHUB_WORKSPACE" diff --name-only --no-renames "$base" "$GITHUB_SHA")"
+          code=false
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            case "$path" in
+              */tests/* | */testdata/* | */fixtures/* | */fixture/* | */demo/*) code=true ;;
+              *.md) ;;
+              *) code=true ;;
+            esac
+            if [ "$code" = true ]; then
+              echo "changes: $path is not docs"
+              break
+            fi
+          done <<<"$files"
+          [ "$code" = true ] || echo "changes: docs only, the check jobs skip"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
   check:
     name: check (${{ matrix.platform }})
-    if: ${{ github.event.action != 'closed' }}
+    needs: [changes]
+    if: ${{ needs.changes.outputs.code == 'true' }}
     timeout-minutes: 60
     defaults:
       run:
@@ -46,27 +106,8 @@ jobs:
     env:
       GATE: ${{ matrix.platform == 'linux_x86_64' && 'check --coverage' || 'check' }}
     permissions:
-      actions: read
       contents: read
-      statuses: read
     steps:
-      - name: Require settled evidence statuses
-        if: ${{ github.event_name == 'merge_group' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_REF: ${{ github.event.merge_group.head_ref }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          sha="${HEAD_REF##*-}"
-          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "gate: no PR head sha in $HEAD_REF" >&2; exit 1; }
-          bad="$(gh api --paginate "repos/$REPO/commits/$sha/statuses" --jq '.[] | [.context, .state] | @tsv' \
-            | awk -F'\t' '$1 ~ /^evidence\// && !seen[$1]++ && $2 != "success" { print $1 " (" $2 ")" }')"
-          if [ -n "$bad" ]; then
-            echo "gate: evidence statuses not green on $sha:" >&2
-            echo "$bad" >&2
-            exit 1
-          fi
       - name: Check out files in parallel
         run: |
           git init "$GITHUB_WORKSPACE"
@@ -96,7 +137,7 @@ jobs:
         with:
           command: ${{ env.GATE }}
           lcov: ${{ runner.temp }}/coverage/lcov.info
-          baseline: check-${{ matrix.platform }}
+          name: check-${{ matrix.platform }}
       - name: Stop the Bazel server
         if: ${{ always() && runner.os == 'Windows' }}
         run: bazel shutdown
@@ -392,9 +433,10 @@ jobs:
           echo "Checked: pinned actionlint over every shipped workflow and consumer starter, plus the invalid fixture; bazel mod tidy." >> "$GITHUB_STEP_SUMMARY"
   ci:
     name: ci
-    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' }}
+    if: ${{ !cancelled() && github.event.action != 'closed' }}
     needs:
       [
+        changes,
         check,
         coverage-cells,
         dogfood,
@@ -404,20 +446,44 @@ jobs:
         workflow-check,
       ]
     timeout-minutes: 5
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Fail when a needed job did not succeed
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          CODE: ${{ needs.changes.outputs.code }}
           NEEDS_JSON: ${{ toJSON(needs) }}
+          CHANGES: ${{ needs.changes.result }}
+          CHECK: ${{ needs.check.result }}
+          COVERAGE_CELLS: ${{ needs.coverage-cells.result }}
+          DOGFOOD: ${{ needs.dogfood.result }}
+          ANALYSIS_SCALING: ${{ needs.analysis-scaling.result }}
+          IN_GRAPH_PREBUILT_GUARD: ${{ needs.in-graph-prebuilt-guard.result }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          WORKFLOW_CHECK: ${{ needs.workflow-check.result }}
         run: |
-          echo "ci: a needed job did not succeed"
-          echo "$NEEDS_JSON"
-          exit 1
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            required=("coverage-cells=$COVERAGE_CELLS" "dogfood=$DOGFOOD" "analysis-scaling=$ANALYSIS_SCALING" "in-graph-prebuilt-guard=$IN_GRAPH_PREBUILT_GUARD" "preflight=$PREFLIGHT" "workflow-check=$WORKFLOW_CHECK")
+          else
+            required=("changes=$CHANGES")
+            if [ "$CODE" = true ]; then
+              required+=("check=$CHECK")
+            fi
+          fi
+          bad=()
+          for pair in "${required[@]}"; do
+            [ "${pair#*=}" = success ] || bad+=("$pair")
+          done
+          if [ "${#bad[@]}" -gt 0 ]; then
+            echo "ci: a needed job did not succeed: ${bad[*]}"
+            echo "$NEEDS_JSON"
+            exit 1
+          fi
+          echo "ci: ${required[*]}"
       - name: Write job summary
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### ci — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Aggregate required check over every ci.yml job (branch-protection single gate; every needed job must succeed)." >> "$GITHUB_STEP_SUMMARY"
+          echo "The one required check. On pull requests and in the merge queue it needs changes and, unless the change is docs only, every check job. On dispatch it needs every dispatch job." >> "$GITHUB_STEP_SUMMARY"

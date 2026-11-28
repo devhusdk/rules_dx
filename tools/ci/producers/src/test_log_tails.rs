@@ -11,7 +11,7 @@ const TAIL_BYTES: usize = 16 * 1024;
 
 const GROUP_LIMIT: usize = 20;
 
-pub(crate) const PASSING_OUTCOMES: [&str; 3] = ["passed", "passed_after_retry", "no_cases"];
+const PASSING_OUTCOMES: [&str; 3] = ["passed", "passed_after_retry", "no_cases"];
 
 #[derive(Debug, PartialEq, Eq)]
 struct Failure {

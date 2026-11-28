@@ -1,4 +1,5 @@
 Upstream: none (rules_dx only: aliases the toolchain types and the abi constraint to rules_dx)
+diff --git a/zig/BUILD.bazel b/zig/BUILD.bazel
 --- a/zig/BUILD.bazel
 +++ b/zig/BUILD.bazel
 @@ -15,8 +15,9 @@
@@ -12,6 +13,7 @@ Upstream: none (rules_dx only: aliases the toolchain types and the abi constrain
      visibility = ["//visibility:public"],
  )
  
+diff --git a/zig/target/BUILD.bazel b/zig/target/BUILD.bazel
 --- a/zig/target/BUILD.bazel
 +++ b/zig/target/BUILD.bazel
 @@ -6,8 +6,9 @@
@@ -25,6 +27,7 @@ Upstream: none (rules_dx only: aliases the toolchain types and the abi constrain
      visibility = ["//visibility:public"],
  )
  
+diff --git a/zig/platforms/abi/BUILD.bazel b/zig/platforms/abi/BUILD.bazel
 --- a/zig/platforms/abi/BUILD.bazel
 +++ b/zig/platforms/abi/BUILD.bazel
 @@ -1,31 +1,32 @@

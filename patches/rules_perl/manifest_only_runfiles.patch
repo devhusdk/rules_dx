@@ -1,5 +1,6 @@
 Upstream: none (not yet sent upstream)
 diff --git a/perl/private/entrypoint.pl b/perl/private/entrypoint.pl
+diff --git a/perl/private/entrypoint.pl b/perl/private/entrypoint.pl
 --- a/perl/private/entrypoint.pl
 +++ b/perl/private/entrypoint.pl
 @@ -35,7 +35,7 @@

@@ -457,6 +457,7 @@ REAL_RESULT_CASES = [
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
     _cuda_tidy_case("clean", "clean", ["nvcc_syntax/clean.cu"], ["readability-else-after-return", "clang-diagnostic-error"]),
     _cuda_tidy_case("dirty", "tidy_dirty", ["nvcc_syntax/tidy_dirty.cu", "readability-else-after-return"], ["clang-diagnostic-error"]),
+    _cuda_tidy_case("header_only", "dep", ["nvcc_syntax/dep.cuh", "nvcc_syntax/host_only.cuh"], ["clang-diagnostic-error", "clang-diagnostic-pragma-once-outside-header"]),
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",

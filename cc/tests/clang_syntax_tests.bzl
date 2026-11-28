@@ -36,6 +36,11 @@ def clang_syntax_unit_tests(name, **kwargs):
                 ["-isystem", "external/curand/include"],
             ),
             expect_equal(
+                "CUDA: a header parsed as the main file does not warn about #pragma once",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-c", "a.cuh"], "a.cuh").argv[4:11],
+                ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "-Wno-builtin-macro-redefined", "-Wno-pragma-once-outside-header"],
+            ),
+            expect_equal(
                 "clang-tidy takes the config file right after the executable",
                 clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM, "q/.clang-tidy").argv[:5],
                 ["tidy", "--config-file=q/.clang-tidy", "--header-filter=", "a.c", "--"],

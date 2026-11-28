@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//cc:defs.bzl", "cc_objc_library")
+load("//cc:defs.bzl", "cc_objc_library", dx_cc_library = "cc_library")
 load("//core/quality:native_config.bzl", "clang_tidy_config")
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -85,6 +85,23 @@ cc_library(
     aspect_hints = [":tidy_config"],
     visibility = ["//core/quality:__pkg__"],
     tags = ["manual"],
+)
+
+genrule(
+    name = "generated_h",
+    outs = ["generated.h"],
+    cmd = "printf '#define GENERATED 1\\n' > $@",
+)
+
+dx_cc_library(
+    name = "forwarded",
+    srcs = ["clean.c"],
+    hdrs = [
+        "dep.h",
+        ":generated_h",
+    ],
+    copts = ["-DCLEAN_OFFSET=1"],
+    visibility = ["//core/quality:__pkg__"],
 )
 
 cc_library(

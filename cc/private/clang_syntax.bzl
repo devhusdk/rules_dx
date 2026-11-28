@@ -209,6 +209,8 @@ def cuda_tidy_argv(tidy, argv, src, config = "", extra_includes = []):
     root = argv[0].replace("\\", "/").rpartition("/")[0].rpartition("/")[0]
 
     flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "-Wno-builtin-macro-redefined"]
+    if src.endswith(".cuh"):
+        flags.append("-Wno-pragma-once-outside-header")
     for include in extra_includes:
         flags += ["-isystem", include]
     if root != "":
@@ -285,7 +287,7 @@ def _header_parse_actions(target, ctx, identity):
     hdrs = [
         f
         for f in getattr(ctx.rule.files, "hdrs", []) + getattr(ctx.rule.files, "srcs", [])
-        if is_workspace_file(f) and f.extension in _HEADER_EXTENSIONS
+        if f.is_source and is_workspace_file(f) and f.extension in _HEADER_EXTENSIONS
     ]
     if not hdrs:
         return []
@@ -319,6 +321,30 @@ def _header_parse_actions(target, ctx, identity):
         actions.append(struct(mnemonic = "CppCompile", argv = argv, env = env, inputs = inputs))
     return actions
 
+_CUDA_TOOLCHAIN_TYPE = Label("//cuda:toolchain_type")
+
+def _cuda_header_actions(target, ctx):
+    """Synthesizes one nvcc command line per workspace CUDA header of a library that compiles nothing, for clang-tidy."""
+    hdrs = [
+        f
+        for f in getattr(ctx.rule.files, "hdrs", []) + getattr(ctx.rule.files, "srcs", [])
+        if f.is_source and is_workspace_file(f) and f.extension in UPSTREAM_CC_CLASS_EXTENSIONS["cuda"]
+    ]
+    if not hdrs:
+        return []
+    toolchain = ctx.toolchains[_CUDA_TOOLCHAIN_TYPE]
+    if toolchain == None:
+        return []
+    context = target[CcInfo].compilation_context
+    flags = ["-I" + d for d in context.includes.to_list() + context.quote_includes.to_list()]
+    flags += ["-isystem" + d for d in context.system_includes.to_list() + context.external_includes.to_list()]
+    flags += ["-D" + d for d in context.defines.to_list() + context.local_defines.to_list()]
+    inputs = depset(transitive = [toolchain.all_files, context.headers])
+    return [
+        struct(mnemonic = "CudaCompile", argv = [toolchain.compiler_executable, "-c", hdr.path] + flags, env = {}, inputs = inputs)
+        for hdr in hdrs
+    ]
+
 def clang_syntax_source(argv):
     """Returns the translation unit of a compile command line, or "" when there is none."""
     for i in range(len(argv) - 1):
@@ -334,14 +360,15 @@ def _clang_syntax_impl(target, ctx):
     attrs = ctx.rule.attr
     actions = _compile_actions(target)
     identity = cc_toolchain_identity(ctx)
-    if len(actions) == 0 and CcInfo in target and target.label.repo_name == "":
-        actions = _header_parse_actions(target, ctx, identity)
     if len(actions) == 0:
         upstream = forwarded_upstream(attrs, ClangSyntaxInfo)
-        if upstream == None:
-            return []
-        info = upstream[ClangSyntaxInfo]
-        return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
+        if upstream != None:
+            info = upstream[ClangSyntaxInfo]
+            return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
+        if CcInfo in target and target.label.repo_name == "":
+            actions = _header_parse_actions(target, ctx, identity) + _cuda_header_actions(target, ctx)
+    if len(actions) == 0:
+        return []
     if target.label.repo_name != "" or not holds_workspace_source(ctx.rule.files):
         return []
 
@@ -474,7 +501,10 @@ clang_syntax_aspect = aspect(
     doc = "Replays the compile actions of a C/C++/Objective-C target with -fsyntax-only.",
     attr_aspects = ["upstream"],
     fragments = ["apple", "cpp"],
-    toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
+    toolchains = [
+        config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False),
+        config_common.toolchain_type(_CUDA_TOOLCHAIN_TYPE, mandatory = False),
+    ],
     attrs = apple_support.action_required_attrs() | {
         "_policy": attr.label(
             default = "//config:workspace",

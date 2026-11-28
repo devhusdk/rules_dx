@@ -765,7 +765,7 @@ def real_make_aspect(cfg, shard_name):
         attrs = shard["attrs"],
         toolchains = shard.get("toolchains", []),
         requires = [real_classify_aspect] + shard.get("requires", []),
-        required_aspect_providers = shard.get("required_aspect_providers", []) + [[RealClassInfo]],
+        required_aspect_providers = shard.get("required_aspect_providers", []),
     )
 
 RealShardProbeInfo = provider(
@@ -831,6 +831,5 @@ def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeIn
         propagation_predicate = real_in_main_repo,
         attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
         requires = [real_classify_aspect],
-        required_aspect_providers = [[RealClassInfo]],
         doc = "Writes the " + capability + " shard names each target needs to the dx_shards output group.",
     )

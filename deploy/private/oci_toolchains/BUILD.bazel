@@ -1,0 +1,25 @@
+_WINDOWS_ARM64 = [
+    "@platforms//os:windows",
+    "@platforms//cpu:aarch64",
+]
+
+toolchain(
+    name = "aspect_jq_windows_arm64",
+    exec_compatible_with = _WINDOWS_ARM64,
+    toolchain = "@aspect_jq_windows_amd64//:jq_toolchain",
+    toolchain_type = "@aspect_bazel_lib//lib:jq_toolchain_type",
+)
+
+toolchain(
+    name = "jq_windows_arm64",
+    exec_compatible_with = _WINDOWS_ARM64,
+    toolchain = "@jq_toolchains_windows_amd64//:jq_toolchain",
+    toolchain_type = "@jq.bzl//jq/toolchain:type",
+)
+
+toolchain(
+    name = "zstd_windows_arm64",
+    exec_compatible_with = _WINDOWS_ARM64,
+    toolchain = "@aspect_zstd_windows_amd64//:zstd_toolchain",
+    toolchain_type = "@aspect_bazel_lib//lib:zstd_toolchain_type",
+)

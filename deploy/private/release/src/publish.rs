@@ -275,7 +275,7 @@ fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), PublishError> 
     require_contains(&release_tests_log, "tests pass", "release tests log")?;
     let module_text = read_text(&inputs.module_bazel, "MODULE.bazel")?;
     require_contains(&module_text, "name = \"rules_dx\"", "MODULE.bazel")?;
-    require_contains(&module_text, "version = \"0.0.0\"", "MODULE.bazel")?;
+    require_contains(&module_text, "version = \"", "MODULE.bazel")?;
     let verify_log = read_text(&inputs.verify_refusal_log, "install verifier refusal log")?;
     require_contains(
         &verify_log,

@@ -2179,7 +2179,11 @@ impl Case {
             ".bazelversion",
             &dx_testing::read_text(&rules.join(".bazelversion")),
         );
-        case.write("MODULE.bazel", &consumer_module(rules, extra_module));
+        let version = dx_testing::rules_dx_version(rules).unwrap_or_else(|error| panic!("{error}"));
+        case.write(
+            "MODULE.bazel",
+            &consumer_module(rules, &version, extra_module),
+        );
         seed_rules_dx_lock(case.root(), rules);
         let mut imports = String::new();
         for layer in dx_preset::Layer::ALL {
@@ -2294,9 +2298,9 @@ impl Case {
     }
 }
 
-fn consumer_module(rules: &Path, extra: &str) -> String {
+fn consumer_module(rules: &Path, version: &str, extra: &str) -> String {
     format!(
-        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{extra}",
+        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{version}\")\n{}{extra}",
         compose::rules_dx_override(rules)
     )
 }
@@ -3346,11 +3350,11 @@ mod portable_tests {
 
     #[test]
     fn consumer_module_appends_extra_after_override() {
-        let text = consumer_module(Path::new("/src/rules_dx"), "\nuse_repo(x)\n");
+        let text = consumer_module(Path::new("/src/rules_dx"), "1.2.3", "\nuse_repo(x)\n");
         assert_eq!(
             text,
             format!(
-                "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules_dx\",\n)\n{}\nuse_repo(x)\n",
+                "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules_dx\",\n)\n{}\nuse_repo(x)\n",
                 compose::rules_dx_from_source("rules_dx")
             )
         );

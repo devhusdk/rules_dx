@@ -478,9 +478,10 @@ def quick_start(root, lang, title):
     out.append("```sh\nbazel run @rules_dx//dx/launch:dx -- init --apply\n```\n")
     module = read(root, "%s/consumer.MODULE.bazel" % consumer)
     if module is not None:
-        module = module.replace(
-            'bazel_dep(name = "rules_dx", version = "0.0.0")',
+        module = re.sub(
+            r'bazel_dep\(name = "rules_dx", version = "[^"]*"\)',
             'bazel_dep(name = "rules_dx", version = "<release>")',
+            module,
         )
         out.append("For a %s project, `MODULE.bazel` then looks like this:\n" % title)
         out.append("```python\n%s\n```\n" % without_markers(module))

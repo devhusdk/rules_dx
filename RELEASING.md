@@ -1,6 +1,6 @@
 # Releasing rules_dx
 
-This page walks you through a release, from the version bump to the Bazel Central Registry (BCR), the public index that Bazel downloads modules from. Do the steps in order. The first release is `v0.1.0`, so the examples use `0.1.0`; for a later release, put your version in its place.
+This page walks you through a release, from the version bump to the Bazel Central Registry (BCR), the public index that Bazel downloads modules from. Do the steps in order. The first release is `v0.0.1`. The examples use `0.1.0`; put your version in its place.
 
 You need `gh` on `PATH`, logged in to `devhusdk/rules_dx` with rights to push tags, run workflows and publish releases.
 

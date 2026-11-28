@@ -197,7 +197,12 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]).unwrap();
     write(
         &root.join("MODULE.bazel"),
-        "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
+        &format!(
+            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
+            dx_testing::rules_dx_source()
+                .and_then(|source| dx_testing::rules_dx_version(&source))
+                .expect("rules_dx version")
+        ),
     );
     init(&root, &env);
     cache_dx(&env);

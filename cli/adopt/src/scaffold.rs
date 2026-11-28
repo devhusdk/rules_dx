@@ -1639,7 +1639,7 @@ mod tests {
             .expect("pins")
             .to_lines(DX_VERSION);
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);
-        std::fs::write(&pin, "0.0.1\n").expect("stale");
+        std::fs::write(&pin, "0.0.0\n").expect("stale");
         let again = entries(|a| apply_init(&root, "demo", a)).expect("init again");
         assert!(again.iter().any(|p| p == ".dx/pins"));
         assert_eq!(std::fs::read_to_string(&pin).expect("read"), expected);

@@ -7,7 +7,7 @@ use dx_nested::compose::{
     write_rules_py_patches,
 };
 use dx_nested::{self as nested, Case};
-use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
+use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, rules_dx_version, write_text};
 
 fn ok(run: &Run, what: &str) {
     assert_eq!(run.status.code(), Some(0), "{what}: {}", run.combined());
@@ -128,7 +128,8 @@ fn the_polyglot_example_adopts_and_tests_green() {
     write_text(
         &root.join("MODULE.bazel"),
         &format!(
-            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}{apple}",
+            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n{}{}{}{apple}",
+            rules_dx_version(&source).unwrap_or_else(|error| panic!("{error}")),
             rules_dx_override(&source),
             rules_py_override(),
             rules_flutter_override(),

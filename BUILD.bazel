@@ -846,6 +846,7 @@ filegroup(
         "//patches/rules_ruby:module_srcs",
         "//patches/rules_scala:module_srcs",
         "//patches/rules_swift:module_srcs",
+        "//patches/rules_zig:module_srcs",
         "//patches/windows_support:module_srcs",
         "//perl:module_srcs",
         "//perl/private:module_srcs",

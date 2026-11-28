@@ -1,5 +1,13 @@
 {
   "archives": {
+    "rules_zig": {
+      "version": "0.17.0",
+      "sha256": "3c1314f4cb90f55372068fb19aa2a5f8724d94240da45504db35f48d7a88c2a9",
+      "strip_prefix": "rules_zig-0.17.0",
+      "urls": [
+        "https://github.com/hermeticbuild/rules_zig/releases/download/v0.17.0/rules_zig-0.17.0.tar.gz"
+      ]
+    },
     "zig_app_xxhash": {
       "version": "0.8.4",
       "sha256": "5738270935e7c3d38a79b3adf7c9692566ce7895a25f67de43ad52ab504acd32",

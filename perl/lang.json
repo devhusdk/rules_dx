@@ -45,7 +45,9 @@
   "unsupported": {
     "windows_arm64": "Windows ARM64 perl is not qualified"
   },
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [
     "perl_library",
     "perl_binary",

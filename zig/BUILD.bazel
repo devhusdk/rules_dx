@@ -9,6 +9,41 @@ exports_files([
     "pins.json",
 ])
 
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain_type(
+    name = "target_toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+constraint_setting(
+    name = "abi",
+    visibility = ["//visibility:public"],
+)
+
+[
+    constraint_value(
+        name = "abi_" + value,
+        constraint_setting = ":abi",
+        visibility = ["//visibility:public"],
+    )
+    for value in [
+        "none",
+        "gnu",
+        "musl",
+        "msvc",
+    ]
+]
+
+alias(
+    name = "mode",
+    actual = "@rules_zig//zig/settings:mode",
+    visibility = ["//visibility:public"],
+)
+
 bool_flag(
     name = "kcov",
     build_setting_default = False,

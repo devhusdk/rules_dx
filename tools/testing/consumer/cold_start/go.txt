@@ -135,7 +135,6 @@ rules_nodejs++node+nodejs_toolchains
 rules_oci+
 rules_oci++oci+oci_crane_toolchains
 rules_oci++oci+oci_regctl_toolchains
-rules_perl+
 rules_py+
 rules_py++host_platform+rules_py_uv_host
 rules_py++py_tools+rules_py_tools
@@ -151,9 +150,6 @@ rules_rust_wasm_bindgen+
 rules_shell+
 rules_shell++sh_configure+local_config_shell
 rules_swift+
-rules_zig+
-rules_zig++zig+zig_toolchains
-rules_zig++zls+zls_toolchains
 tar.bzl+
 tar.bzl++toolchains+bsd_tar_toolchains
 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64

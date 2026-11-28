@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:hub_order_tests.bzl", "hub_order_test")
 load(":defs_tests.bzl", "perl_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
@@ -16,6 +17,38 @@ rust_test(
     env = {"CPANSA_DUMP": "$(rootpath //perl/private/tools:cpansa_dump)"},
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+hub_order_test(
+    name = "hub_order_test",
+    size = "small",
+    build = "//perl/private:toolchains.BUILD.bazel",
+    names = [
+        "exec_00_x86_64_linux_musl_static",
+        "exec_01_aarch64_linux_musl_static",
+        "exec_02_x86_64_linux_gnu",
+        "exec_03_aarch64_linux_gnu",
+        "exec_04_x86_64_linux_musl",
+        "exec_05_aarch64_linux_musl",
+        "exec_06_x86_64_macos",
+        "exec_07_aarch64_macos",
+        "exec_08_x86_64_windows_msvc",
+        "exec_09_aarch64_windows_msvc",
+        "exec_10_x86_64_windows_gnu",
+        "exec_11_x86_64_windows_strawberry",
+        "toolchain_00_x86_64_linux_musl_static",
+        "toolchain_01_aarch64_linux_musl_static",
+        "toolchain_02_x86_64_linux_gnu",
+        "toolchain_03_aarch64_linux_gnu",
+        "toolchain_04_x86_64_linux_musl",
+        "toolchain_05_aarch64_linux_musl",
+        "toolchain_06_x86_64_macos",
+        "toolchain_07_aarch64_macos",
+        "toolchain_08_x86_64_windows_msvc",
+        "toolchain_09_aarch64_windows_msvc",
+        "toolchain_10_x86_64_windows_gnu",
+        "toolchain_11_x86_64_windows_strawberry",
+    ],
 )
 
 rust_test(

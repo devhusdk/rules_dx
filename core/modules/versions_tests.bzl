@@ -43,6 +43,11 @@ def versions_contract_tests(name):
             expect_equal("dotnet archive url follows canonical", _ARCHIVES["rules_dotnet"]["urls"][0], "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),
             expect_equal("dotnet archive strip prefix follows canonical", _ARCHIVES["rules_dotnet"]["strip_prefix"], "rules_dotnet-" + _RULES_DOTNET_VERSION),
             expect_equal("dotnet pins.json follows canonical", _ARCHIVES["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
+            expect_equal("perl archive url follows canonical", _ARCHIVES["rules_perl"]["urls"][0], "https://github.com/bazel-contrib/rules_perl/releases/download/" + _RULES_PERL_VERSION + "/rules_perl-" + _RULES_PERL_VERSION + ".tar.gz"),
+            expect_equal("perl pins.json follows canonical", _ARCHIVES["rules_perl"]["version"], _RULES_PERL_VERSION),
+            expect_equal("zig archive url follows canonical", _ARCHIVES["rules_zig"]["urls"][0], "https://github.com/hermeticbuild/rules_zig/releases/download/v" + _RULES_ZIG_VERSION + "/rules_zig-" + _RULES_ZIG_VERSION + ".tar.gz"),
+            expect_equal("zig archive strip prefix follows canonical", _ARCHIVES["rules_zig"]["strip_prefix"], "rules_zig-" + _RULES_ZIG_VERSION),
+            expect_equal("zig pins.json follows canonical", _ARCHIVES["rules_zig"]["version"], _RULES_ZIG_VERSION),
             expect_equal("rules_julia default toolchain follows canonical", _RULES_JULIA_DEFAULT_VERSION, _JULIA_VERSION),
             expect_false("rules_zig lacks the pinned Zig while //zig/private:sdk_versions.json supplies it; once it lists it, delete that file and its zig.index line and flip this to expect_true (#13964)", _ZIG_VERSION in _RULES_ZIG_TOOL_VERSIONS),
             expect_equal("cuda pins.json follows canonical", _DATA["dx_cuda"]["version"], _CUDA_REDIST_VERSION),
@@ -82,6 +87,7 @@ def versions_contract_tests(name):
             "//scala:pins.json": "/download/v" + _RULES_SCALA_VERSION + "/rules_scala-v" + _RULES_SCALA_VERSION + ".tar.gz",
             "//scala/private/toolchain:config_extension.bzl": "SCALA_VERSION = \"" + _SCALA_VERSION + "\"",
             "//julia:pins.json": "/rules_julia/archive/" + _RULES_JULIA_VERSION + ".tar.gz",
+            "//zig/private:toolchains.BUILD.bazel": "\"@zig_" + _ZIG_VERSION + "_x86_64-linux//:zig_toolchain\"",
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
                                "name = \"protobuf\", version = \"" + _PROTOBUF_VERSION + "\"\n" +
@@ -103,14 +109,12 @@ def versions_contract_tests(name):
                                "name = \"bazel_worker_api\", version = \"" + _BAZEL_WORKER_API_VERSION + "\"\n" +
                                "name = \"bazel_lib\", version = \"" + _BAZEL_LIB_VERSION + "\"\n" +
                                "name = \"rules_jvm_external\", version = \"" + _RULES_JVM_EXTERNAL_VERSION + "\"\n" +
-                               "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +
                                "name = \"rules_swift\", version = \"" + _RULES_SWIFT_VERSION + "\"\n" +
                                "name = \"rules_dart\", version = \"" + _RULES_DART_VERSION + "\"\n" +
                                "name = \"rules_flutter\", version = \"" + _RULES_FLUTTER_VERSION + "\"\n" +
                                "dart.toolchain(dart_version = \"" + _DART_SDK_VERSION + "\")\n" +
                                "flutter.toolchain(flutter_version = \"" + _FLUTTER_SDK_VERSION + "\")\n" +
-                               "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
-                               "name = \"rules_perl\", version = \"" + _RULES_PERL_VERSION + "\"\n" +
+                               "zig_sdk.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
                                "name = \"lua\", version = \"" + _LUA_VERSION + "\"\n" +
                                "name = \"avro-cpp\", version = \"" + _AVRO_CPP_VERSION + "\"\n" +
                                "bazel_dep(name = \"fmt\", version = \"" + _FMT_VERSION + "\", dev_dependency = True)\n" +

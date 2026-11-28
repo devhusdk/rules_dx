@@ -263,6 +263,7 @@ fn a_failure_on_a_target_only_lint_selected_fails_only_lint() {
 #[test]
 fn check_runs_generate_one_shard_probe_and_one_quality_build_over_the_probed_shards() {
     let mut harness = umbrella_clean("shared-two-builds");
+    harness.write_source("MODULE.bazel", "module(name = \"rules_dx\")\n");
     harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
     let (code, out, err) = harness.run(&["check", "--output=json"]);
     assert_eq!(code, 0, "{out}{err}");

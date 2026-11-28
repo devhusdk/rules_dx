@@ -128,12 +128,13 @@ dx_prebuilt = use_extension("@rules_dx//core:extensions.bzl", "dx_prebuilt")
 dx_prebuilt.from_source(tools = ["dx", "topiary"])
 ```
 
-- The tool names are the keys of `TOOLS` in `cli/prebuilt/tools.bzl`. An
-  unknown name fails the build and lists the valid names.
+- The tool names are the keys of `TOOLS` and `PYTHON_BUNDLE_TOOLS` in
+  `cli/prebuilt/tools.bzl`, except `gazelle`, which `dx_gazelle.from_source()`
+  builds. An unknown name fails the build and lists the valid names.
 - `from_source()` without `tools` builds every tool from source.
 - An `asset` tag still picks that tool's binary.
 - A tool built from source needs its language's toolchain, such as Rust and C
-  for `dx`, a JDK for a jar tool, or Go for gazelle.
+  for `dx`, a JDK for a jar tool, or Go for `go`.
 - When `rules_dx` itself is the root module, every tool builds from source.
 
 `cli/prebuilt/tools.bzl` lists every tool a release ships prebuilt, and

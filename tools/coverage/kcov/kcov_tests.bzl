@@ -9,7 +9,7 @@ def _kcov_env_impl(ctx):
     run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
     if ctx.attr.kcov:
         upstream = run_env.get("DX_KCOV_UPSTREAM", "")
-        asserts.true(env, upstream.endswith("/" + ctx.attr.upstream), "upstream is " + upstream)
+        asserts.true(env, upstream.endswith("/" + ctx.attr.upstream_name), "upstream is " + upstream)
         asserts.true(env, run_env.get("DX_KCOV_SOURCES", "").endswith(".kcov_sources"), "no kcov sources manifest")
         to_lcov = run_env.get("DX_TO_LCOV", "")
         asserts.true(env, to_lcov.endswith("/cli/runtime/dx_runtime"), "to_lcov is " + to_lcov)
@@ -19,7 +19,7 @@ def _kcov_env_impl(ctx):
         asserts.false(env, "DX_KCOV_UPSTREAM" in run_env, "kcov env set: " + str(run_env))
     sancov = run_env.get("DX_SANCOV_UPSTREAM", "")
     if ctx.attr.sancov:
-        asserts.true(env, sancov.endswith("/" + ctx.attr.upstream), "sancov upstream is " + sancov)
+        asserts.true(env, sancov.endswith("/" + ctx.attr.upstream_name), "sancov upstream is " + sancov)
         asserts.equals(env, "sancov", run_env.get("DX_RUNTIME_TOOL", ""))
         runfiles = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
         asserts.true(
@@ -36,7 +36,7 @@ _ATTRS = {
     "instrumented": attr.string_list(),
     "kcov": attr.bool(),
     "sancov": attr.bool(),
-    "upstream": attr.string(),
+    "upstream_name": attr.string(),
 }
 
 _COVERAGE = {
@@ -77,9 +77,9 @@ def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other
 
     linux_host constrains the host that analyzes the linux_platform case, for languages with no toolchain that targets linux_platform from another host.
     """
-    _platform_rule(linux_platform)(name = name, size = "small", target_under_test = target, kcov = True, upstream = upstream, instrumented = instrumented, target_compatible_with = linux_host)
+    _platform_rule(linux_platform)(name = name, size = "small", target_under_test = target, kcov = True, upstream_name = upstream, instrumented = instrumented, target_compatible_with = linux_host)
     for platform in other_platforms:
-        _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False, sancov = platform in sancov_platforms, upstream = upstream)
+        _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False, sancov = platform in sancov_platforms, upstream_name = upstream)
     _off_test(name = name + "_off", size = "small", target_under_test = target, kcov = False)
 
 def _no_kcov_probe_impl(ctx):

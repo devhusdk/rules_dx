@@ -6,7 +6,7 @@ inputs:
     required: false
     default: "false"
   free-disk:
-    description: In the background, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK. The deletes keep running after this action ends. Nothing waits for them before building, since they finish long before a run fills the free space the runner starts with; a final step reads their pid, log and status from $RUNNER_TEMP/dx-free-disk and fails the job if they failed.
+    description: In the background, delete preinstalled SDKs rules_dx does not use. On macOS that is the Xcode versions other than the selected one and the Android SDK; on Linux the Android SDK, .NET, GHC and CodeQL. Whole-repo runs need the space; rules_dx fetches its own Android SDK. The deletes keep running after this action ends. Nothing waits for them before building, since they finish long before a run fills the free space the runner starts with; a final step reads their pid, log and status from $RUNNER_TEMP/dx-free-disk and fails the job if they failed. On Linux it also puts the Bazel output base, repository caches and nested cache root on /mnt when /mnt has more free space than $RUNNER_TEMP.
     required: false
     default: "false"
 outputs:
@@ -57,12 +57,28 @@ runs:
         fi
     - name: Configure the remote cache credential helper
       uses: ./.github/actions/remote-cache-helper
-    - name: Point Bazel at a repository cache and the shared nested cache root
+    - name: Pick the Linux disk with the most free space for Bazel
+      id: disk-root
+      if: ${{ inputs.free-disk == 'true' && runner.os == 'Linux' }}
       shell: bash
       run: |
-        cache="$RUNNER_TEMP/dx-repository-cache"
-        contents="$RUNNER_TEMP/dx-repo-contents"
-        nested="$RUNNER_TEMP/dx-nested"
+        df -h / /mnt 2>/dev/null || df -h /
+        avail() { df --output=avail -k "$1" | tail -n 1; }
+        if mountpoint -q /mnt && [ "$(avail /mnt)" -gt "$(avail "$RUNNER_TEMP")" ]; then
+          sudo mkdir -p /mnt/dx
+          sudo chown "$(id -u):$(id -g)" /mnt/dx
+          echo "root=/mnt/dx" >> "$GITHUB_OUTPUT"
+          echo "output-base=/mnt/dx/output_base" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Point Bazel at a repository cache and the shared nested cache root
+      shell: bash
+      env:
+        DISK_ROOT: ${{ steps.disk-root.outputs.root }}
+      run: |
+        root="${DISK_ROOT:-$RUNNER_TEMP}"
+        cache="$root/dx-repository-cache"
+        contents="$root/dx-repo-contents"
+        nested="$root/dx-nested"
         mkdir -p "$cache" "$contents" "$nested"
         if [ "$RUNNER_OS" = Windows ]; then
           cache="$(cygpath -m "$cache")"
@@ -134,6 +150,7 @@ runs:
     - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
       with:
         bazelisk-version: ${{ steps.pin.outputs.version }}
+        output-base: ${{ steps.disk-root.outputs.output-base }}
         bazelisk-cache: false
         disk-cache: false
         repository-cache: false

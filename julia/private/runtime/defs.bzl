@@ -19,11 +19,13 @@ def source_exec_compatible_with(downloaded, source_constraints):
         return []
     return source_constraints
 
+SOURCE_EXEC_COMPATIBLE_WITH = source_exec_compatible_with(DOWNLOADED, ["@platforms//os:linux"])
+
 def julia_source_toolchain_target(name):
     """Declares the toolchain that runs every Julia action and binary on Linux x86_64 on the source-built libjulia-internal."""
     native.toolchain(
         name = name,
-        exec_compatible_with = source_exec_compatible_with(DOWNLOADED, ["@platforms//os:linux"]),
+        exec_compatible_with = SOURCE_EXEC_COMPATIBLE_WITH,
         target_compatible_with = [
             "@platforms//os:linux",
             "@platforms//cpu:x86_64",

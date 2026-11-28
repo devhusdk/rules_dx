@@ -16,7 +16,7 @@ def _config_content(env):
 
 _JuliaFlagsInfo = provider("The julia_flags of the upstream julia_test.", fields = ["flags"])
 
-def _julia_flags_aspect_impl(target, ctx):
+def _julia_flags_aspect_impl(_target, ctx):
     if hasattr(ctx.rule.attr, "julia_flags"):
         return [_JuliaFlagsInfo(flags = ctx.rule.attr.julia_flags)]
     upstream = getattr(ctx.rule.attr, "upstream", None)

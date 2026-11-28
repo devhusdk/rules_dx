@@ -1,4 +1,5 @@
 Upstream: none (rules_dx only: aliases the toolchain types and settings to rules_dx)
+diff --git a/perl/BUILD.bazel b/perl/BUILD.bazel
 --- a/perl/BUILD.bazel
 +++ b/perl/BUILD.bazel
 @@ -26,13 +26,15 @@
@@ -19,6 +20,7 @@ Upstream: none (rules_dx only: aliases the toolchain types and settings to rules
      visibility = ["//visibility:public"],
  )
  
+diff --git a/perl/settings/BUILD.bazel b/perl/settings/BUILD.bazel
 --- a/perl/settings/BUILD.bazel
 +++ b/perl/settings/BUILD.bazel
 @@ -6,37 +6,34 @@

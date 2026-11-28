@@ -275,7 +275,11 @@ fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), PublishError> 
     require_contains(&release_tests_log, "tests pass", "release tests log")?;
     let module_text = read_text(&inputs.module_bazel, "MODULE.bazel")?;
     require_contains(&module_text, "name = \"rules_dx\"", "MODULE.bazel")?;
-    require_contains(&module_text, "version = \"", "MODULE.bazel")?;
+    let module_block = module_text
+        .split_once("module(")
+        .and_then(|(_, rest)| rest.split_once(')'))
+        .map_or("", |(block, _)| block);
+    require_contains(module_block, "version = \"", "MODULE.bazel module()")?;
     let verify_log = read_text(&inputs.verify_refusal_log, "install verifier refusal log")?;
     require_contains(
         &verify_log,
@@ -498,7 +502,7 @@ mod tests {
         let module_bazel = write_text(
             dir,
             "MODULE.bazel",
-            "name = \"rules_dx\"\nversion = \"0.0.0\"\n",
+            "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\n",
         );
         let verify_refusal_log = write_text(
             dir,

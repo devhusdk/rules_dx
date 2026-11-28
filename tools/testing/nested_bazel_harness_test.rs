@@ -42,7 +42,12 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     );
 }
 
-const DEP: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
+fn dep() -> String {
+    let version = dx_testing::rules_dx_source()
+        .and_then(|source| dx_testing::rules_dx_version(&source))
+        .unwrap_or_else(|error| panic!("{error}"));
+    format!("bazel_dep(name = \"rules_dx\", version = \"{version}\")\n")
+}
 
 const PROBE: &str = r#"def _impl(_ctx):
     return []
@@ -138,9 +143,10 @@ toolchain(
 fn indirect_consumer(name: &str) -> Case {
     let case = nested::harness_consumer(name);
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
-    assert!(module.contains(DEP), "{module}");
+    let dep = dep();
+    assert!(module.contains(&dep), "{module}");
     let module = module.replace(
-        DEP,
+        &dep,
         "bazel_dep(name = \"mid\", version = \"0.0.0\")\nlocal_path_override(module_name = \"mid\", path = \"mid\")\nlocal_path_override(module_name = \"own_cc\", path = \"own_cc\")\n",
     );
     case.write(
@@ -158,7 +164,7 @@ fn indirect_consumer(name: &str) -> Case {
     case.write(
         "mid/MODULE.bazel",
         &format!(
-            "module(name = \"mid\", version = \"0.0.0\")\n{DEP}bazel_dep(name = \"own_cc\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.28\")\n"
+            "module(name = \"mid\", version = \"0.0.0\")\n{dep}bazel_dep(name = \"own_cc\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.28\")\n"
         ),
     );
     case.write("mid/BUILD.bazel", "");
@@ -317,6 +323,7 @@ fn a_root_only_tag_in_a_dependency_warns_and_is_ignored() {
         return;
     }
     let case = nested::harness_consumer("root_only");
+    let dep = dep();
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     case.write(
         "MODULE.bazel",
@@ -328,7 +335,7 @@ fn a_root_only_tag_in_a_dependency_warns_and_is_ignored() {
     case.write(
         "mid/MODULE.bazel",
         &format!(
-            "module(name = \"mid\", version = \"0.0.0\")\n{DEP}python = use_extension(\"@rules_dx//python:extensions.bzl\", \"python\")\npython.toolchain(python_version = \"0.0\")\n"
+            "module(name = \"mid\", version = \"0.0.0\")\n{dep}python = use_extension(\"@rules_dx//python:extensions.bzl\", \"python\")\npython.toolchain(python_version = \"0.0\")\n"
         ),
     );
     case.write("mid/BUILD.bazel", "");

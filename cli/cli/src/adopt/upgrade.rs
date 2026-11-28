@@ -1423,7 +1423,7 @@ mod tests {
             .to_lines(module());
         let pin_file = root.join(".dx/pins");
         assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
-        std::fs::write(&pin_file, "0.0.1\n").expect("stale");
+        std::fs::write(&pin_file, "0.0.0\n").expect("stale");
         assert_eq!(run(&upgrade(&["--apply"]), &root).0, 0);
         assert_eq!(std::fs::read_to_string(&pin_file).expect("pin"), expected);
     }

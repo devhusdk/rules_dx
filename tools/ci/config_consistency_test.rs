@@ -827,7 +827,7 @@ fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool,
 
 const STARTER_CONFIGS: &[&str] = &["android"];
 
-const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
+const REPO_ONLY_CONFIGS: &[&str] = &["ci-cov", "rbe"];
 
 #[test]
 fn every_workflow_bazel_config_is_defined_and_documented() {

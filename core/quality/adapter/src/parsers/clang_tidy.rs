@@ -43,6 +43,19 @@ fn checked_file<'a>(files: &[&'a str], path: &str) -> Option<&'a str> {
         .find(|f| !f.starts_with('/') && path.ends_with(&format!("/{}", f.replace('\\', "/"))))
 }
 
+fn in_external_repository(path: &str) -> bool {
+    let path = path.replace('\\', "/");
+    let exec = path
+        .rsplit_once("/execroot/")
+        .and_then(|(_, rest)| rest.split_once('/'))
+        .map_or(path.as_str(), |(_, exec)| exec);
+    let exec = exec
+        .strip_prefix("bazel-out/")
+        .and_then(|rest| rest.split_once("/bin/"))
+        .map_or(exec, |(_, exec)| exec);
+    exec.starts_with("external/") || exec.starts_with("../")
+}
+
 pub fn parse_clang_tidy(
     stderr: &[u8],
     code: Option<i32>,
@@ -68,6 +81,9 @@ pub fn parse_clang_tidy(
                         tool: TOOL,
                         detail: format!("compile error in an unchecked file: {line}"),
                     });
+                }
+                if in_external_repository(path) {
+                    continue;
                 }
                 return Err(ParseError::UnknownFile {
                     tool: TOOL,
@@ -274,6 +290,31 @@ mod tests {
         assert!(detail.contains("'stdarg.h' file not found"), "{detail}");
         assert!(parse_clang_tidy(b"Error while processing x.c.\n", Some(0), &files).is_err());
         assert!(parse_clang_tidy(b"nope\n1 warning generated.\n", Some(0), &files).is_err());
+    }
+
+    #[test]
+    fn clang_tidy_drops_warnings_located_in_external_repositories() {
+        let file = "thrift/tests/cc_roundtrip_test.cc";
+        let log = format!(
+            "external/+dx_pins+dx_thrift/lib/cpp/src/thrift/protocol/TBinaryProtocol.tcc:23:10: warning: circular header file dependency detected while including 'TBinaryProtocol.h', please check the include path [misc-header-include-cycle]\n   23 | #include <thrift/protocol/TBinaryProtocol.h>\n      |          ^\n/s/execroot/_main/{file}:5:10: note: 'TBinaryProtocol.h' included from here\n/s/execroot/_main/{file}:25:19: warning: variable name 'in' is too short, expected at least 3 characters [readability-identifier-length]\n"
+        );
+        let found = parse_clang_tidy(log.as_bytes(), Some(0), &[file]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, file);
+        assert!(in_external_repository("/s/execroot/_main/external/r/a.h"));
+        assert!(in_external_repository(
+            "bazel-out/k8-fastbuild/bin/external/llvm/a.h"
+        ));
+        assert!(in_external_repository("../r/a.h"));
+        assert!(!in_external_repository(
+            "bazel-out/k8-fastbuild/bin/cc/store_build.h"
+        ));
+        assert!(!in_external_repository("/s/execroot/_main/cc/a.h"));
+        let generated = "bazel-out/k8-fastbuild/bin/cc/store_build.h:1:1: warning: w [misc-x]\n";
+        assert!(matches!(
+            parse_clang_tidy(generated.as_bytes(), Some(0), &[file]),
+            Err(ParseError::UnknownFile { .. })
+        ));
     }
 
     #[test]

@@ -8,7 +8,7 @@ visibility(["//core/...", "//tools/..."])
 
 TOOLS = {
     "buf": {
-        "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_buf", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "protobuf",

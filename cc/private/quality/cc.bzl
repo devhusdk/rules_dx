@@ -44,7 +44,7 @@ _qml_context_aspect = aspect(
 
 TOOLS = {
     "clang_format": {
-        "attr": attr.label(default = "@llvm//tools:clang-format", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_clang_format", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "cc",

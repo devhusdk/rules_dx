@@ -10,7 +10,7 @@ load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
     "google_java_format": {
-        "attr": attr.label(default = "//java/private/quality/tools:google_java_format", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_google_java_format", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "heavy",
@@ -23,21 +23,21 @@ TOOLS = {
         "shard": "jvm",
     },
     "pmd": {
-        "attr": attr.label(default = "//java/private/quality/tools:pmd", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_pmd", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
     },
     "pkl_lsp": {
-        "attr": attr.label(default = "//java/private/quality/tools:pkl_lsp", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_pkl_lsp", cfg = "exec", executable = True),
         "extra": "runfiles",
         "kind": "executable",
         "resources": "heavy",
         "shard": "pkl",
     },
     "spotbugs": {
-        "attr": attr.label(default = "//java/private/quality/tools:spotbugs", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_spotbugs", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",

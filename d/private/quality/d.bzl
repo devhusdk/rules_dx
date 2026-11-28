@@ -5,7 +5,7 @@ load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_ma
 
 TOOLS = {
     "dscanner": {
-        "attr": attr.label(default = "//d/private:dscanner", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_dscanner", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "d",

@@ -4,13 +4,13 @@ load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_ma
 
 TOOLS = {
     "checkmake": {
-        "attr": attr.label(default = "@dx_tools//:checkmake", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_checkmake", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "make",
     },
     "mbake": {
-        "attr": attr.label(default = "@dx_prebuilt//:python_tool_mbake", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_mbake", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,

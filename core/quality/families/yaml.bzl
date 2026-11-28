@@ -6,13 +6,13 @@ visibility(["//core/..."])
 
 TOOLS = {
     "yamlfmt": {
-        "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_yamlfmt", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "yaml",
     },
     "yamllint": {
-        "attr": attr.label(default = "@dx_prebuilt//:python_tool_yamllint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_yamllint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,

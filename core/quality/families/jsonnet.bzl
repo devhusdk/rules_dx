@@ -7,13 +7,13 @@ visibility(["//core/..."])
 
 TOOLS = {
     "jsonnetfmt": {
-        "attr": attr.label(default = "@dx_tools//:jsonnetfmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_jsonnetfmt", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "jsonnet",
     },
     "jsonnet_lint": {
-        "attr": attr.label(default = "@dx_tools//:jsonnet_lint", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_jsonnet_lint", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "jsonnet",

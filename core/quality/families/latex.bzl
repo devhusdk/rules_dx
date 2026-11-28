@@ -6,13 +6,13 @@ visibility("public")
 
 TOOLS = {
     "latexindent": {
-        "attr": attr.label(default = "@dx_tools//:latexindent", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_latexindent", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "latex",
     },
     "chktex": {
-        "attr": attr.label(default = "@dx_tools//:chktex", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_chktex", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "latex",

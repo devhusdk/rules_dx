@@ -13,13 +13,13 @@ TOOLS = {
         "shard": "ocaml",
     },
     "zanuda": {
-        "attr": attr.label(default = "//ocaml/private/quality:zanuda_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_zanuda", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",
     },
     "topiary": {
-        "attr": attr.label(default = "//rust/private/quality/tools:topiary_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_topiary", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",

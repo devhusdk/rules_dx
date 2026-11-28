@@ -14,7 +14,7 @@ TOOLS = {
         "shard": "terraform",
     },
     "tflint": {
-        "attr": attr.label(default = "@dx_tools//:tflint", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_tflint", allow_single_file = True, cfg = "exec"),
         "env": [["CHECKPOINT_DISABLE", "1"]],
         "kind": "file",
         "resources": "light",

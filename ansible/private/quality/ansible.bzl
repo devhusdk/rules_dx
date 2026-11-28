@@ -4,14 +4,14 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 
 TOOLS = {
     "ansible_lint": {
-        "attr": attr.label(default = "@dx_prebuilt//:python_tool_ansible_lint_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_ansible_lint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "heavy",
         "runfiles_env": True,
         "shard": "ansible",
     },
     "yamlfmt": {
-        "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_yamlfmt", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "ansible",

@@ -14,7 +14,7 @@ TOOLS = {
         "shard": "core",
     },
     "biome": {
-        "attr": attr.label(default = "@dx_tools//:biome", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_biome", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "biome",
@@ -26,7 +26,7 @@ TOOLS = {
         "shard": "core",
     },
     "docstrfmt": {
-        "attr": attr.label(default = "@dx_prebuilt//:python_tool_docstrfmt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_docstrfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "light",
@@ -59,7 +59,7 @@ TOOLS = {
         "shard": "core",
     },
     "vale": {
-        "attr": attr.label(default = "@dx_tools//:vale", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_vale", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "vale",

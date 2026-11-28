@@ -6,7 +6,7 @@ visibility(["//core/..."])
 
 TOOLS = {
     "xmllint": {
-        "attr": attr.label(default = "@dx_tools//:xmllint", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_xmllint", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "xml",

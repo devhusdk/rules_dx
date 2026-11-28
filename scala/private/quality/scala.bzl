@@ -15,14 +15,14 @@ TOOLS = {
         "shard": "scala",
     },
     "scalafix": {
-        "attr": attr.label(default = "//java/private/quality/tools:scalafix", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_scalafix", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
         "shard": "scala",
     },
     "scalafmt": {
-        "attr": attr.label(default = "@dx_tools//:scalafmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_scalafmt", allow_single_file = True, cfg = "exec"),
         "capabilities": ["format"],
         "kind": "file",
         "resources": "heavy",

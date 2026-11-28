@@ -5,7 +5,7 @@ load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_ma
 
 TOOLS = {
     "ffmt": {
-        "attr": attr.label(default = "@dx_tools//:ffmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_ffmt", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "fortran",
@@ -16,7 +16,7 @@ TOOLS = {
         "shard": "fortran",
     },
     "fortitude": {
-        "attr": attr.label(default = "@dx_tools//:fortitude", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_fortitude", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "fortran",

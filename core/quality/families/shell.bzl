@@ -12,7 +12,7 @@ TOOLS = {
         "shard": "shell",
     },
     "shfmt": {
-        "attr": attr.label(default = "@dx_tools//:shfmt", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_shfmt", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "shell",

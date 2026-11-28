@@ -1,3 +1,8 @@
+# gazelle:exclude RawType.java
+# gazelle:exclude SyntaxError.java
+# gazelle:exclude TypeError.java
+# gazelle:exclude Unformatted.java
+# gazelle:exclude UnusedImport.java
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//java:defs.bzl", "java_library")
 load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
@@ -93,12 +98,5 @@ real_source_target(
 java_library(
     name = "diagnostics",
     testonly = True,
-    srcs = [
-        "Clean.java",
-        "RawType.java",
-        "SyntaxError.java",
-        "TypeError.java",
-        "Unformatted.java",
-        "UnusedImport.java",
-    ],
+    srcs = ["Clean.java"],
 )

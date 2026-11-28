@@ -389,7 +389,7 @@
   "moduleExtensions": {
     "@@rules_dx+//rust:extensions.bzl%cargo": {
       "general": {
-        "bzlTransitiveDigest": "a1TncHEwno3+6UGqRWPhzF3+Zmw4ncQCt8iUllDZlN0=",
+        "bzlTransitiveDigest": "C6OhOG6cCAd/DAs708P4AL9fQgoBAve/r0u6hcCz5YI=",
         "usagesDigest": "p1XGG4ZV41/18zEC0jVqGFE4K7IqVKXeeLjCY/8F1GE=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",

@@ -5,7 +5,7 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 visibility(["//..."])
 
-_DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
+_DART_TOOLCHAIN = "@rules_dart//dart:exec_tools_toolchain_type"
 
 def _package_row(pkg):
     return pkg.package_name + "\t" + pkg.package_root

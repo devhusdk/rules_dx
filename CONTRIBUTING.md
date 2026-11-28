@@ -123,6 +123,8 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
    export DX_LAUNCHER_BAZEL_FLAGS='--config=bb-ro --ui_event_filters=+info'
    ```
 
+   Outside CI, the launcher runs the actions of its dx build on this machine, even when an rc file sets `--remote_executor`. It still reads the remote cache.
+
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. Without the remote cache, on 4 CPUs and 8 GB of memory, the first `tools/dx --version` takes about 9 minutes, including the Bazelisk and Bazel downloads. It uses up to 4.5 GB of memory and about 7 GB of disk.
 
    With the read-only remote cache, on 4 CPUs and 15 GB of memory, the first `tools/dx --version` takes about 3 minutes.

@@ -472,7 +472,7 @@ retry_crash() {
 # come after the launcher's own, so they override them; set -f keeps them from globbing.
 build_dx() {
   # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
-  (set -f && cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2)
+  (set -f && cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${local_strategy:+"$local_strategy"} ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2)
 }
 # A plain query follows every select() branch and fetches repos only other platforms use, like the MinGW runtime.
 # cquery keeps to the main repo targets this host builds; the query adds their BUILD and .bzl files. Its only warning
@@ -527,6 +527,7 @@ if stale; then
   [ -n "${BAZEL_TEST:-}" ] || rc=
   dc=
   gc=
+  local_strategy=
   found=
   cache=$(user_cache)
   cache=${cache:-${LOCALAPPDATA:-}}
@@ -540,6 +541,7 @@ if stale; then
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
+  if [ -z "$rc" ] && ! is_ci; then local_strategy=--spawn_strategy=worker,sandboxed,local; fi
   echo "dx: building //cli/cli:dx" >&2
   built=
   hint=
@@ -549,7 +551,7 @@ if stale; then
     echo "dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
     # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
     # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
-    if (set -f && cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2); then
+    if (set -f && cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${local_strategy:+"$local_strategy"} ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2); then
       built=1
     fi
   else

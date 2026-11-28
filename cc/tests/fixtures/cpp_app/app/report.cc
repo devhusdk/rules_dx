@@ -12,8 +12,8 @@ std::string render_report(const std::vector<Dish> &dishes) {
                        static_cast<double>(dish.price_cents) / 100.0);
   }
   const auto totals = group_sum(
-      dishes, [](const Dish &d) { return d.category; },
-      [](const Dish &d) { return d.price_cents; });
+      dishes, [](const Dish &dish) { return dish.category; },
+      [](const Dish &dish) { return dish.price_cents; });
   for (const auto &[category, cents] : totals) {
     out += fmt::format("total {} {}\n", category, cents);
   }

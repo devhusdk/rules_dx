@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//cc:defs.bzl", "cc_objc_library")
+load("//cc:defs.bzl", "cc_objc_library", dx_cc_library = "cc_library")
 load("//core/quality:native_config.bzl", "clang_tidy_config")
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
 
@@ -81,10 +81,64 @@ cc_library(
 
 cc_library(
     name = "header_only",
-    hdrs = ["dep.h"],
+    hdrs = [
+        "dep.h",
+        ":generated_h",
+    ],
     aspect_hints = [":tidy_config"],
     visibility = ["//core/quality:__pkg__"],
     tags = ["manual"],
+)
+
+cc_library(
+    name = "cpp_dep",
+    srcs = ["cpp_dep.cc"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "header_only_cpp_dep",
+    hdrs = ["widget.h"],
+    visibility = ["//core/quality:__pkg__"],
+    tags = ["manual"],
+    deps = [":cpp_dep"],
+)
+
+cc_library(
+    name = "header_only_cpp_std",
+    hdrs = ["widget.h"],
+    copts = ["-std=c++17"],
+    visibility = ["//core/quality:__pkg__"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "c_impl",
+    implementation_deps = [":cpp_dep"],
+)
+
+cc_library(
+    name = "header_only_c_api",
+    hdrs = ["dep.h"],
+    visibility = ["//core/quality:__pkg__"],
+    deps = [":c_impl"],
+)
+
+genrule(
+    name = "generated_h",
+    outs = ["generated.h"],
+    cmd = "printf '#define GENERATED 1\\n' > $@",
+)
+
+dx_cc_library(
+    name = "forwarded",
+    srcs = ["clean.c"],
+    hdrs = [
+        "dep.h",
+        ":generated_h",
+    ],
+    copts = ["-DCLEAN_OFFSET=1"],
+    visibility = ["//core/quality:__pkg__"],
 )
 
 cc_library(

@@ -18,21 +18,36 @@
 
 static int run(char **argv, int argc, char *out, size_t out_len, char *err,
                size_t err_len) {
-  FILE *o = tmpfile();
-  FILE *e = tmpfile();
-  if (o == NULL || e == NULL) {
+  FILE *out_file = tmpfile();
+  FILE *err_file = tmpfile();
+  if (out_file == NULL || err_file == NULL) {
     return -1;
   }
-  int code = cli_run(argc, argv, o, e);
-  rewind(o);
-  rewind(e);
-  size_t n = fread(out, 1, out_len - 1, o);
-  out[n] = '\0';
-  n = fread(err, 1, err_len - 1, e);
-  err[n] = '\0';
-  fclose(o);
-  fclose(e);
-  return code;
+  int code = cli_run(argc, argv, out_file, err_file);
+  rewind(out_file);
+  rewind(err_file);
+  size_t got = fread(out, 1, out_len - 1, out_file);
+  out[got] = '\0';
+  got = fread(err, 1, err_len - 1, err_file);
+  err[got] = '\0';
+  int closed = fclose(out_file) == 0;
+  closed = fclose(err_file) == 0 && closed;
+  return closed ? code : -1;
+}
+
+static int append(char *buf, size_t cap, size_t *used, const char *text) {
+  size_t pos = *used;
+  while (*text != '\0' && pos + 1 < cap) {
+    buf[pos++] = *text++;
+  }
+  buf[pos] = '\0';
+  *used = pos;
+  return *text == '\0';
+}
+
+static int concat(char *buf, size_t cap, const char *head, const char *tail) {
+  size_t used = 0;
+  return append(buf, cap, &used, head) && append(buf, cap, &used, tail);
 }
 
 static void set_env(const char *name, const char *value) {
@@ -83,17 +98,23 @@ static int check_runfiles_fallbacks(void) {
   char stock[4096];
   char manifest[4096];
   char text[8192];
-  snprintf(root, sizeof(root), "%s", found);
-  snprintf(stock, sizeof(stock), "%s/%s", root, STOCK_RLOCATION);
-  snprintf(manifest, sizeof(manifest), "%s/stock.manifest", tmp);
+  if (!concat(root, sizeof(root), found, "") ||
+      !concat(stock, sizeof(stock), root, "/" STOCK_RLOCATION) ||
+      !concat(manifest, sizeof(manifest), tmp, "/stock.manifest")) {
+    return 0;
+  }
   set_env("STOCK_FILE", NULL);
   set_env("RUNFILES_DIR", "/nonexistent");
   set_env("TEST_SRCDIR", "/nonexistent");
 
   char *plain[] = {"stock", "list"};
-  snprintf(text, sizeof(text), "other /nowhere\r\n%s.bak /nowhere\n%s %s\r\n",
-           STOCK_RLOCATION, STOCK_RLOCATION, stock);
-  if (!write_file(manifest, text)) {
+  size_t used = 0;
+  if (!append(text, sizeof(text), &used,
+              "other /nowhere\r\n" STOCK_RLOCATION
+              ".bak /nowhere\n" STOCK_RLOCATION " ") ||
+      !append(text, sizeof(text), &used, stock) ||
+      !append(text, sizeof(text), &used, "\r\n") ||
+      !write_file(manifest, text)) {
     return 0;
   }
   set_env("RUNFILES_MANIFEST_FILE", manifest);
@@ -107,17 +128,22 @@ static int check_runfiles_fallbacks(void) {
   if (!lacks_stock(plain, 2)) {
     return 0;
   }
-  snprintf(manifest, sizeof(manifest), "%s/absent.manifest", tmp);
+  if (!concat(manifest, sizeof(manifest), tmp, "/absent.manifest")) {
+    return 0;
+  }
   set_env("RUNFILES_MANIFEST_FILE", manifest);
   if (!lacks_stock(plain, 2)) {
     return 0;
   }
 
   set_env("RUNFILES_MANIFEST_FILE", NULL);
-  size_t n = strlen(root);
-  if (n > 9 && strcmp(root + n - 9, ".runfiles") == 0) {
+  size_t root_len = strlen(root);
+  if (root_len > 9 && strcmp(root + root_len - 9, ".runfiles") == 0) {
     char binary[4096];
-    snprintf(binary, sizeof(binary), "%.*s", (int)(n - 9), root);
+    if (!concat(binary, sizeof(binary), root, "")) {
+      return 0;
+    }
+    binary[root_len - 9] = '\0';
     char *tree[] = {binary, "list"};
     if (!lists_stock(tree, 2)) {
       return 0;

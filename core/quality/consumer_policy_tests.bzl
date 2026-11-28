@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//core:failure_test.bzl", "failure_test_rule")
+load("//core/quality:sources.bzl", "single_target")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_python_lint_aspect",
@@ -11,7 +12,6 @@ load(
     _ASPECTS_BY_RESULT = "REAL_ASPECTS_BY_RESULT",
 )
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
-load("//core/quality:sources.bzl", "single_target")
 
 visibility(["//core/..."])
 
@@ -19,14 +19,30 @@ CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "def
 
 POLICY_CONFIG_TEST_CONFIGS = ["consumer_python_ruff", "default_standard", "strict_generated_standard"]
 
-def _dx_result_names(target):
-    """Returns the sorted real-aspect result names published for one target."""
+_ExecOsInfo = provider(
+    doc = "The operating system of the execution platform.",
+    fields = {"windows": "Whether the execution platform runs Windows."},
+)
+
+def _exec_os_impl(ctx):
+    return [_ExecOsInfo(windows = ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo]))]
+
+_exec_os = rule(
+    implementation = _exec_os_impl,
+    doc = "Reports the operating system of the platform it is built for.",
+    attrs = {
+        "_windows_os": attr.label(default = "@platforms//os:windows"),
+    },
+)
+
+def _output_group_names(target, group):
+    """Returns the sorted basenames in one output group of a target."""
     if OutputGroupInfo not in target:
         return []
     groups = target[OutputGroupInfo]
-    if "dx_results" not in groups:
+    if group not in groups:
         return []
-    return sorted([f.basename for f in groups["dx_results"].to_list()])
+    return sorted([f.basename for f in groups[group].to_list()])
 
 def _subject_attr(key):
     """Returns the subject attribute name carrying one aspect key."""
@@ -34,6 +50,7 @@ def _subject_attr(key):
 
 def _consumer_policy_impl(ctx):
     results = {}
+    skips = {}
     subjects = []
     for key in _ASPECTS_BY_RESULT:
         dep = getattr(ctx.attr, _subject_attr(key))
@@ -41,13 +58,21 @@ def _consumer_policy_impl(ctx):
             continue
         subject = single_target(dep)
         subjects.append(str(subject.label))
-        for name in _dx_result_names(subject):
+        for name in _output_group_names(subject, "dx_results"):
             results[name] = True
+        for name in _output_group_names(subject, "dx_skips"):
+            skips[name] = True
     results = sorted(results)
-    if results != ctx.attr.expected_dx_results:
+    skipped = ctx.attr.windows_exec_skipped if ctx.attr.exec_os[_ExecOsInfo].windows else []
+    expected = [name for name in ctx.attr.expected_dx_results if name not in skipped]
+    if results != expected:
         fail("consumer policy config " + ctx.attr.config + " publishes " +
              str(results) + " real result(s) for " + str(subjects) +
-             ", want " + str(ctx.attr.expected_dx_results))
+             ", want " + str(expected))
+    unnoted = [name for name in skipped if name.removesuffix(".pb") + "-skips.txt" not in skips]
+    if unnoted:
+        fail("consumer policy config " + ctx.attr.config + " drops " + str(unnoted) +
+             " on a Windows execution platform without a skip note for " + str(subjects))
     windows = ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
     out = ctx.actions.declare_file(ctx.label.name + (".bat" if windows else ".sh"))
     ctx.actions.write(
@@ -66,6 +91,14 @@ _consumer_policy_test = rule(
                 mandatory = True,
             ),
             "config": config_attr(),
+            "exec_os": attr.label(
+                cfg = "exec",
+                mandatory = True,
+                providers = [_ExecOsInfo],
+            ),
+            "windows_exec_skipped": attr.string_list(
+                doc = "Expected results a Windows execution platform reports as skipped instead.",
+            ),
             "_windows_os": attr.label(
                 default = "@platforms//os:windows",
             ),
@@ -158,7 +191,7 @@ _UNKNOWN_TYPECHECK_SETTINGS = {
 
 def _lint_results_impl(ctx):
     env = analysistest.begin(ctx)
-    asserts.true(env, len(_dx_result_names(analysistest.target_under_test(env))) > 0, "want lint results under a policy whose typecheck tool is unknown")
+    asserts.true(env, len(_output_group_names(analysistest.target_under_test(env), "dx_results")) > 0, "want lint results under a policy whose typecheck tool is unknown")
     return analysistest.end(env)
 
 _unknown_typecheck_lint_test = analysistest.make(
@@ -267,11 +300,15 @@ def consumer_policy_tests(name, cases, **kwargs):
     configs = sorted({case["config"]: True for case in cases}.keys())
     if configs != CONSUMER_POLICY_CONFIGS:
         fail("%s: cases use configs %s, want %s" % (name, configs, CONSUMER_POLICY_CONFIGS))
+    exec_os = name + "_exec_os"
+    _exec_os(name = exec_os, testonly = True)
     for case in cases:
         subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"], case.get("absent_keys", []))}
         _consumer_policy_test(
             name = name + "_" + case["case"] + "_test",
             expected_dx_results = case["expected_dx_results"],
+            windows_exec_skipped = case.get("windows_exec_skipped", []),
             config = case["config"],
+            exec_os = ":" + exec_os,
             **dict(kwargs, **subjects)
         )

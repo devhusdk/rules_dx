@@ -528,6 +528,7 @@ consumer_policy_tests(
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_nix",
+            "windows_exec_skipped": ["clean_nix-real-format-nix.pb"],
         },
         {
             "case": "kubernetes_linted",

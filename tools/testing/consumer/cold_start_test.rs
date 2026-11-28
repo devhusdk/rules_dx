@@ -20,6 +20,8 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "rules_ruby",
             "perl",
             "zig",
+            "remotejdk25",
+            "python_3_",
         ],
     ),
     (
@@ -388,6 +390,38 @@ mod tests {
                 !downloads(lang, repo),
                 "{lang} must not flag the hub {repo}"
             );
+        }
+    }
+
+    #[test]
+    fn java_flags_a_second_jdk_and_python_interpreters_but_not_its_own_jdk() {
+        let flagged = |repo: &str| {
+            let measured: BTreeSet<String> = [repo.to_owned()].into_iter().collect();
+            let fetches = Fetches {
+                ran: measured.clone(),
+                downloaded: measured.clone(),
+            };
+            !problems(
+                &measured,
+                &measured,
+                foreign_fragments("java"),
+                &[],
+                &fetches,
+            )
+            .is_empty()
+        };
+        for repo in [
+            "rules_java++toolchains+remotejdk25_linux",
+            "rules_py++python_interpreters+python_3_12_x86_64_unknown_linux_gnu",
+            "rules_python++python+python_3_14_x86_64-unknown-linux-gnu",
+        ] {
+            assert!(flagged(repo), "java must flag {repo}");
+        }
+        for repo in [
+            "rules_java++toolchains+remotejdk21_linux",
+            "rules_python++python+pythons_hub",
+        ] {
+            assert!(!flagged(repo), "java must not flag {repo}");
         }
     }
 

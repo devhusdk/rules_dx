@@ -6,7 +6,7 @@ load("//core:toolchain.bzl", "hub_checks")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_cxx_library_dirs", "host_path", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_argv", "musl_config", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_cxx_library_dirs", "host_path", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_argv", "musl_config", "os_libraries", "pe_link_attrs", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -138,6 +138,8 @@ def _checks():
         expect_equal("cross cells", sorted([(cross.host, cross.target) for cross in CROSS_CELLS.values()]), [("linux_arm64", "linux_x86_64"), ("linux_x86_64", "linux_arm64"), ("macos_arm64", "linux_arm64")]),
         expect_equal("only the macos host compiles its cross cell through llvm", sorted([name for name, cross in CROSS_CELLS.items() if cross.llvm_backend]), ["macos_arm64_to_linux_arm64"]),
         expect_equal("the native code generator needs no llvm tools", llvm_toolchain_attrs(False), ""),
+        expect_equal("unix links need no PE flags", pe_link_attrs(""), ""),
+        expect_equal("windows links write no PE timestamp", pe_link_attrs(".exe"), "\n    ghcopts = [\"-optl-Wl,--no-insert-timestamp\"],\n    cabalopts = [\"--ghc-option=-optl-Wl,--no-insert-timestamp\"],"),
         expect_equal("the llvm backend passes hermetic llc and opt", llvm_toolchain_attrs(True), "\n    llc = \"{}\",\n    opt = \"{}\",".format(Label("@llvm-project//llvm:llc"), Label("@llvm-project//llvm:opt"))),
         expect_contains("cross cell runs on its host and targets its target", hub_files()["BUILD.bazel"], "name = \"dx_haskell_toolchains__linux_x86_64_to_linux_arm64\",\n    exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:aarch64\"],"),
         expect_equal("a linux x86_64 host aliases linux arm64 to its cross cell", alias_repository("linux_arm64", "linux", "amd64"), "dx_haskell_toolchains__linux_x86_64_to_linux_arm64"),

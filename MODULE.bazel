@@ -1206,6 +1206,7 @@ dx_pins.archive(
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
+        "//patches/rules_haskell:cabal_windows_relocatable.patch",
     ],
     pins = "//haskell:pins.json",
 )

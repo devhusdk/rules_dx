@@ -18,6 +18,7 @@ load(":fixtures_tests.bzl", "fixtures_unit_tests")
 load(":link_requests_tests.bzl", "link_requests_analysis_tests")
 load(":native_config.bzl", "vale_config")
 load(":native_config_tests.bzl", "native_config_unit_tests")
+load(":oci_image_hooks_tests.bzl", "oci_image_hooks_unit_tests")
 load(":overlap_tests.bzl", "overlap_unit_tests")
 load(":parity_tests.bzl", "parity_unit_tests")
 load(":pipeline_tests.bzl", "pipeline_unit_tests")
@@ -215,6 +216,8 @@ unsupported_platform_analysis_tests(name = "unsupported_platform_analysis")
 dart_context_unit_tests(name = "dart_context_unit")
 
 native_config_unit_tests(name = "native_config_unit")
+
+oci_image_hooks_unit_tests(name = "oci_image_hooks_unit")
 
 policy_analysis_tests(name = "policy_analysis")
 
@@ -823,6 +826,7 @@ real_source_target(
         "lint_results.bzl",
         "native_config.bzl",
         "native_config_tests.bzl",
+        "oci_image_hooks_tests.bzl",
         "overlap_tests.bzl",
         "overlaps.bzl",
         "parity.bzl",

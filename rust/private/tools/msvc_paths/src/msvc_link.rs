@@ -67,7 +67,7 @@ fn run() -> io::Result<ExitCode> {
         .args(&args)
         .args(REPRODUCIBLE_ARGS)
         .status();
-    let _: io::Result<()> = fs::remove_dir_all(&copy_dir);
+    fs::remove_dir_all(&copy_dir).unwrap_or(());
     Ok(exit_code(status?))
 }
 

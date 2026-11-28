@@ -259,18 +259,17 @@ def _staged_file_list(ctx, name, staged):
     return out
 
 def _shard_tools(tools, shard, capability):
-    """Lists wired tools for one shard and capability, or for every capability when capability is None."""
-    return sorted([tool for tool in tools if tools[tool]["shard"] == shard and (capability == None or capability in tools[tool]["capabilities"])])
+    """Lists wired tools for one shard and capability."""
+    return sorted([tool for tool in tools if tools[tool]["shard"] == shard and capability in tools[tool]["capabilities"]])
 
 _UNSAFE_FIXES_ATTR = {"unsafe_fixes": attr.string(doc = "Whether the run applies unsafe fixes.", values = ["false", "true"], default = "false")}
 
 def _expand_shard(tools_table, spec):
     """Expands one shard spec into its tools, attrs and toolchain flag."""
     tools = _shard_tools(tools_table, spec["shard"], spec["capability"])
-    attr_tools = _shard_tools(tools_table, spec["shard"], None) if spec.get("shared_attrs", False) else tools
     return spec | {
         "suffix": spec.get("suffix", "-" + spec["shard"]),
-        "attrs": _real_attrs_for(tools_table, attr_tools) | spec.get("extra_attrs", {}) | _UNSAFE_FIXES_ATTR,
+        "attrs": _real_attrs_for(tools_table, tools) | spec.get("extra_attrs", {}) | _UNSAFE_FIXES_ATTR,
         "has_toolchain": len([tool for tool in tools if tools_table[tool]["kind"] == "toolchain"]) > 0,
         "tools": tools,
     }

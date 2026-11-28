@@ -108,11 +108,24 @@ def _always_on_tool_attrs(names):
     shards = real_config(_CORE_TOOLS, _CORE_SHARD_SPECS).shards
     return sorted([attr for shard in ["real_format", "real_lint", "real_typecheck"] for attr in shards[shard]["attrs"] if attr in names])
 
+def _core_tool_attrs(shard):
+    attrs = real_config(_CORE_TOOLS, _CORE_SHARD_SPECS).shards[shard]["attrs"]
+    return sorted([attr for attr in attrs if attr.removeprefix("_") in _CORE_TOOLS])
+
 def real_pipeline_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "each core shard carries only the tool attrs of its own capability, so a run fetches no other tool",
+                [_core_tool_attrs(shard) for shard in ["real_format", "real_lint", "real_typecheck"]],
+                [
+                    ["_buildifier", "_taplo"],
+                    ["_actionlint", "_buildifier", "_lychee", "_markdown_check", "_notebook_outputs", "_taplo", "_zizmor"],
+                    ["_taplo"],
+                ],
+            ),
             expect_equal(
                 "the core shards every scoped check attaches carry no biome, docstrfmt, typos or vale attr",
                 _always_on_tool_attrs(["_biome", "_docstrfmt", "_typos", "_vale"]),

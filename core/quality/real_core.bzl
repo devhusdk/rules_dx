@@ -803,6 +803,41 @@ def _probe_shards(cfg, resolved, capability):
             shards.append(shard_name)
     return shards
 
+def real_make_merged_probe_aspect(cfgs, capability, info = RealShardProbeInfo):
+    """Builds one shard probe aspect for one capability over several family configs."""
+
+    def _impl(target, ctx):
+        what = "real_aspect (" + str(target.label) + ")"
+        shards = {}
+        for cfg in cfgs:
+            (resolved, _direct_files, _path_to_file) = real_resolved_stages(cfg, target, ctx, capability, what)
+            if len(resolved) > 0:
+                for name in _probe_shards(cfg, resolved, capability):
+                    shards[name] = True
+        if capability == "format":
+            crate = getattr(ctx.rule.attr, "crate", None)
+            if type(crate) == "Target" and crate.label.repo_name == "" and info in crate:
+                for name in crate[info].shards:
+                    shards[name] = True
+        names = sorted(shards.keys())
+        if len(names) == 0:
+            return []
+        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
+        ctx.actions.write(out, json.encode({"shards": names}))
+        return [
+            OutputGroupInfo(dx_shards = depset([out])),
+            info(capability = capability, shards = names),
+        ]
+
+    return aspect(
+        implementation = _impl,
+        attr_aspects = ["aspect_hints", "crate"] if capability == "format" else ["aspect_hints"],
+        propagation_predicate = real_in_main_repo,
+        attrs = {"_policy": _REAL_BASE_ATTRS["_policy"]},
+        requires = [real_classify_aspect],
+        doc = "Writes the " + capability + " shard names each target needs, for every family it covers, to the dx_shards output group.",
+    )
+
 def real_make_probe_aspect(cfg, capability, family = "", info = RealShardProbeInfo):
     """Builds the tool-free shard probe aspect for one capability."""
 

@@ -251,6 +251,29 @@ fn owner_only_dir(dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn diag_tmp() {
+    use std::os::unix::fs::MetadataExt;
+    eprintln!("DIAG euid={} egid={}", fs::metadata("/proc/self").map(|m| m.uid()).unwrap_or(u32::MAX), fs::metadata("/proc/self").map(|m| m.gid()).unwrap_or(u32::MAX));
+    let mut stack = vec![PathBuf::from("/tmp")];
+    let mut n = 0;
+    while let Some(dir) = stack.pop() {
+        match fs::symlink_metadata(&dir) {
+            Ok(m) => eprintln!("DIAG {} mode={:o} uid={} gid={} dev={}", dir.display(), m.mode(), m.uid(), m.gid(), m.dev()),
+            Err(e) => eprintln!("DIAG {} err={e}", dir.display()),
+        }
+        let walk = dir == Path::new("/tmp") || dir.starts_with("/tmp/.dotnet");
+        for e in fs::read_dir(&dir).into_iter().filter(|_| walk).flatten().flatten() {
+            n += 1;
+            if n < 60 {
+                stack.push(e.path());
+            }
+        }
+    }
+    if let Ok(m) = fs::read_to_string("/proc/self/mountinfo") {
+        for l in m.lines().filter(|l| l.contains(" /tmp") || l.contains(" / ")) { eprintln!("DIAG mount {l}"); }
+    }
+}
+
 fn run() -> Result<i32, String> {
     let target_args: Vec<String> = env::args().skip(1).collect();
     let (entries, runfiles_dir) = runfiles_entries()?;
@@ -327,6 +350,7 @@ fn run() -> Result<i32, String> {
     let Some(code) = status.code() else {
         return Err("coverlet was killed by a signal".to_owned());
     };
+    diag_tmp();
     let code = match outcome(code) {
         Outcome::CoverletFailed(code) => {
             eprintln!("dx: coverlet failed");

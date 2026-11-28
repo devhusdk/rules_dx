@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import javax.tools.ToolProvider;
 
 /** Self-checking test for {@link JavacCheck}; exits non-zero on the first failed expectation. */
 public final class JavacCheckTest {
@@ -17,6 +18,7 @@ public final class JavacCheckTest {
     clean(dir);
     typeError(dir);
     werror(dir);
+    unmatchedProcessorOption(dir);
     sourceTarget(dir);
     srcjar(dir);
     sorted(dir);
@@ -64,6 +66,46 @@ public final class JavacCheckTest {
     expect(log.contains("\"exit\":1"), "werror exits 1", log);
     expect(log.contains("\"severity\":\"warning\""), "warning kept", log);
     expect(log.contains("compiler.err.warnings.and.werror"), "unlocated werror error", log);
+  }
+
+  private static void unmatchedProcessorOption(Path dir) throws IOException {
+    Path processor =
+        write(
+            dir,
+            "proc/src/p/Proc.java",
+            "package p;\n"
+                + "import java.util.Set;\n"
+                + "import javax.annotation.processing.*;\n"
+                + "import javax.lang.model.SourceVersion;\n"
+                + "import javax.lang.model.element.TypeElement;\n"
+                + "@SupportedAnnotationTypes(\"p.Marker\")\n"
+                + "@SupportedOptions(\"p.option\")\n"
+                + "public final class Proc extends AbstractProcessor {\n"
+                + "  @Override public SourceVersion getSupportedSourceVersion() {\n"
+                + "    return SourceVersion.latestSupported();\n"
+                + "  }\n"
+                + "  @Override public boolean process(\n"
+                + "      Set<? extends TypeElement> annotations, RoundEnvironment round) {\n"
+                + "    return false;\n"
+                + "  }\n"
+                + "}\n");
+    Path classes = Files.createDirectories(dir.resolve("proc/classes"));
+    int built =
+        ToolProvider.getSystemJavaCompiler()
+            .run(null, null, null, "-d", classes.toString(), processor.toString());
+    expect(built == 0, "the test processor compiles", "");
+    Path a = write(dir, "proc/F.java", "class F { int f() { return 1; } }\n");
+    String log =
+        JavacCheck.check(
+            List.of(
+                "source=" + a,
+                "processorpath=" + classes,
+                "processor=p.Proc",
+                "javacopt=-Ap.option=",
+                "javacopt=-Xlint:all",
+                "javacopt=-Werror"));
+    expect(log.contains("\"exit\":0"), "an unused processor option exits 0", log);
+    expect(log.contains("\"diagnostics\":[]"), "an unused processor option is no finding", log);
   }
 
   private static void sourceTarget(Path dir) throws IOException {

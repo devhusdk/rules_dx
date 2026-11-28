@@ -196,3 +196,34 @@ fn resolve_applies_dx_toml_excludes_for_every_entry_point() {
         .expect("resolve");
     assert_eq!(named.kept, strings(&["//third_party/x:y"]));
 }
+
+#[test]
+fn within_narrows_broader_entries_to_the_scope() {
+    type Case = (
+        &'static [&'static str],
+        &'static [&'static str],
+        &'static [&'static str],
+    );
+    let cases: [Case; 5] = [
+        (&["//..."], &["//cli/plan/..."], &["//cli/plan/..."]),
+        (
+            &["//cli/plan:plan", "//cli/cli:dx"],
+            &["//cli/plan/..."],
+            &["//cli/plan:plan"],
+        ),
+        (&["//cli/..."], &["//cli/plan:plan"], &["//cli/plan:plan"]),
+        (
+            &["//...", "//cli/plan/..."],
+            &["//cli/plan/...", "//docs/..."],
+            &["//cli/plan/...", "//docs/..."],
+        ),
+        (&["//cli/cli:dx"], &["//cli/plan/..."], &[]),
+    ];
+    for (labels, scope, expected) in cases {
+        assert_eq!(
+            within(&strings(labels), &strings(scope)),
+            strings(expected),
+            "{labels:?} within {scope:?}"
+        );
+    }
+}

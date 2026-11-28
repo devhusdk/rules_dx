@@ -1,0 +1,23 @@
+Upstream: none (rules_dx only: loads expand_make_vars from bazel_lib, which rules_dx depends on, instead of aspect_bazel_lib)
+--- a/zig/private/common/BUILD.bazel
++++ b/zig/private/common/BUILD.bazel
+@@ -81,7 +81,7 @@
+     name = "location_expansion",
+     srcs = ["location_expansion.bzl"],
+     visibility = ["//zig:__subpackages__"],
+-    deps = ["@aspect_bazel_lib//lib:expand_make_vars"],
++    deps = ["@bazel_lib//lib:expand_make_vars"],
+ )
+ 
+ bzl_library(
+--- a/zig/private/common/location_expansion.bzl
++++ b/zig/private/common/location_expansion.bzl
+@@ -1,7 +1,7 @@
+ """Expand location placeholders and make variables on attributes.
+ """
+ 
+-load("@aspect_bazel_lib//lib:expand_make_vars.bzl", "expand_locations", "expand_variables")
++load("@bazel_lib//lib:expand_make_vars.bzl", "expand_locations", "expand_variables")
+ 
+ def location_expansion(*, ctx, targets, outputs, attribute_name, strings):
+     """Perform location make variable expansion on the given strings.

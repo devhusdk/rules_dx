@@ -1,0 +1,71 @@
+Upstream: none (rules_dx only: aliases the toolchain types and the abi constraint to rules_dx)
+--- a/zig/BUILD.bazel
++++ b/zig/BUILD.bazel
+@@ -15,8 +15,9 @@
+ # target in the `toolchains` parameter in order to access the appropriate Zig
+ # compiler for the current execution platform. Note, the target platform is
+ # handled separately via //zig/target:toolchain_type.
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//zig:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+--- a/zig/target/BUILD.bazel
++++ b/zig/target/BUILD.bazel
+@@ -6,8 +6,9 @@
+ # platform and build configurations. Zig rule authors should not depend on this
+ # toolchain directly, but instead depend on the //zig/settings target. Note,
+ # the execution platform is handled separately via //zig:toolchain_type.
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//zig:target_toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+--- a/zig/platforms/abi/BUILD.bazel
++++ b/zig/platforms/abi/BUILD.bazel
+@@ -1,31 +1,32 @@
+-constraint_setting(
++alias(
+     name = "abi",
++    actual = "@rules_dx//zig:abi",
+     visibility = ["//visibility:public"],
+ )
+ 
+ # See `zig targets | jq .abi`.
+ 
+-constraint_value(
++alias(
+     name = "none",
+-    constraint_setting = ":abi",
++    actual = "@rules_dx//zig:abi_none",
+     visibility = ["//visibility:public"],
+ )
+ 
+-constraint_value(
++alias(
+     name = "gnu",
+-    constraint_setting = ":abi",
++    actual = "@rules_dx//zig:abi_gnu",
+     visibility = ["//visibility:public"],
+ )
+ 
+-constraint_value(
++alias(
+     name = "musl",
+-    constraint_setting = ":abi",
++    actual = "@rules_dx//zig:abi_musl",
+     visibility = ["//visibility:public"],
+ )
+ 
+-constraint_value(
++alias(
+     name = "msvc",
+-    constraint_setting = ":abi",
++    actual = "@rules_dx//zig:abi_msvc",
+     visibility = ["//visibility:public"],
+ )
+ 

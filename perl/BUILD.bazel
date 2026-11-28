@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
@@ -5,7 +6,58 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
+    "pins.json",
 ])
+
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+toolchain_type(
+    name = "exec_toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "distribution",
+    build_setting_default = "perl",
+    values = [
+        "perl",
+        "strawberry",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+[
+    config_setting(
+        name = "distribution_" + value,
+        flag_values = {":distribution": value},
+        visibility = ["//visibility:public"],
+    )
+    for value in [
+        "perl",
+        "strawberry",
+    ]
+]
+
+bool_flag(
+    name = "xs",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "xs_enabled",
+    flag_values = {":xs": "True"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "xs_disabled",
+    flag_values = {":xs": "False"},
+    visibility = ["//visibility:public"],
+)
 
 real_source_target(
     name = "corpus_markdown",
@@ -28,6 +80,7 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
 )

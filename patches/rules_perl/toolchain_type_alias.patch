@@ -1,0 +1,78 @@
+Upstream: none (rules_dx only: aliases the toolchain types and settings to rules_dx)
+--- a/perl/BUILD.bazel
++++ b/perl/BUILD.bazel
+@@ -26,13 +26,15 @@
+ # declare that they have this type. Our rules request a toolchain of this type.
+ # Bazel selects a toolchain of the correct type that satisfies platform
+ # constraints from among registered toolchains.
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//perl:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+-toolchain_type(
++alias(
+     name = "exec_toolchain_type",
++    actual = "@rules_dx//perl:exec_toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+--- a/perl/settings/BUILD.bazel
++++ b/perl/settings/BUILD.bazel
+@@ -6,37 +6,34 @@
+ # default) or the dynamically linked glibc one (on). Every toolchain names in
+ # its target_settings the values that select it; see //perl:platforms.bzl.
+ 
+-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
+-load("//perl:platforms.bzl", "DISTRIBUTIONS")
+-
+ package(default_visibility = ["//visibility:public"])
+ 
+-string_flag(
++alias(
+     name = "distribution",
+-    build_setting_default = "perl",
+-    values = DISTRIBUTIONS,
++    actual = "@rules_dx//perl:distribution",
++)
++
++alias(
++    name = "distribution_perl",
++    actual = "@rules_dx//perl:distribution_perl",
+ )
+ 
+-# One config_setting per distribution, for select() and for the toolchains.
+-[
+-    config_setting(
+-        name = "distribution_" + value,
+-        flag_values = {":distribution": value},
+-    )
+-    for value in DISTRIBUTIONS
+-]
++alias(
++    name = "distribution_strawberry",
++    actual = "@rules_dx//perl:distribution_strawberry",
++)
+ 
+-bool_flag(
++alias(
+     name = "xs",
+-    build_setting_default = False,
++    actual = "@rules_dx//perl:xs",
+ )
+ 
+-config_setting(
++alias(
+     name = "xs_enabled",
+-    flag_values = {":xs": "True"},
++    actual = "@rules_dx//perl:xs_enabled",
+ )
+ 
+-config_setting(
++alias(
+     name = "xs_disabled",
+-    flag_values = {":xs": "False"},
++    actual = "@rules_dx//perl:xs_disabled",
+ )

@@ -958,6 +958,9 @@ fn scan_bicep(
     for (index, (workspace, absolute)) in call.staged.pairs.iter().enumerate() {
         let invocation = commands::bicep_build_stdout(bicep, absolute);
         let out = backend.run(tool_id, call.tool, &invocation, scratch)?;
+        if out.code != Some(0) && parsers::bicep_build_compile_error(&out.stderr) {
+            continue;
+        }
         if out.code != Some(0) {
             return Err(execution(
                 tool_id,

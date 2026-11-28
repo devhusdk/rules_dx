@@ -995,6 +995,44 @@ dx_pins.archive(
     pins = "//dotnet:pins.json",
 )
 dx_pins.archive(
+    name = "rules_perl",
+    dropped = [
+        ".bazelci",
+        ".bcr",
+        "MODULE.bazel",
+        "MODULE.bazel.lock",
+        "WORKSPACE.bazel",
+        "WORKSPACE.bzlmod",
+        "docs",
+        "e2e",
+        "examples",
+        "test",
+    ],
+    patches = [
+        "//patches/rules_perl:manifest_only_runfiles.patch",
+        "//patches/rules_perl:toolchain_type_alias.patch",
+    ],
+    pins = "//perl:pins.json",
+)
+dx_pins.archive(
+    name = "rules_zig",
+    dropped = [
+        ".bcr",
+        ".devcontainer",
+        ".github",
+        "MODULE.bazel",
+        "WORKSPACE",
+        "docs",
+        "e2e",
+        "util",
+    ],
+    patches = [
+        "//patches/rules_zig:bazel_lib.patch",
+        "//patches/rules_zig:toolchain_type_alias.patch",
+    ],
+    pins = "//zig:pins.json",
+)
+dx_pins.archive(
     name = "dx_d_containers",
     build = "//d/private:containers.BUILD.bazel",
     dropped = [
@@ -1717,9 +1755,11 @@ use_repo(
     "rules_haskell",
     "rules_julia",
     "rules_ocaml",
+    "rules_perl",
     "rules_powershell",
     "rules_ruby",
     "rules_scala",
+    "rules_zig",
     "shared_tasks_adler2",
 )
 
@@ -1770,9 +1810,6 @@ ruby.lock(
     lock = "//third_party/ruby:ruby.lock.json",
 )
 use_repo(ruby, "dx_ruby_toolchains", "gems", "ruby")
-
-# floor: equals tested
-bazel_dep(name = "rules_zig", version = "0.17.0")
 
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.3.0")
@@ -1973,6 +2010,14 @@ dx_toolchains.package(
     build = "//julia/private:toolchains.BUILD.bazel",
 )
 dx_toolchains.package(
+    name = "perl",
+    build = "//perl/private:toolchains.BUILD.bazel",
+)
+dx_toolchains.package(
+    name = "zig",
+    build = "//zig/private:toolchains.BUILD.bazel",
+)
+dx_toolchains.package(
     name = "launcher",
     build = "//core/hermetic_launcher:toolchains.BUILD.bazel",
 )
@@ -2068,14 +2113,29 @@ julia_pkg.pkg_annotation(
 )
 use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
-# floor: equals tested
-bazel_dep(name = "rules_perl", version = "2.1.0")
 single_version_override(
     module_name = "rules_perl",
-    patch_strip = 1,
-    patches = ["//patches/rules_perl:manifest_only_runfiles.patch"],
     version = "2.1.0",
 )
+
+perl_repositories = use_extension("//perl/private:repositories.bzl", "perl_repositories")
+use_repo(
+    perl_repositories,
+    "perl_aarch64_linux_gnu",
+    "perl_aarch64_linux_musl",
+    "perl_aarch64_linux_musl_static",
+    "perl_aarch64_macos",
+    "perl_aarch64_windows_msvc",
+    "perl_x86_64_linux_gnu",
+    "perl_x86_64_linux_musl",
+    "perl_x86_64_linux_musl_static",
+    "perl_x86_64_macos",
+    "perl_x86_64_windows_gnu",
+    "perl_x86_64_windows_msvc",
+    "perl_x86_64_windows_strawberry",
+)
+
+register_toolchains("@dx_toolchains//perl:all")
 
 perl_pod = use_extension("//perl:extensions.bzl", "perl_pod")
 use_repo(perl_pod, "dx_perl_pod")
@@ -2164,11 +2224,43 @@ use_repo(fpm, "fpm_fortran.tests.fixtures.fpm_deps")
 
 register_toolchains("@dx_fortran_toolchains//:all")
 
-zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
+zig_sdk = use_extension("//zig/private:rules_zig.bzl", "zig_sdk")
+zig_sdk.index(file = "@rules_zig//zig/private:versions.json")
 
-# //core/modules:versions_contract fails once the rules_zig bazel_dep lists Zig 0.17.1; then this index goes.
-zig.index(file = "//zig/private:sdk_versions.json")
-zig.toolchain(zig_version = "0.17.1")
+# //core/modules:versions_contract fails once rules_zig lists Zig 0.17.1; then this index goes.
+zig_sdk.index(file = "//zig/private:sdk_versions.json")
+zig_sdk.mirrors(urls = [
+    "https://pkg.machengine.org/zig",
+    "https://zigmirror.hryx.net/zig",
+    "https://zig.linus.dev/zig",
+    "https://zig.squirl.dev",
+    "https://zig.florent.dev",
+    "https://zig.mirror.mschae23.de/zig",
+    "https://zigmirror.meox.dev",
+    "https://ziglang.freetls.fastly.net",
+    "https://zig.tilok.dev",
+    "https://zig-mirror.tsimnet.eu/zig",
+    "https://zig.karearl.com/zig",
+    "https://pkg.earth/zig",
+    "https://fs.liujiacai.net/zigbuilds",
+])
+zig_sdk.toolchain(zig_version = "0.17.1")
+use_repo(
+    zig_sdk,
+    "zig_0.17.1_aarch64-linux",
+    "zig_0.17.1_aarch64-macos",
+    "zig_0.17.1_aarch64-windows",
+    "zig_0.17.1_x86_64-linux",
+    "zig_0.17.1_x86_64-macos",
+    "zig_0.17.1_x86_64-windows",
+    "zig_toolchains",
+)
+
+register_toolchains("@dx_toolchains//zig:all")
+
+zig_cc_common_link = use_repo_rule("//zig/private:rules_zig.bzl", "cc_common_link")
+
+zig_cc_common_link(name = "build_bazel_rules_android")
 
 zig_hub = use_extension("//zig:extensions.bzl", "zig", dev_dependency = True)
 zig_hub.lock(

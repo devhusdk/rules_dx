@@ -322,6 +322,7 @@ pub fn host_launcher(os: &str, arch: &str) -> Option<&'static str> {
         ("macos", "x86_64") => Some("bazelisk-darwin-amd64"),
         ("macos", "aarch64") => Some("bazelisk-darwin-arm64"),
         ("windows", "x86_64") => Some("bazelisk-windows-amd64.exe"),
+        ("windows", "aarch64") => Some("bazelisk-windows-arm64.exe"),
         _ => None,
     }
 }

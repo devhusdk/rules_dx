@@ -29,8 +29,12 @@ fn every_host_maps_to_the_launcher_its_bundle_carries() {
         host_launcher("windows", "x86_64"),
         Some("bazelisk-windows-amd64.exe")
     );
+    assert_eq!(
+        host_launcher("windows", "aarch64"),
+        Some("bazelisk-windows-arm64.exe")
+    );
     assert_eq!(host_launcher("freebsd", "x86_64"), None);
-    assert_eq!(host_launcher("windows", "aarch64"), None);
+    assert_eq!(host_launcher("windows", "x86"), None);
 }
 
 #[test]

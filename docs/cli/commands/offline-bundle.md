@@ -28,7 +28,7 @@ offline_bundle(
 | `name` | Bundle target and tree directory. |
 | `advisory` | Dict of advisory set to snapshot label. Sets: `cargo`, `npm`, `maven`, `nuget`, `go`, `rubygems`. Another set fails at load time. |
 | `advisory_meta` | Dict of advisory set to the `<set>.meta.json` written by `advisory_prep`. Holds `retrieved_at` and the snapshot `sha256`. Needs exactly the sets in `advisory`. |
-| `launchers` | Bazelisk labels, named `bazelisk-darwin-amd64`, `bazelisk-darwin-arm64`, `bazelisk-linux-amd64`, `bazelisk-linux-arm64` or `bazelisk-windows-amd64.exe`. Ship every host you install on. |
+| `launchers` | Bazelisk labels, named `bazelisk-darwin-amd64`, `bazelisk-darwin-arm64`, `bazelisk-linux-amd64`, `bazelisk-linux-arm64`, `bazelisk-windows-amd64.exe` or `bazelisk-windows-arm64.exe`. Ship every host you install on. |
 
 ## Output tree
 

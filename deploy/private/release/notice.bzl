@@ -49,8 +49,8 @@ def notice_bundle(name, root, inventory, texts, runtimes = None, target_compatib
         srcs = [":" + name + "_notice"],
         outs = [checksum],
         target_compatible_with = target_compatible_with,
-        tools = [Label("@dx_prebuilt//:dx")],
-        cmd = "$(location " + str(Label("@dx_prebuilt//:dx")) + ") hasher $(location :" + name + "_notice) $(OUTS)",
+        tools = [Label("@dx_prebuilt//dx:hasher")],
+        cmd = "$(location " + str(Label("@dx_prebuilt//dx:hasher")) + ") hasher $(location :" + name + "_notice) $(OUTS)",
     )
 
     native.filegroup(

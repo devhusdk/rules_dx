@@ -296,7 +296,7 @@ oci_layout_fixture = rule(
         ),
         "_archiver": attr.label(
             doc = "Archiver tool.",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:archiver"),
             executable = True,
             cfg = "exec",
         ),

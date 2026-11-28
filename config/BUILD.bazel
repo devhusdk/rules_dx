@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("//core/quality:default_policy.bzl", "default_workspace_policy")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:policy_subject.bzl", "policy_subject")
+load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":settings_tests.bzl", "exec_settings_tests", "settings_tests", "tool_flag_scope_tests", "workspace_policy_tests")
 load(":subject.bzl", "exec_settings_subject", "settings_subject")
 
@@ -63,6 +64,24 @@ label_flag(
     name = "tool_ruff",
     build_setting_default = "@dx_tools//:ruff",
     scope = "universal",
+)
+
+label_flag(
+    name = "tool_pydoclint",
+    build_setting_default = "//core/quality/tools/python:pydoclint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_ty",
+    build_setting_default = "@dx_tools//:ty",
+    scope = "universal",
+)
+
+dx_unavailable_tool(
+    name = "off_tool",
+    message = "this quality tool is off in .dx/bazelrc; run dx generate after you turn it on",
+    tool = "off_tool",
 )
 
 label_flag(

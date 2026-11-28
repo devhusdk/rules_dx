@@ -169,6 +169,11 @@ common --@rules_dx//config:config_tier=strict
 
 # The workspace policy dx generates from dx.toml.
 common --@rules_dx//config:workspace=//.dx:policy
+
+# The tools no family runs.
+common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+common --@rules_dx//config:tool_ruff=@rules_dx//config:off_tool
+common --@rules_dx//config:tool_ty=@rules_dx//config:off_tool
 === .dx/bazelrc/performance.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
 # Regenerate: `tools/dx init --apply`.

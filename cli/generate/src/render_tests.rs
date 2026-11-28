@@ -147,6 +147,9 @@ fn renders_standard() {
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
 
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
@@ -206,6 +209,9 @@ fn renders_strict() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -279,6 +285,9 @@ fn renders_no_dx_toml() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
 
     # The clippy tier.
     common --@rules_dx//config:clippy_flag=-Wclippy::all
@@ -404,6 +413,9 @@ fn renders_existing_exports() {
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
 
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
@@ -465,6 +477,9 @@ fn renders_no_root_build() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -529,6 +544,9 @@ fn renders_mixed_tiers() {
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
 
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
     == .dx/bazelrc/performance.bazelrc
@@ -585,6 +603,11 @@ fn renders_rust() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The tools no family runs.
+    common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ruff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ty=@rules_dx//config:off_tool
 
     # The clippy tier.
     common --@rules_dx//config:clippy_flag=-Wclippy::all
@@ -1081,4 +1104,33 @@ fn rust_settings_are_written_only_for_a_rust_workspace() {
     for line in lines {
         assert!(rust.lines().any(|found| found == line), "{line}: {rust}");
     }
+}
+
+#[test]
+fn a_tool_no_family_runs_points_at_the_off_tool() {
+    let off =
+        |tool: &str| format!("common --@rules_dx//config:tool_{tool}=@rules_dx//config:off_tool\n");
+    let rc = |toml: Option<&str>, families: &[&str]| {
+        text(
+            &rendered(&inputs(toml, families, &[])),
+            ".dx/bazelrc/correctness.bazelrc",
+        )
+    };
+    let undetected = rc(None, &["rust"]);
+    for tool in ["pydoclint", "ruff", "ty"] {
+        assert!(undetected.contains(&off(tool)), "{undetected}");
+    }
+    let detected = rc(None, &["python"]);
+    assert!(detected.contains(&off("pydoclint")), "{detected}");
+    assert!(!detected.contains(&off("ruff")), "{detected}");
+    assert!(!detected.contains(&off("ty")), "{detected}");
+    let opted_in = rc(
+        Some(
+            "schema_version = 1\n[families.python]\nlint = [\"pydoclint\", \"ruff\"]\ntypecheck = []\n",
+        ),
+        &["python"],
+    );
+    assert!(!opted_in.contains(&off("pydoclint")), "{opted_in}");
+    assert!(!opted_in.contains(&off("ruff")), "{opted_in}");
+    assert!(opted_in.contains(&off("ty")), "{opted_in}");
 }

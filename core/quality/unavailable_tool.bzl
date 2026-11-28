@@ -10,7 +10,8 @@ DxUnavailableToolInfo = provider(
 )
 
 def _dx_unavailable_tool_impl(ctx):
-    launcher, _, runfiles = write_native_launcher(ctx, "fail=" + ctx.attr.tool + " is unavailable on this execution platform\n")
+    message = ctx.attr.message or ctx.attr.tool + " is unavailable on this execution platform"
+    launcher, _, runfiles = write_native_launcher(ctx, "fail=" + message + "\n")
     return [
         DefaultInfo(executable = launcher, runfiles = runfiles),
         DxUnavailableToolInfo(tool = ctx.attr.tool),
@@ -18,7 +19,10 @@ def _dx_unavailable_tool_impl(ctx):
 
 dx_unavailable_tool = rule(
     implementation = _dx_unavailable_tool_impl,
-    attrs = NATIVE_LAUNCHER_ATTRS | {"tool": attr.string(doc = "Name of the tool that is unavailable.", mandatory = True)},
+    attrs = NATIVE_LAUNCHER_ATTRS | {
+        "message": attr.string(doc = "Error the stub prints when run; defaults to the platform message."),
+        "tool": attr.string(doc = "Name of the tool that is unavailable.", mandatory = True),
+    },
     executable = True,
     doc = "An executable that refuses to run, selected where a tool has no build.",
 )

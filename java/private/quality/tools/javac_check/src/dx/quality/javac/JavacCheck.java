@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -26,6 +27,18 @@ import javax.tools.ToolProvider;
 public final class JavacCheck {
 
   private JavacCheck() {}
+
+  private static final Set<String> JAVABUILDER_IGNORED_WARNINGS =
+      Set.of(
+          "compiler.warn.proc.unmatched.processor.options",
+          "compiler.warn.big.major.version",
+          "compiler.warn.proc.processor.incompatible.source.version",
+          "compiler.warn.unknown.enum.constant",
+          "compiler.warn.unknown.enum.constant.reason",
+          "compiler.warn.annotation.method.not.found",
+          "compiler.warn.annotation.method.not.found.reason");
+
+  private static final String WERROR_CODE = "compiler.err.warnings.and.werror";
 
   /** One javac diagnostic as written to the log. */
   static final class Entry {
@@ -132,8 +145,10 @@ public final class JavacCheck {
       int index = 0;
       for (String srcjar : srcjars) {
         inputs.addAll(
-            extract(srcjar, Files.createDirectory(work.resolve("srcjar" + index++)), names));
+            extract(srcjar, Files.createDirectory(work.resolve("srcjar" + index)), names));
+        index++;
       }
+      boolean werror = options.removeIf("-Werror"::equals);
       List<String> args = new ArrayList<>(options);
       args.addAll(
           List.of(
@@ -188,7 +203,14 @@ public final class JavacCheck {
       }
       List<Entry> entries = new ArrayList<>();
       for (Diagnostic<? extends JavaFileObject> d : collector.getDiagnostics()) {
-        entries.add(entry(d, names));
+        if (!JAVABUILDER_IGNORED_WARNINGS.contains(d.getCode())) {
+          entries.add(entry(d, names));
+        }
+      }
+      if (werror && entries.stream().anyMatch(e -> "warning".equals(e.severity()))) {
+        entries.add(
+            new Entry("", 0, 0, "error", WERROR_CODE, "warnings found and -Werror specified"));
+        exit = 1;
       }
       entries.sort(
           Comparator.comparing(Entry::file)
@@ -294,7 +316,10 @@ public final class JavacCheck {
         if (!out.startsWith(target)) {
           throw new IOException("source jar entry escapes its directory: " + entry.getName());
         }
-        Files.createDirectories(out.getParent());
+        Path parent = out.getParent();
+        if (parent != null) {
+          Files.createDirectories(parent);
+        }
         try (InputStream in = zip.getInputStream(entry)) {
           Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
         }

@@ -9,6 +9,18 @@ const MISSING_FETCH_TARGET: [&str; 2] = ["failed to fetch blobs", "(no such file
 const DANGLING_OUTPUT: &str = "is a dangling symbolic link";
 const SYMLINK_MNEMONIC: &str = "Symlink";
 const EVENT_KEYS: [&str; 3] = ["\"progress\"", "\"localExecRoot\"", "\"action\""];
+const BULK_TRANSFER: &str = "multiple errors during bulk transfer:";
+const MESSAGE_STARTS: &[&str] = &[
+    "ERROR:",
+    "WARNING:",
+    "INFO:",
+    "DEBUG:",
+    "FATAL:",
+    "FAILED:",
+    "Target ",
+    "Loading:",
+    "Analyzing:",
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CacheError {
@@ -46,13 +58,37 @@ pub fn cache_error(reader: impl BufRead) -> Option<CacheError> {
                 && action.get("type").and_then(Value::as_str) == Some(SYMLINK_MNEMONIC);
         }
     }
-    let lost = bazel_lines(&text).any(|line| lost_output(line, symlink_failed));
+    let lost = error_messages(&text).any(|message| lost_output(&message, symlink_failed));
     match exec_root {
         Some(exec_root) if lost => Some(CacheError::LostOutputs { exec_root }),
-        _ => bazel_lines(&text)
-            .any(is_cache_error)
+        _ => error_messages(&text)
+            .any(|message| is_cache_error(&message))
             .then_some(CacheError::Remote),
     }
+}
+
+/// Lowercased `ERROR:` messages, a bulk transfer error joined with the lines it lists.
+fn error_messages(text: &str) -> impl Iterator<Item = String> {
+    let mut lines = bazel_lines(text).peekable();
+    std::iter::from_fn(move || {
+        let mut message = lines.by_ref().find_map(error_text)?;
+        if message.trim_end().ends_with(BULK_TRANSFER) {
+            while let Some(line) = lines.next_if(|line| !starts_message(line)) {
+                message.push('\n');
+                message.push_str(&line.to_ascii_lowercase());
+            }
+        }
+        Some(message)
+    })
+}
+
+fn starts_message(line: &str) -> bool {
+    let line = line.trim_start();
+    line.is_empty()
+        || MESSAGE_STARTS.iter().any(|start| line.starts_with(start))
+        || line
+            .strip_prefix('[')
+            .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
 }
 
 fn bazel_lines(text: &str) -> impl Iterator<Item = &str> {
@@ -78,15 +114,17 @@ fn error_text(line: &str) -> Option<String> {
         .map(str::to_ascii_lowercase)
 }
 
-fn is_cache_error(line: &str) -> bool {
-    error_text(line).is_some_and(|rest| SIGNATURES.iter().any(|signature| rest.contains(signature)))
+fn is_cache_error(message: &str) -> bool {
+    SIGNATURES
+        .iter()
+        .any(|signature| message.contains(signature))
 }
 
-fn lost_output(line: &str, symlink_failed: bool) -> bool {
-    error_text(line).is_some_and(|rest| {
-        MISSING_FETCH_TARGET.iter().all(|part| rest.contains(part))
-            || (symlink_failed && rest.contains(DANGLING_OUTPUT))
-    })
+fn lost_output(message: &str, symlink_failed: bool) -> bool {
+    MISSING_FETCH_TARGET
+        .iter()
+        .all(|part| message.contains(part))
+        || (symlink_failed && message.contains(DANGLING_OUTPUT))
 }
 
 #[cfg(test)]
@@ -113,6 +151,12 @@ mod tests {
     }
 
     const ENOENT_FETCH: &str = "ERROR: /w/BUILD:1:1: Compiling a.c failed: Failed to fetch blobs because of a remote cache error.: [unix_jni.cc:297] /ob/execroot/_main/bazel-out/k8-fastbuild-exec/bin/tool (No such file or directory)\n";
+    const BULK_ENOENT_FETCH: &str = "ERROR: /w/external/rules_java+/BUILD:1:1: Compiling Java headers failed: Failed to fetch blobs because of a remote cache error.: Multiple errors during bulk transfer:
+[unix_jni.cc:297] /ob/execroot/_main/bazel-out/k8-opt-exec/bin/external/rules_java+/java/tools/header-parser (No such file or directory)
+[unix_jni.cc:297] /ob/execroot/_main/bazel-out/k8-opt-exec/bin/external/rules_java+/java/tools/header-parser.runfiles (No such file or directory)
+INFO: Elapsed time: 3.112s, Critical Path: 0.41s
+ERROR: Build did NOT complete successfully
+";
     const DANGLING: &str = "ERROR: /ob/external/x/BUILD.bazel:1:1: output 'external/x/crt1.o' is a dangling symbolic link\n";
 
     #[test]
@@ -177,6 +221,50 @@ mod tests {
         );
         assert_eq!(cache_error(text.as_bytes()), lost);
         assert!(found(ENOENT_FETCH));
+    }
+
+    #[test]
+    fn a_bulk_transfer_listing_a_missing_directory_is_a_lost_output() {
+        let text = format!(
+            "{}{}",
+            workspace("/ob/execroot/_main"),
+            stream(BULK_ENOENT_FETCH)
+        );
+        assert_eq!(
+            cache_error(text.as_bytes()),
+            Some(CacheError::LostOutputs {
+                exec_root: PathBuf::from("/ob/execroot/_main"),
+            })
+        );
+        assert!(found(BULK_ENOENT_FETCH));
+    }
+
+    #[test]
+    fn a_bulk_transfer_split_across_events_is_a_lost_output() {
+        let (head, tail) =
+            BULK_ENOENT_FETCH.split_at(BULK_ENOENT_FETCH.find("[unix_jni").unwrap_or(0));
+        let text = format!(
+            "{}{}{}",
+            workspace("/ob/execroot/_main"),
+            stream(head),
+            stream(tail)
+        );
+        assert!(matches!(
+            cache_error(text.as_bytes()),
+            Some(CacheError::LostOutputs { .. })
+        ));
+    }
+
+    #[test]
+    fn a_bulk_transfer_does_not_absorb_later_messages() {
+        let text = format!(
+            "{}{}",
+            workspace("/ob/execroot/_main"),
+            stream(
+                "ERROR: /w/BUILD:1:1: Compiling a.c failed: Failed to fetch blobs because of a remote cache error.: Multiple errors during bulk transfer:\nMissing digest: ab/1 for bazel-out/a.o\n[3 / 9] Compiling b.c (No such file or directory)\nINFO: x (No such file or directory)\n"
+            )
+        );
+        assert_eq!(cache_error(text.as_bytes()), Some(CacheError::Remote));
     }
 
     #[test]

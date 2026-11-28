@@ -57,7 +57,7 @@ real_source_target(
 hub_order_test(
     name = "hub_order_test",
     size = "small",
-    build = "@dx_hub_builds//:ruby.txt",
+    build = "//ruby/private:toolchains.BUILD.bazel",
     names = [
         "toolchain_arm64_darwin",
         "toolchain_arm64_linux",
@@ -66,5 +66,5 @@ hub_order_test(
         "toolchain_x86_64_linux",
         "toolchain_x86_64_windows",
     ],
-    toolchain_types = ["@rules_ruby//ruby:toolchain_type"],
+    toolchain_types = ["@rules_dx//ruby:toolchain_type"],
 )

@@ -71,7 +71,6 @@ rules_dx++dx_pins+dx_powershell_toolchains
 rules_dx++dx_pins+dx_windows_support
 rules_dx++dx_pins+rules_julia
 rules_dx++dx_pins+rules_powershell
-rules_dx++dx_pins+rules_ruby
 rules_dx++dx_prebuilt+dx_prebuilt
 rules_dx++dx_toolchains+dx_toolchains
 rules_dx++elixir+dx_elixir_toolchains
@@ -84,7 +83,6 @@ rules_dx++ocaml+dx_ocaml_toolchains
 rules_dx++php+dx_php_toolchains
 rules_dx++protoc+dx_protoc_toolchains
 rules_dx++python+dx_python_toolchains
-rules_dx++ruby+dx_ruby_toolchains
 rules_dx++rust_toolchains+dx_rust_toolchains
 rules_dx++scala_config+dx_scala_toolchains
 rules_dx++scala_config+rules_scala_config

@@ -3,7 +3,8 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "coverage.patch",
     "rubyinstaller_archive.patch",
-    "toolchains_gate.patch",
+    "toolchain_aliases.patch",
+    "toolchain_type_alias.patch",
     "toolchains_hub.patch",
 ])
 

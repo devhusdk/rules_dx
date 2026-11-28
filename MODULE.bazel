@@ -1425,8 +1425,9 @@ dx_pins.archive(
     patches = [
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
-        "//patches/rules_ruby:toolchains_gate.patch",
         "//patches/rules_ruby:toolchains_hub.patch",
+        "//patches/rules_ruby:toolchain_aliases.patch",
+        "//patches/rules_ruby:toolchain_type_alias.patch",
     ],
     pins = "//ruby:pins.json",
 )
@@ -1770,8 +1771,6 @@ ruby.lock(
 )
 use_repo(ruby, "dx_ruby_toolchains", "gems", "ruby")
 
-register_toolchains("@dx_ruby_toolchains//:all")
-
 # floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")
 
@@ -1977,11 +1976,17 @@ dx_toolchains.package(
     name = "launcher",
     build = "//core/hermetic_launcher:toolchains.BUILD.bazel",
 )
+dx_toolchains.package(
+    name = "ruby",
+    build = "//ruby/private:toolchains.BUILD.bazel",
+)
 use_repo(dx_toolchains, "dx_toolchains")
 
 register_toolchains("@dx_toolchains//julia:all")
 
 register_toolchains("@dx_toolchains//dotnet:all")
+
+register_toolchains("@dx_toolchains//ruby:all")
 
 register_toolchains("@julia_toolchains//:all")
 
@@ -3309,16 +3314,6 @@ _api_fixtures = use_repo_rule("//tools/ci:repos.bzl", "api_fixtures")
 
 _api_fixtures(
     name = "dx_api_fixtures",
-    dev_dependency = True,
-)
-
-_hub_builds = use_repo_rule("//tools/ci:repos.bzl", "hub_builds")
-
-_hub_builds(
-    name = "dx_hub_builds",
-    builds = {
-        "ruby.txt": "@dx_ruby_toolchains//:BUILD",
-    },
     dev_dependency = True,
 )
 

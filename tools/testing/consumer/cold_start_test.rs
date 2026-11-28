@@ -17,6 +17,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "kotlin",
             "android",
             "rules_dotnet",
+            "rules_ruby",
         ],
     ),
     (
@@ -38,6 +39,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_darwin",
             "nodejs_windows",
             "rules_dotnet",
+            "rules_ruby",
         ],
     ),
     (
@@ -56,6 +58,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_darwin",
             "nodejs_windows",
             "rules_dotnet",
+            "rules_ruby",
         ],
     ),
 ];

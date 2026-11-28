@@ -1,0 +1,67 @@
+# The ruby package of the dx_toolchains hub. Labels resolve as in rules_dx.
+
+toolchain(
+    name = "toolchain_arm64_darwin",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:arm64_darwin",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_arm64_linux",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:arm64_linux",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_arm64_windows",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:arm64_windows",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_x86_64_darwin",
+    exec_compatible_with = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:x86_64_darwin",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_x86_64_linux",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:x86_64_linux",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)
+
+toolchain(
+    name = "toolchain_x86_64_windows",
+    exec_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    target_settings = ["@rules_dx//config:toolchains_on"],
+    toolchain = "@dx_ruby_toolchains//:x86_64_windows",
+    toolchain_type = "@rules_dx//ruby:toolchain_type",
+)

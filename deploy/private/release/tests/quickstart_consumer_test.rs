@@ -9,6 +9,7 @@ use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::candidate::file_url;
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
+use prebuilt_guard::{bundle_tools, stub_bundle};
 
 /// Asserts `run` passed; a failing run's last lines also go to the uncaptured stderr, so a test
 /// killed by its timeout still shows them.
@@ -111,21 +112,54 @@ pub(crate) const RULES_PYTHON_SKIP: [&str; 1] = ["lock_extension.patch"];
 /// The symlink line `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_symlinks\n";
 
-/// The root `dx_prebuilt.asset` lines that serve `dx` and `launcher`, the ones this test built.
-fn built_dx_asset(dx: &std::path::Path) -> String {
+/// The root `dx_prebuilt.asset` lines that serve `dx` and `launcher`, the ones this test built,
+/// and each Python tool from a stub archive written under `TEST_TMPDIR/<stubs>`, as a release serves
+/// those tools from archives.
+fn built_dx_asset(dx: &std::path::Path, stubs: &str) -> String {
     let launcher = resolve_runfiles(
         &std::env::var("DX_LAUNCHER").expect("DX_LAUNCHER must name the launcher"),
     );
     let sha256 = |path: &std::path::Path| {
         dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
     };
-    let (dx_url, dx_sha256) = (file_url(dx), sha256(dx));
-    let (launcher_url, launcher_sha256) = (file_url(&launcher), sha256(&launcher));
-    dx_prebuilt_assets(&[
-        ("dx", &dx_url, &dx_sha256),
-        ("launcher", &launcher_url, &launcher_sha256),
-    ])
-    .unwrap_or_else(|error| panic!("{error}"))
+    let mut assets = vec![
+        ("dx".to_owned(), file_url(dx), sha256(dx)),
+        (
+            "launcher".to_owned(),
+            file_url(&launcher),
+            sha256(&launcher),
+        ),
+    ];
+    for (tool, archive) in python_tool_stubs(stubs) {
+        assets.push((tool, file_url(&archive), sha256(&archive)));
+    }
+    let assets: Vec<(&str, &str, &str)> = assets
+        .iter()
+        .map(|(tool, url, sha256)| (tool.as_str(), url.as_str(), sha256.as_str()))
+        .collect();
+    dx_prebuilt_assets(&assets).unwrap_or_else(|error| panic!("{error}"))
+}
+
+fn python_tool_stubs(stubs: &str) -> Vec<(String, std::path::PathBuf)> {
+    let targets = resolve_runfiles(
+        &std::env::var("DX_PREBUILT_PYTHON_HUB_TARGETS")
+            .expect("DX_PREBUILT_PYTHON_HUB_TARGETS must name the Python tools"),
+    );
+    let tools = bundle_tools(&read_text(&targets)).unwrap_or_else(|error| panic!("{error}"));
+    let dir = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join(stubs);
+    std::fs::create_dir_all(&dir)
+        .unwrap_or_else(|error| panic!("create {}: {error}", dir.display()));
+    tools
+        .iter()
+        .map(|tool| {
+            let archive = dir.join(format!("{}.tar.gz", tool.name));
+            let bytes = stub_bundle(tool, cfg!(windows))
+                .unwrap_or_else(|error| panic!("stub {}: {error}", tool.name));
+            std::fs::write(&archive, bytes)
+                .unwrap_or_else(|error| panic!("write {}: {error}", archive.display()));
+            (tool.name.clone(), archive)
+        })
+        .collect()
 }
 
 /// The `.bazelrc` the consumer starts with: the preset's `//config:toolchains` lines, which a
@@ -289,7 +323,7 @@ pub(crate) fn init_consumer(
         &write_root_patch_override(case.root(), source, "rules_python", &RULES_PYTHON_SKIP)
             .unwrap_or_else(|error| panic!("{error}")),
     );
-    module.push_str(&built_dx_asset(dx));
+    module.push_str(&built_dx_asset(dx, test));
     write_text(&module_path, &module);
     if cfg!(windows) {
         let rc_path = case.root().join(".bazelrc");
@@ -410,6 +444,15 @@ fn the_readme_quickstart_runs_as_written() {
     );
     eprintln!("fetch python after_check: {}s", started.elapsed().as_secs());
     within_budget("python", &python, "after_check");
+    let repos = external_repos(&case);
+    let built: Vec<&str> = repos
+        .split(' ')
+        .filter(|name| name.contains("+project__dx_"))
+        .collect();
+    assert!(
+        built.is_empty(),
+        "the Python tools come from their archives, not a source build: {built:?}"
+    );
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -471,7 +514,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     module.push_str(&llvm_override());
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
-    module.push_str(&built_dx_asset(&dx));
+    module.push_str(&built_dx_asset(&dx, "quickstart_bcr"));
     write_text(&module_path, &module);
     case.use_lock("release_bcr");
 

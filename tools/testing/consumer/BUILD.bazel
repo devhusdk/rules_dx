@@ -14,6 +14,7 @@ rust_library(
     srcs = ["prebuilt_guard.rs"],
     crate_name = "prebuilt_guard",
     crate_root = "prebuilt_guard.rs",
+    visibility = ["//deploy/private/release/tests:__pkg__"],
     deps = [
         "//cli/archive:dx_archive",
         "//cli/families:dx_families",

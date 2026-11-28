@@ -310,8 +310,9 @@ fn run() -> Result<i32, String> {
     }
     let coverlet = in_mirror(&config.coverlet);
     let manifest = root.join("MANIFEST");
-    let test_tmp = tmp.join("tmp");
-    owner_only_dir(&test_tmp).map_err(|e| format!("cannot create {}: {e}", test_tmp.display()))?;
+    let test_tmp = env::var_os("TEST_TMPDIR").unwrap_or_else(|| tmp.clone().into_os_string());
+    let home = tmp.join("home");
+    owner_only_dir(&home).map_err(|e| format!("cannot create {}: {e}", home.display()))?;
     let status = Command::new(&coverlet)
         .args(&args)
         .current_dir(root.join(&config.workspace))
@@ -322,6 +323,7 @@ fn run() -> Result<i32, String> {
         .env("TMPDIR", &test_tmp)
         .env("TMP", &test_tmp)
         .env("TEMP", &test_tmp)
+        .env("HOME", &home)
         .status()
         .map_err(|e| format!("cannot run coverlet {coverlet}: {e}"))?;
     let Some(code) = status.code() else {
@@ -442,7 +444,7 @@ mod tests {
     #[test]
     fn owner_only_dir_drops_group_and_other_access() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = PathBuf::from(env::var_os("TEST_TMPDIR").unwrap()).join("owner_only/tmp");
+        let dir = PathBuf::from(env::var_os("TEST_TMPDIR").unwrap()).join("owner_only/home");
         owner_only_dir(&dir).unwrap();
         owner_only_dir(&dir).unwrap();
         let mode = fs::metadata(&dir).unwrap().permissions().mode();

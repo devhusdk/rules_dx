@@ -6,6 +6,7 @@ load(":defs_tests.bzl", "owns_kubernetes_class_test", "schemas_config_test")
 kubernetes_library(
     name = "app",
     srcs = ["fixtures/manifests/app.yaml"],
+    tags = ["no-lint"],
 )
 
 owns_kubernetes_class_test(

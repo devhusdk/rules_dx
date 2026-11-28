@@ -83,6 +83,20 @@ _header_only_test = analysistest.make(
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
+def _forwarded_impl(ctx):
+    """Checks a forwarding cc_library replays its upstream's compiles, not a parse of each of its headers."""
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[ClangSyntaxInfo]
+    asserts.true(env, "core/quality/testdata/clang_syntax/clean.c" in info.sources, "want the upstream compile in " + str(info.sources))
+    for source in info.sources:
+        asserts.false(env, source.endswith("generated.h"), "generated header replayed in " + str(info.sources))
+    return analysistest.end(env)
+
+_forwarded_test = analysistest.make(
+    _forwarded_impl,
+    extra_target_under_test_aspects = [clang_syntax_aspect],
+)
+
 def clang_syntax_analysis_tests(name):
     """Instantiates the clang syntax analysis tests as one suite."""
     _windows_argv_test(
@@ -127,4 +141,9 @@ def clang_syntax_analysis_tests(name):
         size = "small",
         target_under_test = "//core/quality/testdata/clang_syntax:header_only",
     )
-    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless", name + "_header_only"])
+    _forwarded_test(
+        name = name + "_forwarded",
+        size = "small",
+        target_under_test = "//core/quality/testdata/clang_syntax:forwarded",
+    )
+    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless", name + "_header_only", name + "_forwarded"])

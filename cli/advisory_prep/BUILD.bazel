@@ -42,6 +42,7 @@ rust_test(
         "//cli/ecosystems:dx_ecosystems",
         "//cli/families:dx_families",
         "//cli/update:dx_update",
+        "//tools/testing:dx_testing",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",

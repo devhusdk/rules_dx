@@ -36,6 +36,7 @@ fn options(workspace: &TempDir) -> PrepareOptions {
         archives: BTreeMap::new(),
         cpansa_output: None,
         cpansa_dump: None,
+        cpansa_dump_env: Vec::new(),
         trivy: None,
         cargo_index: None,
         pypi_index: None,
@@ -514,8 +515,7 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
 
 const CPAN_OUTPUT: &str = "1.002\n{\"Mojolicious\":{\"distribution\":\"Mojolicious\",\"advisories\":[{\"id\":\"CPANSA-Mojolicious-2018-03\",\"affected_versions\":[\">=7.0,<7.58\"],\"fixed_versions\":[\">=7.58\"],\"severity\":\"high\"}]}}";
 
-#[test]
-fn a_cpan_set_is_prepared_from_the_cpansa_output() {
+fn cpan_workspace() -> TempDir {
     let workspace = workspace();
     let hub = dx_families::hub("cpan").expect("setup.hubs entry cpan");
     let tag = hub.tag.as_ref().expect("cpan tag");
@@ -537,6 +537,12 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
         std::fs::create_dir_all(path.parent().expect("parent")).expect("creates");
         std::fs::write(&path, text).expect("writes");
     }
+    workspace
+}
+
+#[test]
+fn a_cpan_set_is_prepared_from_the_cpansa_output() {
+    let workspace = cpan_workspace();
     let output = workspace.path().join("cpansa.txt");
     std::fs::write(&output, CPAN_OUTPUT).expect("writes the output");
     let mut options = options(&workspace);
@@ -566,6 +572,45 @@ fn a_cpan_set_is_prepared_from_the_cpansa_output() {
     .expect("parses");
     assert!(identity_matches_bytes(&identity, &payload));
     assert!(identity.url.ends_with("?version=1.002"), "{}", identity.url);
+}
+
+#[cfg(unix)]
+#[test]
+fn cpansa_dump_runs_with_the_runfiles_env_it_is_given() {
+    let workspace = cpan_workspace();
+    let output = workspace.path().join("cpansa.txt");
+    std::fs::write(&output, CPAN_OUTPUT).expect("writes the output");
+    let tree = workspace.path().join("advisory_prep.runfiles");
+    std::fs::create_dir_all(&tree).expect("creates the tree");
+    let script = workspace.path().join("cpansa_dump");
+    dx_testing::executable_script(
+        &script,
+        &format!(
+            "#!/bin/sh\n[ \"$RUNFILES_DIR\" = '{}' ] || {{ echo 'cannot find runfiles.bash' >&2; exit 1; }}\ncat '{}'\n",
+            tree.display(),
+            output.display()
+        ),
+    );
+    let mut options = options(&workspace);
+    options.cpansa_dump = Some(script);
+    let options = with_archive(
+        &workspace,
+        options,
+        &archive(&[("all/1/GHSA-a.json", &advisory("GHSA-a", "aaa"))]),
+    );
+    let error = prepare(&options).expect_err("the launcher finds no runfiles");
+    assert!(
+        error.to_string().contains("cannot find runfiles.bash"),
+        "{error}"
+    );
+    let mut options = options;
+    options.cpansa_dump_env = vec![("RUNFILES_DIR".into(), tree.into_os_string())];
+    let prepared = prepare(&options).expect("prepares");
+    let cpan = prepared
+        .iter()
+        .find(|entry| entry.family == "cpan")
+        .expect("a cpan snapshot");
+    assert_eq!(cpan.advisories, 1);
 }
 
 const LOCK: &str = r#"version = 4

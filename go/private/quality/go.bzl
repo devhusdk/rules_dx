@@ -113,6 +113,8 @@ GoShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_go_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "go", GoShardProbeInfo)
 
 real_go_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "go", GoShardProbeInfo)

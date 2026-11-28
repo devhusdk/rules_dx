@@ -67,6 +67,8 @@ FortranShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_fortran_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "fortran", FortranShardProbeInfo)
 
 real_fortran_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "fortran", FortranShardProbeInfo)

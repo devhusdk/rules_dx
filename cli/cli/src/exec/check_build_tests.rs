@@ -279,7 +279,7 @@ fn check_runs_generate_one_shard_probe_and_one_quality_build_over_the_probed_sha
     assert_eq!(probes.len(), 1, "{probes:?}");
     let probed = aspects_of(&probes[0]);
     for command in commands {
-        for probe in dx_plan::plan::spec(command).probes {
+        for probe in dx_plan::plan::command_probes(&[command], None) {
             assert!(
                 probed.iter().any(|passed| passed == probe),
                 "{probe} missing from {probed:?}"

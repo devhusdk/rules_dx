@@ -74,6 +74,8 @@ KotlinShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_kotlin_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "kotlin", KotlinShardProbeInfo)
 
 real_kotlin_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "kotlin", KotlinShardProbeInfo)

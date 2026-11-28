@@ -197,8 +197,20 @@ pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<
 pub fn command_probes(commands: &[Command], consumer: Option<Consumer<'_>>) -> Vec<&'static str> {
     union(commands.iter().flat_map(|command| match consumer {
         Some(consumer) => probes_for(*command, consumer),
-        None => spec(*command).probes.to_vec(),
+        None => merged_probes(*command),
     }))
+}
+
+/// The rules_dx workspace holds every family, so one probe per capability covers them all.
+fn merged_probes(command: Command) -> Vec<&'static str> {
+    match command {
+        Command::Format => vec!["core/quality:merged_probe.bzl%real_merged_format_probe_aspect"],
+        Command::Lint => vec!["core/quality:merged_probe.bzl%real_merged_lint_probe_aspect"],
+        Command::Typecheck => {
+            vec!["core/quality:merged_probe.bzl%real_merged_typecheck_probe_aspect"]
+        }
+        _ => spec(command).probes.to_vec(),
+    }
 }
 
 pub fn plan_shared_build(
@@ -729,7 +741,7 @@ mod tests {
                 .zip(&probe.argv)
                 .filter(|(left, right)| left != right)
                 .collect();
-            let probe_labels = joined_labels(spec(command).probes.iter().copied());
+            let probe_labels = joined_labels(command_probes(&[command], None));
             assert_eq!(
                 differing,
                 vec![
@@ -898,7 +910,7 @@ mod tests {
             .expect("quality commands carry a probe");
         let probed = aspects_of(&probe.argv);
         for command in commands {
-            for label in spec(command).probes {
+            for label in command_probes(&[command], None) {
                 assert_eq!(probed.matches(label).count(), 1, "{label} in {probed}");
             }
         }

@@ -43,6 +43,8 @@ _CFG = real_config(
     context_hooks = _FAMILY_HOOKS,
 )
 
+QUALITY_CFG = _CFG
+
 real_core_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "core", CoreShardProbeInfo)
 
 real_core_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "core", CoreShardProbeInfo)

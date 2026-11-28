@@ -114,6 +114,7 @@ run_binary(
         "generated/langs.bzl",
         "generated/lock_registry.bzl",
         "generated/lock_registry.json",
+        "generated/merged_probe.bzl",
     ],
     args = [
         "all_languages.bzl=$(execpath generated/all_languages.bzl)",
@@ -127,6 +128,7 @@ run_binary(
         "langs.bzl=$(execpath generated/langs.bzl)",
         "lock_registry.bzl=$(execpath generated/lock_registry.bzl)",
         "lock_registry.json=$(execpath generated/lock_registry.json)",
+        "merged_probe.bzl=$(execpath generated/merged_probe.bzl)",
         "--",
         "$(execpaths //:lang_json)",
     ],
@@ -139,6 +141,7 @@ write_source_files(
         "//cli/ecosystems:update_languages",
         "//cli/families:update_languages",
         "//core/quality:update_core_probe",
+        "//core/quality:update_merged_probe",
         "//core/quality/testdata:update_all_languages",
         "//gazelle/common:update_lock_registry",
         "//tools/testing/conformance:update_quality",

@@ -52,6 +52,8 @@ CmakeShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_cmake_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "cmake", CmakeShardProbeInfo)
 
 real_cmake_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "cmake", CmakeShardProbeInfo)

@@ -171,6 +171,8 @@ BeamShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_beam_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "beam", BeamShardProbeInfo)
 
 real_beam_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "beam", BeamShardProbeInfo)

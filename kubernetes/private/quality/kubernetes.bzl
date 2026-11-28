@@ -131,6 +131,8 @@ KubernetesShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_kubernetes_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "kubernetes", KubernetesShardProbeInfo)
 
 real_kubernetes_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "kubernetes", KubernetesShardProbeInfo)

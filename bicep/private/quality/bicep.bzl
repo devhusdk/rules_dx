@@ -81,6 +81,8 @@ BicepShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_bicep_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "bicep", BicepShardProbeInfo)
 
 real_bicep_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "bicep", BicepShardProbeInfo)

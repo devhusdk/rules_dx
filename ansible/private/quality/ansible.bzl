@@ -57,6 +57,8 @@ AnsibleShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_ansible_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ansible", AnsibleShardProbeInfo)
 
 real_ansible_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ansible", AnsibleShardProbeInfo)

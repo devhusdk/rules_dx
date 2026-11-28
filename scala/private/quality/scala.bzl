@@ -106,6 +106,8 @@ ScalaShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_scala_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "scala", ScalaShardProbeInfo)
 
 real_scala_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "scala", ScalaShardProbeInfo)

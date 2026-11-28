@@ -648,6 +648,12 @@ write_source_files(
 )
 
 write_source_files(
+    name = "update_merged_probe",
+    files = {"merged_probe.bzl": "//core/modules:generated/merged_probe.bzl"},
+    visibility = ["//core/modules:__pkg__"],
+)
+
+write_source_files(
     name = "tools_registry",
     files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
     visibility = ["//visibility:private"],
@@ -802,6 +808,7 @@ real_source_target(
         "coverage_sources.bzl",
         "coverage_sources_tests.bzl",
         "fortran_flags.bzl",
+        "merged_probe.bzl",
         "curated_defaults.bzl",
         "curated_defaults_tests.bzl",
         "dx_config_gen.bzl",

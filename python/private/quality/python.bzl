@@ -86,6 +86,8 @@ PythonShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_python_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "python", PythonShardProbeInfo)
 
 real_python_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "python", PythonShardProbeInfo)

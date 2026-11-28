@@ -135,6 +135,8 @@ DartShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_dart_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "dart", DartShardProbeInfo)
 
 real_dart_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "dart", DartShardProbeInfo)

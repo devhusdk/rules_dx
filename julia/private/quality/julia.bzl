@@ -119,6 +119,8 @@ JuliaShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_julia_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "julia", JuliaShardProbeInfo)
 
 real_julia_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "julia", JuliaShardProbeInfo)

@@ -69,6 +69,8 @@ RegoShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_rego_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "rego", RegoShardProbeInfo)
 
 real_rego_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "rego", RegoShardProbeInfo)

@@ -46,7 +46,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_external_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_graphql_subject
 field dx_count=2
-field dx_results=fixture_real_graphql-real-format-js.pb,fixture_real_graphql-real-lint-text.pb
+field dx_results=fixture_real_graphql-real-format-prettier.pb,fixture_real_graphql-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_graphql
 aspect_field aspect_seen=True
@@ -56,7 +56,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_graphql_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_html_subject
 field dx_count=2
-field dx_results=fixture_real_html-real-format-js.pb,fixture_real_html-real-lint-text.pb
+field dx_results=fixture_real_html-real-format-prettier.pb,fixture_real_html-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_html
 aspect_field aspect_seen=True
@@ -405,7 +405,7 @@ aspect_field has_subject=True
 aspect_field subject_label=//core/quality/testdata:fixture_real_cc_probe_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_graphql_probe_subject
-field format_shards=real_js_format
+field format_shards=real_js_prettier_format
 field label=//core/quality/testdata:fixture_real_graphql
 field lint_shards=real_text_lint
 field missing=(none)
@@ -555,9 +555,9 @@ def real_family_probe_tests(name, subjects):
 
 EXPECTED_FAMILY_PROBE_OBSERVATIONS = """subject //core/quality/testdata:fixture_real_family_probe_subject
 field format_equal=True
-field format_facade=real_cc_format,real_format,real_js_format,real_python_format,real_rust_format
-field format_families=real_cc_format,real_format,real_js_format,real_python_format,real_rust_format
-field format_merged=real_cc_format,real_format,real_js_format,real_python_format,real_rust_format
+field format_facade=real_cc_format,real_format,real_js_prettier_format,real_python_format,real_rust_format
+field format_families=real_cc_format,real_format,real_js_prettier_format,real_python_format,real_rust_format
+field format_merged=real_cc_format,real_format,real_js_prettier_format,real_python_format,real_rust_format
 field format_merged_equal=True
 field label=//core/quality/testdata:fixture_real_family_probe
 field lint_equal=True

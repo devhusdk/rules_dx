@@ -562,8 +562,8 @@ consumer_policy_tests(
         {
             "case": "api_spec_checked",
             "expected_dx_results": [
-                "clean_api_spec-real-format-js.pb",
-                "clean_api_spec-real-lint-js.pb",
+                "clean_api_spec-real-format-prettier.pb",
+                "clean_api_spec-real-lint-redocly.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_api_spec",
@@ -588,7 +588,7 @@ consumer_policy_tests(
         {
             "case": "js_eslint",
             "expected_dx_results": [
-                "clean_js-real-lint-js.pb",
+                "clean_js-real-lint-eslint.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_js",
@@ -596,7 +596,7 @@ consumer_policy_tests(
         {
             "case": "js_eslint_typed",
             "expected_dx_results": [
-                "typed_ts-real-lint-js.pb",
+                "typed_ts-real-lint-eslint.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy/typed_ts:typed_ts",

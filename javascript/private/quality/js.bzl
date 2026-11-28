@@ -11,7 +11,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "eslint",
     },
     "gplint": {
         "attr": attr.label(default = "//config:tool_gplint", cfg = "exec", executable = True),
@@ -19,7 +19,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "gplint",
     },
     "graphql_eslint": {
         "attr": attr.label(default = "//config:tool_graphql_eslint", cfg = "exec", executable = True),
@@ -27,7 +27,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "graphql_eslint",
     },
     "prettier": {
         "attr": attr.label(default = "//config:tool_prettier", cfg = "exec", executable = True),
@@ -35,7 +35,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "prettier",
     },
     "redocly": {
         "attr": attr.label(default = "//config:tool_redocly", cfg = "exec", executable = True),
@@ -43,7 +43,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "medium",
-        "shard": "js",
+        "shard": "redocly",
     },
     "remark": {
         "attr": attr.label(default = "//config:tool_remark", cfg = "exec", executable = True),
@@ -51,7 +51,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "remark",
     },
     "stylelint": {
         "attr": attr.label(default = "//config:tool_stylelint", cfg = "exec", executable = True),
@@ -59,7 +59,7 @@ TOOLS = {
         "extra": "files",
         "kind": "executable",
         "resources": "heavy",
-        "shard": "js",
+        "shard": "stylelint",
     },
     "tsc": {
         "kind": "upstream",
@@ -69,16 +69,46 @@ TOOLS = {
 }
 
 SHARD_SPECS = {
-    "real_js_format": {
-        "capability": "format",
-        "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).",
-        "shard": "js",
-    },
-    "real_js_lint": {
+    "real_js_eslint_lint": {
         "capability": "lint",
-        "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).",
+        "doc": "Additive ESLint lint aspect.",
         "requires": [tsc_aspect],
-        "shard": "js",
+        "shard": "eslint",
+    },
+    "real_js_gplint_lint": {
+        "capability": "lint",
+        "doc": "Additive gplint Gherkin lint aspect.",
+        "shard": "gplint",
+    },
+    "real_js_graphql_eslint_lint": {
+        "capability": "lint",
+        "doc": "Additive graphql-eslint lint aspect.",
+        "shard": "graphql_eslint",
+    },
+    "real_js_graphql_eslint_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive graphql-eslint schema typecheck aspect.",
+        "shard": "graphql_eslint",
+    },
+    "real_js_prettier_format": {
+        "capability": "format",
+        "doc": "Additive Prettier format aspect.",
+        "shard": "prettier",
+    },
+    "real_js_redocly_lint": {
+        "capability": "lint",
+        "doc": "Additive Redocly lint aspect.",
+        "shard": "redocly",
+    },
+    "real_js_remark_format": {
+        "capability": "format",
+        "doc": "Additive remark MDX format aspect.",
+        "shard": "remark",
+    },
+    "real_js_stylelint_lint": {
+        "capability": "lint",
+        "doc": "Additive Stylelint lint aspect.",
+        "shard": "stylelint",
     },
     "real_js_typecheck": {
         "capability": "typecheck",
@@ -121,9 +151,21 @@ _CFG = real_config(
     context_hooks = HOOKS,
 )
 
-real_js_format_aspect = real_make_aspect(_CFG, "real_js_format")
+real_js_eslint_lint_aspect = real_make_aspect(_CFG, "real_js_eslint_lint")
 
-real_js_lint_aspect = real_make_aspect(_CFG, "real_js_lint")
+real_js_gplint_lint_aspect = real_make_aspect(_CFG, "real_js_gplint_lint")
+
+real_js_graphql_eslint_lint_aspect = real_make_aspect(_CFG, "real_js_graphql_eslint_lint")
+
+real_js_graphql_eslint_typecheck_aspect = real_make_aspect(_CFG, "real_js_graphql_eslint_typecheck")
+
+real_js_prettier_format_aspect = real_make_aspect(_CFG, "real_js_prettier_format")
+
+real_js_redocly_lint_aspect = real_make_aspect(_CFG, "real_js_redocly_lint")
+
+real_js_remark_format_aspect = real_make_aspect(_CFG, "real_js_remark_format")
+
+real_js_stylelint_lint_aspect = real_make_aspect(_CFG, "real_js_stylelint_lint")
 
 real_js_typecheck_aspect = real_make_aspect(_CFG, "real_js_typecheck")
 

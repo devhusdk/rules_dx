@@ -67,7 +67,9 @@ pub fn set_rules_dx_repo(workspace: &Path) {
 
 /// Reads from the generated correctness layer whether dx adds the shared Rust settings.
 pub fn set_rust_settings(workspace: &Path) {
-    drop(RUST_SETTINGS.set(layer_sets_rust_settings(workspace, rules_dx_repo())));
+    RUST_SETTINGS
+        .set(layer_sets_rust_settings(workspace, rules_dx_repo()))
+        .unwrap_or(());
 }
 
 #[must_use]

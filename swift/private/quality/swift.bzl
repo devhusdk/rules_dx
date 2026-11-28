@@ -69,6 +69,8 @@ SwiftShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_swift_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "swift", SwiftShardProbeInfo)
 
 real_swift_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "swift", SwiftShardProbeInfo)

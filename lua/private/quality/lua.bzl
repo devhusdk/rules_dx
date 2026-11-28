@@ -82,6 +82,8 @@ LuaShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_lua_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "lua", LuaShardProbeInfo)
 
 real_lua_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "lua", LuaShardProbeInfo)

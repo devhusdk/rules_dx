@@ -61,6 +61,8 @@ DShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_d_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "d", DShardProbeInfo)
 
 real_d_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "d", DShardProbeInfo)

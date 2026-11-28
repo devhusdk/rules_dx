@@ -76,6 +76,8 @@ ZigShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_zig_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "zig", ZigShardProbeInfo)
 
 real_zig_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "zig", ZigShardProbeInfo)

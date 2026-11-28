@@ -822,7 +822,7 @@ def real_make_merged_probe_aspect(cfgs, capability, info = RealShardProbeInfo):
         names = sorted(shards.keys())
         if len(names) == 0:
             return []
-        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + ".json")
+        out = ctx.actions.declare_file(target.label.name + ".dx-shards-" + capability + "-merged.json")
         ctx.actions.write(out, json.encode({"shards": names}))
         return [
             OutputGroupInfo(dx_shards = depset([out])),

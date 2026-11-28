@@ -199,6 +199,8 @@ RustShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_rust_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "rust", RustShardProbeInfo)
 
 real_rust_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "rust", RustShardProbeInfo)

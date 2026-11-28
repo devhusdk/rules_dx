@@ -53,4 +53,6 @@ DockerfileShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_dockerfile_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "dockerfile", DockerfileShardProbeInfo)

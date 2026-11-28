@@ -154,6 +154,8 @@ DotnetShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_dotnet_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "dotnet", DotnetShardProbeInfo)
 
 real_dotnet_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "dotnet", DotnetShardProbeInfo)

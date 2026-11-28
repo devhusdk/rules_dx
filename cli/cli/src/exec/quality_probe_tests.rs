@@ -42,8 +42,7 @@ fn probed_shards_narrow_the_build_aspects() {
         ]
     );
     let probe = &harness.probe_argv.borrow()[0];
-    let expected: Vec<String> = dx_plan::plan::spec(dx_plan::args::Command::Lint)
-        .probes
+    let expected: Vec<String> = dx_plan::plan::command_probes(&[dx_plan::args::Command::Lint], None)
         .iter()
         .map(|label| {
             label
@@ -151,9 +150,7 @@ fn output_groups(argv: &[String]) -> Vec<&str> {
 fn lint_probes() -> Vec<String> {
     aspects_of(&[format!(
         "--aspects={}",
-        dx_plan::plan::spec(dx_plan::args::Command::Lint)
-            .probes
-            .join(",")
+        dx_plan::plan::command_probes(&[dx_plan::args::Command::Lint], None).join(",")
     )])
 }
 

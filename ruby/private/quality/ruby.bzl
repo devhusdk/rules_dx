@@ -73,6 +73,8 @@ RubyShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_ruby_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ruby", RubyShardProbeInfo)
 
 real_ruby_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ruby", RubyShardProbeInfo)

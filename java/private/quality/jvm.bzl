@@ -212,6 +212,8 @@ JvmShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_jvm_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "jvm", JvmShardProbeInfo)
 
 real_jvm_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "jvm", JvmShardProbeInfo)

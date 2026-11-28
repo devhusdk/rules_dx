@@ -88,6 +88,8 @@ TerraformShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_terraform_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "terraform", TerraformShardProbeInfo)
 
 real_terraform_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "terraform", TerraformShardProbeInfo)

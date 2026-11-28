@@ -52,6 +52,8 @@ MakeShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_make_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "make", MakeShardProbeInfo)
 
 real_make_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "make", MakeShardProbeInfo)

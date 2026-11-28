@@ -74,6 +74,8 @@ SqlShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_sql_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "sql", SqlShardProbeInfo)
 
 real_sql_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "sql", SqlShardProbeInfo)

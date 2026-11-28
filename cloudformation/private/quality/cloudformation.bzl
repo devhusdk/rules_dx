@@ -45,4 +45,6 @@ CloudformationShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_cloudformation_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "cloudformation", CloudformationShardProbeInfo)

@@ -102,6 +102,8 @@ OcamlShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_ocaml_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ocaml", OcamlShardProbeInfo)
 
 real_ocaml_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ocaml", OcamlShardProbeInfo)

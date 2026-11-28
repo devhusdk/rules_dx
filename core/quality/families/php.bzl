@@ -91,6 +91,8 @@ PhpShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_php_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "php", PhpShardProbeInfo)
 
 real_php_typecheck_probe_aspect = real_make_probe_aspect(_CFG, "typecheck", "php", PhpShardProbeInfo)

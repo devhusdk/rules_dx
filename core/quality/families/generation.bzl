@@ -215,6 +215,8 @@ GenerationShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_generation_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "generation", GenerationShardProbeInfo)
 
 real_generation_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "generation", GenerationShardProbeInfo)

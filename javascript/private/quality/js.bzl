@@ -135,6 +135,8 @@ JsShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_js_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "js", JsShardProbeInfo)
 
 real_js_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "js", JsShardProbeInfo)

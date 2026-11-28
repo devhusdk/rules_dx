@@ -16,7 +16,7 @@ const REFRESH: &str = "Generated from every <lang>/lang.json by //core/modules:l
 
 /// The `<kind>=<path>` arguments; `all_languages_src`, `core_aspects` and `core_probe_src` are the
 /// inputs.
-const KINDS: [&str; 11] = [
+const KINDS: [&str; 12] = [
     "all_languages.bzl",
     "all_languages_src",
     "conformance_quality.bzl",
@@ -28,6 +28,7 @@ const KINDS: [&str; 11] = [
     "langs.bzl",
     "lock_registry.bzl",
     "lock_registry.json",
+    "merged_probe.bzl",
 ];
 
 const LOADS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT LOADS\n";
@@ -623,6 +624,65 @@ fn conformance_quality_bzl(manifests: &BTreeMap<String, Value>) -> Result<String
 }
 
 /// Splits `<kind>=<path>... -- <lang.json>...` into named paths and inputs.
+/// One shard probe per capability over the config of every family that probes it.
+fn merged_probe_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result<String, String> {
+    let core = core_manifests(core)?;
+    let mut by_capability: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for manifest in manifests.values().chain(&core) {
+        let Some(quality) = manifest.get("quality") else {
+            continue;
+        };
+        let Some(Value::Object(probes)) = quality.get("probes") else {
+            continue;
+        };
+        let label = str_at(&quality["bzl"], "quality.bzl")?;
+        for (capability, names) in probes {
+            if !aspect_names(names)?.is_empty() {
+                by_capability
+                    .entry(capability.clone())
+                    .or_default()
+                    .insert(label.to_owned());
+            }
+        }
+    }
+    let mut loads = Loads::new();
+    let mut owners: BTreeMap<String, &str> = BTreeMap::new();
+    for label in by_capability.values().flatten() {
+        let local = format!("{}CFG", table_prefix(label)?);
+        if let Some(other) = owners.insert(local.clone(), label)
+            && other != label
+        {
+            return Err(format!("{other} and {label} share the config name {local}"));
+        }
+        loads
+            .entry(label.clone())
+            .or_default()
+            .insert((local, "QUALITY_CFG".to_owned()));
+    }
+    loads
+        .entry("core/quality:real_core.bzl".to_owned())
+        .or_default()
+        .insert((
+            "real_make_merged_probe_aspect".to_owned(),
+            "real_make_merged_probe_aspect".to_owned(),
+        ));
+    let mut text = format!("\"\"\"Shard probes over every family, one per capability. {REFRESH}\"\"\"\n\n");
+    text.push_str(&load_lines(&loads));
+    for (capability, labels) in &by_capability {
+        let cfgs = labels
+            .iter()
+            .map(|label| table_prefix(label).map(|prefix| format!("{prefix}CFG")))
+            .collect::<Result<Vec<_>, _>>()?;
+        write!(
+            text,
+            "\nreal_merged_{capability}_probe_aspect = real_make_merged_probe_aspect(\n    [\n{}    ],\n    \"{capability}\",\n)\n",
+            cfgs.iter().map(|cfg| format!("        {cfg},\n")).collect::<String>()
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(text)
+}
+
 fn parse(args: &[OsString]) -> Result<(BTreeMap<&str, PathBuf>, Vec<PathBuf>), String> {
     let mut named = BTreeMap::new();
     let mut rest = args.iter();
@@ -678,6 +738,7 @@ fn render(
         "langs.bzl" => langs_bzl(manifests, core),
         "lock_registry.bzl" => lock_registry_bzl(&lock_registry_entries(manifests)?),
         "lock_registry.json" => lock_registry_json(&lock_registry_entries(manifests)?),
+        "merged_probe.bzl" => merged_probe_bzl(manifests, core),
         _ => Err(format!("{kind}: not an output")),
     }
 }

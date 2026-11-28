@@ -89,6 +89,8 @@ HaskellShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_haskell_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "haskell", HaskellShardProbeInfo)
 
 real_haskell_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "haskell", HaskellShardProbeInfo)

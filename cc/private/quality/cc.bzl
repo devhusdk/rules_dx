@@ -206,6 +206,8 @@ CcShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_cc_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "cc", CcShardProbeInfo)
 
 real_cc_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "cc", CcShardProbeInfo)

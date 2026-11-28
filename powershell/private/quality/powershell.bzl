@@ -74,6 +74,8 @@ PowershellShardProbeInfo = provider(
     },
 )
 
+QUALITY_CFG = _CFG
+
 real_powershell_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "powershell", PowershellShardProbeInfo)
 
 real_powershell_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "powershell", PowershellShardProbeInfo)

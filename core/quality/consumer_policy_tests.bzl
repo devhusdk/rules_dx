@@ -303,11 +303,15 @@ def consumer_policy_tests(name, cases, **kwargs):
     exec_os = name + "_exec_os"
     _exec_os(name = exec_os, testonly = True)
     for case in cases:
+        skipped = case.get("windows_exec_skipped", [])
+        unexpected = [result for result in skipped if result not in case["expected_dx_results"]]
+        if unexpected:
+            fail("%s: case %s skips %s on Windows, which are not in its expected_dx_results" % (name, case["case"], unexpected))
         subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"], case.get("absent_keys", []))}
         _consumer_policy_test(
             name = name + "_" + case["case"] + "_test",
             expected_dx_results = case["expected_dx_results"],
-            windows_exec_skipped = case.get("windows_exec_skipped", []),
+            windows_exec_skipped = skipped,
             config = case["config"],
             exec_os = ":" + exec_os,
             **dict(kwargs, **subjects)

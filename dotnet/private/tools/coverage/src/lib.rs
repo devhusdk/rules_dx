@@ -253,24 +253,24 @@ fn owner_only_dir(dir: &Path) -> io::Result<()> {
 
 fn diag_tmp() {
     use std::os::unix::fs::MetadataExt;
-    eprintln!("DIAG euid={} egid={}", fs::metadata("/proc/self").map(|m| m.uid()).unwrap_or(u32::MAX), fs::metadata("/proc/self").map(|m| m.gid()).unwrap_or(u32::MAX));
-    let mut stack = vec![PathBuf::from("/tmp")];
-    let mut n = 0;
-    while let Some(dir) = stack.pop() {
-        match fs::symlink_metadata(&dir) {
-            Ok(m) => eprintln!("DIAG {} mode={:o} uid={} gid={} dev={}", dir.display(), m.mode(), m.uid(), m.gid(), m.dev()),
-            Err(e) => eprintln!("DIAG {} err={e}", dir.display()),
-        }
-        let walk = dir == Path::new("/tmp") || dir.starts_with("/tmp/.dotnet");
-        for e in fs::read_dir(&dir).into_iter().filter(|_| walk).flatten().flatten() {
-            n += 1;
-            if n < 60 {
-                stack.push(e.path());
-            }
+    for p in ["/tmp", "/tmp/.dotnet", "/tmp/.dotnet/shm", "/tmp/.dotnet/lockfiles", "/proc/self"] {
+        match fs::symlink_metadata(p) {
+            Ok(m) => eprintln!("DIAG stat {p} mode={:o} uid={} gid={}", m.mode(), m.uid(), m.gid()),
+            Err(e) => eprintln!("DIAG stat {p} err={e}"),
         }
     }
-    if let Ok(m) = fs::read_to_string("/proc/self/mountinfo") {
-        for l in m.lines().filter(|l| l.contains(" /tmp") || l.contains(" / ")) { eprintln!("DIAG mount {l}"); }
+    match fs::read_dir("/tmp") {
+        Ok(rd) => eprintln!("DIAG ls /tmp: {:?}", rd.flatten().map(|e| e.file_name()).collect::<Vec<_>>()),
+        Err(e) => eprintln!("DIAG ls /tmp err={e}"),
+    }
+    let probe = Path::new("/tmp/dx_diag_probe");
+    eprintln!("DIAG mkdir probe: {:?}", fs::create_dir(probe));
+    eprintln!("DIAG write probe: {:?}", fs::write(probe.join("f"), b"x"));
+    let _ = fs::remove_dir_all(probe);
+    eprintln!("DIAG selinux: {:?}", fs::read_to_string("/proc/self/attr/current"));
+    eprintln!("DIAG status: {:?}", fs::read_to_string("/proc/self/status").map(|s| s.lines().filter(|l| l.starts_with("Uid") || l.starts_with("NSpid") || l.starts_with("Seccomp")).collect::<Vec<_>>().join("; ")));
+    for (k, v) in env::vars().filter(|(k, _)| k.starts_with("DOTNET") || k.starts_with("COMPlus") || k == "HOME" || k == "XDG_RUNTIME_DIR") {
+        eprintln!("DIAG env {k}={v}");
     }
 }
 

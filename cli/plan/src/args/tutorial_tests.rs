@@ -33,10 +33,13 @@ fn tutorial_commands_parse_or_use_allowed_programs() {
 }
 
 #[test]
-fn tutorial_python_imports_name_the_module() {
+fn tutorial_python_imports_use_the_file_name() {
     for line in TUTORIAL.lines().filter(|line| line.starts_with("from ")) {
         let module = line.split_whitespace().nth(1).unwrap();
-        assert!(module.contains('.'), "ambiguous import: {line}");
+        assert!(
+            !module.contains('.'),
+            "a package without __init__.py is an import root: {line}"
+        );
     }
 }
 
@@ -71,10 +74,10 @@ fn tutorial_python_imports_resolve_to_tutorial_files() {
     for (file, body) in &files {
         for line in body.lines().filter(|line| line.starts_with("from ")) {
             let words: Vec<&str> = line.split_whitespace().collect();
-            let target = format!("{}.py", words[1].replace('.', "/"));
+            let target = format!("{}.py", words[1]);
             let (_, source) = files
                 .iter()
-                .find(|(path, _)| *path == target)
+                .find(|(path, _)| path.rsplit('/').next() == Some(target.as_str()))
                 .unwrap_or_else(|| panic!("{file}: {line}: no tutorial file {target}"));
             let name = words[3];
             assert!(

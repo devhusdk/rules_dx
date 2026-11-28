@@ -328,6 +328,12 @@ fn rc_names() -> Vec<&'static str> {
     names
 }
 
+fn builds_locally(rc: &RcCase) -> bool {
+    !rc.env
+        .iter()
+        .any(|(key, _)| matches!(*key, "CI" | "BAZEL_TEST"))
+}
+
 fn policy_flags(policy: &RcPolicy) -> Vec<String> {
     policy
         .verb_options("build", None, &[])
@@ -1249,10 +1255,13 @@ mod sh {
                     "--progress_report_interval=30",
                     "--show_result=0",
                     "--ui_event_filters=-info",
-                    "//cli/cli:dx",
                 ]
                 .map(str::to_owned),
             );
+            if builds_locally(rc) {
+                want.push("--spawn_strategy=worker,sandboxed,local".to_owned());
+            }
+            want.push("//cli/cli:dx".to_owned());
             let logged = std::fs::read_to_string(&args).expect("bazel argv");
             let calls: Vec<Vec<&str>> = logged
                 .lines()
@@ -1275,7 +1284,9 @@ mod sh {
                 assert_eq!(call[..startup.len()], startup[..], "{name}");
                 assert_eq!(call[startup.len()], verb, "{name}");
                 assert!(
-                    !call.iter().any(|arg| arg.contains("disk_cache")),
+                    !call
+                        .iter()
+                        .any(|arg| arg.contains("disk_cache") || arg.contains("spawn_strategy")),
                     "{name}: {logged}"
                 );
             }
@@ -2936,8 +2947,17 @@ mod cmd {
             assert!(build.contains(&want), "{name}: want {want}: {logged}");
             let bounded = build.contains("--experimental_disk_cache_gc_max_size=");
             assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}: {logged}");
-            assert!(!cquery.contains("disk_cache"), "{name}: {logged}");
-            assert!(!query.contains("disk_cache"), "{name}: {logged}");
+            assert_eq!(
+                build.contains(
+                    " --ui_event_filters=-info --spawn_strategy=worker,local //cli/cli:dx"
+                ),
+                builds_locally(rc),
+                "{name}: {logged}"
+            );
+            for call in [cquery, query] {
+                assert!(!call.contains("disk_cache"), "{name}: {logged}");
+                assert!(!call.contains("spawn_strategy"), "{name}: {logged}");
+            }
         }
     }
 

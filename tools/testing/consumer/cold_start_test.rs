@@ -9,7 +9,15 @@ use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 const FOREIGN: &[(&str, &[&str])] = &[
     (
         "java",
-        &["ocaml", "opam", "cuda", "scala", "kotlin", "android"],
+        &[
+            "ocaml",
+            "opam",
+            "cuda",
+            "scala",
+            "kotlin",
+            "android",
+            "rules_dotnet",
+        ],
     ),
     (
         "go",
@@ -29,6 +37,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_linux",
             "nodejs_darwin",
             "nodejs_windows",
+            "rules_dotnet",
         ],
     ),
     (
@@ -46,6 +55,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_linux",
             "nodejs_darwin",
             "nodejs_windows",
+            "rules_dotnet",
         ],
     ),
 ];

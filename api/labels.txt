@@ -132,6 +132,8 @@
 //deploy:bootstrap_offline runnable rust_binary
 //deploy:linux_amd64 platform
 //deploy:linux_arm64 platform
+//dotnet:bootstrap_toolchain_type toolchain_type
+//dotnet:toolchain_type toolchain_type
 //dx/launch:dx alias
 //elixir:toolchain_type toolchain_type
 //erlang:exec_toolchain_type toolchain_type

@@ -66,4 +66,5 @@ hub_order_test(
         "toolchain_x86_64_linux",
         "toolchain_x86_64_windows",
     ],
+    toolchain_types = ["@rules_ruby//ruby:toolchain_type"],
 )

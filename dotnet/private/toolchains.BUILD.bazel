@@ -8,7 +8,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:aarch64-apple-darwin",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -19,7 +19,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:aarch64-apple-darwin",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )
 
 toolchain(
@@ -30,7 +30,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:arm64-pc-windows-msvc",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -41,7 +41,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:arm64-pc-windows-msvc",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )
 
 toolchain(
@@ -52,7 +52,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:arm64-unknown-linux-gnu",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -63,7 +63,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:arm64-unknown-linux-gnu",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )
 
 toolchain(
@@ -74,7 +74,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:x86_64-apple-darwin",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -85,7 +85,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:x86_64-apple-darwin",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )
 
 toolchain(
@@ -96,7 +96,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:x86_64-pc-windows-msvc",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -107,7 +107,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:x86_64-pc-windows-msvc",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )
 
 toolchain(
@@ -118,7 +118,7 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_bootstrap_toolchains//:x86_64-unknown-linux-gnu",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:bootstrap_toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:bootstrap_toolchain_type",
 )
 
 toolchain(
@@ -129,5 +129,5 @@ toolchain(
     ],
     target_settings = ["@rules_dx//config:toolchains_on"],
     toolchain = "@dotnet_toolchains//:x86_64-unknown-linux-gnu",
-    toolchain_type = "@rules_dotnet//dotnet/toolchain:toolchain_type",
+    toolchain_type = "@rules_dx//dotnet:toolchain_type",
 )

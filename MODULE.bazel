@@ -988,6 +988,7 @@ dx_pins.archive(
     patches = [
         "//patches/rules_dotnet:bootstrap_module.patch",
         "//patches/rules_dotnet:toolchain_aliases.patch",
+        "//patches/rules_dotnet:toolchain_type_alias.patch",
         "//patches/rules_dotnet:target_runtime.patch",
         "//patches/rules_dotnet:fsharp_pdb_path.patch",
     ],

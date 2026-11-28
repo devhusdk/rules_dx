@@ -5,6 +5,7 @@ exports_files([
     "fsharp_pdb_path.patch",
     "target_runtime.patch",
     "toolchain_aliases.patch",
+    "toolchain_type_alias.patch",
 ])
 
 real_source_target(

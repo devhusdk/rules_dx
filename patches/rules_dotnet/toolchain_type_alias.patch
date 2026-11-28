@@ -1,0 +1,24 @@
+Upstream: none (rules_dx only: aliases the toolchain types to rules_dx)
+--- a/dotnet/toolchain/BUILD.bazel
++++ b/dotnet/toolchain/BUILD.bazel
+@@ -5,16 +5,18 @@
+ # //dotnet/private/tests/toolchain_resolution:registered_toolchains_buildfiles_test
+ # checks this.
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//dotnet:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+ # The SDK rules_dotnet builds its own tools with, such as the apphost shimmer
+ # and the compiler workers. Kept apart from `toolchain_type` so the SDK the user
+ # registers cannot decide what those are built with, or against.
+-toolchain_type(
++alias(
+     name = "bootstrap_toolchain_type",
++    actual = "@rules_dx//dotnet:bootstrap_toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

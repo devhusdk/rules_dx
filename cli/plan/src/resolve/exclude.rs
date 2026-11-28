@@ -20,6 +20,27 @@ pub fn covered(exclude: &[String], label: &str) -> bool {
     exclude.iter().any(|pattern| pattern_covers(pattern, label))
 }
 
+#[must_use]
+pub fn within(labels: &[String], scope: &[String]) -> Vec<String> {
+    let mut kept: Vec<String> = Vec::new();
+    for label in labels {
+        let narrowed: Vec<&String> = if covered(scope, label) {
+            vec![label]
+        } else {
+            scope
+                .iter()
+                .filter(|entry| pattern_covers(label, entry))
+                .collect()
+        };
+        for entry in narrowed {
+            if !kept.contains(entry) {
+                kept.push(entry.clone());
+            }
+        }
+    }
+    kept
+}
+
 pub fn apply(
     mut resolved: ResolvedScope,
     exclude: &[String],

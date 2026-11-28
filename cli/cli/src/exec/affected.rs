@@ -588,11 +588,10 @@ fn split_tests(
 }
 
 fn narrow_to_scope(plan: &mut AffectedPlan, scope: &[String]) {
-    let inside = |label: &String| exclude::covered(scope, label);
-    plan.targets.retain(inside);
-    plan.tests.retain(inside);
-    plan.format.retain(inside);
-    plan.lint.retain(inside);
+    plan.targets = exclude::within(&plan.targets, scope);
+    plan.tests = exclude::within(&plan.tests, scope);
+    plan.format = exclude::within(&plan.format, scope);
+    plan.lint = exclude::within(&plan.lint, scope);
     plan.generate = dx_plan::plan::generate_package_scope_within(&plan.generate, scope);
 }
 

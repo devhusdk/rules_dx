@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,6 +13,15 @@ rust_library(
     crate_root = "src/lib.rs",
     visibility = ["//cli/cli:__pkg__"],
     deps = ["//cli/error:dx_error"],
+)
+
+rust_binary(
+    name = "release_tree_subcommand",
+    srcs = ["src/bin_release_tree_subcommand.rs"],
+    crate_name = "release_tree_subcommand",
+    crate_root = "src/bin_release_tree_subcommand.rs",
+    visibility = ["//visibility:public"],
+    deps = [":release_tree"],
 )
 
 rust_test(

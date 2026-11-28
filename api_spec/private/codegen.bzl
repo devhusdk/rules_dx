@@ -96,7 +96,7 @@ api_spec_typescript_client = rule(
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_config": attr.label(default = Label("//api_spec/private/codegen:redocly.yaml"), allow_single_file = True),
         "_isolate": attr.label(default = Label("//javascript/private/quality/bin:openapi_ts_client"), executable = True, cfg = "exec"),
-        "_preflight": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_preflight": attr.label(default = Label("@dx_prebuilt//dx:api_spec_preflight"), executable = True, cfg = "exec"),
         "_redocly": attr.label(default = Label("//javascript/private/quality/bin:redocly"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
 )
@@ -128,9 +128,9 @@ api_spec_go_client = rule(
         "package": attr.string(doc = "Go package name of the generated file.", mandatory = True),
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
-        "_driver": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_driver": attr.label(default = Label("@dx_prebuilt//dx:oapi_codegen"), executable = True, cfg = "exec"),
         "_oapi_codegen": attr.label(default = Label("@dx_prebuilt//:oapi_codegen"), executable = True, cfg = "exec"),
-        "_preflight": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_preflight": attr.label(default = Label("@dx_prebuilt//dx:api_spec_preflight"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
     toolchains = ["@rules_go//go:toolchain"],
 )
@@ -176,7 +176,7 @@ api_spec_python_client = rule(
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_config": attr.label(default = Label("//api_spec/private/codegen:openapi_python_client.yaml"), allow_single_file = True),
         "_generator": attr.label(default = Label("//core/quality/tools/python:openapi_python_client"), executable = True, cfg = "exec"),
-        "_preflight": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_preflight": attr.label(default = Label("@dx_prebuilt//dx:api_spec_preflight"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
 )
 
@@ -204,6 +204,6 @@ api_spec_rust_client = rule(
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_generator": attr.label(default = Label("//rust/private/quality/tools:progenitor_tool"), executable = True, cfg = "exec"),
-        "_preflight": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+        "_preflight": attr.label(default = Label("@dx_prebuilt//dx:api_spec_preflight"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
 )

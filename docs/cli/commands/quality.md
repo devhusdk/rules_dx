@@ -235,6 +235,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `nvcc_syntax` replays each `CudaCompile` action with `-c` changed to `-cuda`. Device compilation still runs for every `-gencode` architecture, so the check is heavy. Select it with `typecheck = ["nvcc_syntax"]` on the `cuda` family. Params files and header-only `cuda_library` targets fail with an explicit error.
 
+`clang_tidy` on a header-only `cuda_library` checks each workspace `.cuh` header on its own in CUDA mode.
+
 `clang_tidy` on MSVC toolchains runs in clang-cl mode and names flags it cannot model: `/Yc`, `/Yu`, `/clr`, `/ZW`.
 
 `clang_tidy` runs on the tier base of `config_tier` unless a `clang_tidy_config` is bound.

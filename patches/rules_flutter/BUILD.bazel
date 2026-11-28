@@ -4,6 +4,7 @@ exports_files([
     "flutter_extension_loads.patch",
     "host_independent_extension.patch",
     "lock_extension.patch",
+    "sdk_source_once.patch",
     "windows_golden_comparator.patch",
 ])
 

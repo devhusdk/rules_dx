@@ -108,6 +108,13 @@ pub fn parse_bicep_format(
     )])
 }
 
+#[must_use]
+pub fn bicep_build_compile_error(stderr: &[u8]) -> bool {
+    String::from_utf8_lossy(stderr)
+        .lines()
+        .any(|line| line.contains(" : Error BCP"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +177,15 @@ mod tests {
         assert!(bicep_syntax_error(&warning, FILE).is_none());
         let other = found("BCP009", "error", "/scratch/b.bicep");
         assert!(bicep_syntax_error(&other, FILE).is_none());
+    }
+
+    #[test]
+    fn build_compile_error_needs_an_error_level_bicep_code() {
+        let error = b"/a.bicep(1,7) : Warning no-unused-params: Parameter \"unused\" is declared but never used.\n/a.bicep(2,21) : Error BCP033: Expected a value of type \"string\" but the provided value is of type \"1\".\n";
+        assert!(bicep_build_compile_error(error));
+        let warning = b"/a.bicep(1,7) : Warning no-unused-params: Parameter \"unused\" is declared but never used.\n";
+        assert!(!bicep_build_compile_error(warning));
+        assert!(!bicep_build_compile_error(b"Unhandled exception. System.IO.IOException\n"));
     }
 
     #[test]

@@ -1,7 +1,8 @@
 """OCI image real quality aspects."""
 
-load("//deploy/private:image_providers.bzl", "OciImageQualityInfo")
+load("//core/quality:family_hooks.bzl", "without")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//deploy/private:image_providers.bzl", "OciImageQualityInfo")
 
 visibility(["//core/..."])
 
@@ -41,12 +42,10 @@ def _trivy_image_config_hook(target, _ctx, _resolved, _capability, _what, _share
     layout = target[OciImageQualityInfo].layout
     return real_context(inputs = [layout], options = {"args": [layout.path]})
 
-def _container_structure_test_hook(target, _ctx, _resolved, _capability, _what, _shared):
-    if OciImageQualityInfo not in target:
-        return real_context()
+def _container_structure_test_hook(target, _ctx, resolved, _capability, _what, _shared):
+    if OciImageQualityInfo not in target or not target[OciImageQualityInfo].structure_tests:
+        return without(resolved, "container_structure_test")
     info = target[OciImageQualityInfo]
-    if not info.structure_tests:
-        return real_context()
     return real_context(
         inputs = [info.layout] + info.structure_tests,
         options = {"args": [info.layout.path] + [test.path for test in info.structure_tests]},

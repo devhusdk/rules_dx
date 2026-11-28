@@ -7589,6 +7589,7 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//erlang:toolchain_type`
 - `@rules_dx//fortran:toolchain_type`
 - `@rules_dx//haskell:toolchain_type`
+- `@rules_dx//julia:toolchain_type`
 - `@rules_dx//lua:toolchain_type`
 - `@rules_dx//msix:toolchain_type`
 - `@rules_dx//ocaml:exec_toolchain_type`

@@ -69,14 +69,12 @@ rules_dx++dx_pins+dx_fortran_toolchains
 rules_dx++dx_pins+dx_pins_data
 rules_dx++dx_pins+dx_powershell_toolchains
 rules_dx++dx_pins+dx_windows_support
-rules_dx++dx_pins+rules_julia
 rules_dx++dx_pins+rules_powershell
 rules_dx++dx_prebuilt+dx_prebuilt
 rules_dx++dx_toolchains+dx_toolchains
 rules_dx++elixir+dx_elixir_toolchains
 rules_dx++erlang+dx_erlang_toolchains
 rules_dx++haskell+dx_haskell_toolchains
-rules_dx++julia_toolchain+julia_toolchains
 rules_dx++lua+dx_lua_toolchains
 rules_dx++msix+dx_msix_toolchains
 rules_dx++ocaml+dx_ocaml_toolchains
@@ -165,7 +163,6 @@ rules_zig++zls+zls_toolchains
 tar.bzl+
 tar.bzl++toolchains+bsd_tar_toolchains
 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64
-toml.bzl+
 with_cfg.bzl+
 yq.bzl+
 yq.bzl++yq+yq_toolchains

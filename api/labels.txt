@@ -205,6 +205,7 @@
 //fortran:toolchain_type toolchain_type
 //haskell:base alias
 //haskell:toolchain_type toolchain_type
+//julia:toolchain_type toolchain_type
 //lua:toolchain_type toolchain_type
 //msix:toolchain_type toolchain_type
 //msix:windows_arm64 platform

@@ -1,0 +1,15 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+diff --git a/julia/BUILD.bazel b/julia/BUILD.bazel
+--- a/julia/BUILD.bazel
++++ b/julia/BUILD.bazel
+@@ -3,8 +3,9 @@
+ 
+ exports_files(glob(["*.bzl"]))
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//julia:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

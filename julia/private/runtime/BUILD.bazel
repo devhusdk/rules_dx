@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
 load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
@@ -19,6 +19,21 @@ _LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 bool_flag(
     name = "stock",
     build_setting_default = False,
+)
+
+string_flag(
+    name = "version",
+    build_setting_default = JULIA_RUNTIME_VERSION,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "runtime_version",
+    flag_values = {":version": JULIA_RUNTIME_VERSION},
+    visibility = [
+        "//julia:__subpackages__",
+        "@dx_toolchains//julia:__pkg__",
+    ],
 )
 
 config_setting(

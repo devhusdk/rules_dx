@@ -7,8 +7,8 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils_copy")
 load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 
-_JULIA_TOOLCHAIN = "@rules_julia//julia:toolchain_type"
-_VERSION_SETTING = "@rules_julia//julia/settings:version"
+_JULIA_TOOLCHAIN = str(Label("//julia:toolchain_type"))
+_VERSION_SETTING = str(Label("//julia/private/runtime:version"))
 _STOCK_SETTING = str(Label("//julia/private/runtime:stock"))
 
 _LIBRARY = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
@@ -33,11 +33,34 @@ def julia_source_toolchain_target(name):
         target_settings = [
             Label("//config:toolchains_on"),
             Label("//julia/private/runtime:source_runtime"),
-            Label("@rules_julia//julia/settings:version_" + JULIA_RUNTIME_VERSION),
+            Label("//julia/private/runtime:runtime_version"),
         ],
         toolchain = Label("//julia/private/runtime:source_julia"),
         toolchain_type = Label(_JULIA_TOOLCHAIN),
     )
+
+_STOCK_PLATFORMS = {
+    "aarch64_apple_darwin": ["@platforms//os:macos", "@platforms//cpu:aarch64"],
+    "aarch64_linux_gnu": ["@platforms//os:linux", "@platforms//cpu:aarch64"],
+    "i686_linux_gnu": ["@platforms//os:linux", "@platforms//cpu:i386"],
+    "i686_w64_mingw32": ["@platforms//os:windows", "@platforms//cpu:i386"],
+    "x86_64_apple_darwin": ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+    "x86_64_linux_gnu": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    "x86_64_unknown_freebsd": ["@platforms//os:freebsd", "@platforms//cpu:x86_64"],
+    "x86_64_w64_mingw32": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+}
+
+def julia_stock_toolchain_targets(name):
+    """Declares the toolchain <name>_<version>_<platform> for the Julia release of each platform in @julia_toolchains."""
+    for platform, constraints in _STOCK_PLATFORMS.items():
+        toolchain = "julia_{}_{}".format(JULIA_RUNTIME_VERSION, platform)
+        native.toolchain(
+            name = "{}_{}_{}".format(name, JULIA_RUNTIME_VERSION, platform),
+            target_compatible_with = constraints,
+            target_settings = [Label("//julia/private/runtime:runtime_version")],
+            toolchain = Label("@julia_toolchains//:{}_toolchain".format(toolchain)),
+            toolchain_type = Label(_JULIA_TOOLCHAIN),
+        )
 
 def _runtime_version_impl(_settings, _attr):
     return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}

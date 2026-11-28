@@ -11,6 +11,9 @@ exports_files([
     "stable_sysimage_paths.patch",
     "template_action_input.patch",
     "test_tmpdir_runfiles.patch",
+    "toolchain_aliases.patch",
+    "toolchain_type_alias.patch",
+    "version_alias.patch",
 ])
 
 real_source_target(

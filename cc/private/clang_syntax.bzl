@@ -285,7 +285,7 @@ def _header_parse_actions(target, ctx, identity):
     hdrs = [
         f
         for f in getattr(ctx.rule.files, "hdrs", []) + getattr(ctx.rule.files, "srcs", [])
-        if is_workspace_file(f) and f.extension in _HEADER_EXTENSIONS
+        if f.is_source and is_workspace_file(f) and f.extension in _HEADER_EXTENSIONS
     ]
     if not hdrs:
         return []
@@ -334,14 +334,15 @@ def _clang_syntax_impl(target, ctx):
     attrs = ctx.rule.attr
     actions = _compile_actions(target)
     identity = cc_toolchain_identity(ctx)
-    if len(actions) == 0 and CcInfo in target and target.label.repo_name == "":
-        actions = _header_parse_actions(target, ctx, identity)
     if len(actions) == 0:
         upstream = forwarded_upstream(attrs, ClangSyntaxInfo)
-        if upstream == None:
-            return []
-        info = upstream[ClangSyntaxInfo]
-        return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
+        if upstream != None:
+            info = upstream[ClangSyntaxInfo]
+            return [info, OutputGroupInfo(clang_syntax = depset(info.diagnostics + info.statuses + info.drivers), clang_tidy = depset(info.tidy_diagnostics))]
+        if CcInfo in target and target.label.repo_name == "":
+            actions = _header_parse_actions(target, ctx, identity)
+    if len(actions) == 0:
+        return []
     if target.label.repo_name != "" or not holds_workspace_source(ctx.rule.files):
         return []
 

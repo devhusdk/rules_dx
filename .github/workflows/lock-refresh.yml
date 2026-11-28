@@ -220,6 +220,7 @@ jobs:
             tools/testing/nested_cache/*.MODULE.bazel.lock
             third_party/jvm/rules_android_maven_install.json
             **/cargo-bazel-lock.json
+            !bazel-*/**
           if-no-files-found: error
       - name: Push to the pull request
         if: inputs.pr != ''

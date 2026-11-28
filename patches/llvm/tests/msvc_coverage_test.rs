@@ -34,7 +34,9 @@ fn the_patch_stages_the_msvc_profile_runtime_under_coverage() {
             == "+            \"//runtimes/compiler-rt:clang_rt.profile.static\": \"clang_rt.profile\","),
         "clang_rt.profile is missing"
     );
-    assert!(lines
-        .iter()
-        .any(|line| line == "+    values = {\"collect_code_coverage\": \"true\"},"));
+    assert!(
+        lines
+            .iter()
+            .any(|line| line == "+    values = {\"collect_code_coverage\": \"true\"},")
+    );
 }

@@ -30,7 +30,11 @@ struct Scene {
 fn scene(name: &str) -> Scene {
     let tmp = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set under Bazel"));
     let root = tmp.join(format!("appcontainer probe {name}"));
-    assert!(hermetic::remove_root(&root), "{} is removed", root.display());
+    assert!(
+        hermetic::remove_root(&root),
+        "{} is removed",
+        root.display()
+    );
     let granted = root.join("granted");
     let ungranted = root.join("ungranted");
     std::fs::create_dir_all(&granted).expect("granted dir");
@@ -38,8 +42,7 @@ fn scene(name: &str) -> Scene {
     let built = dx_testing::env_file("DX_HERMETIC_WINDOWS_PROBE");
     let probe = granted.join("probe.exe");
     std::fs::copy(&built, &probe).expect("copy the probe");
-    let launcher =
-        dx_testing::env_file("DX_HERMETIC_APPCONTAINER");
+    let launcher = dx_testing::env_file("DX_HERMETIC_APPCONTAINER");
     let isolation = Isolation {
         launcher,
         grants: vec![granted.clone()],

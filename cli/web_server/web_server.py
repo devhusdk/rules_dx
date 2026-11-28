@@ -193,7 +193,9 @@ def check_manifest(root):
             described = json.load(handle)
     except (OSError, ValueError) as error:
         return "unreadable manifest.json: " + str(error)
-    if not isinstance(described, dict) or not ("entry" in described or "wasm" in described):
+    if not isinstance(described, dict) or not (
+        "entry" in described or "wasm" in described
+    ):
         return None
     for key in ("entry", "wasm"):
         name = described.get(key)

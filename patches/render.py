@@ -33,26 +33,43 @@ def render(module_text, readme_text):
     out = []
     for line in readme_text.split("\n"):
         cells = line.split(" | ", 3)
-        if len(cells) == 4 and cells[0].startswith("| `") and not cells[0].startswith("| `---"):
+        if (
+            len(cells) == 4
+            and cells[0].startswith("| `")
+            and not cells[0].startswith("| `---")
+        ):
             module = cells[0][3:].split("`", 1)[0]
             if module not in known and cells[2].strip() == "none" and module in deps:
                 known[module] = (deps[module], [])
             if module not in known:
-                raise SystemExit("patches/README.md: %s has no override in MODULE.bazel" % module)
-            if not (cells[3].startswith("Root only.") or re.search(r"Consumer fix: #\d+ \|?$", cells[3])):
+                raise SystemExit(
+                    "patches/README.md: %s has no override in MODULE.bazel" % module
+                )
+            if not (
+                cells[3].startswith("Root only.")
+                or re.search(r"Consumer fix: #\d+ \|?$", cells[3])
+            ):
                 raise SystemExit("patches/README.md: %s row has no class" % module)
             version, patches = known[module]
             for patch in re.findall(r"`([^`]+\.patch)`", cells[2]):
                 if patch not in patches:
-                    raise SystemExit("patches/README.md: %s lists %s, which MODULE.bazel does not apply" % (module, patch))
-            listed.setdefault(module, set()).update(re.findall(r"`([^`]+\.patch)`", cells[2]))
+                    raise SystemExit(
+                        "patches/README.md: %s lists %s, which MODULE.bazel does not apply"
+                        % (module, patch)
+                    )
+            listed.setdefault(module, set()).update(
+                re.findall(r"`([^`]+\.patch)`", cells[2])
+            )
             cells[1] = version
             line = " | ".join(cells)
         out.append(line)
     for module, (_, patches) in known.items():
         for patch in patches:
             if patch not in listed.get(module, ()):
-                raise SystemExit("patches/README.md: %s does not list %s, which MODULE.bazel applies" % (module, patch))
+                raise SystemExit(
+                    "patches/README.md: %s does not list %s, which MODULE.bazel applies"
+                    % (module, patch)
+                )
     sections = {}
     for block in readme_text.split("\n## ")[1:]:
         heading, _, body = block.partition("\n")
@@ -67,7 +84,10 @@ def render(module_text, readme_text):
         if (directory, patch) in tabled:
             continue
         if "`%s`" % patch not in sections.get(directory, ""):
-            raise SystemExit("patches/README.md: no section for %s names %s, which MODULE.bazel applies" % (directory, patch))
+            raise SystemExit(
+                "patches/README.md: no section for %s names %s, which MODULE.bazel applies"
+                % (directory, patch)
+            )
     return "\n".join(out)
 
 

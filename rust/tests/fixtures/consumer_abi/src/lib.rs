@@ -3,7 +3,7 @@
     reason = "the fixture exists to call across the C FFI boundary"
 )]
 
-use std::ffi::{c_char, CStr};
+use std::ffi::{CStr, c_char};
 
 pub const API_VERSION: i32 = 1;
 pub const ERROR_OK: i32 = 0;
@@ -68,11 +68,7 @@ impl Store {
         let mut out = 0;
         // SAFETY: self.raw is a live store and out is a valid i32 out-pointer.
         let rc = unsafe { abi_pop(self.raw, &mut out) };
-        if rc == ERROR_OK {
-            Ok(out)
-        } else {
-            Err(rc)
-        }
+        if rc == ERROR_OK { Ok(out) } else { Err(rc) }
     }
 
     pub fn len(&self) -> i32 {

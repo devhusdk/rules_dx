@@ -24,7 +24,9 @@ fn main() -> ExitCode {
         let mut chars = want.chars();
         let sign = chars.next();
         let text = chars.as_str();
-        let found = files.iter().any(|(_, bytes)| contains_bytes(bytes, text.as_bytes()));
+        let found = files
+            .iter()
+            .any(|(_, bytes)| contains_bytes(bytes, text.as_bytes()));
         if sign == Some('+') && !found {
             println!("missing: {text}");
             for (name, bytes) in &files {
@@ -39,7 +41,12 @@ fn main() -> ExitCode {
             for (name, bytes) in &files {
                 println!("== {name}");
                 let lines = String::from_utf8_lossy(bytes);
-                for (n, line) in lines.lines().enumerate().filter(|(_, l)| l.contains(text)).take(20) {
+                for (n, line) in lines
+                    .lines()
+                    .enumerate()
+                    .filter(|(_, l)| l.contains(text))
+                    .take(20)
+                {
                     println!("{}:{line}", n + 1);
                 }
             }

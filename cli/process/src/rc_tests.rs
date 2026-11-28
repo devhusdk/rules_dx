@@ -1277,7 +1277,10 @@ fn profile_dir_gives_each_build_call_its_own_trace() {
     for (trace, verb) in traces.iter().zip(["build", "test"]) {
         let trace = Path::new(trace);
         assert_eq!(trace.parent(), policy.profile_dir.as_deref());
-        let name = trace.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+        let name = trace
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default();
         assert!(name.ends_with(&format!("-{verb}.json.gz")), "{name}");
     }
     let user = ["--profile=/mine.json".to_owned()];
@@ -1304,7 +1307,10 @@ fn ensure_profile_dir_creates_the_directory_or_reports_why_not() {
         ..RcPolicy::hermetic()
     };
     let error = blocked.ensure_profile_dir().unwrap_err();
-    assert!(error.starts_with("cannot create DX_PROFILE_DIR directory "), "{error}");
+    assert!(
+        error.starts_with("cannot create DX_PROFILE_DIR directory "),
+        "{error}"
+    );
     assert_eq!(RcPolicy::hermetic().ensure_profile_dir(), Ok(()));
 }
 

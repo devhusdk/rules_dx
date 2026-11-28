@@ -1,8 +1,7 @@
 use super::{
     Advisory, LockedPackage, REASON_GIT, REASON_PRIVATE, REASON_VERSION_SYNTAX, Unassessed,
     VersionScope, VulnFinding, canonical_severity, family_assess, go_assess, is_version_family,
-    maven_assess, normalize_level, nuget_assess, pypi_assess, ruby_assess,
-    split_gem_lock_version,
+    maven_assess, normalize_level, nuget_assess, pypi_assess, ruby_assess, split_gem_lock_version,
 };
 use crate::exception::{
     ExceptionProblem, FindingRef, RiskException, cargo_assess, check_expiry, npm_assess,

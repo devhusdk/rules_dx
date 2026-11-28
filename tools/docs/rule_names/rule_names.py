@@ -12,7 +12,9 @@ import sys
 import tempfile
 
 DOC = "docs/cli/commands/README.md"
-HEADER = "| Upstream load | Upstream rule | dx load | dx rule |\n| --- | --- | --- | --- |\n"
+HEADER = (
+    "| Upstream load | Upstream rule | dx load | dx rule |\n| --- | --- | --- | --- |\n"
+)
 
 
 def runfile(key):
@@ -100,7 +102,11 @@ def main():
             f.write(want)
         return 0
     if want != text:
-        print("%s is out of date with the lang.json entry points; run: bazel run //tools/docs/rule_names:rule_names_bin -- --write" % DOC, file=sys.stderr)
+        print(
+            "%s is out of date with the lang.json entry points; run: bazel run //tools/docs/rule_names:rule_names_bin -- --write"
+            % DOC,
+            file=sys.stderr,
+        )
         return 1
     print("Rule names table covers every lang.json entry point")
     return 0

@@ -62,9 +62,15 @@ fn toolchain_binaries_need_only_toolchain_or_glibc_libraries() {
 
     let mut queue = VecDeque::new();
     let bin = toolchain.join("usr/bin");
-    for entry in std::fs::read_dir(&bin).unwrap_or_else(|error| panic!("{}: {error}", bin.display())) {
+    for entry in
+        std::fs::read_dir(&bin).unwrap_or_else(|error| panic!("{}: {error}", bin.display()))
+    {
         let path = entry.expect("usr/bin entry").path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
         if name.starts_with("lldb") || name == "repl_swift" || !path.is_file() {
             continue;
         }
@@ -84,7 +90,11 @@ fn toolchain_binaries_need_only_toolchain_or_glibc_libraries() {
             if host_lib(&lib) {
                 continue;
             }
-            match dirs.iter().map(|dir| dir.join(&lib)).find(|path| path.exists()) {
+            match dirs
+                .iter()
+                .map(|dir| dir.join(&lib))
+                .find(|path| path.exists())
+            {
                 Some(path) => queue.push_back(canonical(&path)),
                 None => failures.push(format!(
                     "{} needs {lib}, which is outside the toolchain",
@@ -94,6 +104,10 @@ fn toolchain_binaries_need_only_toolchain_or_glibc_libraries() {
         }
     }
 
-    assert!(!seen.is_empty(), "no toolchain binaries found under {}", bin.display());
+    assert!(
+        !seen.is_empty(),
+        "no toolchain binaries found under {}",
+        bin.display()
+    );
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

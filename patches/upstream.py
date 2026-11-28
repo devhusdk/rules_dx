@@ -92,7 +92,9 @@ def refs(value):
             continue
         match = _COMMIT.match(part.strip())
         if not match:
-            raise ValueError("not an owner/repo#N ref or owner/repo@<40-hex sha>: %r" % part.strip())
+            raise ValueError(
+                "not an owner/repo#N ref or owner/repo@<40-hex sha>: %r" % part.strip()
+            )
         found.append((match.group(1), match.group(2)))
     return found
 
@@ -128,10 +130,15 @@ def shipped_in(api, repo, sha, merged_at):
         names = [
             r["tag_name"]
             for r in releases
-            if not r["draft"] and not r["prerelease"] and (r.get("published_at") or "") >= merged_at
+            if not r["draft"]
+            and not r["prerelease"]
+            and (r.get("published_at") or "") >= merged_at
         ]
     else:
-        names = [t["name"] for t in api.get("/repos/%s/tags?per_page=%d" % (repo, _RECENT)) or []]
+        names = [
+            t["name"]
+            for t in api.get("/repos/%s/tags?per_page=%d" % (repo, _RECENT)) or []
+        ]
     for name in names:
         compare = api.get("/repos/%s/compare/%s...%s" % (repo, name, sha))
         # "behind" or "identical": sha is an ancestor of (or equal to) the tag.
@@ -195,7 +202,9 @@ def landed_commit(api, repo, number):
 def patch_files(root):
     found = []
     for directory, _, files in os.walk(root):
-        found.extend(os.path.join(directory, name) for name in files if name.endswith(".patch"))
+        found.extend(
+            os.path.join(directory, name) for name in files if name.endswith(".patch")
+        )
     return sorted(found)
 
 
@@ -206,8 +215,12 @@ def carry_files(workspace):
     """
     found = []
     for directory, dirs, files in os.walk(workspace):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "bazel-")) and d != "node_modules"]
-        found.extend(os.path.join(directory, name) for name in files if is_carry_file(name))
+        dirs[:] = [
+            d for d in dirs if not d.startswith((".", "bazel-")) and d != "node_modules"
+        ]
+        found.extend(
+            os.path.join(directory, name) for name in files if is_carry_file(name)
+        )
     return sorted(found)
 
 
@@ -268,7 +281,10 @@ def closed_consumer_fixes(api, root):
             issue = api.get("/repos/%s/issues/%d" % (_REPO, number))
             states[number] = issue["state"] if issue else "missing"
         if states[number] != "open":
-            lines.append("- %s: [#%d](https://github.com/%s/issues/%d) is %s" % (row, number, _REPO, number, states[number]))
+            lines.append(
+                "- %s: [#%d](https://github.com/%s/issues/%d) is %s"
+                % (row, number, _REPO, number, states[number])
+            )
     return lines
 
 
@@ -296,7 +312,10 @@ def report(api, root):
         for value in values:
             _classify(api, name, value, released, closed, bad)
     sections = [
-        ("Upstream fix released: bump the module and delete the patch or carry", released),
+        (
+            "Upstream fix released: bump the module and delete the patch or carry",
+            released,
+        ),
         ("Upstream ref closed without a merge: find where the fix went", closed),
         ("No `Upstream:` header", missing),
         ("Unreadable `Upstream:` header", bad),
@@ -313,7 +332,11 @@ def report(api, root):
 
 
 def main(argv):
-    root = argv[1] if len(argv) > 1 else os.path.join(os.environ.get("BUILD_WORKSPACE_DIRECTORY", "."), "patches")
+    root = (
+        argv[1]
+        if len(argv) > 1
+        else os.path.join(os.environ.get("BUILD_WORKSPACE_DIRECTORY", "."), "patches")
+    )
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     # Bytes, so Windows writes LF and UTF-8 like the other runners.
     sys.stdout.buffer.write(report(GitHub(token), root).encode("utf-8"))

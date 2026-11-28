@@ -155,7 +155,10 @@ fn malformed_documents_are_rejected() {
     }
     let error = convert("{").unwrap_err();
     assert!(matches!(error, GoExtractError::Malformed(_)), "{error:?}");
-    assert!(error.to_string().starts_with("Go doc JSON is malformed: "), "{error}");
+    assert!(
+        error.to_string().starts_with("Go doc JSON is malformed: "),
+        "{error}"
+    );
 }
 
 #[test]
@@ -172,7 +175,9 @@ fn run_reports_an_unreadable_input() {
         "{error:?}"
     );
     assert!(
-        error.to_string().starts_with(&format!("cannot read {}: ", missing.display())),
+        error
+            .to_string()
+            .starts_with(&format!("cannot read {}: ", missing.display())),
         "{error}"
     );
 }

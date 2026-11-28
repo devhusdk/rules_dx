@@ -18,7 +18,9 @@ def site_packages() -> list:
             lines = []
     root = os.environ.get("RUNFILES_DIR")
     if root and os.path.isdir(root):
-        for site in glob.glob(os.path.join(root, "**", "site-packages"), recursive=True):
+        for site in glob.glob(
+            os.path.join(root, "**", "site-packages"), recursive=True
+        ):
             sites.append(pathlib.Path(site))
     if not manifest and not sites:
         return []

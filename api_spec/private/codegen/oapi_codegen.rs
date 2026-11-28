@@ -89,8 +89,14 @@ mod tests {
 
     #[test]
     fn parse_takes_go_tool_out_and_the_generator_arguments() {
-        let args = parse(&strings(&["sdk/bin/go", "tool", "pkg/out.go", "-package", "p"]))
-            .expect("parse");
+        let args = parse(&strings(&[
+            "sdk/bin/go",
+            "tool",
+            "pkg/out.go",
+            "-package",
+            "p",
+        ]))
+        .expect("parse");
         assert_eq!(
             args,
             Args {

@@ -1,10 +1,14 @@
 use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 fn parse(input: &str) -> u32 {
-    input.bytes().filter(u8::is_ascii_digit).map(|b| u32::from(b - b'0')).sum()
+    input
+        .bytes()
+        .filter(u8::is_ascii_digit)
+        .map(|b| u32::from(b - b'0'))
+        .sum()
 }
 
 fn parse_small(c: &mut Criterion) {

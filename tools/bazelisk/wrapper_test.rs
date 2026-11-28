@@ -58,10 +58,7 @@ impl Host {
                 )
                 .unwrap(),
             )
-            .env(
-                "BAZEL_REAL",
-                dx_testing::env_file("DX_FAKE_BAZEL"),
-            )
+            .env("BAZEL_REAL", dx_testing::env_file("DX_FAKE_BAZEL"))
             .env_remove("BAZEL_SH")
             .env_remove("DX_BAZEL_CHILD")
             .env_remove("FAKE_BAZEL_EXIT");
@@ -168,7 +165,9 @@ fn the_bazel_exit_code_passes_through() {
 }
 
 fn hook(code: u8) -> String {
-    format!("@echo off\nif not \"%1 %2 %3 %4\"==\"worktree hook bazel --\" exit /b 9\necho hook-out\nexit /b {code}\n")
+    format!(
+        "@echo off\nif not \"%1 %2 %3 %4\"==\"worktree hook bazel --\" exit /b 9\necho hook-out\nexit /b {code}\n"
+    )
 }
 
 #[test]

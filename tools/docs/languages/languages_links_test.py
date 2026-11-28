@@ -12,13 +12,17 @@ BLOB = languages.REPO_BLOB
 class RebaseLinksTest(unittest.TestCase):
     def test_consumer_directory_becomes_blob_url(self):
         self.assertEqual(
-            languages.rebase_links("[`tests/consumer`](tests/consumer) is minimal.", "flutter"),
+            languages.rebase_links(
+                "[`tests/consumer`](tests/consumer) is minimal.", "flutter"
+            ),
             "[`tests/consumer`](%sflutter/tests/consumer) is minimal." % BLOB,
         )
 
     def test_fixture_file_becomes_blob_url(self):
         self.assertEqual(
-            languages.rebase_links("[bench](tests/fixtures/bench/BUILD.bazel)", "haskell"),
+            languages.rebase_links(
+                "[bench](tests/fixtures/bench/BUILD.bazel)", "haskell"
+            ),
             "[bench](%shaskell/tests/fixtures/bench/BUILD.bazel)" % BLOB,
         )
 

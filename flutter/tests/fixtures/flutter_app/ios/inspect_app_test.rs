@@ -92,7 +92,8 @@ fn the_app_is_an_arm64_simulator_bundle() {
 
     let info = read(&app.join("Info.plist"));
     assert!(
-        info.windows(bundle_id.len()).any(|w| w == bundle_id.as_bytes()),
+        info.windows(bundle_id.len())
+            .any(|w| w == bundle_id.as_bytes()),
         "Info.plist does not name {bundle_id}"
     );
 

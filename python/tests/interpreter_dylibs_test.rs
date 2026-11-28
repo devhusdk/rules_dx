@@ -127,7 +127,10 @@ fn interpreter_images() -> Vec<PathBuf> {
         .into_iter()
         .filter(|path| path.to_string_lossy().contains(REPO) && is_macho(path))
         .collect();
-    assert!(!images.is_empty(), "no Mach-O image of {REPO} in the runfiles");
+    assert!(
+        !images.is_empty(),
+        "no Mach-O image of {REPO} in the runfiles"
+    );
     images
 }
 

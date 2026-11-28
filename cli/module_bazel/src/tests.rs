@@ -1163,7 +1163,10 @@ fn ruby_locks_follow_the_rules_dx_ruby_extension() {
         .collect();
     assert_eq!(
         names,
-        [("gems", "//g:ruby.lock.json"), ("tools", "//t:ruby.lock.json")]
+        [
+            ("gems", "//g:ruby.lock.json"),
+            ("tools", "//t:ruby.lock.json")
+        ]
     );
 }
 

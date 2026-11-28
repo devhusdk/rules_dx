@@ -32,7 +32,11 @@ fn version_is_pinned() {
 #[test]
 fn lua54_source_is_clean() {
     let out = selene("LUA54_VALID");
-    assert!(out.status.success(), "lua54 fixture rejected:\n{}", out.combined());
+    assert!(
+        out.status.success(),
+        "lua54 fixture rejected:\n{}",
+        out.combined()
+    );
     assert!(
         out.stdout
             .contains(r#""type":"Summary","errors":0,"warnings":0,"parse_errors":0"#),

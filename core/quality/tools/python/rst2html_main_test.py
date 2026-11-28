@@ -28,8 +28,10 @@ class Rst2HtmlTest(unittest.TestCase):
         stdout = io.BytesIO()
         stdin = io.TextIOWrapper(io.BytesIO(body), encoding="utf-8")
         out = io.TextIOWrapper(stdout, encoding="utf-8")
-        with mock.patch.object(sys, "argv", VALE_ARGV), mock.patch.object(sys, "stdin", stdin), mock.patch.object(
-            sys, "stdout", out
+        with (
+            mock.patch.object(sys, "argv", VALE_ARGV),
+            mock.patch.object(sys, "stdin", stdin),
+            mock.patch.object(sys, "stdout", out),
         ):
             rst2html_main.main()
             out.flush()

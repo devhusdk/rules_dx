@@ -1,4 +1,4 @@
-use shared_tasks::{reply, Board, CORE_VERSION};
+use shared_tasks::{Board, CORE_VERSION, reply};
 
 fn main() {
     let mut board = Board::load("").expect("empty board loads");

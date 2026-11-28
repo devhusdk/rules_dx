@@ -19,7 +19,7 @@ public:
   using std::runtime_error::runtime_error;
 };
 
-std::vector<Dish> parse_menu(std::istream &in);
+std::vector<Dish> parse_menu(std::istream &input);
 std::vector<Dish> load_menu(const std::string &path);
 int menu_version();
 

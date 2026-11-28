@@ -21,14 +21,14 @@ std::vector<std::string> split(const std::string &line) {
 
 } // namespace
 
-std::vector<Dish> parse_menu(std::istream &in) {
+std::vector<Dish> parse_menu(std::istream &input) {
   std::string line;
-  if (!std::getline(in, line) || line != "name,category,price_cents") {
+  if (!std::getline(input, line) || line != "name,category,price_cents") {
     throw ParseError("menu header is missing");
   }
   std::vector<Dish> dishes;
   int number = 1;
-  while (std::getline(in, line)) {
+  while (std::getline(input, line)) {
     ++number;
     const auto cells = split(line);
     if (cells.size() != 3) {

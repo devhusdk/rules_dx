@@ -262,6 +262,38 @@ def _failing_tidy(ctx, log, src, error):
 def _tidy_capture(log):
     return ["capture", "--stdout", log.path, "--stderr", log.path, "--ignore-exit", "--expand-bazel", "--"]
 
+CcHeaderLanguageInfo = provider(
+    doc = "Whether the .h headers of a C/C++ target are C++ headers.",
+    fields = {"cpp": "bool: the target, its upstream or a transitive dep holds a C++ file or selects a C++ standard."},
+)
+
+_CPP_EXTENSIONS = ["C", "H", "c++", "cc", "cpp", "cu", "cuh", "cxx", "h++", "hh", "hpp", "hxx", "ipp", "tcc"]
+_CPP_STD_PREFIXES = ("-std=c++", "-std=gnu++", "--std=c++", "--std=gnu++", "/std:c++", "-std:c++")
+
+def _holds_cpp(rule):
+    for name in ["srcs", "hdrs", "textual_hdrs"]:
+        for f in getattr(rule.files, name, []):
+            if f.extension in _CPP_EXTENSIONS:
+                return True
+    copts = getattr(rule.attr, "copts", [])
+    return type(copts) == "list" and len([opt for opt in copts if type(opt) == "string" and opt.startswith(_CPP_STD_PREFIXES)]) > 0
+
+def _header_language_impl(_target, ctx):
+    cpp = _holds_cpp(ctx.rule)
+    for name in ["upstream", "deps", "implementation_deps"]:
+        value = getattr(ctx.rule.attr, name, None)
+        deps = value if type(value) == "list" else [value]
+        for dep in deps:
+            if type(dep) == "Target" and CcHeaderLanguageInfo in dep and dep[CcHeaderLanguageInfo].cpp:
+                cpp = True
+    return [CcHeaderLanguageInfo(cpp = cpp)]
+
+_header_language_aspect = aspect(
+    implementation = _header_language_impl,
+    doc = "Marks a C/C++ target whose own files, copts or transitive deps are C++.",
+    attr_aspects = ["upstream", "deps", "implementation_deps"],
+)
+
 def _compile_actions(target):
     actions = getattr(target, "actions", None)
     if actions == None:
@@ -270,8 +302,6 @@ def _compile_actions(target):
 
 _HEADER_EXTENSIONS = ["h", "hh", "hpp", "hxx", "h++", "H"]
 
-# The language follows UPSTREAM_CC_CLASS_EXTENSIONS: .h is a C header, the
-# other header extensions are C++ headers.
 _HEADER_LANGUAGES = {
     "c": struct(action = ACTION_NAMES.c_compile, gnu = "-xc-header", msvc = "/TC"),
     "cpp": struct(action = ACTION_NAMES.cpp_compile, gnu = "-xc++-header", msvc = "/TP"),
@@ -297,9 +327,10 @@ def _header_parse_actions(target, ctx, identity):
     )
     context = target[CcInfo].compilation_context
     inputs = depset(transitive = [cc_toolchain.all_files, context.headers])
+    cpp = target[CcHeaderLanguageInfo].cpp
     actions = []
     for hdr in hdrs:
-        language = _HEADER_LANGUAGES[upstream_source_class(hdr.extension)]
+        language = _HEADER_LANGUAGES["cpp" if cpp else upstream_source_class(hdr.extension)]
         user_flags = ctx.fragments.cpp.copts + (ctx.fragments.cpp.conlyopts if language.action == ACTION_NAMES.c_compile else ctx.fragments.cpp.cxxopts)
         variables = cc_common.create_compile_variables(
             feature_configuration = config,
@@ -475,6 +506,7 @@ clang_syntax_aspect = aspect(
     doc = "Replays the compile actions of a C/C++/Objective-C target with -fsyntax-only.",
     attr_aspects = ["upstream"],
     fragments = ["apple", "cpp"],
+    requires = [_header_language_aspect],
     toolchains = [config_common.toolchain_type(CC_TOOLCHAIN_TYPE, mandatory = False)],
     attrs = apple_support.action_required_attrs() | {
         "_policy": attr.label(

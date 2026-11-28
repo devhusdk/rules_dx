@@ -81,8 +81,33 @@ cc_library(
 
 cc_library(
     name = "header_only",
-    hdrs = ["dep.h"],
+    hdrs = [
+        "dep.h",
+        ":generated_h",
+    ],
     aspect_hints = [":tidy_config"],
+    visibility = ["//core/quality:__pkg__"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "cpp_dep",
+    srcs = ["cpp_dep.cc"],
+    tags = ["manual"],
+)
+
+cc_library(
+    name = "header_only_cpp_dep",
+    hdrs = ["widget.h"],
+    visibility = ["//core/quality:__pkg__"],
+    tags = ["manual"],
+    deps = [":cpp_dep"],
+)
+
+cc_library(
+    name = "header_only_cpp_std",
+    hdrs = ["widget.h"],
+    copts = ["-std=c++17"],
     visibility = ["//core/quality:__pkg__"],
     tags = ["manual"],
 )

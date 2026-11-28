@@ -69,7 +69,7 @@ _sourceless_test = analysistest.make(
 )
 
 def _header_only_impl(ctx):
-    """Checks a header-only library parses and clang-tidies each header, a .h one as a C header."""
+    """Checks a header-only C library parses and clang-tidies each source header as a C header, skipping generated ones."""
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[ClangSyntaxInfo]
     asserts.equals(env, ["core/quality/testdata/clang_syntax/dep.h"], info.sources)
@@ -80,6 +80,20 @@ def _header_only_impl(ctx):
 
 _header_only_test = analysistest.make(
     _header_only_impl,
+    extra_target_under_test_aspects = [clang_syntax_aspect],
+)
+
+def _header_only_cpp_impl(ctx):
+    """Checks a header-only library with a C++ context parses its .h header as a C++ header."""
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[ClangSyntaxInfo]
+    asserts.equals(env, ["core/quality/testdata/clang_syntax/widget.h"], info.sources)
+    asserts.true(env, "-xc++-header" in info.argv[0], "want a C++ header parse in " + str(info.argv[0]))
+    asserts.false(env, "-xc-header" in info.argv[0], "want no C header parse in " + str(info.argv[0]))
+    return analysistest.end(env)
+
+_header_only_cpp_test = analysistest.make(
+    _header_only_cpp_impl,
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
@@ -141,9 +155,19 @@ def clang_syntax_analysis_tests(name):
         size = "small",
         target_under_test = "//core/quality/testdata/clang_syntax:header_only",
     )
+    _header_only_cpp_test(
+        name = name + "_header_only_cpp_dep",
+        size = "small",
+        target_under_test = "//core/quality/testdata/clang_syntax:header_only_cpp_dep",
+    )
+    _header_only_cpp_test(
+        name = name + "_header_only_cpp_std",
+        size = "small",
+        target_under_test = "//core/quality/testdata/clang_syntax:header_only_cpp_std",
+    )
     _forwarded_test(
         name = name + "_forwarded",
         size = "small",
         target_under_test = "//core/quality/testdata/clang_syntax:forwarded",
     )
-    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless", name + "_header_only", name + "_forwarded"])
+    native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config", name + "_sourceless", name + "_header_only", name + "_header_only_cpp_dep", name + "_header_only_cpp_std", name + "_forwarded"])

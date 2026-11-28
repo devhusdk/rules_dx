@@ -34,16 +34,30 @@ static char *read_all(const char *path) {
       buf = grown;
     }
   }
-  fclose(file);
+  // LCOV_EXCL_START - reason: fclose failure cannot be forced, issue: 2142
+  if (fclose(file) != 0) {
+    free(buf);
+    return NULL;
+  }
+  // LCOV_EXCL_STOP - reason: end of range, issue: 2142
   if (buf != NULL) {
     buf[len] = '\0';
   }
   return buf;
 }
 
+static void copy_text(char *dst, size_t cap, const char *src) {
+  size_t len = 0;
+  while (len + 1 < cap && src[len] != '\0') {
+    dst[len] = src[len];
+    len++;
+  }
+  dst[len] = '\0';
+}
+
 static int fail(char *err, size_t err_len, const char *message) {
   if (err != NULL && err_len > 0) {
-    snprintf(err, err_len, "%s", message);
+    copy_text(err, err_len, message);
   }
   return -1;
 }
@@ -78,8 +92,8 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
     cJSON_Delete(root);
     return fail(err, err_len, "stock file has no items array");
   }
-  int n = cJSON_GetArraySize(items);
-  store_item *list = calloc((size_t)n + 1, sizeof(store_item));
+  int item_count = cJSON_GetArraySize(items);
+  store_item *list = calloc((size_t)item_count + 1, sizeof(store_item));
   // LCOV_EXCL_START - reason: calloc failure cannot be forced, issue: 2142
   if (list == NULL) {
     cJSON_Delete(root);
@@ -102,7 +116,7 @@ int store_load(const char *path, store_t *out, char *err, size_t err_len) {
       cJSON_Delete(root);
       return fail(err, err_len, "stock item is malformed");
     }
-    snprintf(list[used].name, sizeof(list[used].name), "%s", name->valuestring);
+    copy_text(list[used].name, sizeof(list[used].name), name->valuestring);
     list[used].qty = qty_value;
     list[used].price_cents = price_value;
     used++;

@@ -1,9 +1,11 @@
 #![expect(clippy::panic, reason = "test helper: a failed case fails the test")]
 
 use std::collections::BTreeSet;
+use std::path::Path;
 
-use dx_nested::Case;
 use dx_nested::record::Fetches;
+use dx_nested::{Case, cache};
+use dx_testing::serde_json::Value;
 use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 
 const FOREIGN: &[(&str, &[&str])] = &[
@@ -70,6 +72,8 @@ const FOREIGN: &[(&str, &[&str])] = &[
 ];
 
 const CHECK_ANALYSIS: &[&str] = &["java"];
+
+const BYTE_MARGIN_PERCENT: u64 = 5;
 
 fn jar_pins() -> String {
     let registry = dx_testing::env_text("DX_PREBUILT_REGISTRY");
@@ -158,6 +162,56 @@ fn problems(
             }),
     );
     problems
+}
+
+fn archive_sizes(repository_cache: &Path, fetches: &Fetches) -> (Vec<(u64, String)>, Vec<String>) {
+    let mut sizes = Vec::new();
+    let mut problems: Vec<String> = fetches
+        .unchecked
+        .iter()
+        .map(|url| format!("downloads {url} without a checksum, so its bytes are not counted"))
+        .collect();
+    for (digest, owner) in &fetches.archives {
+        let entry = cache::entry(repository_cache, digest);
+        match std::fs::metadata(&entry) {
+            Ok(metadata) => sizes.push((metadata.len(), format!("{owner} {digest}"))),
+            Err(error) => problems.push(format!(
+                "{owner} downloaded {digest}, but {} is unreadable: {error}",
+                entry.display()
+            )),
+        }
+    }
+    sizes.sort_by(|left, right| right.cmp(left));
+    (sizes, problems)
+}
+
+fn byte_budget() -> Result<Value, String> {
+    let var = "DX_COLD_START_BYTE_BUDGET";
+    let key = std::env::var(var).map_err(|error| format!("{var}: {error}"))?;
+    let path = dx_testing::rlocation(key.trim()).map_err(|error| format!("{key}: {error}"))?;
+    let text = std::fs::read_to_string(&path)
+        .map_err(|error| format!("read {}: {error}", path.display()))?;
+    dx_testing::serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn byte_problems(stem: &str, bytes: u64, budget: &Value) -> Vec<String> {
+    let Some(limit) = budget.get(stem).and_then(Value::as_u64) else {
+        return vec![format!(
+            "{stem} has no byte budget, set it to {bytes} in core/modules/cold_start_byte_budget.json"
+        )];
+    };
+    let margin = limit.saturating_mul(BYTE_MARGIN_PERCENT) / 100;
+    if bytes > limit.saturating_add(margin) {
+        vec![format!(
+            "downloads {bytes} bytes, above the budget {limit} plus {BYTE_MARGIN_PERCENT}%"
+        )]
+    } else if bytes < limit - margin {
+        vec![format!(
+            "downloads {bytes} bytes, more than {BYTE_MARGIN_PERCENT}% below the budget {limit}, lower the budget to {bytes}"
+        )]
+    } else {
+        Vec::new()
+    }
 }
 
 fn run_ok(case: &Case, args: &[&str], fetches: &mut Fetches) -> dx_testing::Run {
@@ -254,14 +308,30 @@ fn assert_fetches_only(case: &Case, stem: &str, lang: &str, fetches: &Fetches) {
     let info = case.bazel(&["info", "output_base"]);
     assert!(info.status.success(), "bazel info: {}", info.combined());
     let measured = fetched(&std::path::PathBuf::from(info.stdout.trim()).join("external"));
-    let problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, fetches);
+    let mut problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, fetches);
+    let (sizes, unmeasured) = archive_sizes(&case.repository_cache(), fetches);
+    let bytes: u64 = sizes.iter().map(|(size, _)| size).sum();
+    eprintln!(
+        "{stem} cold start downloads {bytes} bytes in {} archives",
+        sizes.len()
+    );
+    problems.extend(unmeasured);
+    match byte_budget() {
+        Ok(budget) => problems.extend(byte_problems(stem, bytes, &budget)),
+        Err(error) => problems.push(error),
+    }
     let list: Vec<&str> = measured.iter().map(String::as_str).collect();
+    let archives: Vec<String> = sizes
+        .iter()
+        .map(|(size, archive)| format!("{size} {archive}"))
+        .collect();
     assert!(
         problems.is_empty(),
-        "{stem} cold start:\n{}\nmeasured list ({}):\n{}",
+        "{stem} cold start:\n{}\nmeasured list ({}):\n{}\ndownloads ({bytes} bytes):\n{}",
         problems.join("\n"),
         list.len(),
-        list.join("\n")
+        list.join("\n"),
+        archives.join("\n")
     );
 }
 
@@ -340,6 +410,7 @@ mod tests {
                 .into_iter()
                 .map(str::to_owned)
                 .collect(),
+            ..Fetches::default()
         };
         assert_eq!(
             problems(&measured, &want, &["ocaml", "opam"], &[], &fetches),
@@ -361,6 +432,7 @@ mod tests {
             let fetches = Fetches {
                 ran: measured.clone(),
                 downloaded: measured.clone(),
+                ..Fetches::default()
             };
             !problems(&measured, &measured, foreign_fragments(lang), &[], &fetches).is_empty()
         };
@@ -392,6 +464,58 @@ mod tests {
     }
 
     #[test]
+    fn bytes_fail_beyond_the_margin_either_way_and_without_a_budget() {
+        let budget = dx_testing::serde_json::json!({"go": 1000});
+        assert!(byte_problems("go", 1000, &budget).is_empty());
+        assert!(byte_problems("go", 1050, &budget).is_empty());
+        assert!(byte_problems("go", 950, &budget).is_empty());
+        assert_eq!(
+            byte_problems("go", 1051, &budget),
+            ["downloads 1051 bytes, above the budget 1000 plus 5%"]
+        );
+        assert_eq!(
+            byte_problems("go", 949, &budget),
+            ["downloads 949 bytes, more than 5% below the budget 1000, lower the budget to 949"]
+        );
+        assert_eq!(
+            byte_problems("rust", 7, &budget),
+            ["rust has no byte budget, set it to 7 in core/modules/cold_start_byte_budget.json"]
+        );
+    }
+
+    #[test]
+    fn archive_sizes_come_from_the_repository_cache_largest_first() {
+        let cache = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR")).join("repo-cache");
+        let small = "a".repeat(64);
+        let large = "b".repeat(64);
+        let missing = "c".repeat(64);
+        dx_testing::write_text(&cache::entry(&cache, &small), "x");
+        dx_testing::write_text(&cache::entry(&cache, &large), "xyz");
+        let fetches = Fetches {
+            archives: [
+                (small.clone(), "small+".to_owned()),
+                (large.clone(), "large+".to_owned()),
+                (missing.clone(), "gone+".to_owned()),
+            ]
+            .into_iter()
+            .collect(),
+            unchecked: ["https://u/v".to_owned()].into_iter().collect(),
+            ..Fetches::default()
+        };
+        let (sizes, problems) = archive_sizes(&cache, &fetches);
+        assert_eq!(
+            sizes,
+            [(3, format!("large+ {large}")), (1, format!("small+ {small}"))]
+        );
+        assert_eq!(problems.len(), 2);
+        assert_eq!(
+            problems[0],
+            "downloads https://u/v without a checksum, so its bytes are not counted"
+        );
+        assert!(problems[1].starts_with(&format!("gone+ downloaded {missing}, but ")));
+    }
+
+    #[test]
     fn upstream_registered_archives_skip_the_foreign_check_but_stay_listed() {
         let want = listed("rules_kotlin+\n");
         let measured: BTreeSet<String> = ["rules_kotlin+", "rules_scala+"]
@@ -407,6 +531,7 @@ mod tests {
                 .into_iter()
                 .map(str::to_owned)
                 .collect(),
+            ..Fetches::default()
         };
         assert_eq!(
             problems(

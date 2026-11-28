@@ -10,19 +10,19 @@ load("//dotnet/private/quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 
 TOOLS = {
     "csharpier": {
-        "attr": attr.label(default = "//dotnet/private/quality/tools:csharpier", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_csharpier", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "heavy",
         "shard": "dotnet",
     },
     "fantomas": {
-        "attr": attr.label(default = "//dotnet/private/quality/tools:fantomas", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_fantomas", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "heavy",
         "shard": "dotnet",
     },
     "fsharplint": {
-        "attr": attr.label(default = "//dotnet/private/quality/tools/fsharplint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_fsharplint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "heavy",
         "shard": "dotnet",

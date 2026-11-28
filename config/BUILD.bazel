@@ -434,6 +434,330 @@ label_flag(
 
 filegroup(name = "no_julia_format")
 
+label_flag(
+    name = "tool_ansible_lint",
+    build_setting_default = "@dx_prebuilt//:python_tool_ansible_lint_tool",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_bicep",
+    build_setting_default = "@dx_tools//:bicep",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_biome",
+    build_setting_default = "@dx_tools//:biome",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_buf",
+    build_setting_default = "@dx_tools//:buf",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_cfn_lint",
+    build_setting_default = "@dx_prebuilt//:python_tool_cfn_lint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_checkmake",
+    build_setting_default = "@dx_tools//:checkmake",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_chktex",
+    build_setting_default = "@dx_tools//:chktex",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_clang_format",
+    build_setting_default = "@llvm//tools:clang-format",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_cmakelint",
+    build_setting_default = "@dx_prebuilt//:python_tool_cmakelint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_csharpier",
+    build_setting_default = "//dotnet/private/quality/tools:csharpier",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_cue",
+    build_setting_default = "@dx_tools//:cue",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_deadnix",
+    build_setting_default = "//rust/private/quality/tools:deadnix_tool",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_detekt",
+    build_setting_default = "//java/private/quality/tools:detekt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_djlint",
+    build_setting_default = "@dx_prebuilt//:python_tool_djlint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_docstrfmt",
+    build_setting_default = "@dx_prebuilt//:python_tool_docstrfmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_dscanner",
+    build_setting_default = "//d/private:dscanner",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_eslint",
+    build_setting_default = "//javascript/private/quality/bin:eslint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_fantomas",
+    build_setting_default = "//dotnet/private/quality/tools:fantomas",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_ffmt",
+    build_setting_default = "@dx_tools//:ffmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_fortitude",
+    build_setting_default = "@dx_tools//:fortitude",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_fsharplint",
+    build_setting_default = "//dotnet/private/quality/tools/fsharplint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_google_java_format",
+    build_setting_default = "//java/private/quality/tools:google_java_format",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_gplint",
+    build_setting_default = "//javascript/private/quality/bin:gplint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_graphql_eslint",
+    build_setting_default = "//javascript/private/quality/bin:graphql_eslint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_jsonnet_lint",
+    build_setting_default = "@dx_tools//:jsonnet_lint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_jsonnetfmt",
+    build_setting_default = "@dx_tools//:jsonnetfmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_keep_sorted",
+    build_setting_default = "@dx_tools//:keep_sorted",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_ktfmt",
+    build_setting_default = "//java/private/quality/tools:ktfmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_latexindent",
+    build_setting_default = "@dx_tools//:latexindent",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_mbake",
+    build_setting_default = "@dx_prebuilt//:python_tool_mbake",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_pkl_lsp",
+    build_setting_default = "//java/private/quality/tools:pkl_lsp",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_pmd",
+    build_setting_default = "//java/private/quality/tools:pmd",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_prettier",
+    build_setting_default = "//javascript/private/quality/bin:prettier",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_psscriptanalyzer",
+    build_setting_default = "//powershell/private/quality:psscriptanalyzer_tool",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_redocly",
+    build_setting_default = "//javascript/private/quality/bin:redocly",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_remark",
+    build_setting_default = "//javascript/private/quality/bin:remark",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_rubocop",
+    build_setting_default = "//ruby/private/quality:rubocop",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_scalafix",
+    build_setting_default = "//java/private/quality/tools:scalafix",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_scalafmt",
+    build_setting_default = "@dx_tools//:scalafmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_selene",
+    build_setting_default = "//rust/private/quality/tools:selene_tool",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_shfmt",
+    build_setting_default = "@dx_tools//:shfmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_spotbugs",
+    build_setting_default = "//java/private/quality/tools:spotbugs",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_sqlfluff",
+    build_setting_default = "@dx_prebuilt//:python_tool_sqlfluff",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_stylelint",
+    build_setting_default = "//javascript/private/quality/bin:stylelint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_tflint",
+    build_setting_default = "@dx_tools//:tflint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_tinymist",
+    build_setting_default = "@dx_tools//:tinymist",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_topiary",
+    build_setting_default = "//rust/private/quality/tools:topiary_tool",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_typos",
+    build_setting_default = "@dx_tools//:typos",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_typstyle",
+    build_setting_default = "@dx_tools//:typstyle",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_vale",
+    build_setting_default = "@dx_tools//:vale",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_xmllint",
+    build_setting_default = "@dx_tools//:xmllint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_yamlfmt",
+    build_setting_default = "@dx_tools//:yamlfmt",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_yamllint",
+    build_setting_default = "@dx_prebuilt//:python_tool_yamllint",
+    scope = "universal",
+)
+
+label_flag(
+    name = "tool_zanuda",
+    build_setting_default = "//ocaml/private/quality:zanuda_tool",
+    scope = "universal",
+)
+
 alias(
     name = "clippy_output_diagnostics",
     actual = "@rules_rust//rust/settings:clippy_output_diagnostics",

@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
     "//:__pkg__",
+    "//config:__pkg__",
     "//d:__subpackages__",
     "//tools/ci:__pkg__",
 ])

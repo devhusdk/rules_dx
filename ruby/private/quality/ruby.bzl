@@ -13,7 +13,7 @@ TOOLS = {
         "shard": "ruby",
     },
     "rubocop": {
-        "attr": attr.label(default = "//ruby/private/quality:rubocop", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_rubocop", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",

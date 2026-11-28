@@ -6,7 +6,7 @@ load(":kotlinc_check.bzl", "kotlinc_check_aspect")
 
 TOOLS = {
     "detekt": {
-        "attr": attr.label(default = "//java/private/quality/tools:detekt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_detekt", cfg = "exec", executable = True),
         "capabilities": ["lint"],
         "kind": "executable",
         "resources": "heavy",
@@ -19,7 +19,7 @@ TOOLS = {
         "shard": "kotlin",
     },
     "ktfmt": {
-        "attr": attr.label(default = "//java/private/quality/tools:ktfmt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_ktfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "heavy",

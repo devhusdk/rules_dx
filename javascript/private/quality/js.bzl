@@ -6,7 +6,7 @@ load("//typescript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 
 TOOLS = {
     "eslint": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:eslint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -14,7 +14,7 @@ TOOLS = {
         "shard": "js",
     },
     "gplint": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:gplint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_gplint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -22,7 +22,7 @@ TOOLS = {
         "shard": "js",
     },
     "graphql_eslint": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:graphql_eslint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_graphql_eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -30,7 +30,7 @@ TOOLS = {
         "shard": "js",
     },
     "prettier": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:prettier", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_prettier", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -38,7 +38,7 @@ TOOLS = {
         "shard": "js",
     },
     "redocly": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:redocly", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_redocly", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -46,7 +46,7 @@ TOOLS = {
         "shard": "js",
     },
     "remark": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:remark", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_remark", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -54,7 +54,7 @@ TOOLS = {
         "shard": "js",
     },
     "stylelint": {
-        "attr": attr.label(default = "//javascript/private/quality/bin:stylelint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_stylelint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",

@@ -6,13 +6,13 @@ visibility("public")
 
 TOOLS = {
     "tinymist": {
-        "attr": attr.label(default = "@dx_tools//:tinymist", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_tinymist", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "typst",
     },
     "typstyle": {
-        "attr": attr.label(default = "@dx_tools//:typstyle", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_typstyle", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "light",
         "shard": "typst",

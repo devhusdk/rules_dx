@@ -149,13 +149,110 @@ fn renders_standard() {
 
     # The tools no family runs.
     common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
@@ -220,13 +317,110 @@ fn renders_strict() {
 
     # The tools no family runs.
     common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
@@ -303,12 +497,108 @@ fn renders_no_dx_toml() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
 
     # The clippy tier.
     common --@rules_dx//config:clippy_flag=-Wclippy::all
@@ -435,12 +725,108 @@ fn renders_existing_exports() {
     common --@rules_dx//config:workspace=//.dx:policy
 
     # The tools no family runs.
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network
@@ -506,13 +892,110 @@ fn renders_no_root_build() {
 
     # The tools no family runs.
     common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
@@ -580,13 +1063,110 @@ fn renders_mixed_tiers() {
 
     # The tools no family runs.
     common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The python setup flags.
@@ -648,15 +1228,112 @@ fn renders_rust() {
 
     # The tools no family runs.
     common --@rules_dx//config:tool_actionlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ansible_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_bicep=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_biome=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_buf=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_buildifier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_capnp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cfn_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_checkmake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_chktex=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_clang_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cmakelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_container_structure_test=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_credo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_csharpier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_cue=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dart=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_deadnix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_detekt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dialyzer=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_djlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_docstrfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_dscanner=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_elvis=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_erlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_errcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fantomas=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ffmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_flatc=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fortitude=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_fsharplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gersemi=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gofumpt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_google_java_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gotype=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_govet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_gplint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_graphql_eslint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hadolint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_helmfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_hlint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnet_lint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_jsonnetfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julia_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_julialint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_keep_sorted=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ktfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_kubeconform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_latexindent=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_luals=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_lychee=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_markdown_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mbake=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_mix_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_modfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_nixfmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_notebook_outputs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_ormolu=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perlcritic=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_perltidy=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpcs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_phpstan=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pkl_lsp=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_pmd=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_prettier=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_psscriptanalyzer=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_pydoclint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmlformat=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_qmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_redocly=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_regal=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_remark=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_rubocop=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_ruff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafix=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_scalafmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_selene=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_shellcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_shfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sorbet=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_spotbugs=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_sqlfluff=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_staticcheck=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylelint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_stylua=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_format=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_swift_lint=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_taplo=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_terraform=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tflint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_thrift=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_tinymist=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_topiary=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_trivy=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_ty=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_typstyle=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_vale=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_weeder=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamlfmt=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_yamllint=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
+    common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
     common --@rules_dx//config:tool_zizmor=@rules_dx//config:off_tool
 
     # The clippy tier.
@@ -1169,19 +1846,28 @@ fn a_tool_no_family_runs_points_at_the_off_tool() {
     let undetected = rc(None, &["rust"]);
     for tool in [
         "actionlint",
+        "biome",
+        "buf",
         "buildifier",
+        "clang_format",
+        "eslint",
+        "gofumpt",
         "lychee",
         "markdown_check",
         "notebook_outputs",
+        "prettier",
         "pydoclint",
         "ruff",
         "shellcheck",
         "taplo",
+        "trivy",
         "ty",
+        "yamlfmt",
         "zizmor",
     ] {
         assert!(undetected.contains(&off(tool)), "{undetected}");
     }
+    assert!(!undetected.contains(&off("typos")), "{undetected}");
     let workflows = rc(None, &["core"]);
     assert!(!workflows.contains(&off("actionlint")), "{workflows}");
     assert!(!workflows.contains(&off("shellcheck")), "{workflows}");
@@ -1189,6 +1875,25 @@ fn a_tool_no_family_runs_points_at_the_off_tool() {
     let shell = rc(None, &["shell"]);
     assert!(!shell.contains(&off("shellcheck")), "{shell}");
     assert!(shell.contains(&off("actionlint")), "{shell}");
+    assert!(!shell.contains(&off("shfmt")), "{shell}");
+    assert!(!workflows.contains(&off("yamlfmt")), "{workflows}");
+    assert!(workflows.contains(&off("yamllint")), "{workflows}");
+    let image = rc(None, &["oci_image"]);
+    assert!(!image.contains(&off("trivy")), "{image}");
+    assert!(!image.contains(&off("container_structure_test")), "{image}");
+    let docker = rc(None, &["dockerfile"]);
+    assert!(!docker.contains(&off("trivy")), "{docker}");
+    assert!(!docker.contains(&off("hadolint")), "{docker}");
+    let html = rc(None, &["html"]);
+    assert!(!html.contains(&off("prettier")), "{html}");
+    assert!(html.contains(&off("biome")), "{html}");
+    let lua = rc(
+        Some("schema_version = 1\n[families.lua]\nformat = [\"stylua\"]\n"),
+        &[],
+    );
+    assert!(!lua.contains(&off("stylua")), "{lua}");
+    assert!(lua.contains(&off("selene")), "{lua}");
+    assert!(lua.contains(&off("luals")), "{lua}");
     let detected = rc(None, &["python"]);
     assert!(detected.contains(&off("pydoclint")), "{detected}");
     assert!(!detected.contains(&off("ruff")), "{detected}");

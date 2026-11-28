@@ -7,7 +7,7 @@ visibility(["//core/..."])
 
 TOOLS = {
     "cue": {
-        "attr": attr.label(default = "@dx_tools//:cue", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_cue", allow_single_file = True, cfg = "exec"),
         "env": [["CUE_REGISTRY", "none"]],
         "kind": "file",
         "resources": "light",

@@ -6,7 +6,7 @@ visibility(["//core/..."])
 
 TOOLS = {
     "deadnix": {
-        "attr": attr.label(default = "//rust/private/quality/tools:deadnix_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_deadnix", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "nix",

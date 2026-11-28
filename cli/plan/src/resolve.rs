@@ -39,7 +39,7 @@ pub use entry::{
 };
 #[cfg(test)]
 pub(crate) use fake_query::FakeQuery;
-pub use graph_cache::PersistentGraphQuery;
+pub use graph_cache::{GraphCache, PersistentGraphQuery};
 pub use graph_memo::MemoizedGraphQuery;
 pub(crate) use packages::PackageCache;
 pub use query::quote_set;

@@ -2,7 +2,7 @@ use dx_bep::{EventGap, EventLedger};
 use dx_exec_core::common::{CODE_TARGETS_SKIPPED, emit_built};
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_plan::args::Invocation;
-use dx_plan::resolve::{QueryRunner, SelectionContext};
+use dx_plan::resolve::{GraphCache, QueryRunner, SelectionContext};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
@@ -87,12 +87,12 @@ pub fn group_skipped(
     workspace: &Path,
     runner: &dyn QueryRunner,
 ) -> Vec<SkipGroup> {
-    group_with(skipped, UNSUPPORTED_JSON, |constraints, labels| {
-        let selection = SelectionContext::for_test_execution(
-            invocation.build_mode(),
-            invocation.raw_bazel_options(),
-            &invocation.bazel_startup_options,
-        );
+    let selection = SelectionContext::for_test_execution(
+        invocation.build_mode(),
+        invocation.raw_bazel_options(),
+        &invocation.bazel_startup_options,
+    );
+    let argv = |constraints: &[&str], labels: &[String]| {
         let targets: Vec<String> = constraints
             .iter()
             .map(|constraint| format!("@rules_dx{constraint}"))
@@ -102,9 +102,16 @@ pub fn group_skipped(
             dx_plan::resolve::set_expression(labels),
             dx_plan::resolve::set_expression(&targets)
         );
-        let argv = selection
+        selection
             .selection_argv("cquery", &["--output=label".to_owned()], &expr)
-            .ok()?;
+            .ok()
+    };
+    let cache = |constraints: &[&str], labels: &[String]| {
+        argv(constraints, labels)
+            .map(|argv| GraphCache::new(workspace, dx_path::state::SKIPPED_TARGETS, &argv))
+    };
+    group_with(skipped, UNSUPPORTED_JSON, cache, |constraints, labels| {
+        let argv = argv(constraints, labels)?;
         let result = runner.run_query(&argv, workspace).ok()?;
         if result.code != Some(0) {
             return None;
@@ -119,40 +126,102 @@ pub fn group_skipped(
     })
 }
 
-/// One cquery covers every language; per-language queries run only for the labels it reaches.
 fn group_with(
     skipped: &[EventGap],
     json: &str,
+    cache: impl Fn(&[&str], &[String]) -> Option<GraphCache>,
     query: impl Fn(&[&str], &[String]) -> Option<Vec<String>>,
 ) -> Vec<SkipGroup> {
-    let mut remaining: Vec<String> = skipped.iter().filter_map(|gap| gap.label.clone()).collect();
-    remaining.sort();
-    remaining.dedup();
+    let mut labels: Vec<String> = skipped.iter().filter_map(|gap| gap.label.clone()).collect();
+    labels.sort();
+    labels.dedup();
     let languages = known_languages(json);
-    let mut groups = Vec::new();
-    let mut grouped = 0;
     let constraints: Vec<&str> = languages.iter().map(|(c, _, _)| c.as_str()).collect();
-    let found = if remaining.is_empty() || constraints.is_empty() {
+    let explained = if labels.is_empty() || constraints.is_empty() {
         Vec::new()
     } else {
-        query(&constraints, &remaining).unwrap_or_default()
+        let cache = cache(&constraints, &labels);
+        match cache.as_ref().and_then(read_explained) {
+            Some(explained) => explained,
+            None => {
+                let (explained, complete) = explain(&labels, &constraints, &query);
+                if let Some(cache) = cache.filter(|_| complete) {
+                    write_explained(&cache, &explained);
+                }
+                explained
+            }
+        }
     };
-    remaining.retain(|label| found.contains(label));
-    for (constraint, title, reason) in &languages {
+    groups_for(skipped.len(), &languages, &explained)
+}
+
+fn explain(
+    labels: &[String],
+    constraints: &[&str],
+    query: impl Fn(&[&str], &[String]) -> Option<Vec<String>>,
+) -> (Vec<(String, String)>, bool) {
+    let mut explained = Vec::new();
+    let Some(found) = query(constraints, labels) else {
+        return (explained, false);
+    };
+    let mut remaining: Vec<String> = labels
+        .iter()
+        .filter(|label| found.contains(label))
+        .cloned()
+        .collect();
+    let mut complete = true;
+    for constraint in constraints {
         if remaining.is_empty() {
             break;
         }
-        let Some(found) = query(&[constraint.as_str()], &remaining) else {
+        let Some(found) = query(&[constraint], &remaining) else {
+            complete = false;
             continue;
         };
-        let hits = remaining
+        remaining.retain(|label| {
+            let hit = found.contains(label);
+            if hit {
+                explained.push((label.clone(), (*constraint).to_owned()));
+            }
+            !hit
+        });
+    }
+    (explained, complete)
+}
+
+fn read_explained(cache: &GraphCache) -> Option<Vec<(String, String)>> {
+    let body = String::from_utf8(cache.read()?).ok()?;
+    Some(
+        body.lines()
+            .filter_map(|line| line.split_once('\t'))
+            .map(|(label, constraint)| (label.to_owned(), constraint.to_owned()))
+            .collect(),
+    )
+}
+
+fn write_explained(cache: &GraphCache, explained: &[(String, String)]) {
+    let body: String = explained
+        .iter()
+        .map(|(label, constraint)| format!("{label}\t{constraint}\n"))
+        .collect();
+    cache.write(body.as_bytes());
+}
+
+fn groups_for(
+    skipped: usize,
+    languages: &[(String, String, String)],
+    explained: &[(String, String)],
+) -> Vec<SkipGroup> {
+    let mut groups = Vec::new();
+    let mut grouped = 0;
+    for (constraint, title, reason) in languages {
+        let hits = explained
             .iter()
-            .filter(|label| found.contains(label))
+            .filter(|(_, explained)| explained == constraint)
             .count();
         if hits == 0 {
             continue;
         }
-        remaining.retain(|label| !found.contains(label));
         grouped += hits;
         groups.push(SkipGroup {
             count: hits,
@@ -162,7 +231,7 @@ fn group_with(
             }),
         });
     }
-    let rest = skipped.len().saturating_sub(grouped);
+    let rest = skipped.saturating_sub(grouped);
     if rest > 0 {
         groups.push(SkipGroup {
             count: rest,
@@ -251,6 +320,10 @@ mod tests {
             .then(|| vec!["//a:x".to_owned(), "//a:y".to_owned()])
     }
 
+    fn uncached(_: &[&str], _: &[String]) -> Option<GraphCache> {
+        None
+    }
+
     fn counted(
         calls: &std::cell::RefCell<Vec<usize>>,
     ) -> impl Fn(&[&str], &[String]) -> Option<Vec<String>> + '_ {
@@ -263,7 +336,12 @@ mod tests {
     #[test]
     fn one_query_when_no_language_explains_the_skips() {
         let calls = std::cell::RefCell::new(Vec::new());
-        let groups = group_with(&[gap("//b:z"), gap("//b:w")], JSON, counted(&calls));
+        let groups = group_with(
+            &[gap("//b:z"), gap("//b:w")],
+            JSON,
+            uncached,
+            counted(&calls),
+        );
         assert_eq!(groups, generic(2));
         assert_eq!(calls.into_inner(), vec![2]);
     }
@@ -271,7 +349,12 @@ mod tests {
     #[test]
     fn languages_are_queried_only_after_the_union_hits() {
         let calls = std::cell::RefCell::new(Vec::new());
-        let groups = group_with(&[gap("//a:x"), gap("//b:z")], JSON, counted(&calls));
+        let groups = group_with(
+            &[gap("//a:x"), gap("//b:z")],
+            JSON,
+            uncached,
+            counted(&calls),
+        );
         assert_eq!(groups[0].language.as_ref().unwrap().title, "PHP");
         assert_eq!(groups[1], generic(1)[0]);
         assert_eq!(calls.into_inner(), vec![2, 1, 1]);
@@ -300,7 +383,7 @@ mod tests {
     #[test]
     fn groups_by_language_and_keeps_unknown_skips_generic() {
         let skipped = [gap("//a:x"), gap("//a:y"), gap("//b:z")];
-        let groups = group_with(&skipped, JSON, fake_query);
+        let groups = group_with(&skipped, JSON, uncached, fake_query);
         assert_eq!(groups.len(), 2, "{groups:?}");
         assert_eq!(groups[0].count, 2);
         let php = groups[0].language.as_ref().unwrap();
@@ -320,7 +403,7 @@ mod tests {
     #[test]
     fn failed_queries_leave_the_generic_group() {
         let skipped = [gap("//a:x")];
-        let groups = group_with(&skipped, JSON, |_, _| None);
+        let groups = group_with(&skipped, JSON, uncached, |_, _| None);
         assert_eq!(
             groups,
             vec![SkipGroup {
@@ -329,10 +412,75 @@ mod tests {
             }]
         );
         assert!(
-            group_with(&[], JSON, fake_query).is_empty(),
+            group_with(&[], JSON, uncached, fake_query).is_empty(),
             "{:?}",
-            group_with(&[], JSON, fake_query)
+            group_with(&[], JSON, uncached, fake_query)
         );
+    }
+
+    fn cached_in(root: &Path) -> impl Fn(&[&str], &[String]) -> Option<GraphCache> + '_ {
+        move |constraints, labels| {
+            let mut argv: Vec<String> = constraints.iter().map(|c| (*c).to_owned()).collect();
+            argv.extend_from_slice(labels);
+            Some(GraphCache::new(
+                root,
+                dx_path::state::SKIPPED_TARGETS,
+                &argv,
+            ))
+        }
+    }
+
+    fn answering(
+        calls: &std::cell::RefCell<Vec<usize>>,
+    ) -> impl Fn(&[&str], &[String]) -> Option<Vec<String>> + '_ {
+        move |constraints, labels| {
+            calls.borrow_mut().push(constraints.len());
+            Some(fake_query(constraints, labels).unwrap_or_default())
+        }
+    }
+
+    #[test]
+    fn a_warm_run_reuses_the_grouping_until_the_graph_or_the_skips_change() {
+        let scratch = dx_test_scratch::scratch("dx-skipped-cache-").unwrap();
+        let root = scratch.path();
+        dx_test_scratch::write(root, "MODULE.bazel", "module(name = \"w\")\n").unwrap();
+        dx_test_scratch::write(root, "a/BUILD.bazel", "").unwrap();
+        let skipped = [gap("//a:x"), gap("//b:z")];
+        let calls = std::cell::RefCell::new(Vec::new());
+        let first = group_with(&skipped, JSON, cached_in(root), answering(&calls));
+        let warm = group_with(&skipped, JSON, cached_in(root), answering(&calls));
+        assert_eq!(warm, first);
+        assert_eq!(warm[0].language.as_ref().unwrap().title, "PHP");
+        assert_eq!(calls.borrow().len(), 3, "the warm run runs no cquery");
+
+        group_with(&[gap("//b:z")], JSON, cached_in(root), answering(&calls));
+        assert_eq!(calls.borrow().len(), 4, "another skip set queries again");
+
+        dx_test_scratch::write(root, "a/BUILD.bazel", "# edit\n").unwrap();
+        let edited = group_with(&skipped, JSON, cached_in(root), answering(&calls));
+        assert_eq!(edited, first);
+        assert_eq!(calls.borrow().len(), 7, "a BUILD edit queries again");
+    }
+
+    #[test]
+    fn a_failed_language_query_is_not_cached() {
+        let scratch = dx_test_scratch::scratch("dx-skipped-cache-").unwrap();
+        let root = scratch.path();
+        dx_test_scratch::write(root, "MODULE.bazel", "module(name = \"w\")\n").unwrap();
+        let calls = std::cell::Cell::new(0);
+        let flaky = |constraints: &[&str], labels: &[String]| {
+            calls.set(calls.get() + 1);
+            (constraints.len() > 1)
+                .then(|| fake_query(constraints, labels))
+                .flatten()
+        };
+        let skipped = [gap("//a:x")];
+        assert_eq!(
+            group_with(&skipped, JSON, cached_in(root), flaky),
+            generic(1)
+        );
+        group_with(&skipped, JSON, cached_in(root), flaky);
+        assert_eq!(calls.get(), 6);
     }
 
     #[test]
@@ -383,7 +531,7 @@ mod tests {
     #[test]
     fn text_notice_names_the_language_and_reason() {
         let (mut out, mut err) = (Vec::new(), Vec::new());
-        let groups = group_with(&[gap("//a:x")], JSON, fake_query);
+        let groups = group_with(&[gap("//a:x")], JSON, uncached, fake_query);
         skipped_notice(
             OutputMode::Text { quiet: false },
             &mut out,
@@ -402,7 +550,7 @@ mod tests {
         let (mut out, mut err) = (Vec::new(), Vec::new());
         skipped_notice(OutputMode::Json, &mut out, &mut err, &[]).unwrap();
         assert!(out.is_empty() && err.is_empty());
-        let groups = group_with(&[gap("//a:x")], JSON, fake_query);
+        let groups = group_with(&[gap("//a:x")], JSON, uncached, fake_query);
         skipped_notice(OutputMode::Json, &mut out, &mut err, &groups).unwrap();
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("\"targets_skipped\""), "{text}");

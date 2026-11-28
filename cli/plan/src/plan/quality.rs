@@ -209,7 +209,29 @@ fn merged_probes(command: Command) -> Vec<&'static str> {
         Command::Typecheck => {
             vec!["core/quality:merged_probe.bzl%real_merged_typecheck_probe_aspect"]
         }
-        _ => spec(command).probes.to_vec(),
+        Command::Security
+        | Command::License
+        | Command::Generate
+        | Command::Build
+        | Command::Test
+        | Command::Coverage
+        | Command::Bench
+        | Command::Run
+        | Command::Deploy
+        | Command::Check
+        | Command::Clean
+        | Command::Update
+        | Command::Sync
+        | Command::Init
+        | Command::Upgrade
+        | Command::Status
+        | Command::Watch
+        | Command::Completion
+        | Command::Docs
+        | Command::Worktree
+        | Command::Fuzz
+        | Command::Config
+        | Command::Fetch => spec(command).probes.to_vec(),
     }
 }
 

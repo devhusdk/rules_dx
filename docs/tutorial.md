@@ -52,6 +52,8 @@ def greet(name):
     return f"Hello, {name}!"
 ```
 
+Import a module by its file name: `hello/hello.py` is `hello`.
+
 Create `hello/hello_test.py`.
 
 ```python
@@ -59,7 +61,7 @@ Create `hello/hello_test.py`.
 
 import unittest
 
-from hello.hello import greet
+from hello import greet
 
 
 class GreetTest(unittest.TestCase):
@@ -115,7 +117,7 @@ Create `greeter/greeter.py`.
 ```python
 """Greets everyone."""
 
-from hello.hello import greet
+from hello import greet
 
 
 def greet_all(names):
@@ -130,7 +132,7 @@ Create `greeter/greeter_test.py`.
 
 import unittest
 
-from greeter.greeter import greet_all
+from greeter import greet_all
 
 
 class GreeterTest(unittest.TestCase):

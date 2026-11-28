@@ -222,9 +222,7 @@ fn plan_docs_build(invocation: &Invocation, env: &mut Env<'_>) -> Result<DocsPla
             &temp_path_not_utf8(),
         ));
     };
-    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
-    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
-        .then(|| dx_adopt::file_extensions(workspace));
+    let extensions = dx_adopt::consumer_file_extensions(workspace);
     let consumer = extensions
         .as_ref()
         .map(|extensions| Consumer { extensions });

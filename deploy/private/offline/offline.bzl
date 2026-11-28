@@ -8,6 +8,7 @@ _LAUNCHERS = [
     "bazelisk-linux-amd64",
     "bazelisk-linux-arm64",
     "bazelisk-windows-amd64.exe",
+    "bazelisk-windows-arm64.exe",
 ]
 
 def offline_set_error(set):

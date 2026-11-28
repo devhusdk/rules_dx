@@ -6,12 +6,13 @@ use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const LAUNCHERS: [&str; 5] = [
+const LAUNCHERS: [&str; 6] = [
     "bazelisk-darwin-amd64",
     "bazelisk-darwin-arm64",
     "bazelisk-linux-amd64",
     "bazelisk-linux-arm64",
     "bazelisk-windows-amd64.exe",
+    "bazelisk-windows-arm64.exe",
 ];
 
 struct Run {

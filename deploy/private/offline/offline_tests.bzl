@@ -16,15 +16,16 @@ def offline_unit_tests(name):
                     "bazelisk-linux-amd64",
                     "bazelisk-linux-arm64",
                     "bazelisk-windows-amd64.exe",
+                    "bazelisk-windows-arm64.exe",
                 ]],
-                ["", "", "", "", ""],
+                ["", "", "", "", "", ""],
             ),
             expect_equal(
                 "offline_launcher_error rejects a name bootstrap would not pick",
                 offline_launcher_error("demo-bazelisk-linux-amd64"),
                 "offline_bundle: invalid launcher 'demo-bazelisk-linux-amd64': want one of " +
                 "bazelisk-darwin-amd64, bazelisk-darwin-arm64, bazelisk-linux-amd64, " +
-                "bazelisk-linux-arm64, bazelisk-windows-amd64.exe",
+                "bazelisk-linux-arm64, bazelisk-windows-amd64.exe, bazelisk-windows-arm64.exe",
             ),
             expect_equal(
                 "offline_bundle_layout lists the tree bootstrap reads, sorted",

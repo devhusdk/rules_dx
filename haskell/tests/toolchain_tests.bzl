@@ -144,6 +144,7 @@ def _checks():
         expect_equal("a linux arm64 host aliases linux arm64 to its own cell", alias_repository("linux_arm64", "linux", "aarch64"), "dx_haskell_toolchains__linux_arm64"),
         expect_equal("a linux x86_64 host has no cross cell for macos", alias_repository("macos_arm64", "linux", "amd64"), "dx_haskell_toolchains__macos_arm64"),
         expect_contains("a macos host aliases linux arm64 to its cross cell", hub_files(host_os = "mac os x", host_arch = "aarch64")["lib/BUILD.bazel"], "\":linux_arm64_platform\": \"@dx_haskell_toolchains__macos_arm64_to_linux_arm64//:gmp\","),
+        expect_contains("a platform without a cell gets the incompatible stub", hub_files()["lib/BUILD.bazel"], "\"//conditions:default\": \":unavailable\","),
         expect_contains("cross cell points at its own repository", hub_files()["BUILD.bazel"], "@dx_haskell_toolchains__linux_x86_64_to_linux_arm64//:toolchain-impl"),
         expect_equal(
             "cross cell keeps the host library dir and takes the rest from the target",

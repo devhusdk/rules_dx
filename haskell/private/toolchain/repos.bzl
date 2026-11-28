@@ -300,10 +300,17 @@ _GMP_EMPTY = """cc_library(
 )
 """
 
+_HUB_UNAVAILABLE = """filegroup(
+    name = "unavailable",
+    target_compatible_with = ["{incompatible}"],
+)
+"""
+
 _HUB_ALIAS = """alias(
     name = "{name}",
     actual = select({{
 {arms}
+        "//conditions:default": ":unavailable",
     }}),
 )
 """
@@ -647,6 +654,7 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch 
             repr(target),
         ))
         arms.append("        \":{}_platform\": \"@{}//:{{name}}\",".format(cell, alias_repository(cell, host_os, host_arch)))
+    content.append(_HUB_UNAVAILABLE.format(incompatible = Label("@platforms//:incompatible")))
     for name in ["cabal", "ghc_exe", "ghc_files", "gmp", "licenses"]:
         content.append(_HUB_ALIAS.format(name = name, arms = "\n".join(arms).replace("{name}", name)))
     for name in COMMON_LIBRARIES:

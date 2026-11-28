@@ -29,17 +29,30 @@ struct DbMetadata {
 }
 
 #[must_use]
-pub fn download_args(cache: &Path) -> [Vec<String>; 2] {
+pub fn download_args(cache: &Path, empty: &Path) -> [Vec<String>; 2] {
     let cache = cache.display().to_string();
-    let base = |flag: &str| {
-        vec![
-            "--cache-dir".to_owned(),
-            cache.clone(),
-            "image".to_owned(),
-            flag.to_owned(),
-        ]
+    let empty = empty.display().to_string();
+    let args = |tail: &[&str]| {
+        ["--cache-dir", &cache]
+            .iter()
+            .chain(tail)
+            .map(|&arg| arg.to_owned())
+            .collect()
     };
-    [base("--download-db-only"), base("--download-checks-only")]
+    // Trivy has no checks-only download; a misconfig scan of an empty directory fetches the bundle.
+    [
+        args(&["image", "--download-db-only"]),
+        args(&[
+            "config",
+            "--format",
+            "json",
+            "--exit-code",
+            "0",
+            "--disable-telemetry",
+            "--skip-version-check",
+            &empty,
+        ]),
+    ]
 }
 
 pub fn prepare_trivy(
@@ -58,7 +71,10 @@ pub fn prepare_with(
     let cache = out.join(CACHE_DIR);
     let meta_path = out.join(META_FILE);
     let metadata_path = cache.join("db").join("metadata.json");
+    let checks_dir = cache.join("policy");
+    let checks_path = checks_dir.join("metadata.json");
     if metadata_path.is_file()
+        && checks_path.is_file()
         && let Ok(text) = std::fs::read_to_string(&meta_path)
         && let Ok(sidecar) = serde_json::from_str::<Sidecar>(&text)
         && sidecar.retrieved_at == retrieved_at
@@ -70,17 +86,37 @@ pub fn prepare_with(
             fetched: false,
         });
     }
-    for args in download_args(&cache) {
+    let fetch_error = |path: &Path, detail: String| PrepError::Fetch {
+        program: "trivy".to_owned(),
+        detail: format!("{}: {detail}", path.display()),
+    };
+    // Trivy falls back to its embedded checks without failing, so only a fresh bundle proves the fetch.
+    match std::fs::remove_dir_all(&checks_dir) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            return Err(PrepError::Write {
+                path: checks_dir.display().to_string(),
+                detail: error.to_string(),
+            });
+        }
+        _ => {}
+    }
+    let empty = tempfile::tempdir().map_err(|error| PrepError::Fetch {
+        program: "trivy".to_owned(),
+        detail: format!("empty scan directory: {error}"),
+    })?;
+    for args in download_args(&cache, empty.path()) {
         run(&args)?;
     }
-    let metadata = std::fs::read_to_string(&metadata_path).map_err(|error| PrepError::Fetch {
-        program: "trivy".to_owned(),
-        detail: format!("{}: {error}", metadata_path.display()),
-    })?;
-    let db: DbMetadata = serde_json::from_str(&metadata).map_err(|error| PrepError::Fetch {
-        program: "trivy".to_owned(),
-        detail: format!("{}: {error}", metadata_path.display()),
-    })?;
+    let metadata = std::fs::read_to_string(&metadata_path)
+        .map_err(|error| fetch_error(&metadata_path, error.to_string()))?;
+    let db: DbMetadata = serde_json::from_str(&metadata)
+        .map_err(|error| fetch_error(&metadata_path, error.to_string()))?;
+    if !checks_path.is_file() {
+        return Err(fetch_error(
+            &checks_path,
+            "the checks bundle was not downloaded".to_owned(),
+        ));
+    }
     let sidecar = Sidecar {
         retrieved_at: retrieved_at.to_owned(),
         db_updated_at: db.updated_at,

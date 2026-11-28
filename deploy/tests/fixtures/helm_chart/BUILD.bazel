@@ -1,7 +1,14 @@
 load("//deploy/private:helm.bzl", "helm_chart_deploy")
 load("//helm:defs.bzl", "helm_library")
+load("//kubernetes:defs.bzl", "kubernetes_schemas")
 
 package(default_visibility = ["//visibility:public"])
+
+kubernetes_schemas(
+    name = "kubernetes_schemas",
+    kubernetes_version = "1.31.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
 
 helm_library(
     name = "chart",
@@ -9,6 +16,7 @@ helm_library(
         "Chart.yaml",
         "templates/configmap.yaml",
     ],
+    aspect_hints = [":kubernetes_schemas"],
     values = ["values.yaml"],
 )
 

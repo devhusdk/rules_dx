@@ -1,0 +1,15 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+diff --git a/ruby/BUILD b/ruby/BUILD
+--- a/ruby/BUILD
++++ b/ruby/BUILD
+@@ -4,8 +4,9 @@
+ 
+ exports_files(glob(["*.bzl"]))
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//ruby:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

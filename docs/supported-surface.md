@@ -7595,6 +7595,7 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//ocaml:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
+- `@rules_dx//ruby:toolchain_type`
 
 ## Hub repositories
 

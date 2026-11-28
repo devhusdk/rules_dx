@@ -226,6 +226,7 @@
 //qt:macos_arm64 platform
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
+//ruby:toolchain_type toolchain_type
 //rust:build_script_cc_env build_script_cc_env
 //rust:prost alias
 //rust:prost_types alias

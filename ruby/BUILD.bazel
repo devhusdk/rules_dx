@@ -2,6 +2,11 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 # Upstream: bazel-contrib/rules_ruby#435
 # Upstream: bazel-contrib/rules_ruby#440
 # Upstream: bazel-contrib/rules_ruby#446

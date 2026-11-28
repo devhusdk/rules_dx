@@ -1,0 +1,59 @@
+Upstream: none (rules_dx only: the root go_sdk covers every exec platform, so the toolchains of other modules' SDKs are never selected)
+--- a/go/private/extensions.bzl
++++ b/go/private/extensions.bzl
+@@ -148,6 +148,15 @@
+ _MAX_NUM_TOOLCHAINS = 9999
+ _TOOLCHAIN_INDEX_PAD_LENGTH = len(str(_MAX_NUM_TOOLCHAINS))
+ 
++def _drop_shadowed_toolchains(toolchains, host_goos, host_goarch):
++    """Drops the non-root SDK toolchains for an exec platform that a root module SDK already covers."""
++
++    def platform(toolchain):
++        return (toolchain.goos or host_goos, toolchain.goarch or host_goarch)
++
++    root = {platform(toolchain): True for toolchain in toolchains if toolchain.root}
++    return [toolchain for toolchain in toolchains if toolchain.root or platform(toolchain) not in root]
++
+ def _go_sdk_impl(ctx):
+     nogo = DEFAULT_NOGO
+     nogo_includes = NOGO_DEFAULT_INCLUDES
+@@ -246,6 +255,7 @@
+                 experiments = wrap_tag.experiments,
+             )
+             toolchains.append(struct(
++                root = module.is_root,
+                 goos = wrap_tag.goos,
+                 goarch = wrap_tag.goarch,
+                 sdk_repo = name,
+@@ -319,6 +329,7 @@
+                 first_host_compatible_toolchain = first_host_compatible_toolchain or "@{}//:host_compatible_root_file".format(name)
+ 
+             toolchains.append(struct(
++                root = module.is_root,
+                 goos = download_tag.goos,
+                 goarch = download_tag.goarch,
+                 sdk_repo = name,
+@@ -356,6 +367,7 @@
+                     )
+ 
+                     toolchains.append(struct(
++                        root = module.is_root,
+                         goos = goos,
+                         goarch = goarch,
+                         sdk_repo = default_name,
+@@ -383,6 +395,7 @@
+             )
+ 
+             toolchains.append(struct(
++                root = module.is_root,
+                 goos = "",
+                 goarch = "",
+                 sdk_repo = name,
+@@ -392,6 +405,7 @@
+             first_host_compatible_toolchain = first_host_compatible_toolchain or "@{}//:host_compatible_root_file".format(name)
+ 
+     host_compatible_toolchain(name = "go_host_compatible_sdk_label", toolchain = first_host_compatible_toolchain)
++    toolchains = _drop_shadowed_toolchains(toolchains, host_detected_goos, host_detected_goarch)
+     if len(toolchains) > _MAX_NUM_TOOLCHAINS:
+         fail("more than {} go_sdk tags are not supported".format(_MAX_NUM_TOOLCHAINS))
+ 

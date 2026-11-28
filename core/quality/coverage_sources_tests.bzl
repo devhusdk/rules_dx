@@ -9,6 +9,12 @@ visibility(["//core/..."])
 _PACKAGE = "core/quality/testdata/coverage_sources/"
 _FIXTURES = "//core/quality/testdata/coverage_sources:"
 
+_ZIG_COVERAGE_COMPATIBLE_WITH = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 def _coverage_fixture_impl(ctx):
     """Reports its srcs as instrumented files."""
     return [coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"], dependency_attributes = ["deps"])]
@@ -102,7 +108,7 @@ def coverage_sources_analysis_tests(name):
         ({}, "rust", "split_lib", _owned(split)),
         ({}, "rust_test", "split_lib_test", _owned(split)),
         (tests_on, "self_contained", "self_contained_test", _owned(["self_contained.rs"]) + _rows("test", ["unit.rs"])),
-        ({}, "zig_test", "calc_test", _owned(["calc.zig"])),
+        ({"target_compatible_with": _ZIG_COVERAGE_COMPATIBLE_WITH}, "zig_test", "calc_test", _owned(["calc.zig"])),
         ({}, "fortran_test", "fcalc_test", _owned(["calc.f90"])),
         ({}, "header", "header_lib", _owned(["header.cc", "header.h"])),
         ({}, "testonly", "helper_lib", _rows("test", ["helper.cc"])),

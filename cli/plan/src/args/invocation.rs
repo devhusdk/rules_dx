@@ -155,7 +155,7 @@ impl GenerateRequest {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
             options,
-            settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
+            settings: crate::plan::shared_settings("build"),
         }
     }
 }
@@ -458,7 +458,7 @@ impl Invocation {
         dx_process::BazelHead {
             startup: self.bazel_startup_options.clone(),
             options: vec![self.build_mode().config_flag()],
-            settings: crate::plan::head_settings(crate::plan::rules_dx_repo()),
+            settings: crate::plan::shared_settings("build"),
         }
     }
 

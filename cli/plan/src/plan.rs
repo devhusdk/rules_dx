@@ -47,7 +47,7 @@ const RULES_DX: &str = "rules_dx";
 
 static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
-static LAYER_SETS_DIAGNOSTICS: OnceLock<bool> = OnceLock::new();
+static RUST_SETTINGS: OnceLock<bool> = OnceLock::new();
 
 static PATTERN_DIR: OnceLock<PathBuf> = OnceLock::new();
 
@@ -62,32 +62,20 @@ pub fn set_pattern_dir(dir: &Path) {
 }
 
 pub fn set_rules_dx_repo(workspace: &Path) {
-    let repo = dx_module_bazel::rules_dx_repo(workspace);
-    LAYER_SETS_DIAGNOSTICS
-        .set(correctness_layer_imported(workspace, &repo))
-        .unwrap_or_default();
-    drop(RULES_DX_REPO.set(repo));
+    drop(RULES_DX_REPO.set(dx_module_bazel::rules_dx_repo(workspace)));
+}
+
+/// Reads from the generated correctness layer whether dx adds the shared Rust settings.
+pub fn set_rust_settings(workspace: &Path) {
+    drop(RUST_SETTINGS.set(layer_sets_rust_settings(workspace, rules_dx_repo())));
 }
 
 #[must_use]
-pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
-    let rc_text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
-    [dx_preset::CONSUMER_DIR].into_iter().any(|dir| {
-        let imported = dx_preset::layer_import_state(&rc_text, dir)
-            .into_iter()
-            .any(|(layer, state)| {
-                layer == dx_preset::Layer::Correctness && state == dx_preset::ImportState::Active
-            });
-        imported
-            && std::fs::read_to_string(
-                workspace
-                    .join(dir)
-                    .join(dx_preset::Layer::Correctness.file_name()),
-            )
-            .is_ok_and(|text| {
-                dx_preset::layer_is_current(&text, dx_preset::Layer::Correctness, repo)
-            })
-    })
+pub fn layer_sets_rust_settings(workspace: &Path, repo: &str) -> bool {
+    let layer = workspace
+        .join(dx_preset::CONSUMER_DIR)
+        .join(dx_preset::Layer::Correctness.file_name());
+    std::fs::read_to_string(layer).is_ok_and(|text| dx_process::layer_sets_settings(&text, repo))
 }
 
 pub(crate) fn rules_dx_repo() -> &'static str {
@@ -106,19 +94,20 @@ pub fn rules_dx_label(rest: &str) -> String {
 
 #[must_use]
 pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
-    settings_in(repo, bazel_command, layer_sets_diagnostics())
+    settings_in(repo, bazel_command, rust_settings())
 }
 
-fn layer_sets_diagnostics() -> bool {
-    LAYER_SETS_DIAGNOSTICS.get().copied().unwrap_or(false)
+fn rust_settings() -> bool {
+    // Unset outside the dx binary, which reads it from the workspace; rules_dx itself has Rust.
+    RUST_SETTINGS.get().copied().unwrap_or(true)
 }
 
 fn takes_settings(bazel_command: &str) -> bool {
     dx_process::takes_shared_settings(bazel_command) || matches!(bazel_command, "fetch" | "vendor")
 }
 
-fn settings_in(repo: &str, bazel_command: &str, layered: bool) -> Vec<String> {
-    if takes_settings(bazel_command) && !layered {
+fn settings_in(repo: &str, bazel_command: &str, rust: bool) -> Vec<String> {
+    if rust && takes_settings(bazel_command) {
         head_settings(repo)
     } else {
         Vec::new()
@@ -172,7 +161,7 @@ pub fn bazel_argv(
         &guards,
         labels,
         startup_options,
-        layer_sets_diagnostics(),
+        rust_settings(),
     )
 }
 
@@ -216,14 +205,10 @@ fn bazel_argv_in(
     protected: &[ProtectedFlag],
     labels: &[String],
     startup_options: &[String],
-    layered: bool,
+    rust: bool,
 ) -> Result<Vec<String>, DxError> {
-    let settings = if takes_settings(bazel_command) {
-        head_settings(repo)
-    } else {
-        Vec::new()
-    };
-    let mut required = settings_in(repo, bazel_command, layered);
+    let settings = settings_in(repo, bazel_command, rust);
+    let mut required = settings.clone();
     required.extend(required_options.iter().cloned());
     let mut guards = protected.to_vec();
     let upstream: &[&str] = if settings.is_empty() {
@@ -343,8 +328,8 @@ pub struct BuildPlan {
 #[cfg(test)]
 mod tests {
     use super::{
-        BAZEL_SETTINGS, bazel_argv_in, correctness_layer_imported, rules_dx_label,
-        rules_dx_repo_of, settings_for, target_pattern_file,
+        BAZEL_SETTINGS, bazel_argv_in, layer_sets_rust_settings, rules_dx_label, rules_dx_repo_of,
+        settings_for, target_pattern_file,
     };
 
     fn many_labels() -> Vec<String> {
@@ -401,9 +386,8 @@ mod tests {
         assert_eq!(std::fs::read_dir(dir.path()).expect("dir").count(), 0);
     }
 
-    fn workspace(rc: &str, layer: Option<&str>) -> tempfile::TempDir {
+    fn workspace(layer: Option<&str>) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
-        std::fs::write(dir.path().join(".bazelrc"), rc).expect("write rc");
         if let Some(text) = layer {
             let layers = dir.path().join(".dx/bazelrc");
             std::fs::create_dir_all(&layers).expect("mkdir");
@@ -412,45 +396,51 @@ mod tests {
         dir
     }
 
-    fn current_layer() -> String {
-        dx_preset::render_layer(dx_preset::Layer::Correctness, "rules_dx")
-    }
-
-    #[test]
-    fn an_imported_current_layer_stands_in_for_the_flags() {
-        let rc = "try-import %workspace%/.dx/bazelrc/correctness.bazelrc\n";
-        let layer = current_layer();
-        let dir = workspace(rc, Some(&layer));
-        assert!(correctness_layer_imported(dir.path(), "rules_dx"));
-        let argv = bazel_argv_in("rules_dx", "build", &[], &[], &[], &[], &[], true).expect("plan");
-        for setting in BAZEL_SETTINGS {
-            assert!(!argv.contains(&setting.to_owned()), "{setting} in {argv:?}");
+    fn layer_with(families: &[&str]) -> String {
+        let mut text =
+            dx_preset::render_layer_with(dx_preset::Layer::Correctness, "rules_dx", Some(true));
+        for (_, flags) in dx_families::setup_flags(families.iter().copied()) {
+            for flag in flags {
+                text.push_str(&format!("{flag}\n"));
+            }
         }
-        let conflicting = vec!["--@rules_dx//config:clippy_output_diagnostics=false".to_owned()];
-        let error = bazel_argv_in("rules_dx", "build", &conflicting, &[], &[], &[], &[], true)
-            .expect_err("conflict");
-        assert!(error.message().starts_with("conflicting_option: --"));
+        text
     }
 
     #[test]
-    fn a_commented_out_or_stale_layer_keeps_the_flags() {
-        let layer = current_layer();
-        let commented = workspace(
-            "# try-import %workspace%/.dx/bazelrc/correctness.bazelrc\n",
-            Some(&layer),
-        );
-        assert!(!correctness_layer_imported(commented.path(), "rules_dx"));
-        let rc = "try-import %workspace%/.dx/bazelrc/correctness.bazelrc\n";
-        let stale = workspace(rc, Some("build --something_else\n"));
-        assert!(!correctness_layer_imported(stale.path(), "rules_dx"));
+    fn a_workspace_without_rust_gets_no_rust_settings() {
+        for layer in [None, Some(layer_with(&[])), Some(layer_with(&["python"]))] {
+            let dir = workspace(layer.as_deref());
+            assert!(!layer_sets_rust_settings(dir.path(), "rules_dx"));
+        }
         let argv =
             bazel_argv_in("rules_dx", "build", &[], &[], &[], &[], &[], false).expect("plan");
+        assert!(
+            !argv.iter().any(|arg| arg.contains("output_diagnostics")),
+            "{argv:?}"
+        );
+        let user = vec!["--@rules_dx//config:clippy_output_diagnostics=false".to_owned()];
+        let argv =
+            bazel_argv_in("rules_dx", "build", &user, &[], &[], &[], &[], false).expect("plan");
+        assert!(argv.contains(&user[0]), "{argv:?}");
+    }
+
+    #[test]
+    fn a_workspace_with_rust_gets_and_guards_the_rust_settings() {
+        let dir = workspace(Some(&layer_with(&["python", "rust"])));
+        assert!(layer_sets_rust_settings(dir.path(), "rules_dx"));
+        assert!(!layer_sets_rust_settings(dir.path(), "my_dx"));
+        let argv = bazel_argv_in("rules_dx", "build", &[], &[], &[], &[], &[], true).expect("plan");
         for setting in BAZEL_SETTINGS {
             assert!(
                 argv.contains(&setting.to_owned()),
                 "{setting} missing from {argv:?}"
             );
         }
+        let conflicting = vec!["--@rules_dx//config:clippy_output_diagnostics=false".to_owned()];
+        let error = bazel_argv_in("rules_dx", "build", &conflicting, &[], &[], &[], &[], true)
+            .expect_err("conflict");
+        assert!(error.message().starts_with("conflicting_option: --"));
     }
 
     #[test]
@@ -514,7 +504,7 @@ mod tests {
     #[test]
     fn renamed_repo_settings_are_spelled_and_guarded_with_that_repo() {
         let plan =
-            |user: &[String]| bazel_argv_in("my_dx", "build", user, &[], &[], &[], &[], false);
+            |user: &[String]| bazel_argv_in("my_dx", "build", user, &[], &[], &[], &[], true);
         let argv = plan(&[]).expect("plan");
         for setting in BAZEL_SETTINGS {
             let renamed = setting.replacen("@rules_dx//", "@my_dx//", 1);

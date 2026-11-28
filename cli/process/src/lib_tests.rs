@@ -1632,6 +1632,24 @@ fn head_settings_respell_the_rules_dx_repo() {
 }
 
 #[test]
+fn only_a_layer_with_both_rust_settings_sets_them() {
+    let rust = "# The rust setup flags.\r\n\
+                build --@my_dx//config:clippy_output_diagnostics=true\r\n\
+                build --@my_dx//config:rustc_output_diagnostics=true\r\n";
+    assert!(layer_sets_settings(rust, "my_dx"));
+    assert!(!layer_sets_settings(rust, "rules_dx"));
+    let one = "build --@my_dx//config:clippy_output_diagnostics=true\n";
+    assert!(!layer_sets_settings(one, "my_dx"));
+    assert!(!layer_sets_settings(
+        &rust.replace("build ", "# build "),
+        "my_dx"
+    ));
+    let preset = dx_preset::render_layer_with(dx_preset::Layer::Correctness, "my_dx", Some(true));
+    assert!(!layer_sets_settings(&preset, "my_dx"));
+    assert!(!layer_sets_settings("", "my_dx"));
+}
+
+#[test]
 fn constructors_carry_the_documented_error_kind() {
     use dx_error::ErrorKind;
     assert_eq!(conflicting_option("x").kind(), ErrorKind::Usage);

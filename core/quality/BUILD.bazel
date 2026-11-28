@@ -857,6 +857,7 @@ rust_test(
     size = "small",
     srcs = ["preset_settings_test.rs"],
     deps = [
+        "//cli/families:dx_families",
         "//cli/plan:dx_plan",
         "//tools/bazelrc:dx_preset",
     ],

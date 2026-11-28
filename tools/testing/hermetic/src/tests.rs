@@ -969,9 +969,6 @@ fn hermetic_test_builds_generate_check_only_with_coverage_targets() {
         ..fixture_probe()
     };
     let argv = session.bazel_tail(&probe);
-    for setting in dx_process::head_settings("r") {
-        assert!(argv.contains(&setting), "{setting} missing from {argv:?}");
-    }
     assert_eq!(argv.last(), Some(&label));
 }
 
@@ -999,24 +996,40 @@ fn each_output_root_has_its_own_dx_disk_cache() {
 }
 
 #[test]
-fn probes_carry_the_dx_settings_only_on_build_like_verbs() {
-    let session = fixture_session();
+fn probes_carry_the_dx_settings_only_on_build_like_verbs_of_a_rust_consumer() {
+    let scratch = dx_test_scratch::scratch("dx-hermetic-settings").unwrap();
+    let session = Session {
+        workspace: scratch.path().to_path_buf(),
+        ..fixture_session()
+    };
     let settings = dx_process::head_settings("r");
-    for (command, carried) in [
-        ("cquery", true),
-        ("build", true),
-        ("query", false),
-        ("fetch", false),
-    ] {
-        let probe = Probe {
-            command,
-            ..fixture_probe()
-        };
-        let argv = session.bazel_tail(&probe);
-        for setting in &settings {
-            assert_eq!(argv.contains(setting), carried, "{command}: {argv:?}");
-        }
-    }
+    let carried_by = |session: &Session| {
+        ["cquery", "build", "query", "fetch"].map(|command| {
+            let argv = session.bazel_tail(&Probe {
+                command,
+                ..fixture_probe()
+            });
+            let carried = settings
+                .iter()
+                .filter(|setting| argv.contains(setting))
+                .count();
+            (command, carried)
+        })
+    };
+    let none = [("cquery", 0), ("build", 0), ("query", 0), ("fetch", 0)];
+    assert_eq!(carried_by(&session), none);
+    let layers = scratch.path().join(".dx/bazelrc");
+    std::fs::create_dir_all(&layers).unwrap();
+    let layer = settings.iter().map(|setting| format!("build {setting}\n"));
+    std::fs::write(
+        layers.join("correctness.bazelrc"),
+        layer.collect::<String>(),
+    )
+    .unwrap();
+    assert_eq!(
+        carried_by(&session),
+        [("cquery", 2), ("build", 2), ("query", 0), ("fetch", 0)]
+    );
 }
 
 #[test]
@@ -1180,8 +1193,6 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "--curses=no",
             "--incompatible_strict_action_env",
             "--sandbox_default_allow_network=false",
-            "--@r//config:clippy_output_diagnostics=true",
-            "--@r//config:rustc_output_diagnostics=true",
             "--disk_cache=/q/cold_cache/dx/disk-cache",
             &gc_size,
             &gc_age,

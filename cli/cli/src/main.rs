@@ -617,6 +617,7 @@ fn run() -> i32 {
             held as &dyn dx_process::Runner
         });
     dx_cli::exec::preset_sync::sync_preset_layers(&invocation, &workspace, &mut err);
+    dx_plan::plan::set_rust_settings(&workspace);
     if let Some(notice) =
         dx_cli::exec::first_run::first_run_notice(&invocation, &workspace, &env_get)
     {

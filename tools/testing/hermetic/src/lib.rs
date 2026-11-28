@@ -1351,6 +1351,13 @@ impl Session {
         targets
     }
 
+    /// Whether the consumer's generated correctness layer sets the shared settings, as dx reads it.
+    fn rust_settings(&self) -> bool {
+        let layer = self.workspace.join(".dx/bazelrc/correctness.bazelrc");
+        std::fs::read_to_string(layer)
+            .is_ok_and(|text| dx_process::layer_sets_settings(&text, &self.manifest.repo_name))
+    }
+
     /// The bazelisk command line of one probe, without the process wrapper. Build-like
     /// verbs carry the settings and disk cache dx adds, so dx reuses the probe builds.
     fn bazel_tail(&self, probe: &Probe<'_>) -> Vec<String> {
@@ -1366,7 +1373,7 @@ impl Session {
         if analyzes {
             argv.extend(ACTION_FLAGS.iter().map(|flag| (*flag).to_owned()));
         }
-        if dx_process::takes_shared_settings(probe.command) {
+        if dx_process::takes_shared_settings(probe.command) && self.rust_settings() {
             argv.extend(dx_process::head_settings(&self.manifest.repo_name));
         }
         argv.extend(self.dx_verb_options(probe.home, probe.output_root, probe.command));

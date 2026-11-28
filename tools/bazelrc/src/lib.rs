@@ -107,14 +107,10 @@ const RUNFILES_FLAGS: [Flag; 1] = [(
     "On Windows, build runfiles trees only for actions that run.",
 )];
 
-const WINDOWS_FLAGS: [Flag; 7] = [
+const WINDOWS_FLAGS: [Flag; 6] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
-    ),
-    (
-        "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
-        "On Windows, rustc links with rust-lld; clang-cl cannot drive a Rust link.",
     ),
     (
         "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
@@ -202,17 +198,6 @@ const TELEMETRY_FLAGS: [Flag; 1] = [(
     "common --repo_env=DO_NOT_TRACK=1",
     "Opt out of aspect_tools_telemetry usage reports.",
 )];
-
-const DIAGNOSTICS_FLAGS: [Flag; 2] = [
-    (
-        "build --@rules_dx//config:clippy_output_diagnostics=true",
-        "Clippy findings are part of the build output, as in dx build.",
-    ),
-    (
-        "build --@rules_dx//config:rustc_output_diagnostics=true",
-        "Rustc diagnostics are part of the build output, as in dx build.",
-    ),
-];
 
 const RESOURCE_FLAGS: [Flag; 12] = [
     (
@@ -369,7 +354,6 @@ impl Layer {
                 &JVM_FLAGS,
                 &WORKER_FLAGS,
                 &TELEMETRY_FLAGS,
-                &DIAGNOSTICS_FLAGS,
                 &CI_CORRECTNESS_FLAGS,
             ],
             Layer::Performance => &[&BUILD_PROFILES, &CI_PERFORMANCE_FLAGS],
@@ -793,9 +777,6 @@ mod tests {
     #[test]
     fn labels_follow_the_repo_name() {
         let text = render_layer(Layer::Correctness, "my_dx");
-        assert!(text.contains("build --@my_dx//config:clippy_output_diagnostics=true\n"));
-        assert!(text.contains("build --@my_dx//config:rustc_output_diagnostics=true\n"));
-        assert!(text.contains("build:windows --@my_dx//config:toolchain_linker_preference=rust\n"));
         assert!(text.contains(
             "common:windows --host_platform=@my_dx//tools/platforms:windows_msvc_host\n"
         ));
@@ -831,7 +812,6 @@ mod tests {
                 "coverage --instrument_test_targets",
                 "build:windows --nobuild_runfile_links",
                 "build:windows --enable_runfiles",
-                "build:windows --@rules_dx//config:toolchain_linker_preference=rust",
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
                 "common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx",
@@ -847,8 +827,6 @@ mod tests {
                 "build:linux --worker_sandboxing",
                 "build:macos --worker_sandboxing",
                 "common --repo_env=DO_NOT_TRACK=1",
-                "build --@rules_dx//config:clippy_output_diagnostics=true",
-                "build --@rules_dx//config:rustc_output_diagnostics=true",
                 "common:ci --lockfile_mode=error",
                 "common:ci --repo_env=JAVA_HOME=dx-no-local-jdk",
                 "common:ci --nobuild_runfile_links",

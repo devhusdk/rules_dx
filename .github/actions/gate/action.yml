@@ -80,6 +80,7 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        printf '%s\n' 'build --notrack_incremental_state' 'build --nokeep_state_after_build' >> user.bazelrc
         pr_tags=-network-consumer,-audit
         dx="${RUNNER_TEMP:-/tmp}/dx-bin/dx"
         out="${RUNNER_TEMP:-/tmp}/gate.json"

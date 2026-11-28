@@ -19,6 +19,7 @@ rust_library(
         "src/quality_reports.rs",
         "src/quality_security.rs",
         "src/results.rs",
+        "src/shard_cache.rs",
     ],
     aliases = {},  # keep
     compile_data = ["clippy.toml"],
@@ -88,6 +89,7 @@ rust_test(
         "src/quality_skip_notes_tests.rs",
         "src/results.rs",
         "src/results_tests.rs",
+        "src/shard_cache.rs",
     ],
     aliases = {},  # keep
     compile_data = ["clippy.toml"],

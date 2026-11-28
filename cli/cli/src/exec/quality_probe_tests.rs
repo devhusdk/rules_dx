@@ -125,6 +125,90 @@ fn analysis_failure_in_the_probe_still_narrows() {
 }
 
 #[test]
+fn targets_skipped_as_incompatible_still_narrow() {
+    let harness = broken_probe_harness("probe-skipped", 0, "SKIPPED");
+    let (code, _, _) = harness.run(&["lint", "--output=text"]);
+    assert_eq!(code, 0);
+    let builds = harness.build_argv.borrow();
+    assert_eq!(
+        aspects_of(&builds[0]),
+        vec![
+            "real_lint_aspect",
+            "android_sdk_aspect",
+            "real_rust_lint_aspect"
+        ]
+    );
+}
+
+fn output_groups(argv: &[String]) -> Vec<&str> {
+    argv.iter()
+        .find_map(|arg| arg.strip_prefix("--output_groups="))
+        .expect("output groups flag")
+        .split(',')
+        .collect()
+}
+
+fn lint_probes() -> Vec<String> {
+    aspects_of(&[format!(
+        "--aspects={}",
+        dx_plan::plan::spec(dx_plan::args::Command::Lint)
+            .probes
+            .join(",")
+    )])
+}
+
+#[test]
+fn a_repeated_check_folds_the_probe_into_the_build() {
+    let mut harness = clean_harness("probe-cached");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    assert_eq!(harness.probe_argv.borrow().len(), 1, "no second probe");
+    let builds = harness.build_argv.borrow();
+    assert_eq!(builds.len(), 2);
+    let mut folded = aspects_of(&builds[0]);
+    folded.extend(lint_probes());
+    assert_eq!(aspects_of(&builds[1]), folded);
+    assert!(!output_groups(&builds[0]).contains(&"dx_shards"));
+    assert!(output_groups(&builds[1]).contains(&"dx_shards"));
+}
+
+#[test]
+fn shards_the_folded_probe_adds_rerun_the_build() {
+    let mut harness = clean_harness("probe-cached-stale");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned(), "real_go_lint".to_owned()]);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    assert_eq!(harness.probe_argv.borrow().len(), 1, "no second probe");
+    let builds = harness.build_argv.borrow();
+    assert_eq!(builds.len(), 4, "the second check builds twice");
+    let rerun = aspects_of(&builds[2]);
+    assert!(rerun.contains(&"real_go_lint_aspect".to_owned()));
+    assert!(!output_groups(&builds[2]).contains(&"dx_shards"));
+    let third = aspects_of(&builds[3]);
+    assert!(third.contains(&"real_go_lint_aspect".to_owned()));
+    assert!(
+        output_groups(&builds[3]).contains(&"dx_shards"),
+        "updated entry"
+    );
+}
+
+#[test]
+fn an_unreadable_folded_probe_falls_back_to_a_probe_build() {
+    let mut harness = clean_harness("probe-cached-unknown");
+    harness.probe_shards = Some(vec!["real_rust_lint".to_owned()]);
+    assert_eq!(harness.run(&["lint", "--output=text"]).0, 0);
+    harness.failed_labels.push("//test:corpus".to_owned());
+    harness.run(&["lint", "--output=text"]);
+    assert_eq!(harness.probe_argv.borrow().len(), 2);
+    let builds = harness.build_argv.borrow();
+    assert_eq!(builds.len(), 3);
+    assert_eq!(aspects_of(&builds[2]), aspects_of(&builds[0]));
+}
+
+#[test]
 fn build_failure_with_an_unreported_target_falls_back() {
     let harness = broken_probe_harness(
         "probe-build-failure-unreported",

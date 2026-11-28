@@ -1,4 +1,4 @@
-Upstream: none (rules_dx only: the root go_sdk covers every exec platform, so the toolchains of other modules' SDKs are never selected)
+Upstream: bazel-contrib/rules_go#4810
 --- a/go/private/extensions.bzl
 +++ b/go/private/extensions.bzl
 @@ -148,6 +148,15 @@

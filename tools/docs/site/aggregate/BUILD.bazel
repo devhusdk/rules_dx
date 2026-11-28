@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -31,6 +31,15 @@ rust_library(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,
     ) + ["//tools/docs/ir/ir:documentation_ir"],
+)
+
+rust_binary(
+    name = "site_aggregate",
+    srcs = ["src/bin_site_aggregate.rs"],
+    crate_name = "site_aggregate",
+    crate_root = "src/bin_site_aggregate.rs",
+    visibility = ["//visibility:public"],
+    deps = [":dx_site_aggregate"],
 )
 
 rust_test(

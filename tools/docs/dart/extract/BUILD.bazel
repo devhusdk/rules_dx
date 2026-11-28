@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -38,6 +38,24 @@ rust_library(
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "dart_doc",
+    srcs = ["src/bin_dart_doc.rs"],
+    crate_name = "dart_doc",
+    crate_root = "src/bin_dart_doc.rs",
+    visibility = ["//visibility:public"],
+    deps = [":dx_docs_dart_extract"],
+)
+
+rust_binary(
+    name = "dart_extract",
+    srcs = ["src/bin_dart_extract.rs"],
+    crate_name = "dart_extract",
+    crate_root = "src/bin_dart_extract.rs",
+    visibility = ["//visibility:public"],
+    deps = [":dx_docs_dart_extract"],
 )
 
 rust_test(

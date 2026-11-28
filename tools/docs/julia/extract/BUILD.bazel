@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -31,6 +31,15 @@ rust_library(
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "julia_extract",
+    srcs = ["src/bin_julia_extract.rs"],
+    crate_name = "julia_extract",
+    crate_root = "src/bin_julia_extract.rs",
+    visibility = ["//visibility:public"],
+    deps = [":dx_docs_julia_extract"],
 )
 
 rust_test(

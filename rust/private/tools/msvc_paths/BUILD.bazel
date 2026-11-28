@@ -35,7 +35,10 @@ rust_binary_without_process_wrapper(
     srcs = ["src/msvc_link.rs"],
     edition = "2024",
     rustc_flags = select({
-        "//core/platforms:msvc": MSVC_LINK_FLAGS + ["-Clink-arg=/DEBUG:NONE", "-Clink-arg=/Brepro"],
+        "//core/platforms:msvc": MSVC_LINK_FLAGS + [
+            "-Clink-arg=/DEBUG:NONE",
+            "-Clink-arg=/Brepro",
+        ],
         "//conditions:default": [],
     }),
     visibility = ["//visibility:public"],

@@ -16,6 +16,7 @@ fn aspects_of(argv: &[String]) -> Vec<String> {
 
 fn clean_harness(name: &str) -> Harness {
     let mut harness = Harness::new(name);
+    harness.write_source("MODULE.bazel", "module(name = \"rules_dx\")\n");
     harness.write_source("src/a.py", "x = 1\n");
     harness.results.insert(
         "//test:corpus".to_owned(),

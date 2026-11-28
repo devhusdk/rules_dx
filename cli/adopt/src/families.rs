@@ -113,6 +113,11 @@ pub fn quality_marks(root: &Path) -> BTreeSet<String> {
     marks
 }
 
+#[must_use]
+pub fn consumer_quality_marks(root: &Path) -> Option<BTreeSet<String>> {
+    (!crate::module_deps::is_rules_dx_root(root)).then(|| quality_marks(root))
+}
+
 /// Whether a BUILD file under `root` calls `deployment` or a `*_deploy` macro
 /// loaded from rules_dx `deploy:defs.bzl`.
 pub(crate) fn has_deployment(root: &Path) -> bool {
@@ -405,6 +410,18 @@ mod tests {
         let marks = quality_marks(dir.path());
         assert!(marks.contains(".java"), "{marks:?}");
         assert!(marks.contains("license:android-sdk-license"), "{marks:?}");
+    }
+
+    #[test]
+    fn a_workspace_without_module_deps_is_a_consumer_and_rules_dx_is_not() {
+        let dir = scratch("families").unwrap();
+        write(dir.path(), MODULE_FILE, "").unwrap();
+        write(dir.path(), "src/a.py", "").unwrap();
+        let marks = consumer_quality_marks(dir.path()).expect("consumer marks");
+        assert!(marks.contains(".py"), "{marks:?}");
+        assert!(!marks.contains(".rs"), "{marks:?}");
+        write(dir.path(), MODULE_FILE, "module(name = \"rules_dx\")\n").unwrap();
+        assert_eq!(consumer_quality_marks(dir.path()), None);
     }
 
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {

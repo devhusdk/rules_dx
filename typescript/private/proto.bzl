@@ -2,6 +2,7 @@
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//cli/exec_os:defs.bzl", "ExecOsInfo")
+load(":defs.bzl", "typescript_library")
 
 _PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
 
@@ -83,3 +84,22 @@ ts_proto_srcs = rule(
     toolchains = [config_common.toolchain_type(_PROTO_TOOLCHAIN, mandatory = True)],
     doc = "Generates the <name>_pb.ts modules of one proto_library.",
 )
+
+def typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs):
+    """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package."""
+    ts_proto_srcs(
+        name = name + "_srcs",
+        proto = proto,
+        visibility = ["//visibility:private"],
+        tags = kwargs.get("tags", None),
+        testonly = kwargs.get("testonly", None),
+    )
+    if kwargs.get("tsconfig", None) != None and kwargs.get("isolated_typecheck", None) == None:
+        kwargs["isolated_typecheck"] = False
+    typescript_library(
+        name = name,
+        srcs = [":" + name + "_srcs"],
+        deps = deps,
+        visibility = visibility,
+        **kwargs
+    )

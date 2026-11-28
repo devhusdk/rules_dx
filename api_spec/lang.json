@@ -27,7 +27,7 @@
     "api_spec_protobuf_doc_shard"
   ],
   "quality": {
-    "bzl": "core/quality:families/generation.bzl",
+    "bzl": "core/quality:families/protobuf.bzl",
     "classes": [
       "api_spec",
       "api_spec_ref"
@@ -48,13 +48,13 @@
     },
     "probes": {
       "format": [
-        "real_generation_format_probe_aspect"
+        "real_protobuf_format_probe_aspect"
       ],
       "lint": [
-        "real_generation_lint_probe_aspect"
+        "real_protobuf_lint_probe_aspect"
       ],
       "typecheck": [
-        "real_generation_typecheck_probe_aspect"
+        "real_protobuf_typecheck_probe_aspect"
       ]
     }
   },

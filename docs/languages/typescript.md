@@ -156,7 +156,7 @@ and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//typescript:defs.bzl`:
 
 ```python
-load("@rules_dx//typescript:defs.bzl", "typescript_library", "typescript_proto_library", "typescript_binary")
+load("@rules_dx//typescript:defs.bzl", "typescript_library", "typescript_binary", "typescript_test")
 ```
 
 ### `typescript_library`
@@ -168,6 +168,8 @@ typescript_library(name, srcs = None, declaration_srcs = None, visibility = None
 Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags.
 
 ### `typescript_proto_library`
+
+Load it from `@rules_dx//typescript:proto.bzl`.
 
 ```python
 typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs)

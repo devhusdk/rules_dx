@@ -27,11 +27,11 @@ const (
 	tsSuffix     = "_ts"
 	tsModule     = "aspect_rules_ts"
 	tsRuntime    = "//:node_modules/@bufbuild/protobuf"
-	tsDefs       = "@rules_dx//typescript:defs.bzl"
+	tsDefs       = "@rules_dx//typescript:proto.bzl"
 	csKind       = "csharp_proto_library"
 	csSuffix     = "_cs"
 	csModule     = "rules_dx"
-	csDefs       = "@rules_dx//csharp:defs.bzl"
+	csDefs       = "@rules_dx//csharp:proto.bzl"
 )
 
 var csRuntime = "@" + common.HubName("nuget") + "//google.protobuf"

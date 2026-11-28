@@ -123,10 +123,12 @@ The test assembly counts only with `--instrument_test_targets`. Tag a test
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//csharp:defs.bzl`:
 
 ```python
-load("@rules_dx//csharp:defs.bzl", "csharp_proto_library", "csharp_library", "csharp_binary")
+load("@rules_dx//csharp:defs.bzl", "csharp_library", "csharp_binary", "csharp_test")
 ```
 
 ### `csharp_proto_library`
+
+Load it from `@rules_dx//csharp:proto.bzl`.
 
 ```python
 csharp_proto_library(name, proto, deps = None, visibility = None, **kwargs)

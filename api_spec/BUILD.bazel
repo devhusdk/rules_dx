@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "defs.bzl",
     "lang.json",
+    "proto.bzl",
 ])
 
 real_source_target(
@@ -10,6 +11,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "proto.bzl",
     ],
     tags = ["corpus"],
 )

@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("//typescript:defs.bzl", "typescript_proto_library")
+load("//typescript:proto.bzl", "typescript_proto_library")
 load(":proto_args_tests.bzl", "proto_args_tests")
 
 package(

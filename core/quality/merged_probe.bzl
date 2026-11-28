@@ -8,6 +8,7 @@ load("//cmake/private/quality:cmake.bzl", _CMAKE_CFG = "QUALITY_CFG")
 load("//core/quality:families/core_probe.bzl", _CORE_PROBE_CFG = "QUALITY_CFG")
 load("//core/quality:families/generation.bzl", _GENERATION_CFG = "QUALITY_CFG")
 load("//core/quality:families/php.bzl", _PHP_CFG = "QUALITY_CFG")
+load("//core/quality:families/protobuf.bzl", _PROTOBUF_CFG = "QUALITY_CFG")
 load("//core/quality:real_core.bzl", "real_make_merged_probe_aspect")
 load("//d/private/quality:d.bzl", _D_CFG = "QUALITY_CFG")
 load("//dart/private/quality:dart.bzl", _DART_CFG = "QUALITY_CFG")
@@ -44,7 +45,7 @@ real_merged_format_probe_aspect = real_make_merged_probe_aspect(
         _CC_CFG,
         _CMAKE_CFG,
         _CORE_PROBE_CFG,
-        _GENERATION_CFG,
+        _PROTOBUF_CFG,
         _D_CFG,
         _DART_CFG,
         _DOTNET_CFG,
@@ -85,6 +86,7 @@ real_merged_lint_probe_aspect = real_make_merged_probe_aspect(
         _CORE_PROBE_CFG,
         _GENERATION_CFG,
         _PHP_CFG,
+        _PROTOBUF_CFG,
         _D_CFG,
         _DART_CFG,
         _DOCKERFILE_CFG,
@@ -122,6 +124,7 @@ real_merged_typecheck_probe_aspect = real_make_merged_probe_aspect(
         _CORE_PROBE_CFG,
         _GENERATION_CFG,
         _PHP_CFG,
+        _PROTOBUF_CFG,
         _D_CFG,
         _DART_CFG,
         _DOTNET_CFG,

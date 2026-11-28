@@ -100,6 +100,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//zig/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_zig"],
     names = [
         "exec_0000_aarch64-linux",
         "exec_0001_aarch64-macos",
@@ -132,6 +133,10 @@ hub_order_test(
         "target_x86_64-windows-gnu_toolchain",
         "target_x86_64-windows-none_toolchain",
         "target_x86_64-windows_toolchain",
+    ],
+    toolchain_types = [
+        "@rules_dx//zig:target_toolchain_type",
+        "@rules_dx//zig:toolchain_type",
     ],
 )
 

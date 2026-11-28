@@ -266,7 +266,6 @@ rules_dx++dx_pins+dx_pins_data
 rules_dx++dx_pins+dx_powershell_toolchains
 rules_dx++dx_pins+dx_windows_support
 rules_dx++dx_pins+rules_julia
-rules_dx++dx_pins+rules_powershell
 rules_dx++dx_prebuilt+dx_prebuilt
 rules_dx++dx_prebuilt+dx_prebuilt_javac_check
 rules_dx++dx_toolchains+dx_toolchains

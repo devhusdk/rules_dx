@@ -33,6 +33,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//dotnet/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_dotnet"],
     names = [
         "aarch64-apple-darwin_bootstrap_toolchain",
         "aarch64-apple-darwin_toolchain",

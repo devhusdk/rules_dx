@@ -20,6 +20,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "rules_ruby",
             "perl",
             "zig",
+            "rules_powershell",
         ],
     ),
     (
@@ -44,6 +45,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_windows",
             "rules_dotnet",
             "rules_ruby",
+            "rules_powershell",
         ],
     ),
     (
@@ -65,6 +67,7 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "nodejs_windows",
             "rules_dotnet",
             "rules_ruby",
+            "rules_powershell",
         ],
     ),
 ];

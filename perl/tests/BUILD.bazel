@@ -23,6 +23,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//perl/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_perl"],
     names = [
         "exec_00_x86_64_linux_musl_static",
         "exec_01_aarch64_linux_musl_static",
@@ -48,6 +49,10 @@ hub_order_test(
         "toolchain_09_aarch64_windows_msvc",
         "toolchain_10_x86_64_windows_gnu",
         "toolchain_11_x86_64_windows_strawberry",
+    ],
+    toolchain_types = [
+        "@rules_dx//perl:exec_toolchain_type",
+        "@rules_dx//perl:toolchain_type",
     ],
 )
 

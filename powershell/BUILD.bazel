@@ -1,5 +1,4 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//powershell/private:defs.bzl", "powershell_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,9 +15,13 @@ alias(
     actual = "//powershell/private/gallery:pester",
 )
 
-powershell_library(
+alias(
     name = "runfiles",
-    srcs = ["//powershell/private/runfiles:BazelRunfiles/BazelRunfiles.psm1"],
+    actual = "//powershell/private/runfiles",
+)
+
+toolchain_type(
+    name = "toolchain_type",
 )
 
 alias(

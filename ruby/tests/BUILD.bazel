@@ -58,6 +58,7 @@ hub_order_test(
     name = "hub_order_test",
     size = "small",
     build = "//ruby/private:toolchains.BUILD.bazel",
+    forbidden = ["@rules_ruby"],
     names = [
         "toolchain_arm64_darwin",
         "toolchain_arm64_linux",

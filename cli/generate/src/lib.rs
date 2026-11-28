@@ -75,6 +75,9 @@ const GITLEAKS_STRICT: &str = include_str!("../../../core/quality/tiers/gitleaks
 
 pub const POLICY_LABEL: &str = "//.dx:policy";
 
+/// Tools whose aspect attr reads `//config:tool_<id>`; the rc points unselected ones at `//config:off_tool`.
+const FLAGGED_TOOLS: &[&str] = &["pydoclint", "ruff", "ty"];
+
 #[must_use]
 pub fn base_path(config: &ToolConfig) -> Option<String> {
     (config.kind == "file" && config.tier_active && !config.ext.is_empty())
@@ -271,7 +274,7 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
     for layer in Layer::ALL {
         out.insert(
             format!(".dx/bazelrc/{}", layer.file_name()),
-            bazelrc(layer, &inputs.repo, root, &tools, &detected).into_bytes(),
+            bazelrc(layer, &inputs.repo, root, &tools, &tiers, &detected).into_bytes(),
         );
     }
     if let Some((path, text)) = root_block::render(inputs.root_build.as_ref(), &exports)? {
@@ -519,6 +522,7 @@ fn bazelrc(
     repo: &str,
     root: Tier,
     tools: &[Tool],
+    selected: &BTreeMap<&str, Tier>,
     detected: &BTreeSet<String>,
 ) -> String {
     let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Tier::Strict));
@@ -526,6 +530,19 @@ fn bazelrc(
         return text;
     }
     text.push_str(&format!("\n# The workspace policy dx generates from dx.toml.\ncommon --@{repo}//config:workspace={POLICY_LABEL}\n"));
+    let off: Vec<&str> = FLAGGED_TOOLS
+        .iter()
+        .copied()
+        .filter(|tool| !selected.contains_key(tool))
+        .collect();
+    if !off.is_empty() {
+        text.push_str("\n# The tools no family runs.\n");
+        for tool in off {
+            text.push_str(&format!(
+                "common --@{repo}//config:tool_{tool}=@{repo}//config:off_tool\n"
+            ));
+        }
+    }
     for tool in tools.iter().filter(|tool| tool.config.kind == "flags") {
         text.push_str(&format!("\n# The {} tier.\n", tool.config.id));
         let lines = tool

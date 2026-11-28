@@ -28,6 +28,7 @@ load(
     "real_zig_format_aspect",
     "real_zig_lint_aspect",
 )
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 load("//dart/private:dart_config.bzl", "DartConfigInfo")
 load("//perl/private:defs.bzl", "PERL_COMPATIBLE_WITH")
@@ -36,6 +37,9 @@ visibility("private")
 
 _TOOL_FLAG = "//config:tool_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
+_PYTHON_TOOL_FLAGS = ["//config:tool_pydoclint", "//config:tool_ruff", "//config:tool_ty"]
+_PYTHON_TOOLS_OFF = {str(Label(flag)): str(Label("//config:off_tool")) for flag in _PYTHON_TOOL_FLAGS}
+_PYTHON_OFF_SETTINGS = dict(_PYTHON_TOOLS_OFF, **{str(Label("//config:workspace")): str(Label("//config:default_workspace_policy"))})
 TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "shared", "tool_overrides"]
 
 _override_subject = config_subject_rule([], [DxSubjectInfo])
@@ -873,6 +877,44 @@ def tool_override_tests(name, subject):
         ":" + name + "_rejects_policy_test",
     ]
 
+def _off_flag_impl(ctx):
+    """Asserts a tool flag set off resolves to the one-file unavailable stub."""
+    env = analysistest.begin(ctx)
+    tool = analysistest.target_under_test(env)
+    asserts.true(env, DxUnavailableToolInfo in tool, "want DxUnavailableToolInfo")
+    asserts.equals(env, 1, len(tool[DefaultInfo].files.to_list()))
+    asserts.true(env, tool[DefaultInfo].files_to_run.executable != None, "want an executable")
+    return analysistest.end(env)
+
+_off_flag_test = analysistest.make(_off_flag_impl, config_settings = _PYTHON_TOOLS_OFF)
+
+def _python_off_impl(ctx):
+    """Asserts the python aspects analyze with every python tool flag set off."""
+    env = analysistest.begin(ctx)
+    ruff = _subject_under_test(env)[DxSubjectInfo].fields["ruff"]
+    asserts.true(env, ruff.split("/")[-1] in ["off_tool", "off_tool.exe"], "want the off tool, got " + ruff)
+    return analysistest.end(env)
+
+_python_off_test = analysistest.make(_python_off_impl, config_settings = _PYTHON_OFF_SETTINGS)
+
+def python_off_tests(name, subject):
+    """Instantiates the proofs that the python tool flags accept the off tool."""
+    _python_off_test(
+        name = name + "_aspects_test",
+        size = "small",
+        target_under_test = subject,
+    )
+    tests = [":" + name + "_aspects_test"]
+    for flag in _PYTHON_TOOL_FLAGS:
+        test_name = name + "_" + flag.split(":")[-1] + "_test"
+        _off_flag_test(
+            name = test_name,
+            size = "small",
+            target_under_test = flag,
+        )
+        tests.append(":" + test_name)
+    return tests
+
 def _dialyzer_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the erlang target."""
     env = analysistest.begin(ctx)
@@ -1079,6 +1121,7 @@ def tool_override_suite(name):
     tests = []
     for macro, test_name, subject in [
         (tool_override_tests, "tool_override", ":tool_override_default_subject"),
+        (python_off_tests, "python_off", ":tool_override_default_subject"),
         (qmlformat_flag_tests, "qmlformat_flag", ":qml_subject"),
         (erlfmt_flag_tests, "erlfmt_flag", ":erlang_subject"),
         (elvis_flag_tests, "elvis_flag", ":erlang_lint_subject"),

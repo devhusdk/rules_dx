@@ -5,7 +5,7 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 
 TOOLS = {
     "pydoclint": {
-        "attr": attr.label(default = "//core/quality/tools/python:pydoclint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//config:tool_pydoclint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,
@@ -19,7 +19,7 @@ TOOLS = {
         "shard": "py",
     },
     "ty": {
-        "attr": attr.label(default = "@dx_tools//:ty", allow_single_file = True, cfg = "exec"),
+        "attr": attr.label(default = "//config:tool_ty", allow_single_file = True, cfg = "exec"),
         "kind": "file",
         "resources": "medium",
         "shard": "py",

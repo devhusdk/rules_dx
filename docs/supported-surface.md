@@ -7458,6 +7458,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:tool_phpcs` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_phpstan` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_pkl` | `label_flag` | `@dx_tools//:pkl` |  |
+| `@rules_dx//config:tool_pydoclint` | `label_flag` | `@rules_dx//core/quality/tools/python:pydoclint` |  |
 | `@rules_dx//config:tool_qmlformat` | `label_flag` | `@rules_dx//config:no_qmlformat` |  |
 | `@rules_dx//config:tool_qmllint` | `label_flag` | `@rules_dx//config:no_qmllint` |  |
 | `@rules_dx//config:tool_regal` | `label_flag` | `@dx_tools//:regal` |  |
@@ -7470,6 +7471,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:tool_terraform` | `label_flag` | `@dx_tools//:terraform` |  |
 | `@rules_dx//config:tool_thrift` | `label_flag` | `@dx_prebuilt//:thrift` |  |
 | `@rules_dx//config:tool_trivy` | `label_flag` | `@dx_tools//:trivy` |  |
+| `@rules_dx//config:tool_ty` | `label_flag` | `@dx_tools//:ty` |  |
 | `@rules_dx//config:tool_weeder` | `label_flag` | pinned |  |
 | `@rules_dx//config:tool_zig_ast_check` | `label_flag` | `@rules_dx//config:no_zig_ast_check` |  |
 | `@rules_dx//config:tool_zig_fmt` | `label_flag` | `@rules_dx//config:no_zig_fmt` |  |

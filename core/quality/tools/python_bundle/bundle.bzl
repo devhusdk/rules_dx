@@ -8,16 +8,16 @@ def _impl(ctx):
     args.add(ctx.file.python_marker)
     args.add(ctx.attr.uv_platform)
     args.add("true" if ctx.attr.windows else "false")
-    args.add(ctx.file.tool_bootstrap)
     args.add(ctx.file.project.dirname)
     args.add(ctx.attr.package)
     args.add(ctx.attr.launcher)
     args.add(ctx.file.tool_main)
+    args.add_all(ctx.files.tool_modules)
     ctx.actions.run(
         executable = ctx.executable._script,
         arguments = [args],
         inputs = depset(
-            ctx.files.python_files + [ctx.file.lock_file, ctx.file.project, ctx.file.python_marker, ctx.file.tool_bootstrap, ctx.file.tool_main],
+            ctx.files.python_files + ctx.files.tool_modules + [ctx.file.lock_file, ctx.file.project, ctx.file.python_marker, ctx.file.tool_main],
         ),
         tools = [ctx.executable._uv, ctx.file._interpreter],
         outputs = [out],
@@ -37,8 +37,8 @@ python_tool_bundle = rule(
         "project": attr.label(allow_single_file = True, mandatory = True, doc = "The pyproject.toml whose lock pins the tool."),
         "python_files": attr.label(mandatory = True),
         "python_marker": attr.label(allow_single_file = True, mandatory = True),
-        "tool_bootstrap": attr.label(allow_single_file = True, mandatory = True),
         "tool_main": attr.label(allow_single_file = True, mandatory = True, doc = "The <launcher>_main.py the launcher runs."),
+        "tool_modules": attr.label_list(allow_files = [".py"], mandatory = True, doc = "The modules tool_main imports beside the locked packages, copied next to it."),
         "uv_platform": attr.string(mandatory = True),
         "windows": attr.bool(),
         "_interpreter": attr.label(default = "@python_3_12//:python3", allow_single_file = True, cfg = "exec"),

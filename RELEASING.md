@@ -23,7 +23,7 @@ bazel run //deploy/private/release:bump_version -- 0.1.0
 It sets the version in:
 
 - `MODULE.bazel`: `module(version = ...)`
-- `cli/prebuilt/pins.bzl`: `DX_VERSION`
+- `cli/prebuilt/pins.bzl`: `DX_VERSION`, and it empties `PINS`, which name the old version's assets
 - `cli/adopt/src/version.rs`: `DX_VERSION` and `MODULE_VERSION`
 - `cli/shim/src/protocol.rs`: `SHIM_VERSION`
 
@@ -69,7 +69,7 @@ Run it from the tag: the workflow only attests the files when it runs on the tag
 - the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux x86_64, linux arm64, macOS arm64 and Windows x86_64, `dx-hlint-linux-arm64`, `dx-hlint-macos-arm64` and `dx-ormolu-linux-arm64`, with `dx-weeder-LICENSE`, `dx-hlint-LICENSE`, `dx-ormolu-LICENSE` and the statically linked GMP's `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz`, `dx-haskell-gmp-source.patch` and GHC in-tree GMP source `dx-haskell-gmp-ghc-source.tar.xz`, listed in `dx-haskell-sha256sums.txt`
 - the `dx-<tool>-<os>-<cpu>` quality and coverage tools (deadnix, selene, nixfmt, kcov) with their `dx-<tool>-LICENSE` files, `dx-deadnix-source.crate`, `dx-kcov-source.tar.gz` and the `dx-<python-tool>-<os>-<cpu>.tar.gz` archives of the core Python quality tools, listed in `dx-tool-sha256sums.txt`
 
-The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle, dx-go, JVM tool jars, Haskell tools and quality and coverage tools. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
+The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle, dx-go, JVM tool jars, Haskell tools and quality and coverage tools. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
 
 It fails when:
 
@@ -80,6 +80,14 @@ It fails when:
 - a file does not match its attestation
 
 After you fix the cause, run the workflow again with the same command.
+
+When the files are uploaded, the `pins` job fills `PINS` in `main`'s `cli/prebuilt/pins.bzl` from the attested manifests and pushes it to the `release/pins-v0.1.0` branch. With the `DX_UPDATE_APP_ID` and `DX_UPDATE_APP_PRIVATE_KEY` secrets it opens the pull request as that App, so CI runs on it. Otherwise the run summary prints the command. Open it and merge it:
+
+```sh
+gh pr create --base main --head release/pins-v0.1.0 --fill
+```
+
+It skips this when `main` is no longer at `0.1.0`. `rules_dx`'s own builds ignore `PINS` and build every tool from source.
 
 ## 6. Publish
 

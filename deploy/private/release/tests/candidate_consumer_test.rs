@@ -4,8 +4,8 @@
 use std::path::{Path, PathBuf};
 
 use dx_nested::compose::{
-    llvm_override, rules_flutter_override, rules_py_override, rules_rust_override,
-    windows_support_override, write_llvm_patches, write_root_patch_override,
+    llvm_override, rules_dx_from_source, rules_flutter_override, rules_py_override,
+    rules_rust_override, windows_support_override, write_llvm_patches, write_root_patch_override,
     write_rules_py_patches, write_rules_rust_patches, write_windows_support_patches,
 };
 use dx_nested::{self as nested, Case};
@@ -125,8 +125,9 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     )
     .unwrap_or_else(|error| panic!("{error}"));
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}{}{}",
         candidate.version(),
+        rules_dx_from_source("my_dx"),
         rules_py_override(),
         rules_flutter_override(),
         rules_rust_override(),

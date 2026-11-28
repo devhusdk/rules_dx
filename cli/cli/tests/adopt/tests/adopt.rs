@@ -195,14 +195,20 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
         ("STUB_ARGS", stub_args_text.as_str()),
     ];
     let version_file = root.join(".dx/pins");
-    let built = read(&version_file).trim().to_string();
+    let pins = read(&version_file);
+    let built = pins
+        .split_whitespace()
+        .next()
+        .expect(".dx/pins names the dx version")
+        .to_string();
+    let older = "0.0.0-older";
     let launchers = [root.join("tools/dx"), root.join("tools/dx.cmd")];
     let fresh: Vec<String> = launchers.iter().map(|path| read(path)).collect();
-    write(&version_file, "0.0.1\n");
+    write(&version_file, &format!("{older}\n"));
     let module_file = root.join("MODULE.bazel");
-    write(&module_file, &read(&module_file).replace(&built, "0.0.1"));
+    write(&module_file, &read(&module_file).replace(&built, older));
     for (path, text) in launchers.iter().zip(&fresh) {
-        write(path, &text.replace(&built, "0.0.1"));
+        write(path, &text.replace(&built, older));
     }
     let check = dx_with_env(&root, &home, &["upgrade", "--to", &built], &env);
     assert_eq!(check.code, 1, "{}", check.stderr);
@@ -222,7 +228,7 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
     assert!(before.len() >= 5, "{:?}", before.keys());
     let apply = dx_with_env(&root, &home, &["upgrade", "--to", &built, "--apply"], &env);
     assert_eq!(apply.code, 0, "{}", apply.stderr);
-    assert_eq!(read(&version_file).trim(), built);
+    assert_eq!(read(&version_file), pins);
     assert_eq!(before, kept());
     for (path, text) in launchers.iter().zip(&fresh) {
         assert_eq!(&read(path), text);

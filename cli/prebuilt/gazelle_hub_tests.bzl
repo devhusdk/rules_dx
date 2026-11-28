@@ -2,7 +2,7 @@
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":gazelle_hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
-load(":hub.bzl", "plan_assets", "plan_root")
+load(":hub.bzl", "plan_assets", "plan_root", "release_pins")
 load(":pins.bzl", "URL_TEMPLATE")
 load(":tools.bzl", "TOOLS")
 
@@ -55,7 +55,9 @@ def _checks():
         expect_contains("a guarded build keeps the binary as gazelle_source", render_hub_build([python], guard = True), 'gazelle_binary(\n    name = "gazelle_source",\n    languages = [\n        "%s",\n        "%s",\n    ],' % (python, DISPATCH)),
         expect_equal("gazelle ships on every dx platform", TOOLS["gazelle"].platforms, TOOLS["dx"].platforms),
         expect_true("rules_dx as root builds from source", _source([_mod("rules_dx", True, [python])])),
-        expect_true("from_source builds from source", _source([_mod("app", True, from_source = True), _mod("rules_dx", False, [python])])),
+        expect_equal("from_source drops the release pins", release_pins(plan_root([_mod("app", True, from_source = True)], "dx_gazelle", ["gazelle"]), {"gazelle": {"linux_x86_64": _HASH}}), {}),
+        expect_equal("from_source keeps a root gazelle asset", plan_root([_mod("app", True, assets = [struct(cpu = "x86_64", name = "gazelle", os = "linux", sha256 = _HASH, url = "file:///g")], from_source = True)], "dx_gazelle", ["gazelle"]).overrides["gazelle"].keys(), ["linux_x86_64"]),
+        expect_equal("rules_dx as root drops the release pins", release_pins(plan_root([_mod("rules_dx", True, [python])], "dx_gazelle", ["gazelle"]), {"gazelle": {"linux_x86_64": _HASH}}), {}),
         expect_false("a consumer of rules_dx languages uses the release", _source([_mod("app", True), _mod("rules_dx", False, [python])])),
         expect_true("a consumer language forces source", _source([_mod("app", True, [Label("//gazelle/zig")]), _mod("rules_dx", False, [python])])),
         expect_true("a language from a middle module forces source", _source([_mod("app", True), _mod("middle", False, [astro]), _mod("rules_dx", False, [python])])),

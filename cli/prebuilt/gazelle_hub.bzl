@@ -24,8 +24,8 @@ def hub_languages(labels):
     return sorted(unique.values(), key = lambda label: label.name) + [DISPATCH]
 
 def builds_from_source(plan, modules):
-    """Returns whether gazelle builds from source instead of using the release binary."""
-    return plan.source or any([m.name != "rules_dx" and m.tags.language for m in modules])
+    """Returns whether gazelle builds from source, ignoring every pin and asset."""
+    return plan.root or any([m.name != "rules_dx" and m.tags.language for m in modules])
 
 def _gazelle_binary(name, labels, visibility):
     languages = "".join(['        "%s",\n' % label for label in hub_languages(labels)])

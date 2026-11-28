@@ -18,6 +18,10 @@ _PLATFORMS = {
     "windows_x86_64": ("x86_64-pc-windows-msvc", "python_3_12_x86_64_pc_windows_msvc", True),
 }
 
+_MODULES = {
+    "ansible_lint_tool": ["//core/quality/tools/python:ansible_windows.py"],
+}
+
 _PROJECTS = {
     "ansible_lint_tool": ("//core/quality/tools/python", "ansible-lint"),
     "cfn_lint": ("//core/quality/tools/python", "cfn-lint"),
@@ -39,8 +43,8 @@ _PROJECTS = {
         python_files = "@{}//:files".format(_PLATFORMS[platform][1]),
         python_marker = "@{}//:BUILD.bazel".format(_PLATFORMS[platform][1]),
         tags = ["manual"],
-        tool_bootstrap = "//core/quality/tools/python:tool_bootstrap.py",
         tool_main = "//core/quality/tools/python:{}_main.py".format(PYTHON_BUNDLE_TOOLS[tool].launcher),
+        tool_modules = ["//core/quality/tools/python:tool_bootstrap.py"] + _MODULES.get(tool, []),
         uv_platform = _PLATFORMS[platform][0],
         windows = _PLATFORMS[platform][2],
     )

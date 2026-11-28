@@ -46,19 +46,24 @@ def _override_key(tag):
     return "any" if tag.name in JAR_TOOLS else "{}_{}".format(tag.os, tag.cpu)
 
 def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
-    """Reads the module tags: returns struct(error, source, overrides), overrides keyed by tool, then "<os>_<cpu>" or "any" for a jar tool."""
+    """Reads the module tags: returns struct(error, root, source, overrides); source lists the tools that skip the release pins."""
     rules_dx_is_root = False
-    from_source = False
+    source = {}
     overrides = {}
     for mod in modules:
         if mod.name == "rules_dx" and mod.is_root:
             rules_dx_is_root = True
         if not mod.is_root:
             if mod.tags.asset or mod.tags.from_source:
-                return struct(error = ext + ": only the root module may set asset or from_source tags; {} sets them".format(mod.name), source = False, overrides = {})
+                return struct(error = ext + ": only the root module may set asset or from_source tags; {} sets them".format(mod.name), root = False, source = [], overrides = {})
             continue
-        if mod.tags.from_source:
-            from_source = True
+        for tag in mod.tags.from_source:
+            listed = getattr(tag, "tools", [])
+            unknown = [name for name in listed if name not in tools]
+            if unknown:
+                return struct(error = ext + ".from_source(tools = {}): each tool is one of {}".format(json.encode(unknown), json.encode(tools)), root = False, source = [], overrides = {})
+            for name in listed or tools:
+                source[name] = True
         for tag in mod.tags.asset:
             where = ext + ".asset(name = \"{}\", os = \"{}\", cpu = \"{}\")".format(tag.name, tag.os, tag.cpu)
             error = ""
@@ -73,9 +78,39 @@ def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
             elif _override_key(tag) in overrides.get(tag.name, {}):
                 error = where + ": a second asset for the same os and cpu"
             if error:
-                return struct(error = error, source = False, overrides = {})
+                return struct(error = error, root = False, source = [], overrides = {})
             overrides.setdefault(tag.name, {})[_override_key(tag)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
-    return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
+    if rules_dx_is_root:
+        return struct(error = "", root = True, source = sorted(tools), overrides = {})
+    return struct(error = "", root = False, source = sorted(source), overrides = overrides)
+
+def release_pins(plan, pins):
+    """Returns the pins plan may use: none when rules_dx is root, else those of tools not in plan.source."""
+    if plan.root:
+        return {}
+    return {tool: entry for tool, entry in pins.items() if tool not in plan.source}
+
+def plan_hub(plan, version, pins, url_template):
+    """Returns struct(downloads, jars, bundles, files): the @dx_prebuilt downloads to declare and the hub files."""
+    pins = release_pins(plan, pins)
+    assets = plan_assets("dx", version, pins, url_template, plan.overrides.get("dx", {}))
+    go_assets = plan_assets("go", version, pins, url_template, plan.overrides.get("go", {}), exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
+    jars = plan_jars(version, pins, url_template, plan.overrides)
+    native_tools = plan_native_tools(version, pins, url_template, plan.overrides)
+    python_tools = plan_python_tools(version, pins, url_template, plan.overrides)
+    build = alias_build(SOURCE_LABEL, guard = True) if plan.root else consumer_build(assets, go_assets)
+    build = with_native_tools(build, native_tools, consumer = not plan.root, guard = plan.root)
+    build = with_python_tools(build, python_tools, guard = plan.root)
+    return struct(
+        downloads = [a for a in assets + go_assets + [a for tool in sorted(native_tools) for a in native_tools[tool]] if a.repo],
+        jars = [jar for jar in jars if jar.repo],
+        bundles = [a for tool in sorted(python_tools) for a in python_tools[tool] if a.repo],
+        files = {
+            "BUILD.bazel": with_jars(build, jars, guard = plan.root),
+            "downloads.bzl": downloads_bzl(native_tools),
+            "dx/BUILD.bazel": dx_subcommand_build(consumer = not plan.root, guard = plan.root),
+        },
+    )
 
 def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
@@ -382,6 +417,7 @@ def consumer_build(assets, go_assets = []):
     """Returns the hub BUILD text that selects a prebuilt dx and Go lint tools by os and cpu."""
     if not [a for a in assets + go_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
+    dx_pinned = [a for a in assets if a.repo]
     lines = [
         'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")',
         'load("@rules_dx//cli/prebuilt:fail.bzl", "dx_unavailable")',
@@ -390,7 +426,7 @@ def consumer_build(assets, go_assets = []):
         "",
         "alias(",
         '    name = "dx",',
-        "    actual = " + _select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") + ",",
+        "    actual = " + (_select([(":" + a.key, ":dx_" + a.key if a.repo else SOURCE_LABEL) for a in assets], ":unsupported") if dx_pinned else json.encode(SOURCE_LABEL)) + ",",
         ")",
     ]
     for tool, label in sorted(SOURCE_TOOLS.items()):
@@ -398,7 +434,7 @@ def consumer_build(assets, go_assets = []):
             "",
             "alias(",
             '    name = "{}",'.format(tool),
-            "    actual = " + _select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") + ",",
+            "    actual = " + (_select([(":" + a.key, ":{}_{}".format(tool, a.key) if a.repo else label) for a in assets], ":unsupported") if dx_pinned else json.encode(label)) + ",",
             ")",
         ]
     for tool, label in sorted(GO_TOOLS.items()):

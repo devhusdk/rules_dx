@@ -3349,7 +3349,10 @@ mod portable_tests {
         let text = consumer_module(Path::new("/src/rules_dx"), "\nuse_repo(x)\n");
         assert_eq!(
             text,
-            "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules_dx\",\n)\n\nuse_repo(x)\n"
+            format!(
+                "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules_dx\",\n)\n{}\nuse_repo(x)\n",
+                compose::rules_dx_from_source("rules_dx")
+            )
         );
     }
 

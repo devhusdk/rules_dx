@@ -1310,9 +1310,25 @@ fn consumer_of(fixture: &Fixture) -> Consumer {
 fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
     let module = consumer_module(SNIPPET, "", Path::new("C:\\src\\\"rules\"")).expect("module");
     assert!(module.starts_with("module(name = \"dx_release_consumer\")\n\n"));
-    assert!(module.ends_with(
+    assert!(module.contains(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"C:\\\\src\\\\\\\"rules\\\"\",\n)\n"
     ));
+}
+
+#[test]
+fn consumer_module_builds_every_prebuilt_from_source() {
+    let module = consumer_module(SNIPPET, "", Path::new("/src")).expect("module");
+    for proxy in [
+        "dx_prebuilt_source",
+        "dx_gazelle_source",
+        "php_launcher_source",
+        "qt_launcher_source",
+    ] {
+        assert!(
+            module.contains(&format!("{proxy}.from_source()\n")),
+            "{module}"
+        );
+    }
 }
 
 #[test]

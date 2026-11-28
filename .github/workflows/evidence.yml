@@ -523,6 +523,7 @@ jobs:
             done
             cd demo-app
             printf 'local_path_override(module_name = "rules_dx", path = "%s")\n' "$checkout" >> MODULE.bazel
+            printf 'dx_prebuilt_source = use_extension("@rules_dx//core:extensions.bzl", "dx_prebuilt")\ndx_prebuilt_source.from_source()\ndx_gazelle_source = use_extension("@rules_dx//core:extensions.bzl", "dx_gazelle")\ndx_gazelle_source.from_source()\nphp_launcher_source = use_extension("@rules_dx//php:extensions.bzl", "php")\nphp_launcher_source.from_source()\nqt_launcher_source = use_extension("@rules_dx//qt:extensions.bzl", "qt")\nqt_launcher_source.from_source()\n' >> MODULE.bazel
             bazel build --noshow_progress :demo-app_apk_file
             bazel build --noshow_progress :demo-app_release_sign
             bazel test --noshow_progress :demo-app_check_test

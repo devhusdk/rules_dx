@@ -160,7 +160,7 @@ jobs:
             files="$files $tool_asset"
           done
           for tool in topiary progenitor; do
-            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
+            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64; do
               tool_asset="dx-$tool-$host"
               test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
@@ -199,7 +199,7 @@ jobs:
           files="$files dx-haskell-sha256sums.txt"
           : > out/dx-tool-sha256sums.txt
           for tool in dx-deadnix dx-selene; do
-            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
+            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64; do
               tool_asset="$tool-$host"
               test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
@@ -223,7 +223,7 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 90 || { echo "want 90 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 92 || { echo "want 92 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
@@ -231,7 +231,7 @@ jobs:
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
           test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 18 || { echo "want 18 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
-          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 57 || { echo "want 57 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 59 || { echo "want 59 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
       - name: Build and verify the source archive
         env:
@@ -604,7 +604,16 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      pull-requests: write
+    env:
+      HAS_APP: ${{ secrets.DX_UPDATE_APP_ID != '' && secrets.DX_UPDATE_APP_PRIVATE_KEY != '' }}
     steps:
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        if: env.HAS_APP == 'true'
+        with:
+          app-id: ${{ secrets.DX_UPDATE_APP_ID }}
+          private-key: ${{ secrets.DX_UPDATE_APP_PRIVATE_KEY }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -620,3 +629,37 @@ jobs:
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "rules_dx-$version.tar.gz" --dir "$RUNNER_TEMP/archive"
           tar -xzf "$RUNNER_TEMP/archive/rules_dx-$version.tar.gz" -C "$RUNNER_TEMP/archive" "rules_dx-$version/cli/prebuilt/pins.bzl"
           bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --check --filled --pins "$RUNNER_TEMP/archive/rules_dx-$version/cli/prebuilt/pins.bzl" --repo "$GITHUB_REPOSITORY"
+      - name: Open the pull request that pins main to the release
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          main_version="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
+          if [ "$main_version" != "$version" ]; then
+            echo "::notice::$DEFAULT_BRANCH is at $main_version, not $version, so its pins stay as they are."
+            exit 0
+          fi
+          bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+          if git diff --quiet -- cli/prebuilt/pins.bzl; then
+            echo "$DEFAULT_BRANCH already pins $RELEASE_TAG."
+            exit 0
+          fi
+          branch="release/pins-$RELEASE_TAG"
+          gh auth setup-git
+          if ! git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git commit -m "prebuilt: pin $DEFAULT_BRANCH to the $RELEASE_TAG release assets" -- cli/prebuilt/pins.bzl
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+          if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            exit 0
+          fi
+          body="Fills cli/prebuilt/pins.bzl from the attested manifests of $RELEASE_TAG, so consumers of $DEFAULT_BRANCH download its prebuilts."
+          if [ "$HAS_APP" != true ] || ! gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title "prebuilt: pin $DEFAULT_BRANCH to $RELEASE_TAG" --body "$body"; then
+            echo "::warning::Without the DX_UPDATE_APP_ID App, CI runs only on a pull request a person opens. Open it with: gh pr create --base $DEFAULT_BRANCH --head $branch --fill"
+            echo "- pins: pushed \`$branch\`; open its pull request with \`gh pr create --base $DEFAULT_BRANCH --head $branch --fill\`" >> "$GITHUB_STEP_SUMMARY"
+          fi

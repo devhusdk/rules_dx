@@ -19,7 +19,7 @@ def _exec_native(tool):
     return struct(
         asset = "dx-" + tool + "-{os}-{cpu}",
         role = "exec",
-        platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+        platforms = _NATIVE,
         fallbacks = {"windows_arm64": "windows_x86_64"},
         source = "@rules_dx//rust/private/quality/tools:" + tool + "_source",
         member = "",

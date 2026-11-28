@@ -342,11 +342,15 @@ pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
 pub fn stub_bundle(tool: &BundleTool, windows: bool) -> std::io::Result<Vec<u8>> {
     let mut tar = dx_archive::TarWriter::new();
     let launcher = format!("bin/{}", tool.launcher);
-    tar.add_file(&launcher, format!("stub {}\n", tool.name).as_bytes(), 0o755)?;
+    tar.add_file(
+        &launcher,
+        format!("#!/bin/sh\n# stub {}\nexit 0\n", tool.name).as_bytes(),
+        0o755,
+    )?;
     if windows {
         tar.add_file(
             &format!("{launcher}.cmd"),
-            format!("@echo stub {}\r\n", tool.name).as_bytes(),
+            format!("@rem stub {}\r\n@exit /b 0\r\n", tool.name).as_bytes(),
             0o755,
         )?;
     }

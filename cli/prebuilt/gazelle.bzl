@@ -3,7 +3,7 @@
 load("//core:repo.bzl", "hub_repo")
 load(":extension.bzl", "ASSET_ATTRS", "declare_downloads")
 load(":gazelle_hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
-load(":hub.bzl", "plan_assets", "plan_root")
+load(":hub.bzl", "plan_assets", "plan_root", "release_pins")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 
 visibility(["//core"])
@@ -21,7 +21,7 @@ _asset = tag_class(
 )
 
 _from_source = tag_class(
-    doc = "Builds gazelle from source instead; honoured only in the root module.",
+    doc = "Builds gazelle from source instead of the release pins; honoured only in the root module.",
     attrs = {},
 )
 
@@ -33,15 +33,14 @@ def _dx_gazelle_impl(module_ctx):
     assets = [] if builds_from_source(plan, module_ctx.modules) else plan_assets(
         "gazelle",
         DX_VERSION,
-        PINS,
+        release_pins(plan, PINS),
         URL_TEMPLATE,
         plan.overrides.get("gazelle", {}),
         exe = "gazelle",
         repo_prefix = "dx_gazelle_",
     )
     if not [a for a in assets if a.repo]:
-        rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
-        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels, guard = rules_dx_is_root)})
+        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels, guard = plan.root)})
     else:
         declare_downloads(assets)
         hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": prebuilt_build(assets, labels)})

@@ -5,7 +5,7 @@ use dx_process::capture::{DEFAULT_TIMEOUT, RunError, run_checked};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-const USAGE: &str = "usage: bazel run //deploy/private/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version, the starter workflow pin and the assert-no-secret and remote-cache-helper action pins in every file that carries them and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main, must have the affected_on_pr input and must carry the assert-no-secret and remote-cache-helper actions.";
+const USAGE: &str = "usage: bazel run //deploy/private/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version, empties the PINS of the old version in cli/prebuilt/pins.bzl, sets the starter workflow pin and the assert-no-secret and remote-cache-helper action pins in every file that carries them and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main, must have the affected_on_pr input and must carry the assert-no-secret and remote-cache-helper actions.";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const DOCS_WORKFLOW: &str = ".github/workflows/reusable-docs.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret";
@@ -13,6 +13,8 @@ const SCAN_ACTION_PIN: &str = "devhusdk/rules_dx/.github/actions/assert-no-secre
 const HELPER_ACTION: &str = ".github/actions/remote-cache-helper";
 const HELPER_ACTION_PIN: &str = "devhusdk/rules_dx/.github/actions/remote-cache-helper@";
 const DIGEST_RECORD: &str = "tools/ci/starter_pin.sha256";
+const PINS_FILE: &str = "cli/prebuilt/pins.bzl";
+const PINS_MARKER: &str = "\nPINS = ";
 
 struct Edit {
     marker: &'static str,
@@ -48,7 +50,7 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
                 pin: false,
             }],
         ),
-        ("cli/prebuilt/pins.bzl", vec![version("DX_VERSION = \"")]),
+        (PINS_FILE, vec![version("DX_VERSION = \"")]),
         (
             "cli/adopt/src/version.rs",
             vec![
@@ -210,6 +212,12 @@ fn rewrite(text: &str, edit: &Edit, value: &str) -> Option<String> {
     (hits > 0).then_some(out)
 }
 
+fn empty_pins(text: &str) -> Option<String> {
+    let at = text.find(PINS_MARKER)?;
+    let head = text.get(..=at)?;
+    Some(format!("{head}PINS = {{}}\n"))
+}
+
 fn redigest(root: &Path, record: &str) -> Result<String, BumpError> {
     let mut out = String::with_capacity(record.len());
     for line in record.lines() {
@@ -252,6 +260,12 @@ fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, BumpError> {
             text = rewrite(&text, edit, value).ok_or(BumpError::NoMarker {
                 file,
                 marker: edit.marker,
+            })?;
+        }
+        if file == PINS_FILE && text != old {
+            text = empty_pins(&text).ok_or(BumpError::NoMarker {
+                file,
+                marker: PINS_MARKER.trim_start(),
             })?;
         }
         if text != old {
@@ -375,7 +389,10 @@ mod tests {
                 "MODULE.bazel",
                 "module(\n    name = \"rules_dx\",\n    version = \"0.0.0\",\n)\nbazel_dep(name = \"x\", version = \"9.9.9\")\n",
             ),
-            ("cli/prebuilt/pins.bzl", "DX_VERSION = \"0.0.0\"\n"),
+            (
+                "cli/prebuilt/pins.bzl",
+                "DX_VERSION = \"0.0.0\"\n\nPINS = {\n    \"dx\": {\n        \"linux_x86_64\": \"00\",\n    },\n}\n",
+            ),
             (
                 "cli/adopt/src/version.rs",
                 "pub const DX_VERSION: &str = \"0.0.0\";\npub const MODULE_VERSION: &str = \"0.0.0\";\n",
@@ -425,7 +442,7 @@ mod tests {
         assert!(read(dir.path(), "MODULE.bazel").contains("name = \"x\", version = \"9.9.9\""));
         assert_eq!(
             read(dir.path(), "cli/prebuilt/pins.bzl"),
-            "DX_VERSION = \"1.2.3\"\n"
+            "DX_VERSION = \"1.2.3\"\n\nPINS = {}\n"
         );
         let version = read(dir.path(), "cli/adopt/src/version.rs");
         assert!(version.contains("DX_VERSION: &str = \"1.2.3\";"));
@@ -493,10 +510,7 @@ mod tests {
         let error = bump(dir.path(), "1.2.3", "abc").unwrap_err();
         assert!(matches!(error, BumpError::Commit { .. }));
         assert_eq!(error.to_string(), "`abc` is not a 40 character commit");
-        assert_eq!(
-            read(dir.path(), "cli/prebuilt/pins.bzl"),
-            "DX_VERSION = \"0.0.0\"\n"
-        );
+        assert!(read(dir.path(), "cli/prebuilt/pins.bzl").contains("\"linux_x86_64\": \"00\""));
     }
 
     #[test]
@@ -530,6 +544,31 @@ mod tests {
         assert_eq!(
             error.to_string(),
             "cli/prebuilt/pins.bzl: no line with `DX_VERSION = \"`"
+        );
+    }
+
+    #[test]
+    fn keeps_the_pins_of_an_unchanged_version() {
+        let dir = tempfile::tempdir().unwrap();
+        fixture(dir.path());
+        bump(dir.path(), "0.0.0", NEW).unwrap();
+        assert!(read(dir.path(), "cli/prebuilt/pins.bzl").contains("\"linux_x86_64\": \"00\""));
+    }
+
+    #[test]
+    fn names_a_pins_file_without_pins() {
+        let dir = tempfile::tempdir().unwrap();
+        fixture(dir.path());
+        fs::write(
+            dir.path().join("cli/prebuilt/pins.bzl"),
+            "DX_VERSION = \"0.0.0\"\n",
+        )
+        .unwrap();
+        let error = bump(dir.path(), "1.2.3", NEW).unwrap_err();
+        assert!(matches!(error, BumpError::NoMarker { .. }), "{error}");
+        assert_eq!(
+            error.to_string(),
+            "cli/prebuilt/pins.bzl: no line with `PINS = `"
         );
     }
 

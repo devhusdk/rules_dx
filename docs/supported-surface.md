@@ -2643,7 +2643,9 @@ Tag `dx_prebuilt.asset`:
 
 Tag `dx_prebuilt.from_source`:
 
-No attributes.
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `tools` | `string_list` | no | `[]` |
 
 #### `dx_toolchains`
 

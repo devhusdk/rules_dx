@@ -6,7 +6,7 @@ load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("//julia/private/runtime:defs.bzl", "source_exec_compatible_with")
+load("//julia/private/runtime:defs.bzl", "SOURCE_EXEC_COMPATIBLE_WITH", "source_exec_compatible_with")
 load("//rust:defs.bzl", "rust_test")
 load(":defs_tests.bzl", "julia_wrapper_contract_tests")
 load(":resolved_toolchain.bzl", "resolved_source_julia_toolchain")
@@ -86,6 +86,7 @@ platform_transition_filegroup(
     name = "source_toolchain_linux_x86_64",
     testonly = True,
     srcs = [":source_toolchain_resolved"],
+    target_compatible_with = SOURCE_EXEC_COMPATIBLE_WITH,
     target_platform = "//tools/platforms:linux_x86_64",
 )
 

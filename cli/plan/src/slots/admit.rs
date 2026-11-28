@@ -1,4 +1,5 @@
-use std::io::Write;
+use std::fs::File;
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -44,6 +45,7 @@ pub trait Machine {
     fn footprint(&self, server: &Server) -> u64;
     fn now(&self) -> SystemTime;
     fn pause(&self) -> Option<i32>;
+    fn try_lock(&self, path: &Path) -> io::Result<Option<File>>;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -87,6 +89,10 @@ impl Machine for SystemMachine {
     fn pause(&self) -> Option<i32> {
         std::thread::sleep(POLL);
         dx_process::interrupted()
+    }
+
+    fn try_lock(&self, path: &Path) -> io::Result<Option<File>> {
+        dx_atomic_fs::lease::try_lock_file(path, true)
     }
 }
 
@@ -199,7 +205,7 @@ pub fn admit(
             .is_ok_and(|waited| waited >= wait.limit)
     };
     let lock = loop {
-        match dx_atomic_fs::lease::try_lock_file(&dir.join("admit.lock"), true) {
+        match machine.try_lock(&dir.join("admit.lock")) {
             Ok(Some(lock)) => break Some(lock),
             Ok(None) if expired() => break None,
             Ok(None) => {
@@ -301,6 +307,7 @@ mod tests {
         pauses: Cell<usize>,
         stop_after: Option<usize>,
         idle: RefCell<Vec<u32>>,
+        locked: Cell<bool>,
     }
 
     fn server(pid: u32, workspace: &str, rss: u64) -> Server {
@@ -323,6 +330,7 @@ mod tests {
                 pauses: Cell::new(0),
                 stop_after: None,
                 idle: RefCell::new(Vec::new()),
+                locked: Cell::new(false),
             }
         }
 
@@ -377,6 +385,15 @@ mod tests {
                 servers.pop();
             }
             None
+        }
+
+        // A real flock outlives drop in children forked by parallel tests, and each pause spent
+        // waiting on it would consume a scripted step.
+        fn try_lock(&self, path: &Path) -> io::Result<Option<File>> {
+            if self.locked.get() {
+                return Ok(None);
+            }
+            File::create(path).map(Some)
         }
     }
 
@@ -487,7 +504,6 @@ mod tests {
 
     #[test]
     fn a_recent_admission_counts_until_its_server_shows() {
-        let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-admit-pending-").unwrap();
         let dir = scratch.path().join("slots");
         let first = Fake::new(vec![(Some(9 * GIB), vec![old(1, "/w/b")])]);
@@ -518,14 +534,12 @@ mod tests {
     fn a_held_lock_holds_admission_back_until_the_wait_limit() {
         let scratch = dx_test_scratch::scratch("dx-admit-lock-").unwrap();
         let dir = scratch.path().join("slots");
-        std::fs::create_dir_all(&dir).unwrap();
-        let _held = dx_atomic_fs::lease::try_lock_file(&dir.join("admit.lock"), true)
-            .unwrap()
-            .unwrap();
         let mut fake = Fake::new(vec![(Some(64 * GIB), vec![old(1, "/w/b")])]);
+        fake.locked.set(true);
         fake.stop_after = Some(2);
         assert_eq!(run(&fake, &dir, "/w/a"), (Err(15), String::new()));
         let fake = Fake::new(vec![(Some(64 * GIB), vec![old(1, "/w/b")])]);
+        fake.locked.set(true);
         let (result, err) = run_for(&fake, &dir, "/w/a", 3 * POLL, &mut || 0);
         assert_eq!((result, err.as_str()), (Ok(()), ""));
         assert_eq!(fake.pauses.get(), 3);

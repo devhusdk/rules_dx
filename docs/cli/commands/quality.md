@@ -231,7 +231,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `swift_lint` | Lint Swift | |
 | `swiftc` | Typecheck Swift (opt-in) | |
 
-`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It is the default typecheck of the `objc` family. It has no fix support.
+`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. A library with no compile action (header-only) has each workspace header parsed on its own, like `parse_headers` (`.h` as C, `.hh`, `.hpp` and `.hxx` as C++); other libraries check headers only through their compile actions (`--features=parse_headers` adds one per header). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It is the default typecheck of the `objc` family. It has no fix support.
 
 `nvcc_syntax` replays each `CudaCompile` action with `-c` changed to `-cuda`. Device compilation still runs for every `-gencode` architecture, so the check is heavy. Select it with `typecheck = ["nvcc_syntax"]` on the `cuda` family. Params files and header-only `cuda_library` targets fail with an explicit error.
 

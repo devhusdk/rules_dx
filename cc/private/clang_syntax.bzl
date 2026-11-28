@@ -10,7 +10,7 @@ load("//cc/private/quality:nvcc_syntax.bzl", "nvcc_syntax_select", "nvcc_syntax_
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_identity", "cc_toolchain_info")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
-load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream", "holds_workspace_source")
+load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "forwarded_upstream", "holds_workspace_source", "is_workspace_file", "upstream_source_class")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets")
 
 ClangSyntaxInfo = provider(
@@ -268,6 +268,57 @@ def _compile_actions(target):
         return []
     return [action for action in actions if action.mnemonic in _MNEMONICS]
 
+_HEADER_EXTENSIONS = ["h", "hh", "hpp", "hxx", "h++", "H"]
+
+# The language follows UPSTREAM_CC_CLASS_EXTENSIONS: .h is a C header, the
+# other header extensions are C++ headers.
+_HEADER_LANGUAGES = {
+    "c": struct(action = ACTION_NAMES.c_compile, gnu = "-xc-header", msvc = "/TC"),
+    "cpp": struct(action = ACTION_NAMES.cpp_compile, gnu = "-xc++-header", msvc = "/TP"),
+}
+
+def _header_parse_actions(target, ctx, identity):
+    """Synthesizes one header compile per workspace header of a library that compiles nothing, like parse_headers."""
+    cc_toolchain = cc_toolchain_info(ctx)
+    if cc_toolchain == None:
+        return []
+    hdrs = [
+        f
+        for f in getattr(ctx.rule.files, "hdrs", []) + getattr(ctx.rule.files, "srcs", [])
+        if is_workspace_file(f) and f.extension in _HEADER_EXTENSIONS
+    ]
+    if not hdrs:
+        return []
+    config = cc_common.configure_features(
+        ctx = ctx,
+        cc_toolchain = cc_toolchain,
+        requested_features = ctx.features,
+        unsupported_features = ctx.disabled_features + ["parse_headers", "layering_check", "module_maps", "header_modules"],
+    )
+    context = target[CcInfo].compilation_context
+    inputs = depset(transitive = [cc_toolchain.all_files, context.headers])
+    actions = []
+    for hdr in hdrs:
+        language = _HEADER_LANGUAGES[upstream_source_class(hdr.extension)]
+        user_flags = ctx.fragments.cpp.copts + (ctx.fragments.cpp.conlyopts if language.action == ACTION_NAMES.c_compile else ctx.fragments.cpp.cxxopts)
+        variables = cc_common.create_compile_variables(
+            feature_configuration = config,
+            cc_toolchain = cc_toolchain,
+            source_file = hdr.path,
+            output_file = hdr.path + ".processed",
+            user_compile_flags = user_flags + [language.msvc if identity.driver == "msvc" else language.gnu],
+            include_directories = context.includes,
+            quote_include_directories = context.quote_includes,
+            system_include_directories = depset(transitive = [context.system_includes, context.external_includes]),
+            framework_include_directories = context.framework_includes,
+            preprocessor_defines = depset(transitive = [context.defines, context.local_defines]),
+        )
+        tool = cc_common.get_tool_for_action(feature_configuration = config, action_name = language.action)
+        argv = [tool] + cc_common.get_memory_inefficient_command_line(feature_configuration = config, action_name = language.action, variables = variables)
+        env = cc_common.get_environment_variables(feature_configuration = config, action_name = language.action, variables = variables)
+        actions.append(struct(mnemonic = "CppCompile", argv = argv, env = env, inputs = inputs))
+    return actions
+
 def clang_syntax_source(argv):
     """Returns the translation unit of a compile command line, or "" when there is none."""
     for i in range(len(argv) - 1):
@@ -282,6 +333,9 @@ def clang_syntax_source(argv):
 def _clang_syntax_impl(target, ctx):
     attrs = ctx.rule.attr
     actions = _compile_actions(target)
+    identity = cc_toolchain_identity(ctx)
+    if len(actions) == 0 and CcInfo in target and target.label.repo_name == "":
+        actions = _header_parse_actions(target, ctx, identity)
     if len(actions) == 0:
         upstream = forwarded_upstream(attrs, ClangSyntaxInfo)
         if upstream == None:
@@ -291,7 +345,6 @@ def _clang_syntax_impl(target, ctx):
     if target.label.repo_name != "" or not holds_workspace_source(ctx.rule.files):
         return []
 
-    identity = cc_toolchain_identity(ctx)
     xcode_config = ctx.attr._xcode_config[XcodeVersionInfo]
     headers = depset()
     if CcInfo in target:

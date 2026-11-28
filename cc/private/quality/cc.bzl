@@ -107,7 +107,7 @@ def _clang_info(target, what):
     if ClangSyntaxInfo not in target:
         if CcInfo not in target:
             return None
-        fail(what + ": clang_syntax and clang_tidy need a cc_*, objc_* or cuda_* target with compile actions (a header-only library needs --features=parse_headers)")
+        fail(what + ": clang_syntax and clang_tidy need a cc_*, objc_* or cuda_* target with compile actions or workspace headers")
     return target[ClangSyntaxInfo]
 
 def _clang_tidy_hook(target, _ctx, resolved, _capability, what, _shared):

@@ -92,7 +92,7 @@ sbom = rule(
         "pip_lock": attr.label(allow_single_file = True, doc = "Python lock whose packages are added to the SBOM."),
         "supplier": attr.string(default = "rules_dx", doc = "Supplier recorded on the described package."),
         "_dx": attr.label(
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:release_tool"),
             executable = True,
             cfg = "exec",
         ),

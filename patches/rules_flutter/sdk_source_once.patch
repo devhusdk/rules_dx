@@ -1,0 +1,442 @@
+Upstream: aran/rules_flutter#23
+diff --git a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
+index d4d7aea4..cdfaabcc 100644
+--- a/flutter/private/BUILD.bazel
++++ b/flutter/private/BUILD.bazel
+@@ -1289,11 +1289,10 @@ bzl_library(
+     srcs = ["flutter_framework_package.bzl"],
+     visibility = ["//flutter:__subpackages__"],
+     deps = [
+-        ":artifact_urls",
+         ":flutter_pub_index",
++        ":flutter_source_files",
+         ":framework_source",
+         ":package_metadata_content",
+-        ":pinned",
+         "@rules_dart//dart/pub:pub_lock_package",
+         "@rules_dart//dart/pub:pubspec",
+     ],
+@@ -1928,6 +1927,7 @@ bzl_library(
+         ":failing_targets",
+         ":flutter_pub_index",
+         ":flutter_pubspec",
++        ":flutter_source_files",
+         ":framework_source",
+         ":gradle_script",
+         ":package_metadata_content",
+diff --git a/flutter/private/flutter_framework_package.bzl b/flutter/private/flutter_framework_package.bzl
+index f6a99a67..e40c6b40 100644
+--- a/flutter/private/flutter_framework_package.bzl
++++ b/flutter/private/flutter_framework_package.bzl
+@@ -1,8 +1,9 @@
+ """Spoke repository rule for the Flutter framework package (package:flutter).
+ 
+-Downloads the Flutter SDK source from GitHub and generates a flutter_library
+-target for the framework. Follows the same hub/spoke pattern as rules_dart's
+-pub_lock_package, so it integrates seamlessly into the same hub repo.
++Links `packages/flutter` of the pinned Flutter source and generates a
++flutter_library target for the framework. Follows the same hub/spoke pattern
++as rules_dart's pub_lock_package, so it integrates seamlessly into the same hub
++repo.
+ 
+ `package:flutter` is the one Flutter SDK package with a rule of its own. The
+ others (`flutter_test`, `integration_test`, ...) are built from the same source
+@@ -20,11 +21,10 @@ current SDK's.
+ 
+ load("@rules_dart//dart/pub:pub_lock_package.bzl", "find_pub_license_file")
+ load("@rules_dart//dart/pub:pubspec.bzl", "read_pubspec")
+-load("//flutter/private:artifact_urls.bzl", "flutter_source_tarball_url")
+ load("//flutter/private:flutter_pub_index.bzl", "library_label", "read_index")
+-load("//flutter/private:framework_source.bzl", "dependency_constraint_message", "link_framework_package", "lock_floor_message", "locked_versions", "read_framework", "unusable_message", "write_failing_stub")
++load("//flutter/private:flutter_source_files.bzl", "flutter_source_load")
++load("//flutter/private:framework_source.bzl", "NEVER_LINKED", "dependency_constraint_message", "link_framework_package", "lock_floor_message", "locked_versions", "read_framework", "unusable_message", "write_failing_stub")
+ load("//flutter/private:package_metadata_content.bzl", "METADATA_TARGET_NAME", "make_package_metadata_content", "package_metadata_loads")
+-load("//flutter/private:pinned.bzl", "pinned")
+ 
+ visibility("//flutter/...")
+ 
+@@ -102,8 +102,10 @@ def _flutter_framework_package_impl(repository_ctx):
+         if missing:
+             write_failing_stub(repository_ctx, [_PACKAGE], missing)
+             return
++        prelude = ""
+     else:
+-        _download_framework(repository_ctx, flutter_version)
++        _link_release_framework(repository_ctx)
++        prelude = flutter_source_load(repository_ctx.attr.source)
+ 
+     # Discover deps and the language version from the pubspec.yaml, read as
+     # pub reads it, and filter deps to packages available in the lock
+@@ -134,42 +136,39 @@ def _flutter_framework_package_impl(repository_ctx):
+     # Build dep labels pointing to the libraries of the packages' repos.
+     dep_labels = [library_label(index, dep) for dep in bazel_deps]
+ 
+-    repository_ctx.file("BUILD.bazel", make_flutter_framework_build_content(
++    repository_ctx.file("BUILD.bazel", prelude + make_flutter_framework_build_content(
+         deps = dep_labels,
+         language_version = language_version,
+         license_file = find_pub_license_file(repository_ctx),
+     ))
+ 
+-def _download_framework(repository_ctx, flutter_version):
+-    # Download Flutter SDK source, extracting only the framework package.
+-    #
+-    # This same tarball is requested once per SDK package in the lock (by
+-    # flutter_pub_package), and again by flutter_gen_l10n_repo and
+-    # flutter_dev_root_repo. Because every one of those fetches is pinned to
+-    # the same checksum, Bazel's content-addressed repository cache serves
+-    # them all from a single download; an unpinned fetch could not be
+-    # deduplicated that way.
+-    repository_ctx.download_and_extract(
+-        url = flutter_source_tarball_url(flutter_version),
+-        sha256 = pinned(flutter_version + ".tar.gz", repository_ctx.attr.sha256),
+-        stripPrefix = "flutter-{version}/packages/{pkg}".format(
+-            version = flutter_version,
+-            pkg = _PACKAGE,
+-        ),
+-    )
++def _link_release_framework(repository_ctx):
++    if not repository_ctx.attr.source:
++        fail((
++            "flutter_framework_package `{}` has neither `framework_json` nor `source`: " +
++            "its SDK names neither a framework source nor a Flutter release."
++        ).format(repository_ctx.original_name))
++
++    # The release's `packages/` is extracted once, by its
++    # `flutter_source_packages`, for this and every other SDK package of it to
++    # link from: the tarball holds the whole monorepo, so each extraction of
++    # it reads all of it. Unwatched, as that repository changes only with its
++    # attributes, and `rctx.path(source)` already makes this one depend on it.
++    package_dir = repository_ctx.path(repository_ctx.attr.source).dirname.get_child(_PACKAGE)
++    for child in package_dir.readdir(watch = "no"):
++        if child.basename not in NEVER_LINKED:
++            repository_ctx.symlink(child, child.basename)
+ 
+ flutter_framework_package = repository_rule(
+     implementation = _flutter_framework_package_impl,
+-    doc = "Downloads package:flutter from the pinned Flutter source and generates its flutter_library target.",
++    doc = "Links package:flutter from the pinned Flutter source and generates its flutter_library target.",
+     attrs = {
+         "flutter_version": attr.string(
+             doc = "Flutter SDK version tag on GitHub. Unused with `framework_json`.",
+         ),
+-        "sha256": attr.string(
+-            doc = "Expected SHA-256 of the Flutter SDK source tarball. " +
+-                  "Guaranteed non-empty by the caller: extensions.bzl reads " +
+-                  "it through `flutter_source_sha256()`, which refuses a " +
+-                  "version with no recorded checksum.",
++        "source": attr.label(
++            doc = "The `BUILD.bazel` of the release's `flutter_source_packages`. Unused with `framework_json`.",
++            allow_single_file = True,
+         ),
+         "framework_json": attr.label(
+             doc = "The `flutter_framework.json` of a framework source, in place of the release tarball.",
+diff --git a/flutter/private/flutter_pub_index.bzl b/flutter/private/flutter_pub_index.bzl
+index ffbfcb66..58d86d2b 100644
+--- a/flutter/private/flutter_pub_index.bzl
++++ b/flutter/private/flutter_pub_index.bzl
+@@ -75,6 +75,10 @@ def files_repo(package, prefix = SPOKE_PREFIX):
+     """The name of the repository holding a hosted, git or Flutter SDK package's fetched files."""
+     return "{}_files__{}".format(prefix, package)
+ 
++def sdk_source_repo(version):
++    """The name of the repository holding `packages/` of a Flutter release's source, which its SDK packages link from."""
++    return "{}_sdk_source__{}".format(SPOKE_PREFIX, version)
++
+ def library_repo(package, prefix = SPOKE_PREFIX):
+     """The name of the repository holding a built package's library."""
+     return "{}_lib__{}".format(prefix, package)
+diff --git a/flutter/private/flutter_pub_package.bzl b/flutter/private/flutter_pub_package.bzl
+index 6c9c5445..8b419b65 100644
+--- a/flutter/private/flutter_pub_package.bzl
++++ b/flutter/private/flutter_pub_package.bzl
+@@ -63,6 +63,7 @@ load("//flutter/private:cmake_link_libraries.bzl", "parse_cmake_link_libraries")
+ load("//flutter/private:constants.bzl", "OTHER_PACKAGES_ASSETS", "PLUGIN_PLATFORMS")
+ load("//flutter/private:failing_targets.bzl", "FAILING_TARGETS_LOAD", "failing_targets", "write_failing_build")
+ load("//flutter/private:flutter_pub_index.bzl", "MEMBER_DART", "MEMBER_FILE", "MEMBER_FLUTTER", "MEMBER_OVERLAY", "MEMBER_STUB", "library_label", "owner_prefix", "read_index", "sibling_path", "source_repo")
++load("//flutter/private:flutter_source_files.bzl", "SOURCE_LOAD", "flutter_source_load")
+ load("//flutter/private:flutter_pubspec.bzl", "flutter_assets_block", "flutter_licenses_block", "flutter_manifest_errors", "flutter_plugin_block")
+ load("//flutter/private:framework_source.bzl", "NEVER_LINKED", "dependency_constraint_message", "link_framework_package", "locked_versions", "unusable_message")
+ load("//flutter/private:gradle_script.bzl", "gradle_applied_scripts", "gradle_statements", "parse_gradle_properties")
+@@ -2565,7 +2566,11 @@ def _link_package_files(ctx):
+             "A Flutter SDK package's files are its SDK's: `packages/{name}` of its Flutter release, " +
+             "or of its framework."
+         ).format(name = ctx.attr.package_name, repo = ctx.name))
+-    prelude = link_pub_files(ctx, ctx.attr.files, written = _WRITTEN)
++    prelude = link_pub_files(ctx, ctx.attr.files, written = _WRITTEN + [SOURCE_LOAD])
++    if ctx.path(ctx.attr.files).dirname.get_child(SOURCE_LOAD).exists:
++        # A Flutter SDK package's files link into its release's extracted
++        # source, which a vendored build must set up too.
++        prelude += flutter_source_load(ctx.attr.files)
+     android = ctx.path(ctx.attr.files).dirname.get_child("android")
+     if android.is_dir:
+         # Unwatched, as `link_pub_files` reads the root: the files repository
+diff --git a/flutter/private/flutter_source_files.bzl b/flutter/private/flutter_source_files.bzl
+index 8df2af6d..c1f86f70 100644
+--- a/flutter/private/flutter_source_files.bzl
++++ b/flutter/private/flutter_source_files.bzl
+@@ -1,4 +1,4 @@
+-"""A repository holding one Flutter SDK package's files, and nothing generated.
++"""The repositories holding the Flutter SDK packages' files, and nothing generated.
+ 
+ A Flutter SDK package other than `package:flutter` (`flutter_test`,
+ `integration_test`, ...) is `packages/<name>` of the pinned Flutter source. Its
+@@ -6,13 +6,19 @@ source repository (`flutter_pub_package`) generates its build from
+ rules_flutter's and rules_dart's Starlark, so the cache key Bazel stores that
+ repository under changes with every edit to that Starlark. Were the package's
+ files stored in it, Bazel's repository contents cache would keep another copy
+-of them for each. So they are extracted into a repository of their own, defined
+-here with only the fetching code loaded, which the source repository links in
+-with rules_dart's `link_pub_files`, as it does a hosted or git package's
++of them for each. So they are kept in repositories of their own, defined here
++with only the fetching code loaded, which the source repository links in with
++rules_dart's `link_pub_files`, as it does a hosted or git package's
+ (`pub_archive_files`, `pub_git_files`).
+ 
++The source tarball holds the whole monorepo, engine included, so an extraction
++from it reads all of it, however little it keeps. `flutter_source_packages`
++extracts all of `packages/` once per release, and each package's
++`flutter_source_files` links its directory from there, so a build that uses
++several SDK packages reads the tarball once rather than once for each.
++
+ Keep this file's loads to the fetching code: each `.bzl` it loads is part of
+-the key of every such package's files.
++the key of every release's packages.
+ """
+ 
+ load("@rules_dart//dart/pub:pub_files_root.bzl", "write_pub_files_root")
+@@ -34,21 +40,72 @@ def flutter_sdk_files_identity(flutter_version, sha256):
+ 
+     Args:
+         flutter_version: Its `flutter_version`.
+-        sha256: Its `sha256`.
++        sha256: The `sha256` of its release's `flutter_source_packages`.
+ 
+     Returns:
+         The identity: the Flutter release and the digest of its source.
+     """
+     return "flutter {} sha256:{}".format(flutter_version, sha256)
+ 
+-def _flutter_source_files_impl(rctx):
++# The file at the root of a release's `flutter_source_packages`, and of each of
++# its `flutter_source_files`, whose load makes Bazel set that repository up.
++# Links into it name it in the output base that builds, so a repository whose
++# files link there must load this before they are read through: a vendored
++# repository is never fetched again, so nothing else would set it up.
++SOURCE_LOAD = "flutter_source.bzl"
++
++def flutter_source_load(repo_file):
++    """The load that makes Bazel set up a release's `flutter_source_packages` before links into it are read.
++
++    Args:
++        repo_file: The label of a file at the root of the release's
++            `flutter_source_packages`, or of one of its `flutter_source_files`.
++
++    Returns:
++        The load statement, for the start of a BUILD file.
++    """
++    return 'load("{}", "FLUTTER_SOURCE")\n'.format(repo_file.same_package_label(SOURCE_LOAD))
++
++def _flutter_source_packages_impl(rctx):
+     # The tarball is the one every consumer of the framework source fetches,
+     # pinned to the same digest, so Bazel's repository cache serves it to all
+-    # of them from one download. Only the one package is extracted, straight
+-    # to the root. Extracting a prefix the archive lacks fails with a message
+-    # about archive prefixes that names neither the package nor the lock, and
+-    # a failed extraction cannot be caught, so the package is first looked up
+-    # in `packages`, the release's own list of them.
++    # of them from one download. Only `packages/` is extracted, to the root.
++    version = rctx.attr.flutter_version
++    rctx.download_and_extract(
++        url = flutter_source_tarball_url(version),
++        sha256 = pinned(version + ".tar.gz", rctx.attr.sha256),
++        stripPrefix = "flutter-{}/packages".format(version),
++    )
++    rctx.file("BUILD.bazel", "")
++    rctx.file(SOURCE_LOAD, "FLUTTER_SOURCE = {}\n".format(json.encode(version)))
++    return rctx.repo_metadata(reproducible = True)
++
++flutter_source_packages = repository_rule(
++    implementation = _flutter_source_packages_impl,
++    attrs = {
++        "flutter_version": attr.string(
++            doc = "The Flutter version whose pinned source tarball holds the packages.",
++            mandatory = True,
++        ),
++        "sha256": attr.string(
++            doc = "The recorded digest of that tarball (`flutter_source_sha256`).",
++            mandatory = True,
++        ),
++    },
++    doc = "Extracts `packages/` of the pinned Flutter source, for each `flutter_source_files` of the release to link from.",
++)
++
++# Bazel's own root names, which would make the root another package or
++# repository: a package's entry of one of these names is not linked in, as
++# rules_dart's `link_pub_files` links none. framework_source.bzl's
++# `NEVER_LINKED` is the same list; loading it here would make its loads part of
++# the key of `flutter_source_packages`.
++_NOT_LINKED = ["BUILD", "BUILD.bazel", "MODULE.bazel", "REPO.bazel", "WORKSPACE", "WORKSPACE.bazel", "WORKSPACE.bzlmod"]
++
++def _flutter_source_files_impl(rctx):
++    # A package the source lacks has no directory to link, and nothing would
++    # say why, so the package is first looked up in `packages`, the release's
++    # own list of them.
+     name = rctx.attr.package_name
+     version = rctx.attr.flutter_version
+     if not rctx.attr.packages:
+@@ -60,17 +117,27 @@ def _flutter_source_files_impl(rctx):
+         # The pub extension declares no files repository for a package its
+         # SDK does not have, so that only a build of that SDK fails.
+         fail(missing_sdk_package_message(name, version))
+-    rctx.download_and_extract(
+-        url = flutter_source_tarball_url(version),
+-        sha256 = pinned(version + ".tar.gz", rctx.attr.sha256),
+-        stripPrefix = "flutter-{}/packages/{}".format(version, name),
+-    )
++
++    # Unwatched: the release's packages change only with their repository's
++    # attributes, and `rctx.path(source)` already makes this repository depend
++    # on that repository.
++    package_dir = rctx.path(rctx.attr.source).dirname.get_child(name)
++    for child in package_dir.readdir(watch = "no"):
++        if child.basename not in _NOT_LINKED:
++            rctx.symlink(child, child.basename)
+ 
+     # The root's marker and the file whose load `link_pub_files` returns, so
+     # Bazel sets this repository up before the links are read through, as in
+-    # a vendored build.
++    # a vendored build; and the file whose load sets up the repository these
++    # links name in turn.
+     write_pub_files_root(rctx)
+-    return rctx.repo_metadata(reproducible = True)
++    rctx.file(SOURCE_LOAD, 'load("{}", _FLUTTER_SOURCE = "FLUTTER_SOURCE")\n\nFLUTTER_SOURCE = _FLUTTER_SOURCE\n'.format(
++        rctx.attr.source.same_package_label(SOURCE_LOAD),
++    ))
++
++    # Never reproducible: the files are links into this output base's
++    # `flutter_source_packages`, which a cached copy would not link into.
++    return rctx.repo_metadata(reproducible = False)
+ 
+ flutter_source_files = repository_rule(
+     implementation = _flutter_source_files_impl,
+@@ -80,18 +147,19 @@ flutter_source_files = repository_rule(
+             mandatory = True,
+         ),
+         "flutter_version": attr.string(
+-            doc = "The Flutter version whose pinned source tarball holds the package.",
++            doc = "The Flutter version whose source holds the package, for messages.",
+             mandatory = True,
+         ),
+-        "sha256": attr.string(
+-            doc = "The recorded digest of that tarball (`flutter_source_sha256`).",
++        "source": attr.label(
++            doc = "The `BUILD.bazel` of the release's `flutter_source_packages`.",
++            allow_single_file = True,
+             mandatory = True,
+         ),
+         "packages": attr.string_list(
+             doc = "The packages under `packages/` of that source (`flutter_sdk_packages`). A `package_name` " +
+-                  "not among them fails the fetch, before anything is downloaded, saying to re-resolve the lock.",
++                  "not among them fails the fetch, before anything is linked, saying to re-resolve the lock.",
+             mandatory = True,
+         ),
+     },
+-    doc = "Extracts `packages/<package_name>` of the pinned Flutter source, for `flutter_pub_package` to link in.",
++    doc = "Links `packages/<package_name>` of the pinned Flutter source, for `flutter_pub_package` to link in.",
+ )
+diff --git a/flutter/private/generated_repos.bzl b/flutter/private/generated_repos.bzl
+index 597b09a3..a5401f2a 100644
+--- a/flutter/private/generated_repos.bzl
++++ b/flutter/private/generated_repos.bzl
+@@ -42,7 +42,7 @@ load(":flutter_pub_library.bzl", _flutter_pub_library = "flutter_pub_library", _
+ load(":flutter_pub_library_repo.bzl", _flutter_pub_library_repo = "flutter_pub_library_repo")
+ load(":flutter_pub_package.bzl", _flutter_pub_package = "flutter_pub_package")
+ load(":flutter_sky_engine_repo.bzl", _flutter_sky_engine_repo = "flutter_sky_engine_repo")
+-load(":flutter_source_files.bzl", _flutter_source_files = "flutter_source_files")
++load(":flutter_source_files.bzl", _flutter_source_files = "flutter_source_files", _flutter_source_packages = "flutter_source_packages")
+ load(":flutter_swift_packages_report.bzl", _flutter_swift_packages_report = "flutter_swift_packages_report")
+ load(":flutter_test.bzl", _flutter_test = "flutter_test")
+ load(":flutter_web_sdk_repo.bzl", _flutter_web_sdk_repo = "flutter_web_sdk_repo")
+@@ -84,6 +84,7 @@ flutter_pub_member = _flutter_pub_member
+ flutter_pub_package = _flutter_pub_package
+ flutter_sky_engine_repo = _flutter_sky_engine_repo
+ flutter_source_files = _flutter_source_files
++flutter_source_packages = _flutter_source_packages
+ flutter_swift_package_product = _flutter_swift_package_product
+ flutter_swift_packages_report = _flutter_swift_packages_report
+ flutter_swiftpm_app_libraries = _flutter_swiftpm_app_libraries
+diff --git a/flutter/private/pub_extension.bzl b/flutter/private/pub_extension.bzl
+index ebdccf03..e413b803 100644
+--- a/flutter/private/pub_extension.bzl
++++ b/flutter/private/pub_extension.bzl
+@@ -21,13 +21,13 @@ load("//flutter/private:flutter_face_repo.bzl", "flutter_face_repo")
+ load("//flutter/private:flutter_framework_package.bzl", "flutter_framework_package")
+ load("//flutter/private:flutter_gen_l10n_repo.bzl", "flutter_gen_l10n_repo")
+ load("//flutter/private:flutter_pub_goldens.bzl", "flutter_pub_goldens")
+-load("//flutter/private:flutter_pub_index.bzl", "ANDROID_MAVEN_REPO", "APPLE_APP_SETTINGS_REPO", "GOLDENS_REPO", "INDEX_REPO", "SPOKE_PREFIX", "android_maven_requirements_repo", "apple_app_libraries_repo", "files_repo", "flutter_pub_index", "index_repo", "library_repo", "pubspec_repo", "sdk_prefix", "source_repo")
++load("//flutter/private:flutter_pub_index.bzl", "ANDROID_MAVEN_REPO", "APPLE_APP_SETTINGS_REPO", "GOLDENS_REPO", "INDEX_REPO", "SPOKE_PREFIX", "android_maven_requirements_repo", "apple_app_libraries_repo", "files_repo", "flutter_pub_index", "index_repo", "library_repo", "pubspec_repo", "sdk_prefix", "sdk_source_repo", "source_repo")
+ load("//flutter/private:flutter_pub_library_repo.bzl", "flutter_pub_library_repo")
+ load("//flutter/private:flutter_pub_lock_hub.bzl", "flutter_pub_lock_hub")
+ load("//flutter/private:flutter_pub_package.bzl", "flutter_pub_package", "flutter_pub_path_package")
+ load("//flutter/private:flutter_resolved_package.bzl", "flutter_resolved_package")
+ load("//flutter/private:flutter_sdks_repo.bzl", "SDKS_FILE", "decode_sdks")
+-load("//flutter/private:flutter_source_files.bzl", "flutter_sdk_files_identity", "flutter_source_files", "missing_sdk_package_message")
++load("//flutter/private:flutter_source_files.bzl", "flutter_sdk_files_identity", "flutter_source_files", "flutter_source_packages", "missing_sdk_package_message")
+ load("//flutter/private:flutter_unsupported_package.bzl", "flutter_unsupported_package", "ignored_package_message", "unsupported_package_message")
+ load("//flutter/private:lock_entry_kind.bzl", "ENGINE_PROVIDED", "FLUTTER_FRAMEWORK", "FLUTTER_SOURCE", "GIT", "HOSTED", "IGNORED", "LOCAL", "PATH", "UNSUPPORTED", "lock_entry_kind")
+ load("//flutter/private:pub_cycles.bzl", "module_cycles", "plan_cycles")
+@@ -308,6 +308,25 @@ def _framework_variants(sdks):
+         prefixes[name] = key_prefix[key]
+     return prefixes
+ 
++def _source_packages(sources, version):
++    """The label `flutter_source_packages` of `version` is read through, declaring it on first use.
++
++    Args:
++        sources: The versions declared so far, which this adds to.
++        version: The Flutter release.
++
++    Returns:
++        The label of the repository's `BUILD.bazel`.
++    """
++    if version not in sources:
++        flutter_source_packages(
++            name = sdk_source_repo(version),
++            flutter_version = version,
++            sha256 = flutter_source_sha256(version),
++        )
++        sources[version] = "@{}//:BUILD.bazel".format(sdk_source_repo(version))
++    return sources[version]
++
+ def _framework_representatives(sdks, prefixes):
+     """For each prefix that holds framework packages, the SDKs whose they are: the release first, then by name.
+ 
+@@ -695,6 +714,9 @@ def _declare_pub_packages(module_ctx, tags, settings, annotations, sdks, user_ov
+     # The packages with an Apple repository: a Flutter SDK package has one per
+     # framework.
+     apple_packages = {}
++
++    # The releases whose source packages are declared, by version.
++    sources = {}
+     for name, e in sorted(chosen.items()):
+         if e.kind == UNSUPPORTED:
+             flutter_unsupported_package(
+@@ -719,7 +741,7 @@ def _declare_pub_packages(module_ctx, tags, settings, annotations, sdks, user_ov
+                     name = source_repo(name, prefix),
+                     flutter_version = sdk.version or "",
+                     framework_json = framework_json(sdk.framework) if sdk.framework else None,
+-                    sha256 = flutter_source_sha256(sdk.version) if sdk.version and not sdk.framework else "",
++                    source = _source_packages(sources, sdk.version) if sdk.version and not sdk.framework else None,
+                     sdks = [s.name for s in sharers],
+                     prefix = prefix,
+                 )
+@@ -811,7 +833,7 @@ def _declare_pub_packages(module_ctx, tags, settings, annotations, sdks, user_ov
+                             name = files_repo(name, prefix),
+                             package_name = name,
+                             flutter_version = sdk.version,
+-                            sha256 = flutter_source_sha256(sdk.version),
++                            source = _source_packages(sources, sdk.version),
+                             packages = packages,
+                         )
+                         files = pub_files_label(files_repo(name, prefix))

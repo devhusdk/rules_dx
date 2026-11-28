@@ -1323,6 +1323,9 @@ dx_pins.archive(
         "//patches/rules_julia:fixed_heap_addresses.patch",
         "//patches/rules_julia:stable_sysimage_paths.patch",
         "//patches/rules_julia:julia_1_13.patch",
+        "//patches/rules_julia:toolchain_aliases.patch",
+        "//patches/rules_julia:toolchain_type_alias.patch",
+        "//patches/rules_julia:version_alias.patch",
     ],
     pins = "//julia:pins.json",
 )
@@ -1987,8 +1990,6 @@ register_toolchains("@dx_toolchains//julia:all")
 register_toolchains("@dx_toolchains//dotnet:all")
 
 register_toolchains("@dx_toolchains//ruby:all")
-
-register_toolchains("@julia_toolchains//:all")
 
 julia_pkg_dev = use_extension("//julia:extensions.bzl", "julia", dev_dependency = True)
 julia_pkg_dev.from_manifest(

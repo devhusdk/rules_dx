@@ -3,7 +3,7 @@
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//core/modules:versions.bzl", "JULIA_VERSION")
 
-_VERSION_SETTING = "@rules_julia//julia/settings:version"
+_VERSION_SETTING = str(Label("//julia/private/runtime:version"))
 
 def _pin_version_impl(_settings, _attr):
     return {_VERSION_SETTING: JULIA_VERSION}

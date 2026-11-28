@@ -4,9 +4,9 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_go//go:def.bzl", "GoArchive", "GoInfo")
 load("@rules_go//go/private:providers.bzl", "GoStdLib")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
 load("//core/quality:policy.bzl", "QualityPolicyInfo")
 load("//core/quality:sources.bzl", "single_target")
+load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs")
 
 GO_TOOLCHAIN_TYPE = "@rules_go//go:toolchain"
 
@@ -136,7 +136,7 @@ def _go_analysis_impl(target, ctx):
         exports.append(data.export_file)
         if data.importpath and data.importpath != data.importmap:
             import_map[data.importpath] = data.importmap
-    stdlib = ctx.attr._go_stdlib[GoStdLib]
+    stdlib = ctx.rule.attr._go_context_data[GoStdLib]
     toolchain = ctx.toolchains[GO_TOOLCHAIN_TYPE]
     cgo_dirs = [data.cgo_out_dir for data in own if data.importpath == importpath] if is_test else [archive.data.cgo_out_dir]
     cgo_go_srcs = None if mode.pure or not cgo_dirs else cgo_dirs[0]
@@ -178,7 +178,6 @@ go_analysis_aspect = aspect(
     doc = "Runs the dx Go analysis drivers once per rules_go package against the compiled export data of its direct dependencies.",
     attr_aspects = ["upstream"],
     attrs = {
-        "_go_stdlib": attr.label(default = "@rules_go//:stdlib"),
         "_policy": attr.label(
             default = "//config:workspace",
             providers = [QualityPolicyInfo],

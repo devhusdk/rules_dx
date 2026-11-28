@@ -80,7 +80,6 @@ runs:
         {
           echo "common --repository_cache=$cache"
           echo "common --repo_contents_cache=$contents"
-          echo "startup --experimental_remote_repo_contents_cache"
           echo "test --sandbox_writable_path=$nested"
           echo "test --test_env=DX_NESTED_SHARED=$nested"
           echo "startup --host_jvm_args=-XX:MaxRAMPercentage=$heap"

@@ -35,7 +35,7 @@ load("//fortran/private/quality:fortran.bzl", _FORTRAN_HOOKS = "HOOKS", _FORTRAN
 load("//go/private/quality:go.bzl", _GO_HOOKS = "HOOKS", _GO_SHARD_SPECS = "SHARD_SPECS", _GO_TOOLS = "TOOLS", _real_go_format_aspect = "real_go_format_aspect", _real_go_format_probe_aspect = "real_go_format_probe_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_lint_probe_aspect = "real_go_lint_probe_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _real_go_typecheck_probe_aspect = "real_go_typecheck_probe_aspect")
 load("//haskell/private/quality:haskell.bzl", _HASKELL_HOOKS = "HOOKS", _HASKELL_SHARD_SPECS = "SHARD_SPECS", _HASKELL_TOOLS = "TOOLS", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_format_probe_aspect = "real_haskell_format_probe_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_lint_probe_aspect = "real_haskell_lint_probe_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _real_haskell_typecheck_probe_aspect = "real_haskell_typecheck_probe_aspect")
 load("//java/private/quality:jvm.bzl", _JVM_HOOKS = "HOOKS", _JVM_RECOGNIZER = "RECOGNIZER", _JVM_SHARD_SPECS = "SHARD_SPECS", _JVM_TOOLS = "TOOLS", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect")
-load("//javascript/private/quality:js.bzl", _JS_HOOKS = "HOOKS", _JS_SHARD_SPECS = "SHARD_SPECS", _JS_TOOLS = "TOOLS", _real_js_format_aspect = "real_js_format_aspect", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
+load("//javascript/private/quality:js.bzl", _JS_HOOKS = "HOOKS", _JS_SHARD_SPECS = "SHARD_SPECS", _JS_TOOLS = "TOOLS", _real_js_eslint_lint_aspect = "real_js_eslint_lint_aspect", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_gplint_lint_aspect = "real_js_gplint_lint_aspect", _real_js_graphql_eslint_lint_aspect = "real_js_graphql_eslint_lint_aspect", _real_js_graphql_eslint_typecheck_aspect = "real_js_graphql_eslint_typecheck_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_prettier_format_aspect = "real_js_prettier_format_aspect", _real_js_redocly_lint_aspect = "real_js_redocly_lint_aspect", _real_js_remark_format_aspect = "real_js_remark_format_aspect", _real_js_stylelint_lint_aspect = "real_js_stylelint_lint_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
 load("//julia/private/quality:julia.bzl", _JULIA_HOOKS = "HOOKS", _JULIA_SHARD_SPECS = "SHARD_SPECS", _JULIA_TOOLS = "TOOLS", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_format_probe_aspect = "real_julia_format_probe_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_lint_probe_aspect = "real_julia_lint_probe_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _real_julia_typecheck_probe_aspect = "real_julia_typecheck_probe_aspect")
 load("//kotlin/private/quality:kotlin.bzl", _KOTLIN_HOOKS = "HOOKS", _KOTLIN_SHARD_SPECS = "SHARD_SPECS", _KOTLIN_TOOLS = "TOOLS", _real_kotlin_format_aspect = "real_kotlin_format_aspect", _real_kotlin_format_probe_aspect = "real_kotlin_format_probe_aspect", _real_kotlin_lint_aspect = "real_kotlin_lint_aspect", _real_kotlin_lint_probe_aspect = "real_kotlin_lint_probe_aspect", _real_kotlin_typecheck_aspect = "real_kotlin_typecheck_aspect", _real_kotlin_typecheck_probe_aspect = "real_kotlin_typecheck_probe_aspect")
 load("//kubernetes/private/quality:kubernetes.bzl", _KUBERNETES_HOOKS = "HOOKS", _KUBERNETES_SHARD_SPECS = "SHARD_SPECS", _KUBERNETES_TOOLS = "TOOLS", _real_kubernetes_format_aspect = "real_kubernetes_format_aspect", _real_kubernetes_format_probe_aspect = "real_kubernetes_format_probe_aspect", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _real_kubernetes_lint_probe_aspect = "real_kubernetes_lint_probe_aspect")
@@ -338,13 +338,25 @@ real_jvm_typecheck_probe_aspect = _real_jvm_typecheck_probe_aspect
 
 real_pkl_lint_aspect = _real_pkl_lint_aspect
 
-real_js_format_aspect = _real_js_format_aspect
+real_js_eslint_lint_aspect = _real_js_eslint_lint_aspect
 
 real_js_format_probe_aspect = _real_js_format_probe_aspect
 
-real_js_lint_aspect = _real_js_lint_aspect
+real_js_gplint_lint_aspect = _real_js_gplint_lint_aspect
+
+real_js_graphql_eslint_lint_aspect = _real_js_graphql_eslint_lint_aspect
+
+real_js_graphql_eslint_typecheck_aspect = _real_js_graphql_eslint_typecheck_aspect
 
 real_js_lint_probe_aspect = _real_js_lint_probe_aspect
+
+real_js_prettier_format_aspect = _real_js_prettier_format_aspect
+
+real_js_redocly_lint_aspect = _real_js_redocly_lint_aspect
+
+real_js_remark_format_aspect = _real_js_remark_format_aspect
+
+real_js_stylelint_lint_aspect = _real_js_stylelint_lint_aspect
 
 real_js_typecheck_aspect = _real_js_typecheck_aspect
 
@@ -786,8 +798,14 @@ _SHARD_ASPECTS = {
     "real_haskell_typecheck": _real_haskell_typecheck_aspect,
     "real_html_template_format": _real_html_template_format_aspect,
     "real_html_template_lint": _real_html_template_lint_aspect,
-    "real_js_format": _real_js_format_aspect,
-    "real_js_lint": _real_js_lint_aspect,
+    "real_js_eslint_lint": _real_js_eslint_lint_aspect,
+    "real_js_gplint_lint": _real_js_gplint_lint_aspect,
+    "real_js_graphql_eslint_lint": _real_js_graphql_eslint_lint_aspect,
+    "real_js_graphql_eslint_typecheck": _real_js_graphql_eslint_typecheck_aspect,
+    "real_js_prettier_format": _real_js_prettier_format_aspect,
+    "real_js_redocly_lint": _real_js_redocly_lint_aspect,
+    "real_js_remark_format": _real_js_remark_format_aspect,
+    "real_js_stylelint_lint": _real_js_stylelint_lint_aspect,
     "real_js_typecheck": _real_js_typecheck_aspect,
     "real_jsonnet_format": _real_jsonnet_format_aspect,
     "real_jsonnet_lint": _real_jsonnet_lint_aspect,

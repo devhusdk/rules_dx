@@ -102,7 +102,7 @@ examples/   tested examples
 - There is one tool hub, `@dx_npm_tools`. Its `package.json`, `pnpm-lock.yaml` and launcher live in `javascript/private/quality/`.
 - No other directory holds a tool `package.json`, a tool lockfile or a second `npm_translate_lock` for tools.
 - Every Node tool has one target in `javascript/private/quality/bin/`.
-- `javascript/private/quality/js.bzl` defines the `js` shard: the `real_js_*` aspects and probes, and runs every Node tool in the tool table.
+- `javascript/private/quality/js.bzl` defines one shard per Node tool, plus the `js` shard for `tsc`: the `real_js_*` aspects and probes. A check resolves only the Node tools its targets run.
 - `javascript/private/quality/js_tools.bzl` holds the rows of Biome, ESLint, remark, Stylelint and `tsc`. The rows of Prettier, graphql-eslint, gplint and Redocly are in `core/quality/families/core_tools.bzl`.
 - `typescript/private/quality/` holds the `tsc` aspect and its report. Its tool defaults point at the hub.
 - The manifests of javascript, typescript, astro, mdx, svelte and vue name `javascript/private/quality:js.bzl` as their quality file.

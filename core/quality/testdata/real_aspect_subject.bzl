@@ -70,10 +70,16 @@ load(
     "real_haskell_typecheck_aspect",
     "real_html_template_format_aspect",
     "real_html_template_lint_aspect",
-    "real_js_format_aspect",
+    "real_js_eslint_lint_aspect",
     "real_js_format_probe_aspect",
-    "real_js_lint_aspect",
+    "real_js_gplint_lint_aspect",
+    "real_js_graphql_eslint_lint_aspect",
+    "real_js_graphql_eslint_typecheck_aspect",
     "real_js_lint_probe_aspect",
+    "real_js_prettier_format_aspect",
+    "real_js_redocly_lint_aspect",
+    "real_js_remark_format_aspect",
+    "real_js_stylelint_lint_aspect",
     "real_js_typecheck_aspect",
     "real_js_typecheck_probe_aspect",
     "real_jsonnet_format_aspect",
@@ -252,8 +258,13 @@ _REAL_ASPECTS = [
     real_flatbuffers_lint_aspect,
     real_thrift_lint_aspect,
     real_avro_lint_aspect,
-    real_js_lint_aspect,
-    real_js_format_aspect,
+    real_js_eslint_lint_aspect,
+    real_js_gplint_lint_aspect,
+    real_js_graphql_eslint_lint_aspect,
+    real_js_redocly_lint_aspect,
+    real_js_stylelint_lint_aspect,
+    real_js_prettier_format_aspect,
+    real_js_remark_format_aspect,
     real_protobuf_format_aspect,
     real_powershell_format_aspect,
     real_powershell_lint_aspect,
@@ -278,6 +289,7 @@ _REAL_ASPECTS = [
     real_julia_lint_aspect,
     real_rego_format_aspect,
     real_rego_lint_aspect,
+    real_js_graphql_eslint_typecheck_aspect,
     real_js_typecheck_aspect,
     real_jvm_typecheck_aspect,
     real_d_typecheck_aspect,
@@ -370,7 +382,7 @@ real_beam_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_erlang_lint_aspec
 
 real_dotnet_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_dotnet_lint_aspect, real_dotnet_format_aspect, real_dotnet_typecheck_aspect])
 
-real_js_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_js_lint_aspect, real_js_format_aspect, real_js_typecheck_aspect])
+real_js_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_js_eslint_lint_aspect, real_js_gplint_lint_aspect, real_js_graphql_eslint_lint_aspect, real_js_redocly_lint_aspect, real_js_stylelint_lint_aspect, real_js_prettier_format_aspect, real_js_remark_format_aspect, real_js_graphql_eslint_typecheck_aspect, real_js_typecheck_aspect])
 
 real_python_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_python_lint_aspect, real_python_format_aspect, real_python_typecheck_aspect])
 

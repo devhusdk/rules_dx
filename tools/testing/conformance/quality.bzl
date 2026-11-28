@@ -18,7 +18,7 @@ load("//fortran/private/quality:fortran.bzl", "real_fortran_format_aspect", "rea
 load("//go/private/quality:go.bzl", "real_go_format_aspect", "real_go_lint_aspect")
 load("//haskell/private/quality:haskell.bzl", "real_haskell_format_aspect", "real_haskell_lint_aspect")
 load("//java/private/quality:jvm.bzl", "real_jvm_format_aspect", "real_jvm_lint_aspect", "real_pkl_lint_aspect")
-load("//javascript/private/quality:js.bzl", "real_js_format_aspect", "real_js_lint_aspect")
+load("//javascript/private/quality:js.bzl", "real_js_eslint_lint_aspect", "real_js_gplint_lint_aspect", "real_js_graphql_eslint_lint_aspect", "real_js_prettier_format_aspect", "real_js_redocly_lint_aspect", "real_js_remark_format_aspect", "real_js_stylelint_lint_aspect")
 load("//julia/private/quality:julia.bzl", "real_julia_format_aspect", "real_julia_lint_aspect")
 load("//kotlin/private/quality:kotlin.bzl", "real_kotlin_format_aspect", "real_kotlin_lint_aspect")
 load("//kubernetes/private/quality:kubernetes.bzl", "real_kubernetes_format_aspect", "real_kubernetes_lint_aspect")
@@ -103,9 +103,9 @@ java_format_subject = config_subject_rule([real_jvm_format_aspect])
 
 java_lint_subject = config_subject_rule([real_jvm_lint_aspect, real_pkl_lint_aspect])
 
-javascript_format_subject = config_subject_rule([real_js_format_aspect])
+javascript_format_subject = config_subject_rule([real_js_prettier_format_aspect, real_js_remark_format_aspect])
 
-javascript_lint_subject = config_subject_rule([real_js_lint_aspect])
+javascript_lint_subject = config_subject_rule([real_js_eslint_lint_aspect, real_js_gplint_lint_aspect, real_js_graphql_eslint_lint_aspect, real_js_redocly_lint_aspect, real_js_stylelint_lint_aspect])
 
 julia_format_subject = config_subject_rule([real_julia_format_aspect])
 

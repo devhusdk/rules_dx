@@ -1,7 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -171,7 +171,7 @@ fn ci_setup(
     }
     if dx_advisory_prep::needs_trivy(&options.workspace)? {
         options.trivy = Some(trivy.ok_or_else(|| PrepError::Usage {
-            detail: "--ci needs the bundled trivy (DX_TRIVY and RUNFILES_DIR)".to_owned(),
+            detail: "--ci needs the bundled trivy (DX_TRIVY in the runfiles)".to_owned(),
         })?);
         if let Some(path) = status_file {
             append_text(path, "trivy=true\n")?;
@@ -230,6 +230,10 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
         .into_iter()
         .map(|(family, path)| (family, anchor(root, path)))
         .collect();
+    let (cpansa_dump, cpansa_dump_env) = match cli.cpansa_dump {
+        Some(path) => (Some(anchor(root, path)), Vec::new()),
+        None => (bundled_tool("DX_CPANSA_DUMP"), bundled_runfiles_env()),
+    };
     Ok(PrepareOptions {
         workspace: anchor(root, cli.workspace.unwrap_or_else(|| PathBuf::from("."))),
         out: anchor(root, cli.out.unwrap_or_else(|| PathBuf::from(DEFAULT_OUT))),
@@ -237,10 +241,8 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
         limits,
         archives,
         cpansa_output: cli.cpansa_output.map(|path| anchor(root, path)),
-        cpansa_dump: cli
-            .cpansa_dump
-            .map(|path| anchor(root, path))
-            .or_else(|| bundled_tool("DX_CPANSA_DUMP")),
+        cpansa_dump,
+        cpansa_dump_env,
         trivy: cli.trivy.map(|path| anchor(root, path)),
         cargo_index: cli.cargo_index,
         pypi_index: cli.pypi_index,
@@ -249,8 +251,38 @@ fn options_from(cli: Cli, root: Option<&Path>) -> Result<PrepareOptions, PrepErr
 
 fn bundled_tool(variable: &str) -> Option<PathBuf> {
     let rlocation = std::env::var_os(variable)?;
-    let runfiles = std::env::var_os("RUNFILES_DIR")?;
-    Some(PathBuf::from(runfiles).join(rlocation))
+    runfiles::Runfiles::create()
+        .ok()?
+        .rlocation_from(Path::new(&rlocation), "")
+}
+
+/// The runfiles variables a bundled tool's launcher needs; `bazel run` leaves them unset.
+fn bundled_runfiles_env() -> Vec<(OsString, OsString)> {
+    let manifest = std::env::var_os(MANIFEST_FILE).filter(|value| !value.is_empty());
+    let tree = manifest
+        .is_none()
+        .then(runfiles::find_runfiles_dir)
+        .and_then(Result::ok);
+    runfiles_env(manifest, tree)
+}
+
+const MANIFEST_FILE: &str = "RUNFILES_MANIFEST_FILE";
+
+/// Points a child at the manifest when one is known, else at the runfiles tree.
+fn runfiles_env(manifest: Option<OsString>, tree: Option<PathBuf>) -> Vec<(OsString, OsString)> {
+    if let Some(manifest) = manifest {
+        return vec![(MANIFEST_FILE.into(), manifest)];
+    }
+    let Some(tree) = tree else {
+        return Vec::new();
+    };
+    let mut env = Vec::new();
+    let inner = tree.join("MANIFEST");
+    if inner.is_file() {
+        env.push((MANIFEST_FILE.into(), inner.into_os_string()));
+    }
+    env.push(("RUNFILES_DIR".into(), tree.into_os_string()));
+    env
 }
 
 fn limits_from(cli: &Cli) -> FetchLimits {

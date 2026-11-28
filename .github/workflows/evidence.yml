@@ -362,7 +362,7 @@ jobs:
           if [ "$DX_RELOCATE" = true ] && [ "$DX_TASK" = build ]; then
             bazel_bin="$(command -v bazel)"
             [ "$RUNNER_OS" != Windows ] || bazel_bin="$(cygpath -w "$bazel_bin")"
-            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
+            bazel run --noshow_progress //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
           elif [ "$DX_RELOCATE" = true ]; then
             base="$RUNNER_TEMP/relocated-base"
             rm -rf "$base"

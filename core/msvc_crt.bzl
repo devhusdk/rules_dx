@@ -15,6 +15,8 @@ DxMsvcCrtInfo = provider(
 
 _DYNAMIC = ["/MD", "/MDd"]
 
+_NOT_WINDOWS = DxMsvcCrtInfo(crt_static = False, dynamic = depset())
+
 MSVC_CRT_FROM_RUST = "//core:msvc_crt_from_rust"
 MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
 _FEATURES = "//command_line_option:features"
@@ -60,6 +62,8 @@ def _dynamic_compile(action):
     return action.mnemonic == "SwiftCompile" and not _swift_static_crt(argv)
 
 def _dx_msvc_crt_aspect_impl(target, ctx):
+    if not ctx.target_platform_has_constraint(ctx.attr._windows[platform_common.ConstraintValueInfo]):
+        return [_NOT_WINDOWS]
     crt_static = False
     dynamic = []
     transitive = []
@@ -86,7 +90,8 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
 dx_msvc_crt_aspect = aspect(
     implementation = _dx_msvc_crt_aspect_impl,
     attr_aspects = ["deps", "link_deps", "crate", "upstream"],
-    doc = "Records +crt-static Rust compiles, /MD C/C++ compiles and Swift compiles without -libc MT.",
+    attrs = {"_windows": attr.label(default = "@platforms//os:windows")},
+    doc = "Records +crt-static Rust compiles, /MD C/C++ compiles and Swift compiles without -libc MT on Windows.",
 )
 
 def dx_msvc_crt_validate(ctx):

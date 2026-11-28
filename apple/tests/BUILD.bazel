@@ -676,6 +676,7 @@ apple_hook_test(
         "prefixed=--llvm-cov=\t",
         "prefixed=--llvm-profdata=\t",
     ],
+    program = "apple_post_action_subcommand",
     target_under_test = "//tools/coverage/collect:apple_post_action",
 )
 

@@ -17,6 +17,13 @@ const ROOTS_REPO: &str = "dx_guard_roots";
 
 const API_SCOPE: &str = "dx_api_forwards_scope";
 
+const GUARD_STUB: &str = "@@rules_dx+//cli/prebuilt:guard_stub";
+
+// guard_view points every hub tool at guard_stub, so the stub and its cc_binary are expected.
+fn drop_guard_stub(found: &mut BTreeMap<String, BTreeSet<String>>) {
+    found.retain(|label, _| !matches!(label.strip_prefix(GUARD_STUB), Some("" | "_upstream")));
+}
+
 fn runfile(var: &str) -> Result<String, String> {
     let path = dx_testing::rlocation(dx_testing::env_text(var).trim())
         .map_err(|error| format!("{var}: {error}"))?;
@@ -168,6 +175,7 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
             .map(|line| format!("{}\n", consumer_line(line, &fixtures)))
             .collect();
         let mut found = compiled_binaries(&mapped);
+        drop_guard_stub(&mut found);
         matched_repos.extend(drop_rule_set_repos(&mut found, &list.repos_for(&[lang])));
         drop_jar_launchers(&mut found, |label| {
             Ok(
@@ -277,6 +285,27 @@ mod tests {
         }
         assert_eq!(twice, Vec::<String>::new(), "languages in two guard lists");
         assert_eq!(seen, fixtures);
+    }
+
+    #[test]
+    fn drop_guard_stub_keeps_other_binaries() {
+        let mut found: BTreeMap<String, BTreeSet<String>> = [
+            "@@rules_dx+//cli/prebuilt:guard_stub",
+            "@@rules_dx+//cli/prebuilt:guard_stub_upstream",
+            "@@rules_dx+//cli/prebuilt:guard_stub_other",
+            "@@rules_dx+//cli/launcher:exec_launcher",
+        ]
+        .into_iter()
+        .map(|label| (label.to_owned(), BTreeSet::new()))
+        .collect();
+        drop_guard_stub(&mut found);
+        assert_eq!(
+            found.into_keys().collect::<Vec<_>>(),
+            vec![
+                "@@rules_dx+//cli/launcher:exec_launcher".to_owned(),
+                "@@rules_dx+//cli/prebuilt:guard_stub_other".to_owned(),
+            ]
+        );
     }
 
     #[test]

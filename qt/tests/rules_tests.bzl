@@ -22,6 +22,8 @@ _MACOS_ARM64 = ["@platforms//os:macos", "@platforms//cpu:arm64"]
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
+_WINDOWS = ["@platforms//os:windows"]
+
 _COMPILER = str(Label("//cc:compiler"))
 
 def _unit_checks():
@@ -464,7 +466,7 @@ def _bridge_test_impl(ctx):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.true(env, argv[0].removesuffix(".exe").endswith("/dx"), "action runs " + argv[0])
+    asserts.true(env, argv[0].removesuffix(".exe").endswith("/qt_rust_bridge_subcommand"), "action runs " + argv[0])
     asserts.equals(env, ["qt_rust_bridge", "qt", "qt/tests/fixtures/qt_rust/model/ledger_model.rs", "qt/tests/fixtures/qt_rust/model/ledger_model"], argv[1:5], str(argv))
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
@@ -704,14 +706,14 @@ def qt_rules_tests(name):
         size = "small",
         crt_static = False,
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_crate",
-        target_compatible_with = QT_COMPATIBLE_WITH,
+        target_compatible_with = QT_COMPATIBLE_WITH + _WINDOWS,
     )
     _crt_static_test(
         name = name + "_rust_static_crt",
         size = "small",
         crt_static = True,
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_rust",
-        target_compatible_with = QT_COMPATIBLE_WITH,
+        target_compatible_with = QT_COMPATIBLE_WITH + _WINDOWS,
     )
     _bridge_test(
         name = name + "_bridge",

@@ -893,7 +893,7 @@ composite_group! {
 }
 
 flag_group! {
-    /// Do not rerun without the remote cache after a remote cache error.
+    /// Do not rerun Bazel after a remote cache error.
     NoRetryFlag, {
         #[arg(long = "no-retry", overrides_with = "no_retry")]
         no_retry: bool,

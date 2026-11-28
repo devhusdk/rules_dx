@@ -158,7 +158,7 @@ deployment = rule(
         ),
         "_size_checker": attr.label(
             cfg = "exec",
-            default = Label("@dx_prebuilt//:dx"),
+            default = Label("@dx_prebuilt//dx:size_checker"),
             executable = True,
         ),
         "build_mode": attr.string(

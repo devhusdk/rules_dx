@@ -7,7 +7,7 @@ use dx_plan::resolve::path_in_filter;
 use quality_result::{build_deps, decode_validated, proto};
 
 use crate::quality_reconcile::{Conflict, Producer, reconcile};
-use dx_exec_core::common::{FileChange, apply_to_bytes, collect_own_account};
+use dx_exec_core::common::{FileChange, apply_to_bytes, own_account};
 
 #[derive(Default)]
 struct Staged {
@@ -511,12 +511,12 @@ fn name_external_repos(
 }
 
 pub(crate) fn collect_results(
-    bep: &Path,
-    foreign: &BTreeSet<String>,
+    events: &dx_bep::OutputEvents,
+    foreign: &dx_bep::Foreign,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, dx_error::DxError> {
-    collect_results_in(bep, foreign, OUTPUT_GROUP, workspace, repo_mapping)
+    collect_results_in(events, foreign, OUTPUT_GROUP, workspace, repo_mapping)
 }
 
 fn account_problems(account: &dx_bep::OutputAccount) -> Vec<String> {
@@ -599,13 +599,13 @@ fn mark_removals_fixable(
 }
 
 pub(crate) fn collect_results_in(
-    bep: &Path,
-    foreign: &BTreeSet<String>,
+    events: &dx_bep::OutputEvents,
+    foreign: &dx_bep::Foreign,
     group: &str,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
 ) -> Result<Collected, dx_error::DxError> {
-    let account = collect_own_account(bep, group, workspace, foreign)?;
+    let account = own_account(events, group, workspace, foreign)?;
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
     let mut producers = Vec::new();

@@ -694,39 +694,7 @@ impl FakeRunner {
                 signal: None,
             });
         };
-        let files = shards
-            .iter()
-            .enumerate()
-            .map(|(index, shard)| {
-                let artifact = format!("{bep}.shards{index}.json");
-                std::fs::write(
-                    &artifact,
-                    serde_json::json!({ "shards": [shard] }).to_string(),
-                )?;
-                Ok(serde_json::json!({"uri": format!("file://{artifact}")}))
-            })
-            .collect::<io::Result<Vec<serde_json::Value>>>()?;
-        let mut lines = vec![
-            serde_json::json!({
-                "id": {"namedSet": {"id": "0"}},
-                "namedSetOfFiles": {"files": files},
-            })
-            .to_string(),
-            serde_json::json!({
-                "id": {"targetCompleted": {"label": "//test:corpus"}},
-                "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "0"}]}]},
-            })
-            .to_string(),
-        ];
-        if let Some(reason) = &self.probe_aborted {
-            lines.push(
-                serde_json::json!({
-                    "id": {"targetConfigured": {"label": "//test:broken"}},
-                    "aborted": {"reason": reason},
-                })
-                .to_string(),
-            );
-        }
+        let mut lines = shard_events(shards, bep, None, self.probe_aborted.as_deref())?;
         lines.push(
             self.probe_metrics
                 .clone()
@@ -738,6 +706,69 @@ impl FakeRunner {
             signal: None,
         })
     }
+}
+
+/// Writes one shard file per name and returns the events that report them as
+/// the `dx_shards` output of `//test:corpus`, or of `aspect` on it, plus an
+/// `//test:broken` target aborted for `aborted`.
+fn shard_events(
+    shards: &[String],
+    bep: &str,
+    aspect: Option<&str>,
+    aborted: Option<&str>,
+) -> io::Result<Vec<String>> {
+    let files = shards
+        .iter()
+        .enumerate()
+        .map(|(index, shard)| {
+            let artifact = format!("{bep}.shards{index}.json");
+            std::fs::write(
+                &artifact,
+                serde_json::json!({ "shards": [shard] }).to_string(),
+            )?;
+            Ok(serde_json::json!({"uri": format!("file://{artifact}")}))
+        })
+        .collect::<io::Result<Vec<serde_json::Value>>>()?;
+    let mut id = serde_json::json!({"label": "//test:corpus"});
+    if let Some(aspect) = aspect {
+        id["aspect"] = serde_json::json!(aspect);
+    }
+    let mut lines = vec![
+        serde_json::json!({
+            "id": {"namedSet": {"id": "shards"}},
+            "namedSetOfFiles": {"files": files},
+        })
+        .to_string(),
+        serde_json::json!({
+            "id": {"targetCompleted": id},
+            "completed": {"success": true, "outputGroup": [{"name": "dx_shards", "fileSets": [{"id": "shards"}]}]},
+        })
+        .to_string(),
+    ];
+    if let Some(reason) = aborted {
+        lines.push(
+            serde_json::json!({
+                "id": {"targetConfigured": {"label": "//test:broken"}},
+                "aborted": {"reason": reason},
+            })
+            .to_string(),
+        );
+    }
+    Ok(lines)
+}
+
+/// The probe aspect a check build runs alongside its own aspects, if any.
+fn folded_probe(argv: &[String]) -> Option<&str> {
+    let groups = argv
+        .iter()
+        .find_map(|arg| arg.strip_prefix("--output_groups="))?;
+    if !groups.split(',').any(|group| group == "dx_shards") {
+        return None;
+    }
+    argv.iter()
+        .find_map(|arg| arg.strip_prefix("--aspects="))?
+        .rsplit(',')
+        .next()
 }
 
 impl Runner for FakeRunner {
@@ -765,7 +796,18 @@ impl Runner for FakeRunner {
                 .iter()
                 .find_map(|arg| arg.strip_prefix("--build_event_json_file="))
         {
-            std::fs::write(bep, self.bep_lines.join("\n"))?;
+            let mut lines = self.bep_lines.clone();
+            if let (Some(shards), Some(probe)) = (&self.probe_shards, folded_probe(argv)) {
+                let last = lines
+                    .iter()
+                    .position(|line| line.contains("\"lastMessage\""))
+                    .unwrap_or(lines.len());
+                lines.splice(
+                    last..last,
+                    shard_events(shards, bep, Some(probe), self.probe_aborted.as_deref())?,
+                );
+            }
+            std::fs::write(bep, lines.join("\n"))?;
         }
         if let (Some(payload), Some(path)) = (
             &self.patch,
@@ -1307,10 +1349,24 @@ impl<R: Runner> Runner for AspectRunner<R> {
         };
         self.builds.borrow_mut().push(argv.to_vec());
         let passed: BTreeSet<&str> = aspects.split(',').map(dx_bep::aspect_key).collect();
+        let scope = build_labels(argv);
+        let built = |line: &str| {
+            let event: serde_json::Value = serde_json::from_str(line).unwrap_or_default();
+            let label = ["targetCompleted", "actionCompleted"]
+                .iter()
+                .find_map(|kind| event["id"][kind]["label"].as_str());
+            scope.is_empty()
+                || label.is_none_or(|label| {
+                    scope.iter().any(|arg| {
+                        dx_bep::target_key(arg)
+                            .is_none_or(|key| Some(key) == dx_bep::target_key(label))
+                    })
+                })
+        };
         let mut lines = Vec::new();
         let mut failed = false;
         for (owner, line) in &self.events {
-            if owner.is_none_or(|owner| passed.contains(dx_bep::aspect_key(owner))) {
+            if owner.is_none_or(|owner| passed.contains(dx_bep::aspect_key(owner))) && built(line) {
                 failed |= line.contains(r#""success":false"#);
                 lines.push(line.clone());
             }
@@ -1326,30 +1382,53 @@ impl<R: Runner> Runner for AspectRunner<R> {
     }
 }
 
+pub(crate) fn build_labels(argv: &[String]) -> Vec<String> {
+    argv.iter()
+        .filter(|arg| !arg.starts_with('-') && arg.contains("//"))
+        .cloned()
+        .collect()
+}
+
 pub(crate) fn aspect_events(
     harness: &Harness,
     aspect: &'static str,
     finding: &str,
     success: bool,
 ) -> Vec<(Option<&'static str>, String)> {
-    let name = dx_bep::aspect_key(aspect)
+    target_aspect_events(harness, "//test:corpus", aspect, finding, success)
+}
+
+pub(crate) fn target_aspect_events(
+    harness: &Harness,
+    label: &str,
+    aspect: &'static str,
+    finding: &str,
+    success: bool,
+) -> Vec<(Option<&'static str>, String)> {
+    let tool = dx_bep::aspect_key(aspect)
         .rsplit('%')
         .next()
         .expect("aspect name");
+    let slug: String = label
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let name = format!("{tool}{slug}");
+    let name = name.as_str();
     let result = if finding.is_empty() {
         harness.valid_result(vec![], vec![])
     } else {
         harness.valid_result(vec![Harness::diagnostic(finding, false)], vec![])
     };
     let result_uri = write_bep_artifact(harness, &format!("{name}.pb"), &result);
-    let note = format!("{name}-tool: skipped, not pinned for this platform\n");
+    let note = format!("{tool}-tool: skipped, not pinned for this platform\n");
     let skip_uri = write_bep_artifact(harness, &format!("{name}.skip"), note.as_bytes());
     let set = |id: String, uri: &str| {
         serde_json::json!({"id": {"namedSet": {"id": id}}, "namedSetOfFiles": {"files": [{"uri": uri}]}})
             .to_string()
     };
     let completed = serde_json::json!({
-        "id": {"targetCompleted": {"label": "//test:corpus", "aspect": aspect}},
+        "id": {"targetCompleted": {"label": label, "aspect": aspect}},
         "completed": {"success": success, "outputGroup": [
             {"name": "dx_results", "fileSets": [{"id": format!("{name}-r")}]},
             {"name": "dx_skips", "fileSets": [{"id": format!("{name}-s")}]},
@@ -1364,7 +1443,7 @@ pub(crate) fn aspect_events(
     if !success {
         let stderr = stderr_file(harness, name, "error: the tool failed\n");
         events.push(failed_action(
-            "//test:corpus",
+            label,
             "c1",
             "Lint",
             "out/corpus.lint",

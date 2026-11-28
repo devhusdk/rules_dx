@@ -15,7 +15,11 @@ fn serve_once() -> String {
         let mut buffer = [0u8; 4096];
         let read = stream.read(&mut buffer).expect("read");
         let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
-        let status = if request.starts_with("GET /pets/7 ") { "200 OK" } else { "404 Not Found" };
+        let status = if request.starts_with("GET /pets/7 ") {
+            "200 OK"
+        } else {
+            "404 Not Found"
+        };
         let body = if status == "200 OK" { BODY } else { "{}" };
         let response = format!(
             "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
@@ -29,7 +33,10 @@ fn serve_once() -> String {
 #[test]
 fn get_pet_decodes_fixture_response() {
     let base = serve_once();
-    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("runtime");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
     let pet = runtime
         .block_on(petstore::Client::new(&base).get_pet("7"))
         .expect("get_pet")

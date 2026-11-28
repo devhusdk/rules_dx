@@ -56,7 +56,7 @@ def _apk_set_action_impl(ctx):
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv if actions else []
     asserts.true(env, len(argv) >= 3, str(argv))
-    asserts.equals(env, "dx", argv[0].replace("\\", "/").split("/")[-1].removesuffix(".exe") if argv else "", str(argv))
+    asserts.equals(env, "android_ops", argv[0].replace("\\", "/").split("/")[-1].removesuffix(".exe") if argv else "", str(argv))
     asserts.equals(env, ["android_ops", "apk-set"], argv[1:3], str(argv))
     return analysistest.end(env)
 
@@ -67,6 +67,38 @@ def android_ops_tests(name, launcher, apk_set, size = "small"):
     _ops_launcher_test(name = name + "_launcher", size = size, target_under_test = launcher)
     _apk_set_action_test(name = name + "_apk_set", size = size, target_under_test = apk_set)
     native.test_suite(name = name, tests = [":" + name + "_launcher", ":" + name + "_apk_set"])
+
+def _analyzes_impl(ctx):
+    env = analysistest.begin(ctx)
+    return analysistest.end(env)
+
+_EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+
+_COMPILER = str(Label("//cc:compiler"))
+
+_msvc_crt_llvm_test = analysistest.make(_analyzes_impl, config_settings = {
+    _COMPILER: "llvm",
+    _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
+})
+
+_msvc_crt_msvc_test = analysistest.make(_analyzes_impl, config_settings = {
+    _COMPILER: "msvc",
+    _EXTRA_RUSTC_FLAG: ["-Ctarget-feature=+crt-static"],
+})
+
+def android_native_library_msvc_crt_tests(name, target, size = "small"):
+    """Asserts the host link of an android_native_library passes the MSVC CRT check under +crt-static Rust."""
+    tests = []
+    for compiler, rule in [("llvm", _msvc_crt_llvm_test), ("msvc", _msvc_crt_msvc_test)]:
+        test = "{}_{}".format(name, compiler)
+        rule(
+            name = test,
+            size = size,
+            target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+            target_under_test = target,
+        )
+        tests.append(":" + test)
+    native.test_suite(name = name, tests = tests)
 
 def android_native_library_tests(name, size = "small"):
     """Declares the android_native_library tests."""

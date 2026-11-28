@@ -37,7 +37,7 @@ Args after `--` go to Bazel.
 | `--fail-on info\|warning\|error` | Fail on findings of this severity or worse. Applies to `format`, `lint` and `typecheck`. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
 | `--max-findings <n>` | Print at most `n` findings per tool in JSON output. Default `50`. `0` means no limit. Needs `--output json`. |
-| `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
+| `--no-retry` | Do not run Bazel again after a remote cache error. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF file. Repeatable. `-` (stdout) is rejected. |
 | `--report lcov=<dest>` | With `--coverage`, write the lcov report of the coverage phase. Without `--coverage`, exits `2`. |
 | `--report sources=<dest>` | With `--coverage`, write the coverage sources report of the coverage phase. Without `--coverage`, exits `2`. |
@@ -68,7 +68,7 @@ Read [Scope defaults](scope-defaults.md) for details.
 
 - Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
 - `generate` compares each lock that a rules_dx lock step writes in a package the scope reaches with its manifest, offline: `<ecosystem>.lock.json`, `pubspec.lock` and a dx-written `maven_install.json`. A `maven_install.json` that rules_jvm_external pins is skipped. A `pubspec.lock` or `maven_install.json` without the dx marker is stale until one `dx generate --apply`. A stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and fails the run. A lock step that cannot run on your platform is skipped with `dx: lock of <set> not checked: <step> is incompatible with this platform`.
-- Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build. Each phase still reports only its own findings and exit code.
+- Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build, also with `--affected`. Each phase still reports only its own targets, findings and exit code.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
 - With `--apply`, dx runs `generate` again after `typecheck` when a phase wrote a file.

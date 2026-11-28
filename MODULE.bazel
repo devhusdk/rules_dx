@@ -86,6 +86,8 @@ single_version_override(
         "//patches/llvm:msvc_coverage.patch",
         "//patches/llvm:mingw_coff_no_timestamp.patch",
         "//patches/llvm:internal_symbolizer_linkmode.patch",
+        "//patches/llvm:runtime_config_reset.patch",
+        "//patches/llvm:runtime_go_race_reset.patch",
     ],
     version = "0.8.27",
 )
@@ -1207,6 +1209,7 @@ dx_pins.archive(
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
+        "//patches/rules_haskell:cabal_windows_relocatable.patch",
     ],
     pins = "//haskell:pins.json",
 )
@@ -1842,6 +1845,7 @@ use_repo(
     "dx_swift_libs_linux_x86_64",
     "dx_swift_linux_aarch64",
     "dx_swift_linux_x86_64",
+    "dx_swift_toolchain_impl",
     "dx_swift_toolchains",
     "dx_swift_windows_aarch64",
     "dx_swift_windows_x86_64",
@@ -1857,44 +1861,38 @@ swiftpm.lock(
 use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
-bazel_dep(name = "rules_dart", version = "0.9.1")
+bazel_dep(name = "rules_dart", version = "0.10.0")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = [
-        "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
         "//patches/rules_dart:windows_copy_links.patch",
-        "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
-        "//patches/rules_dart:dx_bzl_srcs.patch",
-        "//patches/rules_dart:windows_arm64_host.patch",
     ],
-    version = "0.9.1",
+    version = "0.10.0",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
-dart.toolchain(dart_version = "3.13.7")
+dart.toolchain(dart_version = "3.14.1")
 
 # floor: equals tested
-bazel_dep(name = "rules_flutter", version = "0.1.0")
+bazel_dep(name = "rules_flutter", version = "0.2.0")
 single_version_override(
     module_name = "rules_flutter",
     patch_strip = 1,
     patches = [
         "//patches/rules_flutter:lock_extension.patch",
-        "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_flutter:windows_golden_comparator.patch",
-        "//patches/rules_flutter:dx_bzl_srcs.patch",
-        "//patches/rules_flutter:deterministic_web_compile.patch",
         "//patches/rules_flutter:flutter_extension_loads.patch",
-        "//patches/rules_flutter:no_swift_packages.patch",
+        "//patches/rules_flutter:host_independent_extension.patch",
+        "//patches/rules_flutter:sdk_source_once.patch",
     ],
-    version = "0.1.0",
+    version = "0.2.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
-flutter.toolchain(flutter_version = "3.47.9")
+flutter.toolchain(flutter_version = "3.50.0")
 use_repo(
     flutter,
     "flutter_dev_root",
@@ -2638,15 +2636,8 @@ rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(
     edition = "2024",
     extra_target_triples = [
-        "aarch64-apple-ios",
-        "aarch64-apple-ios-sim",
-        "aarch64-pc-windows-msvc",
-        "aarch64-unknown-linux-gnu",
         "wasm32-unknown-unknown",
         "wasm32-wasip1",
-        "x86_64-apple-ios",
-        "x86_64-pc-windows-msvc",
-        "x86_64-unknown-linux-gnu",
     ],
     rustfmt_version = "1.99.1",
     target_settings = ["//config:toolchains_on"],

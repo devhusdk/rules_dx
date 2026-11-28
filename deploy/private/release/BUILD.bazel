@@ -101,6 +101,15 @@ rust_binary(
     deps = [":dx_release_tools"],
 )
 
+rust_binary(
+    name = "release_tool_subcommand",
+    srcs = ["src/bin_release_tool_subcommand.rs"],
+    crate_name = "release_tool_subcommand",
+    crate_root = "src/bin_release_tool_subcommand.rs",
+    visibility = ["//visibility:public"],
+    deps = [":dx_release_tools"],
+)
+
 rust_test(
     name = "dx_release_tools_test",
     size = "small",

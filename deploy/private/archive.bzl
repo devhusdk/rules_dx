@@ -9,7 +9,8 @@ load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":validate_archive.bzl", "consumer_identity_error")
 load(":validate_resources.bzl", "resource_path_error")
 
-_DX = Label("@dx_prebuilt//:dx")
+_ARCHIVER = Label("@dx_prebuilt//dx:archiver")
+_HASHER = Label("@dx_prebuilt//dx:hasher")
 
 def _archive_stage_impl(ctx):
     """Stages one executable as a single file preserving its basename."""
@@ -109,8 +110,8 @@ def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom =
         name = archive_target,
         srcs = [":" + stage_target],
         outs = [tarball],
-        tools = [_DX],
-        cmd = "$(location " + str(_DX) + ") archiver $(location :" + stage_target + ") $(OUTS)",
+        tools = [_ARCHIVER],
+        cmd = "$(location " + str(_ARCHIVER) + ") archiver $(location :" + stage_target + ") $(OUTS)",
         **attrs
     )
 
@@ -118,8 +119,8 @@ def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom =
         name = checksum_target,
         srcs = [":" + archive_target],
         outs = [checksum],
-        tools = [_DX],
-        cmd = "$(location " + str(_DX) + ") hasher $(location :" + archive_target + ") $(OUTS)",
+        tools = [_HASHER],
+        cmd = "$(location " + str(_HASHER) + ") hasher $(location :" + archive_target + ") $(OUTS)",
         **attrs
     )
 
@@ -370,7 +371,7 @@ _consumer_stage = rule(
         ),
         "_archiver": attr.label(
             cfg = "exec",
-            default = _DX,
+            default = _ARCHIVER,
             executable = True,
         ),
     } | PLATFORM_ATTRS,
@@ -417,7 +418,7 @@ _consumer_tarball = rule(
         ),
         "_archiver": attr.label(
             cfg = "exec",
-            default = _DX,
+            default = _ARCHIVER,
             executable = True,
         ),
     },
@@ -474,7 +475,7 @@ def consumer_archive(name, app, min_runtime, linkage = "dynamic", resources = []
         tags = tags,
         target_compatible_with = target_compatible_with,
         testonly = testonly,
-        tools = [_DX],
+        tools = [_HASHER],
         visibility = visibility,
-        cmd = "$(location " + str(_DX) + ") hasher $(location :" + archive_target + ") $(OUTS)",
+        cmd = "$(location " + str(_HASHER) + ") hasher $(location :" + archive_target + ") $(OUTS)",
     )

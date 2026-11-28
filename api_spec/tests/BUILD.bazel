@@ -1,15 +1,15 @@
 # gazelle:ignore
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//rust:defs.bzl", "rust_test")
-load(":codegen_tests.bzl", "go_client_action_test")
 load("//api_spec:defs.bzl", "api_spec_go_client", "api_spec_library", "api_spec_python_client", "api_spec_rust_client", "api_spec_typescript_client")
-load("//core/private/testing:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//go:defs.bzl", "go_library")
 load("//python:defs.bzl", "python_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load("//typescript:defs.bzl", "typescript_library", "typescript_test")
+load(":codegen_tests.bzl", "go_client_action_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -45,7 +45,6 @@ typescript_library(
     testonly = True,
     srcs = [":client"],
     declaration = True,
-    isolated_typecheck = False,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
 )
@@ -57,7 +56,7 @@ typescript_test(
     main = "client_ts_test.js",
     package_json = "//:package_json",
     runner = "node",
-    tsconfig = "tsconfig_test.json",
+    tsconfig = "tsconfig.json",
     deps = [":client_ts"],
 )
 
@@ -67,6 +66,7 @@ starlark_test(
         ":client": """export type Order =
 getOrder
 export type ProblemDetail =
+export const getOrder: typeof client.getOrder = client.getOrder;
 """,
     },
     mode = "execution",
@@ -142,11 +142,11 @@ codegen_shard_argv_test(
 python_test(
     name = "client_python_test",
     srcs = ["client_python_test.py"],
-    data = [":petstore_py"],
     dep_group = "dx-python-tools",
     main = "client_python_test.py",
     runner = "plain",
     deps = [
+        ":petstore_py",
         "@pypi//attrs",
         "@pypi//httpx",
     ],

@@ -1,12 +1,10 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
-    "deterministic_web_compile.patch",
-    "dx_bzl_srcs.patch",
     "flutter_extension_loads.patch",
+    "host_independent_extension.patch",
     "lock_extension.patch",
-    "no_swift_packages.patch",
-    "registrant_javacopts.patch",
+    "sdk_source_once.patch",
     "windows_golden_comparator.patch",
 ])
 

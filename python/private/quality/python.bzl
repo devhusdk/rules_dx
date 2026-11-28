@@ -51,10 +51,15 @@ def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if transitive == None:
         return real_context()
     search_dirs = []
+    search_paths = []
     for f in transitive.to_list():
-        if f.is_directory and f.short_path.endswith(".install"):
-            search_dirs.append(f)
-    return real_context(early_inputs = search_dirs, resolve_lists = [real_resolve_list(transitive, ["py", "pyi"])], options = {"search_paths": search_dirs})
+        if not f.is_directory:
+            continue
+        search_dirs.append(f)
+
+        # A generated package directory is imported from its parent.
+        search_paths.append(f.path if f.short_path.endswith(".install") else f.dirname)
+    return real_context(early_inputs = search_dirs, resolve_lists = [real_resolve_list(transitive, ["py", "pyi"])], options = {"search_paths": search_paths})
 
 HOOK_ORDER = ["ty"]
 

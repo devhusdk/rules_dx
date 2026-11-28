@@ -155,6 +155,8 @@ pub fn plan_build(
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Selection<'a> {
     pub shards: Option<&'a BTreeSet<String>>,
+    /// Probe aspects the build also runs, so it can check `shards` itself.
+    pub probes: &'a [&'static str],
     pub consumer: Option<Consumer<'a>>,
     pub unsafe_fixes: bool,
     pub online: bool,
@@ -189,6 +191,14 @@ pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<
         Some(consumer) => aspects_for(command, consumer),
         None => spec(command).aspects.to_vec(),
     }
+}
+
+#[must_use]
+pub fn command_probes(commands: &[Command], consumer: Option<Consumer<'_>>) -> Vec<&'static str> {
+    union(commands.iter().flat_map(|command| match consumer {
+        Some(consumer) => probes_for(*command, consumer),
+        None => spec(*command).probes.to_vec(),
+    }))
 }
 
 pub fn plan_shared_build(
@@ -237,11 +247,15 @@ fn selected_plan(
     startup_options: &[String],
     selection: Selection<'_>,
 ) -> Result<BuildPlan, DxError> {
-    let aspects = joined_labels(aspects.iter().copied());
+    let aspects = joined_labels(aspects.iter().chain(selection.probes).copied());
     let mut groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
     if selection.online {
         groups.push(',');
         groups.push_str(LINK_REQUEST_OUTPUT_GROUP);
+    }
+    if !selection.probes.is_empty() {
+        groups.push(',');
+        groups.push_str(SHARD_OUTPUT_GROUP);
     }
     let mut required = shaped_options(&aspects, &groups, bazel_options, bep_path);
     if selection.unsafe_fixes {
@@ -311,10 +325,7 @@ pub fn plan_shared_probe(
     startup_options: &[String],
     consumer: Option<Consumer<'_>>,
 ) -> Result<Option<BuildPlan>, DxError> {
-    let probes = union(commands.iter().flat_map(|command| match consumer {
-        Some(consumer) => probes_for(*command, consumer),
-        None => spec(*command).probes.to_vec(),
-    }));
+    let probes = command_probes(commands, consumer);
     if probes.is_empty() {
         return Ok(None);
     }
@@ -951,6 +962,7 @@ mod tests {
             &[],
             Selection {
                 shards: Some(&rust),
+                probes: &[],
                 consumer: None,
                 unsafe_fixes: false,
                 online: false,
@@ -960,6 +972,65 @@ mod tests {
         assert!(plan.argv.contains(
             &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//android/private/quality:android_sdk.bzl%android_sdk_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
         ));
+    }
+
+    #[test]
+    fn folded_probes_join_the_build_aspects_and_shard_group() {
+        let commands = [Command::Format, Command::Lint, Command::Typecheck];
+        let rust: BTreeSet<String> = ["real_rust_lint".to_owned()].into();
+        let probes = command_probes(&commands, None);
+        let plan = |probes: &[&'static str]| {
+            plan_shared_build(
+                &commands,
+                &resolved(&[]),
+                &[],
+                "out/bep.json",
+                &[],
+                Selection {
+                    shards: Some(&rust),
+                    probes,
+                    ..Selection::default()
+                },
+            )
+            .expect("plan")
+            .argv
+        };
+        let plain = plan(&[]);
+        let folded = plan(&probes);
+        let flag = |argv: &[String], name: &str| {
+            argv.iter()
+                .find_map(|arg| arg.strip_prefix(name))
+                .expect("flag")
+                .to_owned()
+        };
+        assert_eq!(
+            flag(&folded, "--aspects="),
+            format!(
+                "{},{}",
+                flag(&plain, "--aspects="),
+                joined_labels(probes.iter().copied())
+            )
+        );
+        assert_eq!(
+            flag(&folded, "--output_groups="),
+            format!("{},dx_shards", flag(&plain, "--output_groups="))
+        );
+        let rest = |argv: &[String]| -> Vec<String> {
+            argv.iter()
+                .filter(|arg| {
+                    !arg.starts_with("--aspects=") && !arg.starts_with("--output_groups=")
+                })
+                .cloned()
+                .collect()
+        };
+        assert_eq!(rest(&folded), rest(&plain));
+        let probe = plan_shared_probe(&commands, &resolved(&[]), &[], "out/bep.json", &[], None)
+            .expect("probe")
+            .expect("quality commands carry a probe");
+        assert_eq!(
+            flag(&probe.argv, "--aspects="),
+            joined_labels(probes.iter().copied())
+        );
     }
 
     #[test]

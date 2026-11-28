@@ -78,10 +78,10 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            targets: //tools/testing:nested_bazel_harness_test //examples/adopt-polyglot:consumer_test //deploy/private/release/tests:release_consumer_smoke_test
+            targets: //tools/testing:nested_bazel_harness_test //examples/adopt-polyglot:consumer_test //deploy/private/release/tests:release_consumer_smoke_test //tools/testing/hermetic:cpp_rust
           - platform: macos_arm64
             runner: macos-15
-            targets: //tools/testing:nested_bazel_harness_test //examples/adopt-polyglot:consumer_test //deploy/private/release/tests:release_consumer_smoke_test //apple/tests:consumer_build_test
+            targets: //tools/testing:nested_bazel_harness_test //examples/adopt-polyglot:consumer_test //deploy/private/release/tests:release_consumer_smoke_test //apple/tests:consumer_build_test //tools/testing/hermetic:cpp_rust
           - platform: windows_x86_64
             runner: windows-latest
             targets: //tools/testing:nested_bazel_harness_test //examples/adopt-polyglot:consumer_test //deploy/private/release/tests:release_consumer_smoke_test

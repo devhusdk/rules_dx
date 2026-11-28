@@ -251,26 +251,24 @@ fn owner_only_dir(dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn diag_tmp() {
-    use std::os::unix::fs::MetadataExt;
-    for p in ["/tmp", "/tmp/.dotnet", "/tmp/.dotnet/shm", "/tmp/.dotnet/lockfiles", "/proc/self"] {
-        match fs::symlink_metadata(p) {
-            Ok(m) => eprintln!("DIAG stat {p} mode={:o} uid={} gid={}", m.mode(), m.uid(), m.gid()),
-            Err(e) => eprintln!("DIAG stat {p} err={e}"),
+fn diag_trace(dir: &Path) {
+    let mut n = 0;
+    if let Ok(text) = fs::read_to_string(dir.join("strace.txt")) {
+        for line in text.lines() {
+            let hit = line.contains("/tmp") || line.contains("flock") || line.contains("ftruncate") || line.contains("getsid") || line.contains("MAP_SHARED") || (line.contains("= -1") && !line.contains("ENOENT"));
+            if hit && n < 150 {
+                eprintln!("DIAG strace {line}");
+                n += 1;
+            }
         }
     }
-    match fs::read_dir("/tmp") {
-        Ok(rd) => eprintln!("DIAG ls /tmp: {:?}", rd.flatten().map(|e| e.file_name()).collect::<Vec<_>>()),
-        Err(e) => eprintln!("DIAG ls /tmp err={e}"),
-    }
-    let probe = Path::new("/tmp/dx_diag_probe");
-    eprintln!("DIAG mkdir probe: {:?}", fs::create_dir(probe));
-    eprintln!("DIAG write probe: {:?}", fs::write(probe.join("f"), b"x"));
-    let _ = fs::remove_dir_all(probe);
-    eprintln!("DIAG selinux: {:?}", fs::read_to_string("/proc/self/attr/current"));
-    eprintln!("DIAG status: {:?}", fs::read_to_string("/proc/self/status").map(|s| s.lines().filter(|l| l.starts_with("Uid") || l.starts_with("NSpid") || l.starts_with("Seccomp")).collect::<Vec<_>>().join("; ")));
-    for (k, v) in env::vars().filter(|(k, _)| k.starts_with("DOTNET") || k.starts_with("COMPlus") || k == "HOME" || k == "XDG_RUNTIME_DIR") {
-        eprintln!("DIAG env {k}={v}");
+    let mut seen = BTreeSet::new();
+    if let Ok(text) = fs::read_to_string(dir.join("host.txt")) {
+        for line in text.lines().filter(|l| l.contains("NETCore.App") && (l.contains("Using") || l.contains("resolved") || l.contains("Resolved"))) {
+            if seen.insert(line.to_owned()) && seen.len() < 20 {
+                eprintln!("DIAG host {line}");
+            }
+        }
     }
 }
 
@@ -335,7 +333,19 @@ fn run() -> Result<i32, String> {
     let manifest = root.join("MANIFEST");
     let test_tmp = tmp.join("tmp");
     owner_only_dir(&test_tmp).map_err(|e| format!("cannot create {}: {e}", test_tmp.display()))?;
-    let status = Command::new(&coverlet)
+    let strace = ["/usr/bin/strace", "/bin/strace"].into_iter().find(|p| Path::new(p).exists());
+    eprintln!("DIAG strace={strace:?}");
+    let mut command = match strace {
+        Some(bin) => {
+            let mut c = Command::new(bin);
+            c.arg("-f").arg("-o").arg(test_tmp.join("strace.txt")).args(["-e", "trace=%file,flock,ftruncate,mmap,getsid", coverlet.as_str()]);
+            c
+        }
+        None => Command::new(&coverlet),
+    };
+    let status = command
+        .env("COREHOST_TRACE", "1")
+        .env("COREHOST_TRACEFILE", test_tmp.join("host.txt"))
         .args(&args)
         .current_dir(root.join(&config.workspace))
         .env("RUNFILES_DIR", &root)
@@ -350,7 +360,7 @@ fn run() -> Result<i32, String> {
     let Some(code) = status.code() else {
         return Err("coverlet was killed by a signal".to_owned());
     };
-    diag_tmp();
+    diag_trace(&test_tmp);
     let code = match outcome(code) {
         Outcome::CoverletFailed(code) => {
             eprintln!("dx: coverlet failed");

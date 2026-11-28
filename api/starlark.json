@@ -5542,7 +5542,14 @@
             "name": "asset"
           },
           {
-            "attrs": [],
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "tools",
+                "type": "STRING_LIST"
+              }
+            ],
             "name": "from_source"
           }
         ]

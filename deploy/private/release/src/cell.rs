@@ -535,9 +535,11 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
+const FROM_SOURCE: &str = "dx_prebuilt_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\ndx_prebuilt_source.from_source()\ndx_gazelle_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\ndx_gazelle_source.from_source()\nphp_launcher_source = use_extension(\"@rules_dx//php:extensions.bzl\", \"php\")\nphp_launcher_source.from_source()\nqt_launcher_source = use_extension(\"@rules_dx//qt:extensions.bzl\", \"qt\")\nqt_launcher_source.from_source()\n";
+
 fn rules_dx_override(checkout: &Path) -> String {
     format!(
-        "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
+        "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n{FROM_SOURCE}",
         starlark_string(&checkout.to_string_lossy()),
     )
 }

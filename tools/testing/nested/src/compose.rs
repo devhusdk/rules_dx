@@ -7,11 +7,38 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-#[must_use]
-pub fn rules_dx_override(rules_dx: &Path) -> String {
+fn local_rules_dx(rules_dx: &Path) -> String {
     format!(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
         starlark_string(&rules_dx.to_string_lossy()),
+    )
+}
+
+/// The root tags that build every `rules_dx` prebuilt from source, for a root that names `rules_dx` as `repo`.
+#[must_use]
+pub fn rules_dx_from_source(repo: &str) -> String {
+    [
+        ("dx_prebuilt_source", "core", "dx_prebuilt"),
+        ("dx_gazelle_source", "core", "dx_gazelle"),
+        ("php_launcher_source", "php", "php"),
+        ("qt_launcher_source", "qt", "qt"),
+    ]
+    .iter()
+    .map(|(proxy, package, extension)| {
+        format!(
+            "{proxy} = use_extension(\"@{repo}//{package}:extensions.bzl\", \"{extension}\")\n{proxy}.from_source()\n"
+        )
+    })
+    .collect()
+}
+
+/// Overrides `rules_dx` with the checkout at `rules_dx`, every prebuilt built from source.
+#[must_use]
+pub fn rules_dx_override(rules_dx: &Path) -> String {
+    format!(
+        "{}{}",
+        local_rules_dx(rules_dx),
+        rules_dx_from_source("rules_dx")
     )
 }
 
@@ -215,10 +242,11 @@ pub fn compose_module(
     };
     let body = format!("{}\n{}", setup.trim_end(), fragment.trim_end());
     Ok(format!(
-        "module(name = {})\n\n{}\n{}{}{}",
+        "module(name = {})\n\n{}\n{}{}{}{}",
         starlark_string(module),
         body,
-        rules_dx_override(rules_dx),
+        local_rules_dx(rules_dx),
+        rules_dx_from_source(repo_name),
         rules_py_override(),
         rules_flutter_override(),
     ))
@@ -526,6 +554,19 @@ mod tests {
     }
 
     #[test]
+    fn rules_dx_override_builds_every_prebuilt_from_source() {
+        let module = rules_dx_override(Path::new("/src"));
+        for extension in [
+            "dx_prebuilt_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\ndx_prebuilt_source.from_source()\n",
+            "dx_gazelle_source = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\ndx_gazelle_source.from_source()\n",
+            "php_launcher_source = use_extension(\"@rules_dx//php:extensions.bzl\", \"php\")\nphp_launcher_source.from_source()\n",
+            "qt_launcher_source = use_extension(\"@rules_dx//qt:extensions.bzl\", \"qt\")\nqt_launcher_source.from_source()\n",
+        ] {
+            assert!(module.contains(extension), "{module}");
+        }
+    }
+
+    #[test]
     fn module_renames_rules_dx_and_overrides_it_locally() {
         let module = compose_module(
             SNIPPET,
@@ -538,7 +579,8 @@ mod tests {
         assert_eq!(
             module,
             format!(
-                "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}",
+                "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}{}",
+                rules_dx_from_source("my_dx"),
                 rules_py_override(),
                 rules_flutter_override(),
             )

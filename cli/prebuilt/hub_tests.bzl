@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "dx_subcommand_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "dx_subcommand_build", "plan_assets", "plan_hub", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "release_pins", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
 load(":launcher.bzl", "launcher_hub")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "DEV_SOURCE_FALLBACK", "DX_SUBCOMMANDS", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
@@ -20,8 +20,9 @@ _ALL_PINNED = {"dx": {key: _HASH for key in TOOLS["dx"].platforms}}
 def _override(url, os = "", cpu = ""):
     return struct(cpu = cpu, os = os, sha256 = _HASH, url = url)
 
-def _mod(name, is_root, assets = [], from_source = False):
-    return struct(name = name, is_root = is_root, tags = struct(asset = assets, from_source = [struct()] if from_source else []))
+def _mod(name, is_root, assets = [], from_source = False, tools = None):
+    sources = [struct(tools = tools)] if tools != None else []
+    return struct(name = name, is_root = is_root, tags = struct(asset = assets, from_source = ([struct()] if from_source else []) + sources))
 
 def _tag(sha256 = _HASH, name = "dx", os = "linux", cpu = "x86_64"):
     return struct(cpu = cpu, name = name, os = os, sha256 = sha256, url = "https://mirror/dx")
@@ -163,7 +164,7 @@ def _checks():
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
         expect_equal("native tools run on the exec platform except hpc_lcov, julia_internal, kcov, launcher, pcov and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "julia_internal", "kcov", "launcher", "pcov", "runtime"]),
         expect_equal("the target tools", target_tools(), ["hpc_lcov", "julia_internal", "kcov", "launcher", "pcov", "runtime"]),
-        expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
+        expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("yamllint assets", [asset_name("yamllint", k) for k in TOOLS["yamllint"].platforms], ["dx-yamllint-linux-arm64.tar.gz", "dx-yamllint-linux-x86_64.tar.gz", "dx-yamllint-macos-arm64.tar.gz", "dx-yamllint-windows-arm64.tar.gz", "dx-yamllint-windows-x86_64.tar.gz"]),
         expect_equal("ansible-lint is released for every platform but windows arm64", [asset_name("ansible_lint_tool", k) for k in TOOLS["ansible_lint_tool"].platforms], ["dx-ansible-lint-linux-arm64.tar.gz", "dx-ansible-lint-linux-x86_64.tar.gz", "dx-ansible-lint-macos-arm64.tar.gz", "dx-ansible-lint-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists each python tool for fill_pins", registry_lines(), "cfn_lint windows_arm64 dx-cfn-lint-windows-arm64.tar.gz"),
@@ -203,7 +204,7 @@ def _checks():
         expect_contains("a code generator with no pins builds from source", flatc_build, 'name = "capnp",\n    actual = "@dx_capnproto//src/capnp:capnp_tool",'),
         expect_contains("the root hub aliases the source code generators", source_native, 'name = "thrift",\n    actual = "@dx_thrift//:thrift_compiler",'),
         expect_equal("a root asset may name a code generator", flatc_root.overrides.keys(), ["flatc"]),
-        expect_equal("topiary assets", [asset_name("topiary", k) for k in TOOLS["topiary"].platforms], ["dx-topiary-linux-arm64", "dx-topiary-linux-x86_64", "dx-topiary-macos-arm64", "dx-topiary-windows-x86_64"]),
+        expect_equal("topiary assets", [asset_name("topiary", k) for k in TOOLS["topiary"].platforms], ["dx-topiary-linux-arm64", "dx-topiary-linux-x86_64", "dx-topiary-macos-arm64", "dx-topiary-windows-arm64", "dx-topiary-windows-x86_64"]),
         expect_contains("the registry lists progenitor for fill_pins", registry_lines(), "progenitor macos_arm64 dx-progenitor-macos-arm64"),
         expect_equal("an unpinned native tool plans no windows arm64", [a.key for a in plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})["topiary"]], ["linux_aarch64", "linux_x86_64", "macos_aarch64", "windows_x86_64"]),
         expect_equal("windows arm64 runs the x86_64 topiary", topiary_windows_arm.repo, "dx_topiary_prebuilt_windows_x86_64"),
@@ -308,9 +309,9 @@ def _checks():
         expect_contains("a jar asset rejects a native os", jar_linux.error, 'dx_prebuilt.asset(name = "javac_check", os = "linux", cpu = "x86_64"): a jar tool takes os = "any" and cpu = "any"'),
         expect_contains("a native asset rejects any", dx_any.error, "os must be one of"),
         expect_equal("an overridden jar keeps its asset and downloads the override", (overridden_javac.asset, overridden_javac.repo, overridden_javac.url), ("dx-javac-check-any.jar", "dx_prebuilt_javac_check", "https://mirror/dx")),
-        expect_true("from_source builds from source", sourced.source),
-        expect_true("rules_dx as root builds from source", rooted.source),
-        expect_false("a consumer root does not build from source", pinned_root.source),
+        expect_equal("from_source builds every tool from source", sourced.source, ["dx"]),
+        expect_true("rules_dx as root builds from source", rooted.root),
+        expect_equal("a consumer root builds nothing from source", (pinned_root.root, pinned_root.source), (False, [])),
         expect_equal("a root asset is an override", pinned_root.overrides["dx"].keys(), ["linux_x86_64"]),
         expect_equal("a root launcher asset overrides only the launcher", sorted(launcher_root.overrides.keys()), ["dx", "launcher"]),
         expect_equal("the launcher is a target-platform asset", TOOLS["launcher"].role, "target"),
@@ -372,10 +373,51 @@ def _launcher_checks():
         expect_equal("a non-root from_source is an error", middle.error, "php: only the root module may set from_source tags; middle sets them"),
     ]
 
+_EVERY_TOOL = ["dx", "go"] + NATIVE_TOOLS + JAR_TOOLS + sorted(PYTHON_BUNDLE_TOOLS)
+
+_EVERY_PIN = {tool: {key: _HASH for key in TOOLS[tool].platforms} for tool in TOOLS}
+
+def _plan(mods):
+    return plan_root(mods, tools = _EVERY_TOOL)
+
+def _hub(mods):
+    return plan_hub(_plan(mods), "1.2.3", _EVERY_PIN, URL_TEMPLATE)
+
+def _repos(hub):
+    return [a.repo for a in hub.downloads + hub.jars + hub.bundles]
+
+def _hub_checks():
+    consumer = _hub([_mod("app", True), _mod("rules_dx", False)])
+    rooted = _hub([_mod("rules_dx", True)])
+    rooted_with_asset = plan_root([_mod("rules_dx", True, assets = [_tag()])], tools = _EVERY_TOOL)
+    every = _hub([_mod("app", True, from_source = True), _mod("rules_dx", False)])
+    listed = _hub([_mod("app", True, tools = ["dx", "topiary", "yamllint", "javac_check"]), _mod("rules_dx", False)])
+    kept_asset = _hub([_mod("app", True, assets = [_tag()], from_source = True), _mod("rules_dx", False)])
+    unknown = _plan([_mod("app", True, tools = ["dx", "nope"])])
+    return [
+        expect_true("a consumer of filled pins downloads every tool", "dx_prebuilt_linux_x86_64" in _repos(consumer) and "dx_topiary_prebuilt_linux_x86_64" in _repos(consumer) and "dx_prebuilt_javac_check" in _repos(consumer)),
+        expect_equal("rules_dx as root downloads nothing however full the pins", _repos(rooted), []),
+        expect_false("rules_dx as root names no download repo", "@dx_" in "".join(rooted.files.values())),
+        expect_true("rules_dx as root guards the source dx", "guard_view_set" in rooted.files["BUILD.bazel"]),
+        expect_equal("rules_dx as root ignores its own asset tags", rooted_with_asset.overrides, {}),
+        expect_equal("rules_dx as root drops every release pin", release_pins(_plan([_mod("rules_dx", True)]), _EVERY_PIN), {}),
+        expect_equal("from_source downloads nothing", _repos(every), []),
+        expect_false("a consumer from_source is not guarded", "guard_view" in every.files["BUILD.bazel"]),
+        expect_contains("from_source builds dx from source", every.files["BUILD.bazel"], 'name = "dx",\n    actual = "@rules_dx//cli/cli:dx",'),
+        expect_equal("from_source lists every tool", _plan([_mod("app", True, from_source = True)]).source, sorted(_EVERY_TOOL)),
+        expect_equal("from_source(tools) lists those tools", _plan([_mod("app", True, tools = ["topiary", "dx"])]).source, ["dx", "topiary"]),
+        expect_equal("from_source(tools) drops the listed pins", [r for r in _repos(listed) if r.startswith(("dx_prebuilt_linux", "dx_topiary_", "dx_yamllint_", "dx_prebuilt_javac_check"))], []),
+        expect_true("from_source(tools) keeps the other pins", "dx_selene_prebuilt_linux_x86_64" in _repos(listed) and "dx_go_prebuilt_linux_x86_64" in _repos(listed) and "dx_prebuilt_kotlinc_check" in _repos(listed)),
+        expect_contains("a tool from source aliases its source", listed.files["BUILD.bazel"], 'name = "topiary",\n    actual = "@rules_dx//rust/private/quality/tools:topiary_source",'),
+        expect_equal("from_source keeps the root asset tags", _repos(kept_asset), ["dx_prebuilt_linux_x86_64"]),
+        expect_equal("from_source(tools) names a registry tool", unknown.error, 'dx_prebuilt.from_source(tools = ["nope"]): each tool is one of ' + json.encode(_EVERY_TOOL)),
+        expect_contains("a non-root from_source(tools) is an error", _plan([_mod("app", True), _mod("middle", False, tools = ["dx"])]).error, "only the root module may set asset or from_source tags; middle sets them"),
+    ]
+
 def dx_prebuilt_hub_tests(name):
     """Declares the @dx_prebuilt hub test."""
     starlark_test(
         name = name,
         mode = "load",
-        checks = _checks() + _launcher_checks(),
+        checks = _checks() + _hub_checks() + _launcher_checks(),
     )

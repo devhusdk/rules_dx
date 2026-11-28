@@ -101,8 +101,40 @@ dx_prebuilt.asset(name = "dx", os = "linux", cpu = "x86_64", url = "https://..."
 
 `name` is the tool, and `os` and `cpu` are the `@platforms` values the binary
 runs on. A jar tool such as `javac_check` takes `os = "any"` and
-`cpu = "any"`. Or build `dx` from source with `dx_prebuilt.from_source()`. That needs
-Rust and C toolchains. Only the root module's tags count.
+`cpu = "any"`. Only the root module's tags count.
+
+### Build the tools from source
+
+To download no prebuilt at all, add this to your root `MODULE.bazel`:
+
+```starlark
+dx_prebuilt = use_extension("@rules_dx//core:extensions.bzl", "dx_prebuilt")
+dx_prebuilt.from_source()
+
+dx_gazelle = use_extension("@rules_dx//core:extensions.bzl", "dx_gazelle")
+dx_gazelle.from_source()
+
+php = use_extension("@rules_dx//php:extensions.bzl", "php")
+php.from_source()
+
+qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
+qt.from_source()
+```
+
+To build only some tools from source and download the rest, name them:
+
+```starlark
+dx_prebuilt = use_extension("@rules_dx//core:extensions.bzl", "dx_prebuilt")
+dx_prebuilt.from_source(tools = ["dx", "topiary"])
+```
+
+- The tool names are the keys of `TOOLS` in `cli/prebuilt/tools.bzl`. An
+  unknown name fails the build and lists the valid names.
+- `from_source()` without `tools` builds every tool from source.
+- An `asset` tag still picks that tool's binary.
+- A tool built from source needs its language's toolchain, such as Rust and C
+  for `dx`, a JDK for a jar tool, or Go for gazelle.
+- When `rules_dx` itself is the root module, every tool builds from source.
 
 `cli/prebuilt/tools.bzl` lists every tool a release ships prebuilt, and
 `pins.bzl` holds their sha256s under `PINS`, keyed by tool and then by
@@ -125,7 +157,7 @@ dx_gazelle = use_extension("@rules_dx//core:extensions.bzl", "dx_gazelle")
 dx_gazelle.asset(name = "gazelle", os = "linux", cpu = "x86_64", url = "https://...", sha256 = "...")
 ```
 
-or build it with `dx_gazelle.from_source()`, which needs a Go toolchain.
+or build it from source with `dx_gazelle.from_source()`.
 
 A global `dx` shim for your `PATH` is built from `//cli/shim`. It runs the
 version in `.dx/pins` without Bazel. See

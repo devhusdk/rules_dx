@@ -5,11 +5,11 @@ uv="$(realpath "$2")"
 marker="$3"
 platform="$4"
 windows="$5"
-bootstrap="$6"
-project="$7"
-package="$8"
-launcher="$9"
-main="${10}"
+project="$6"
+package="$7"
+launcher="$8"
+main="$9"
+shift 9
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 root="$work/bundle"
@@ -17,7 +17,7 @@ site="$root/site-packages"
 mkdir -p "$root/bin" "$site" "$root/tools"
 cp -RL "$(dirname "$marker")" "$root/python"
 export UV_CACHE_DIR="$work/uv-cache" HOME="$work" UV_PYTHON_DOWNLOADS=never LC_ALL=C
-cp "$bootstrap" "$main" "$root/tools/"
+cp "$main" "$@" "$root/tools/"
 "$uv" tree --frozen --universal --no-dedupe --project "$project" --package "$package" |
   sed -E 's/^[^[:alnum:]]*//; s/[][ ].*//' | sort -u >"$work/closure.txt"
 grep -qx "$package" "$work/closure.txt" || {
@@ -29,7 +29,7 @@ awk 'NR == FNR { keep[$1] = 1; next } /^[^ ]/ { name = $0; sub(/[=; ].*/, "", na
   "$work/closure.txt" "$work/locked.txt" >"$work/requirements.txt"
 "$uv" pip install --require-hashes --only-binary :all: --no-deps --python-platform "$platform" --python-version 3.12 \
   --python "$PYTHON_EXEC" --target "$site" -r "$work/requirements.txt"
-rm -rf "$site/bin" "$site"/*-stubs
+rm -rf "${site:?}/bin" "${site:?}"/*-stubs
 for record in "$site"/*.dist-info/RECORD; do
   grep -vE '^(bin|[^/]+-stubs)/' "$record" >"$work/RECORD" || true
   mv "$work/RECORD" "$record"

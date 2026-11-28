@@ -23,6 +23,8 @@ jobs:
             runner: macos-15
           - host: windows-x86_64
             runner: windows-latest
+          - host: windows-arm64
+            runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     defaults:

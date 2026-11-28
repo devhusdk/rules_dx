@@ -26,6 +26,7 @@ fn shared_build(
     let [format, lint] = scopes;
     super::SharedBuild {
         bep: std::path::PathBuf::from("unused.json"),
+        events: None,
         members: vec![
             member(Command::Format, &["q:f.bzl%format", "q:f.bzl%both"], format),
             member(Command::Lint, &["q:f.bzl%lint", "q:f.bzl%both"], lint),

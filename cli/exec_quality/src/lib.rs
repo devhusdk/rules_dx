@@ -32,9 +32,9 @@ use dx_exec_core::common::{
     CODE_BAZEL_SIGNALLED, CODE_DIFF_FAILED, CODE_INVALID_ARGUMENTS, CODE_NOT_CONVERGED,
     CODE_UNREADABLE_BEP, Env, Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
     REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
-    check_stdout_write, collect_output_account, collect_own_account, emit_built, emit_event,
-    findings_summary, operational_output, pre_exec, preset_rewritten, read_actions, remove_scratch,
-    report_dx_error, report_failure, resolve_failed, run_bazel_output, server_died,
+    check_stdout_write, collect_output_account, emit_built, emit_event, findings_summary,
+    operational_output, own_account, pre_exec, preset_rewritten, read_actions, read_output_events,
+    remove_scratch, report_dx_error, report_failure, resolve_failed, run_bazel_output, server_died,
     temp_path_not_utf8, warn_scope_excluded,
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
@@ -55,6 +55,7 @@ use dx_plan::resolve::{ResolvedScope, path_filter, resolve, widen_config_scopes}
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 pub fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
@@ -291,11 +292,11 @@ fn read_probe_shards(bep: &Path, workspace: &Path, build_failed: bool) -> Option
 }
 
 pub(crate) fn read_skip_notes(
-    bep: &Path,
+    events: &dx_bep::OutputEvents,
     foreign: &dx_bep::Foreign,
     workspace: &Path,
 ) -> Vec<String> {
-    let Ok(account) = collect_own_account(bep, SKIP_OUTPUT_GROUP, workspace, foreign) else {
+    let Ok(account) = own_account(events, SKIP_OUTPUT_GROUP, workspace, foreign) else {
         return Vec::new();
     };
     let mut seen = BTreeSet::new();
@@ -333,6 +334,7 @@ struct BepRead {
     path: PathBuf,
     foreign: dx_bep::Foreign,
     owned: bool,
+    events: Option<Rc<dx_bep::OutputEvents>>,
 }
 
 impl BepRead {
@@ -430,6 +432,7 @@ fn run_quality_request(
                     path: read.bep,
                     foreign: read.foreign,
                     owned: false,
+                    events: read.events,
                 },
             ),
             Err(exit) => return exit,
@@ -441,6 +444,7 @@ fn run_quality_request(
                     path: bep.clone(),
                     foreign: dx_bep::Foreign::default(),
                     owned: true,
+                    events: None,
                 },
             ),
             Err(exit) => return exit,
@@ -796,7 +800,14 @@ fn collect_run(
             .then(|| invert_repo_mapping(&result.stdout))
             .flatten()
     };
-    let mut collected = match collect_results(bep, foreign, workspace, &repo_mapping) {
+    let stream = match &events.events {
+        Some(stream) => Ok(Rc::clone(stream)),
+        None => read_output_events(bep).map(Rc::new),
+    };
+    let collected = stream.and_then(|stream| {
+        collect_results(&stream, foreign, workspace, &repo_mapping).map(|done| (stream, done))
+    });
+    let (stream, mut collected) = match collected {
         Ok(collected) => collected,
         Err(error) => {
             events.discard();
@@ -810,7 +821,7 @@ fn collect_run(
             ));
         }
     };
-    for note in read_skip_notes(bep, foreign, workspace) {
+    for note in read_skip_notes(&stream, foreign, workspace) {
         if request.common.output == OutputMode::Json {
             let notice = skip_notice(request.command.name(), &note);
             if let Err(exit) = emit_built(out, notice_event(&notice)) {
@@ -822,7 +833,7 @@ fn collect_run(
         }
     }
     let link_requests = if request.online {
-        link_check::read_requests(bep, foreign, workspace)
+        link_check::read_requests(&stream, foreign, workspace)
     } else {
         Vec::new()
     };

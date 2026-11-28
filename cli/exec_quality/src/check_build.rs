@@ -1,8 +1,8 @@
 use crate::{probe_shards, probe_stop_exit};
 use dx_bep::{Foreign, aspect_key, target_key};
 use dx_exec_core::common::{
-    BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
-    server_died,
+    BAZEL_INTERRUPTED, Env, PhaseKind, own_account, read_actions, read_output_events,
+    run_bazel_output, server_died,
 };
 use dx_output::ActionCounts;
 use dx_plan::args::{Command, QualityRequest, UmbrellaRequest};
@@ -10,6 +10,7 @@ use dx_plan::plan::{Consumer, OUTPUT_GROUP, Selection, command_aspects, plan_sha
 use dx_plan::resolve::{ResolvedScope, resolve, widen_config_scopes};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 pub struct SharedChecks {
     pending: Vec<QualityRequest>,
@@ -18,6 +19,7 @@ pub struct SharedChecks {
 
 struct SharedBuild {
     bep: PathBuf,
+    events: Option<Rc<dx_bep::OutputEvents>>,
     members: Vec<Member>,
     bazel_options: Vec<String>,
     code: i32,
@@ -35,6 +37,7 @@ type Failing = (Option<String>, Option<String>);
 
 pub(crate) struct SharedRead {
     pub(crate) bep: PathBuf,
+    pub(crate) events: Option<Rc<dx_bep::OutputEvents>>,
     pub(crate) foreign: Foreign,
     pub(crate) code: i32,
     pub(crate) actions: Option<ActionCounts>,
@@ -91,6 +94,7 @@ impl SharedChecks {
         }
         Ok(self.build.as_ref().map(|build| SharedRead {
             bep: build.bep.clone(),
+            events: build.events.clone(),
             foreign: build.foreign(request.command),
             code: build.phase_code(request.command),
             actions,
@@ -249,7 +253,8 @@ impl SharedBuild {
             (Some(probe), Some(build)) => Some(probe + build),
             (probe, build) => probe.or(build),
         };
-        let failing = failing_targets(&bep, code, env);
+        let events = read_output_events(&bep).ok().map(Rc::new);
+        let failing = failing_targets(events.as_deref(), code, env);
         let members = members
             .iter()
             .map(|(command, resolved)| Member {
@@ -263,6 +268,7 @@ impl SharedBuild {
             .collect();
         let build = SharedBuild {
             bep,
+            events,
             members,
             bazel_options: request.bazel_options.clone(),
             code,
@@ -320,14 +326,18 @@ impl SharedBuild {
     }
 }
 
-fn failing_targets(bep: &std::path::Path, code: i32, env: &Env<'_>) -> Option<BTreeSet<Failing>> {
+fn failing_targets(
+    events: Option<&dx_bep::OutputEvents>,
+    code: i32,
+    env: &Env<'_>,
+) -> Option<BTreeSet<Failing>> {
     if code == 0 {
         return Some(BTreeSet::new());
     }
     if server_died(code) || code == BAZEL_INTERRUPTED {
         return None;
     }
-    let account = collect_output_account(bep, OUTPUT_GROUP, env.workspace).ok()?;
+    let account = own_account(events?, OUTPUT_GROUP, env.workspace, &Foreign::default()).ok()?;
     if account.problem.is_some() || !account.ended {
         return None;
     }

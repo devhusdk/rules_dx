@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, HashSet};
 
 use serde_json::{Map, Value};
 
@@ -57,30 +57,18 @@ impl EventGap {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EventLedger {
     ended: bool,
-    announced: BTreeMap<String, (String, Map<String, Value>)>,
-    delivered: BTreeSet<String>,
-    aborted: BTreeMap<String, (String, Map<String, Value>, String)>,
+    announced: HashSet<String>,
+    delivered: HashSet<String>,
+    aborted: BTreeMap<String, String>,
 }
 
+// Without serde_json's preserve_order, maps serialise with sorted keys.
 fn canonical(value: &Value) -> String {
-    match value {
-        Value::Object(map) => {
-            let mut keys: Vec<&String> = map.keys().collect();
-            keys.sort();
-            let fields: Vec<String> = keys
-                .into_iter()
-                .map(|key| format!("{}:{}", Value::String(key.clone()), canonical(&map[key])))
-                .collect();
-            format!("{{{}}}", fields.join(","))
-        }
-        Value::Array(items) => {
-            let items: Vec<String> = items.iter().map(canonical).collect();
-            format!("[{}]", items.join(","))
-        }
-        other @ (Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)) => {
-            other.to_string()
-        }
-    }
+    value.to_string()
+}
+
+fn single_kind(id: &Value) -> bool {
+    id.as_object().is_some_and(|id| id.len() == 1)
 }
 
 fn id_parts(id: &Map<String, Value>) -> Option<(String, Map<String, Value>)> {
@@ -90,6 +78,14 @@ fn id_parts(id: &Map<String, Value>) -> Option<(String, Map<String, Value>)> {
         return None;
     }
     Some((kind.clone(), body.as_object().cloned().unwrap_or_default()))
+}
+
+// Gap ids are rare, so they are parsed back from the key instead of stored.
+fn key_parts(key: &str) -> Option<(String, Map<String, Value>)> {
+    serde_json::from_str::<Value>(key)
+        .ok()?
+        .as_object()
+        .and_then(id_parts)
 }
 
 fn index_of(body: &Map<String, Value>, field: &str) -> Option<u32> {
@@ -104,30 +100,27 @@ impl EventLedger {
             self.ended = true;
         }
         if let Some(children) = object.get("children").and_then(Value::as_array) {
-            for child in children {
-                if let Some((kind, body)) = child.as_object().and_then(id_parts) {
-                    self.announced.insert(canonical(child), (kind, body));
-                }
+            for child in children.iter().filter(|child| single_kind(child)) {
+                self.announced.insert(canonical(child));
             }
         }
         let Some(id) = object.get("id") else {
             return;
         };
-        let key = canonical(id);
         match object.get("aborted") {
             Some(aborted) => {
-                let reason = aborted
-                    .as_object()
-                    .and_then(|aborted| aborted.get("reason"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("UNKNOWN")
-                    .to_owned();
-                if let Some((kind, body)) = id.as_object().and_then(id_parts) {
-                    self.aborted.insert(key, (kind, body, reason));
+                if single_kind(id) {
+                    let reason = aborted
+                        .as_object()
+                        .and_then(|aborted| aborted.get("reason"))
+                        .and_then(Value::as_str)
+                        .unwrap_or("UNKNOWN")
+                        .to_owned();
+                    self.aborted.insert(canonical(id), reason);
                 }
             }
             None => {
-                self.delivered.insert(key);
+                self.delivered.insert(canonical(id));
             }
         }
     }
@@ -139,21 +132,29 @@ impl EventLedger {
 
     #[must_use]
     pub fn gaps(&self, kinds: &[&str]) -> Vec<EventGap> {
+        let mut missing: Vec<&String> = self
+            .announced
+            .iter()
+            .filter(|key| !self.delivered.contains(*key) && !self.aborted.contains_key(*key))
+            .collect();
+        missing.sort();
         let mut gaps = Vec::new();
-        for (key, (kind, body)) in &self.announced {
-            if !kinds.contains(&kind.as_str())
-                || self.delivered.contains(key)
-                || self.aborted.contains_key(key)
+        for key in missing {
+            if let Some((kind, body)) = key_parts(key)
+                && kinds.contains(&kind.as_str())
             {
-                continue;
+                gaps.push(gap(&kind, &body, None));
             }
-            gaps.push(gap(kind, body, None));
         }
-        for (key, (kind, body, reason)) in &self.aborted {
-            if !kinds.contains(&kind.as_str()) || self.delivered.contains(key) {
+        for (key, reason) in &self.aborted {
+            if self.delivered.contains(key) {
                 continue;
             }
-            gaps.push(gap(kind, body, Some(reason.clone())));
+            if let Some((kind, body)) = key_parts(key)
+                && kinds.contains(&kind.as_str())
+            {
+                gaps.push(gap(&kind, &body, Some(reason.clone())));
+            }
         }
         gaps.sort_by(|a, b| {
             (&a.label, &a.kind, &a.aspect, a.run, a.shard, a.attempt)
@@ -282,6 +283,7 @@ mod tests {
         let a: Value = serde_json::from_str(r#"{"x":{"b":1,"a":[{"d":2,"c":3}]}}"#).expect("a");
         let b: Value = serde_json::from_str(r#"{"x":{"a":[{"c":3,"d":2}],"b":1}}"#).expect("b");
         assert_eq!(canonical(&a), canonical(&b));
+        assert_eq!(canonical(&a), r#"{"x":{"a":[{"c":3,"d":2}],"b":1}}"#);
     }
 
     #[test]

@@ -23,6 +23,15 @@ struct RawSet {
     children: Vec<String>,
 }
 
+struct RawCompletion {
+    line: u64,
+    label: String,
+    aspect: Option<String>,
+    configuration: Option<String>,
+    success: bool,
+    output_groups: Option<Value>,
+}
+
 struct PendingTarget {
     line: u64,
     label: String,
@@ -41,6 +50,17 @@ pub struct OutputAccount {
     pub ended: bool,
     pub gaps: Vec<EventGap>,
     pub problem: Option<String>,
+}
+
+/// A build event stream read once; group and foreign checks wait for `account`.
+#[derive(Default)]
+pub struct OutputEvents {
+    sets: BTreeMap<String, RawSet>,
+    completions: Vec<RawCompletion>,
+    ended: bool,
+    gaps: Vec<EventGap>,
+    tail: Option<(u64, String)>,
+    error: Option<BepError>,
 }
 
 fn named_set_id(id: &serde_json::Map<String, Value>) -> Option<&str> {
@@ -63,28 +83,37 @@ pub fn collect_account(
     artifacts: &dyn ArtifactReader,
     workspace: Option<&Path>,
 ) -> Result<OutputAccount, BepError> {
-    let (mut account, tail) = read_account(reader, config, artifacts, workspace)?;
-    account.problem = tail.map(|(line, reason)| format!("line {line}: {reason}"));
-    Ok(account)
+    read_output_events(reader).account(config, artifacts, workspace)
 }
 
-fn read_account(
-    reader: impl BufRead,
-    config: &CollectorConfig,
-    artifacts: &dyn ArtifactReader,
-    workspace: Option<&Path>,
-) -> Result<(OutputAccount, Option<(u64, String)>), BepError> {
-    let mut sets: BTreeMap<String, RawSet> = BTreeMap::new();
-    let mut pending: Vec<PendingTarget> = Vec::new();
-    let mut no_work: Vec<TargetOutput> = Vec::new();
+#[must_use]
+pub fn read_output_events(reader: impl BufRead) -> OutputEvents {
+    let mut events = OutputEvents::default();
     let mut ledger = EventLedger::default();
     let mut lines = EventLines::new(reader);
+    if let Err(error) = read_events(&mut lines, &mut events, &mut ledger) {
+        events.error = Some(error);
+        return events;
+    }
+    events.ended = ledger.ended();
+    events.gaps = ledger.gaps(&["targetConfigured", "targetCompleted"]);
+    events.tail = lines.tail;
+    events
+}
+
+fn read_events<R: BufRead>(
+    lines: &mut EventLines<R>,
+    events: &mut OutputEvents,
+    ledger: &mut EventLedger,
+) -> Result<(), BepError> {
     for next in lines.by_ref() {
-        let (line_no, event) = next?;
-        let object = event.as_object().ok_or_else(|| BepError::MalformedEvent {
-            line: line_no,
-            reason: "event must be a JSON object".to_owned(),
-        })?;
+        let (line_no, mut event) = next?;
+        let object = event
+            .as_object_mut()
+            .ok_or_else(|| BepError::MalformedEvent {
+                line: line_no,
+                reason: "event must be a JSON object".to_owned(),
+            })?;
         let id = object.get("id").and_then(Value::as_object).ok_or_else(|| {
             BepError::MalformedEvent {
                 line: line_no,
@@ -147,51 +176,85 @@ fn read_account(
                     children.push(child_id.to_owned());
                 }
             }
-            sets.entry(set_id.to_owned()).or_insert(RawSet {
+            events.sets.entry(set_id.to_owned()).or_insert(RawSet {
                 line: line_no,
                 files: raw,
                 children,
             });
         }
-        if let Some(completed) = object.get("completed") {
-            if completed.is_null() {
+        let Some(completed) = object.get("completed") else {
+            continue;
+        };
+        if completed.is_null() {
+            continue;
+        }
+        let completed = completed
+            .as_object()
+            .ok_or_else(|| BepError::MalformedEvent {
+                line: line_no,
+                reason: "completed must be an object".to_owned(),
+            })?;
+        let target_id = id.get("targetCompleted").and_then(Value::as_object);
+        let label = target_id
+            .and_then(|target| target.get("label"))
+            .and_then(Value::as_str)
+            .ok_or_else(|| BepError::MalformedEvent {
+                line: line_no,
+                reason: "completed event without target label".to_owned(),
+            })?
+            .to_owned();
+        let aspect = target_id
+            .and_then(|target| target.get("aspect"))
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let configuration = target_id
+            .and_then(|target| target.get("configuration"))
+            .and_then(Value::as_object)
+            .and_then(|configuration| configuration.get("id"))
+            .and_then(Value::as_str)
+            .map(str::to_owned);
+        let success = completed
+            .get("success")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let output_groups = if success {
+            object
+                .get_mut("completed")
+                .and_then(Value::as_object_mut)
+                .and_then(|completed| completed.remove("outputGroup"))
+        } else {
+            None
+        };
+        events.completions.push(RawCompletion {
+            line: line_no,
+            label,
+            aspect,
+            configuration,
+            success,
+            output_groups,
+        });
+    }
+    Ok(())
+}
+
+impl OutputEvents {
+    pub fn account(
+        &self,
+        config: &CollectorConfig,
+        artifacts: &dyn ArtifactReader,
+        workspace: Option<&Path>,
+    ) -> Result<OutputAccount, BepError> {
+        let mut pending: Vec<PendingTarget> = Vec::new();
+        let mut no_work: Vec<TargetOutput> = Vec::new();
+        for completion in &self.completions {
+            if config.is_foreign(Some(&completion.label), completion.aspect.as_deref()) {
                 continue;
             }
-            let completed = completed
-                .as_object()
-                .ok_or_else(|| BepError::MalformedEvent {
-                    line: line_no,
-                    reason: "completed must be an object".to_owned(),
-                })?;
-            let target_id = id.get("targetCompleted").and_then(Value::as_object);
-            let label = target_id
-                .and_then(|target| target.get("label"))
-                .and_then(Value::as_str)
-                .ok_or_else(|| BepError::MalformedEvent {
-                    line: line_no,
-                    reason: "completed event without target label".to_owned(),
-                })?;
-            let aspect = target_id
-                .and_then(|target| target.get("aspect"))
-                .and_then(Value::as_str)
-                .map(str::to_owned);
-            if config.is_foreign(Some(label), aspect.as_deref()) {
-                continue;
-            }
-            let configuration = target_id
-                .and_then(|target| target.get("configuration"))
-                .and_then(Value::as_object)
-                .and_then(|configuration| configuration.get("id"))
-                .and_then(Value::as_str)
-                .map(str::to_owned);
-            let success = completed
-                .get("success")
-                .and_then(Value::as_bool)
-                .unwrap_or(false);
+            let line_no = completion.line;
             let mut set_ids = Vec::new();
             let mut declared = false;
             let mut incomplete = false;
-            if success && let Some(groups) = completed.get("outputGroup") {
+            if let Some(groups) = &completion.output_groups {
                 let groups = groups.as_array().ok_or_else(|| BepError::MalformedEvent {
                     line: line_no,
                     reason: "outputGroup must be an array".to_owned(),
@@ -230,12 +293,15 @@ fn read_account(
                     }
                 }
             }
-            if success && set_ids.is_empty() && !mentions_group(completed, config.output_group()) {
+            if completion.success
+                && set_ids.is_empty()
+                && !mentions_group(completion.output_groups.as_ref(), config.output_group())
+            {
                 no_work.push(TargetOutput {
-                    label: label.to_owned(),
-                    aspect,
-                    configuration,
-                    success,
+                    label: completion.label.clone(),
+                    aspect: completion.aspect.clone(),
+                    configuration: completion.configuration.clone(),
+                    success: completion.success,
                     declared: false,
                     incomplete: false,
                     artifacts: Vec::new(),
@@ -244,115 +310,124 @@ fn read_account(
             }
             pending.push(PendingTarget {
                 line: line_no,
-                label: label.to_owned(),
-                aspect,
-                configuration,
-                success,
+                label: completion.label.clone(),
+                aspect: completion.aspect.clone(),
+                configuration: completion.configuration.clone(),
+                success: completion.success,
                 declared,
                 incomplete,
                 set_ids,
             });
         }
-    }
-    let mut outputs = Vec::with_capacity(pending.len());
-    for target in &pending {
-        let mut seen: BTreeMap<String, (u64, Option<String>, Vec<String>)> = BTreeMap::new();
-        let mut visited: BTreeSet<String> = BTreeSet::new();
-        let mut stack: Vec<(String, u64)> = target
-            .set_ids
-            .iter()
-            .map(|set_id| (set_id.clone(), target.line))
-            .collect();
-        while let Some((set_id, line)) = stack.pop() {
-            if !visited.insert(set_id.clone()) {
-                continue;
-            }
-            let set = sets.get(&set_id).ok_or_else(|| BepError::MissingNamedSet {
-                id: set_id.clone(),
-                line,
-            })?;
-            for file in &set.files {
-                let uri = file.uri.clone().ok_or_else(|| BepError::MalformedEvent {
-                    line: file.line,
-                    reason: "named set file without uri".to_owned(),
-                })?;
-                seen.entry(uri)
-                    .or_insert((file.line, file.name.clone(), file.path_prefix.clone()));
-            }
-            for child in &set.children {
-                stack.push((child.clone(), set.line));
-            }
+        if let Some(error) = &self.error {
+            return Err(error.clone());
         }
-        let mut collected = Vec::with_capacity(seen.len());
-        for (uri, (line, name, path_prefix)) in &seen {
-            let path = if is_bytestream_uri(uri) {
-                let Some(ws) = workspace else {
-                    return Err(BepError::UnsupportedUri { uri: uri.clone() });
-                };
-                let Some(file_name) = name else {
-                    return Err(BepError::UnsupportedUri { uri: uri.clone() });
-                };
-                if !is_plain_relative(file_name)
-                    || !path_prefix.iter().all(|part| is_path_segment(part))
-                {
-                    return Err(BepError::MalformedEvent {
-                        line: *line,
-                        reason: format!(
-                            "bytestream file {file_name:?} does not stay under the workspace"
-                        ),
-                    });
+        let sets = &self.sets;
+        let mut outputs = Vec::with_capacity(pending.len());
+        for target in &pending {
+            let mut seen: BTreeMap<String, (u64, Option<String>, Vec<String>)> = BTreeMap::new();
+            let mut visited: BTreeSet<String> = BTreeSet::new();
+            let mut stack: Vec<(String, u64)> = target
+                .set_ids
+                .iter()
+                .map(|set_id| (set_id.clone(), target.line))
+                .collect();
+            while let Some((set_id, line)) = stack.pop() {
+                if !visited.insert(set_id.clone()) {
+                    continue;
                 }
-                local_path_for_bep_file(ws, path_prefix, file_name)
-            } else {
-                file_uri_to_path(uri)?
-            };
-            let bytes =
-                artifacts
-                    .read_artifact(&path)
-                    .map_err(|e| BepError::UnreadableArtifact {
-                        path: path.display().to_string(),
-                        message: e.to_string(),
+                let set = sets.get(&set_id).ok_or_else(|| BepError::MissingNamedSet {
+                    id: set_id.clone(),
+                    line,
+                })?;
+                for file in &set.files {
+                    let uri = file.uri.clone().ok_or_else(|| BepError::MalformedEvent {
+                        line: file.line,
+                        reason: "named set file without uri".to_owned(),
                     })?;
-            collected.push(CollectedArtifact {
-                exec_path: path,
-                bytes,
+                    seen.entry(uri).or_insert((
+                        file.line,
+                        file.name.clone(),
+                        file.path_prefix.clone(),
+                    ));
+                }
+                for child in &set.children {
+                    stack.push((child.clone(), set.line));
+                }
+            }
+            let mut collected = Vec::with_capacity(seen.len());
+            for (uri, (line, name, path_prefix)) in &seen {
+                let path = if is_bytestream_uri(uri) {
+                    let Some(ws) = workspace else {
+                        return Err(BepError::UnsupportedUri { uri: uri.clone() });
+                    };
+                    let Some(file_name) = name else {
+                        return Err(BepError::UnsupportedUri { uri: uri.clone() });
+                    };
+                    if !is_plain_relative(file_name)
+                        || !path_prefix.iter().all(|part| is_path_segment(part))
+                    {
+                        return Err(BepError::MalformedEvent {
+                            line: *line,
+                            reason: format!(
+                                "bytestream file {file_name:?} does not stay under the workspace"
+                            ),
+                        });
+                    }
+                    local_path_for_bep_file(ws, path_prefix, file_name)
+                } else {
+                    file_uri_to_path(uri)?
+                };
+                let bytes =
+                    artifacts
+                        .read_artifact(&path)
+                        .map_err(|e| BepError::UnreadableArtifact {
+                            path: path.display().to_string(),
+                            message: e.to_string(),
+                        })?;
+                collected.push(CollectedArtifact {
+                    exec_path: path,
+                    bytes,
+                });
+            }
+            collected.sort_by(|a, b| {
+                a.exec_path
+                    .as_os_str()
+                    .as_encoded_bytes()
+                    .cmp(b.exec_path.as_os_str().as_encoded_bytes())
+            });
+            outputs.push(TargetOutput {
+                label: target.label.clone(),
+                aspect: target.aspect.clone(),
+                configuration: target.configuration.clone(),
+                success: target.success,
+                declared: target.declared,
+                incomplete: target.incomplete,
+                artifacts: collected,
             });
         }
-        collected.sort_by(|a, b| {
-            a.exec_path
-                .as_os_str()
-                .as_encoded_bytes()
-                .cmp(b.exec_path.as_os_str().as_encoded_bytes())
-        });
-        outputs.push(TargetOutput {
-            label: target.label.clone(),
-            aspect: target.aspect.clone(),
-            configuration: target.configuration.clone(),
-            success: target.success,
-            declared: target.declared,
-            incomplete: target.incomplete,
-            artifacts: collected,
-        });
+        outputs.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+        no_work.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
+        Ok(OutputAccount {
+            targets: outputs,
+            no_work,
+            ended: self.ended,
+            gaps: self
+                .gaps
+                .iter()
+                .filter(|gap| !config.is_foreign(gap.label.as_deref(), gap.aspect.as_deref()))
+                .cloned()
+                .collect(),
+            problem: self
+                .tail
+                .as_ref()
+                .map(|(line, reason)| format!("line {line}: {reason}")),
+        })
     }
-    outputs.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    no_work.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
-    let account = OutputAccount {
-        targets: outputs,
-        no_work,
-        ended: ledger.ended(),
-        gaps: ledger
-            .gaps(&["targetConfigured", "targetCompleted"])
-            .into_iter()
-            .filter(|gap| !config.is_foreign(gap.label.as_deref(), gap.aspect.as_deref()))
-            .collect(),
-        problem: None,
-    };
-    Ok((account, lines.tail))
 }
 
-fn mentions_group(completed: &serde_json::Map<String, Value>, group: &str) -> bool {
-    completed
-        .get("outputGroup")
+fn mentions_group(output_groups: Option<&Value>, group: &str) -> bool {
+    output_groups
         .and_then(Value::as_array)
         .is_some_and(|groups| {
             groups.iter().any(|g| {
@@ -1365,5 +1440,90 @@ mod tests {
                 "{name} {prefix}: {result:?}"
             );
         }
+    }
+
+    #[test]
+    fn one_read_accounts_for_each_group() {
+        let stream = [
+            r#"{"id":{"targetConfigured":{"label":"//a:x"}},"children":[{"targetCompleted":{"label":"//a:x"}},{"targetCompleted":{"label":"//b:y"}}]}"#.to_owned(),
+            named_set("1", &[out_uri("r.pb")]),
+            named_set("2", &[out_uri("s.txt")]),
+            completed(
+                "//a:x",
+                true,
+                &format!("{},{}", group_ref("dx_results", &["1"]), group_ref("dx_skips", &["2"])),
+            ),
+            "not json".to_owned(),
+            r#"{"id":{"buildFinished":{}},"lastMessage":true}"#.to_owned(),
+        ]
+        .join("\n");
+        let artifacts = FakeArtifacts {
+            files: [
+                (out_path("r.pb"), b"r".to_vec()),
+                (out_path("s.txt"), b"s".to_vec()),
+            ]
+            .into(),
+        };
+        let events = read_output_events(Cursor::new(stream));
+        let account =
+            |config: &CollectorConfig| events.account(config, &artifacts, None).expect("account");
+        for (group, bytes) in [("dx_results", b"r"), ("dx_skips", b"s")] {
+            let got = account(&CollectorConfig::new(group).expect("group"));
+            assert_eq!(got.targets.len(), 1, "{group}");
+            assert_eq!(got.targets[0].artifacts[0].bytes, bytes, "{group}");
+            assert!(got.ended, "{group}");
+            assert_eq!(got.gaps.len(), 1, "{group}");
+            assert_eq!(got.gaps[0].label.as_deref(), Some("//b:y"), "{group}");
+            let problem = got.problem.expect("problem");
+            assert!(problem.starts_with("line 5: invalid JSON"), "{problem}");
+        }
+        let links = account(&CollectorConfig::new("dx_links").expect("group"));
+        assert!(links.targets.is_empty());
+        assert_eq!(links.no_work[0].label, "//a:x");
+        let foreign = crate::Foreign {
+            aspects: BTreeSet::new(),
+            labels: ["//a:x".to_owned(), "//b:y".to_owned()].into(),
+        };
+        let none = account(&config().without(foreign));
+        assert!(none.targets.is_empty() && none.no_work.is_empty() && none.gaps.is_empty());
+    }
+
+    #[test]
+    fn one_read_keeps_each_group_s_first_error() {
+        let stream = [
+            completed("//a:x", true, r#"{"name": "dx_skips", "fileSets": 1}"#),
+            completed("//b:y", true, "1"),
+            "[1,2]".to_owned(),
+        ]
+        .join("\n");
+        let foreign = crate::Foreign {
+            aspects: BTreeSet::new(),
+            labels: ["//b:y".to_owned()].into(),
+        };
+        let events = read_output_events(Cursor::new(stream));
+        let malformed = |line: u64, reason: &str| {
+            Some(BepError::MalformedEvent {
+                line,
+                reason: reason.to_owned(),
+            })
+        };
+        let first_error =
+            |config: &CollectorConfig| events.account(config, &no_artifacts(), None).err();
+        assert_eq!(
+            first_error(&config()),
+            malformed(2, "output group must be an object")
+        );
+        assert_eq!(
+            first_error(&config().without(foreign.clone())),
+            malformed(3, "event must be a JSON object")
+        );
+        assert_eq!(
+            first_error(
+                &CollectorConfig::new("dx_skips")
+                    .expect("group")
+                    .without(foreign)
+            ),
+            malformed(1, "fileSets must be an array")
+        );
     }
 }

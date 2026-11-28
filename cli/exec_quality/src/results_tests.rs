@@ -2,7 +2,7 @@ use super::{
     Collected, Unstable, collect_results_in, map_diagnostic, map_severity, stage_artifact,
     stage_result,
 };
-use dx_exec_core::common::{FileChange, apply_to_bytes};
+use dx_exec_core::common::{FileChange, apply_to_bytes, read_output_events};
 use dx_exec_quality_testing::{LAST_EVENT, QualityWorkspace, diagnostic, result_full, temp_dir};
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::decode_validated;
@@ -191,12 +191,20 @@ fn invalid_output_group_rejected() {
     let dir = temp_dir("group-tmp");
     let bep = dir.path().join("empty.json");
     std::fs::write(&bep, "").expect("bep");
-    let Err(error) =
-        collect_results_in(&bep, &dx_bep::Foreign::default(), "", dir.path(), &|| None)
-    else {
+    let Err(error) = collect_results_in(
+        &events(&bep),
+        &dx_bep::Foreign::default(),
+        "",
+        dir.path(),
+        &|| None,
+    ) else {
         panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     };
     assert!(error.message().contains("invalid BEP config"));
+}
+
+fn events(bep: &Path) -> dx_bep::OutputEvents {
+    read_output_events(bep).expect("events")
 }
 
 const ASPECT: &str = "//core/quality:families/core.bzl%real_lint_aspect";
@@ -243,7 +251,7 @@ fn collect(harness: &QualityWorkspace, lines: &[String]) -> Collected {
     let bep = harness.temp.join("events.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     collect_results_in(
-        &bep,
+        &events(&bep),
         &dx_bep::Foreign::default(),
         "dx_results",
         &harness.workspace,
@@ -480,7 +488,7 @@ fn a_bad_line_mid_stream_is_reported_not_fatal() {
     let bep = harness.temp.join("events.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     let collected = collect_results_in(
-        &bep,
+        &events(&bep),
         &dx_bep::Foreign::default(),
         "dx_results",
         &harness.workspace,

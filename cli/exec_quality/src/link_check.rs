@@ -43,12 +43,12 @@ pub(crate) struct Outcome {
 }
 
 pub(crate) fn read_requests(
-    bep: &Path,
+    events: &dx_bep::OutputEvents,
     foreign: &dx_bep::Foreign,
     workspace: &Path,
 ) -> Vec<(String, Vec<u8>)> {
-    let Ok(account) = dx_exec_core::common::collect_own_account(
-        bep,
+    let Ok(account) = dx_exec_core::common::own_account(
+        events,
         dx_plan::plan::LINK_REQUEST_OUTPUT_GROUP,
         workspace,
         foreign,

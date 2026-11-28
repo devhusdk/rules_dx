@@ -128,6 +128,7 @@ nested_bazel_test(
     data = COLD_START_LISTS + [
         "prebuilt_guard_allowlist.txt",
         "//:module_srcs",
+        "//core/modules:cold_start_byte_budget.json",
         "//cli/prebuilt:dx_hub_targets",
         "//cli/prebuilt:go_hub_targets",
         "//cli/prebuilt:python_hub_targets",
@@ -137,6 +138,7 @@ nested_bazel_test(
         "@dx_consumer_fixtures//:consumer.json",
     ],
     env = COLD_START_ENV | {
+        "DX_COLD_START_BYTE_BUDGET": "$(rlocationpath //core/modules:cold_start_byte_budget.json)",
         "DX_CONSUMER_JSON": "$(rlocationpath @dx_consumer_fixtures//:consumer.json)",
         "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),

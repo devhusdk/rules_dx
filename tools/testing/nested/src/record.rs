@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::cache;
 
@@ -55,7 +55,12 @@ impl<'a> Reader<'a> {
     }
 }
 
-fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
+struct Download {
+    url: Option<String>,
+    digest: Option<String>,
+}
+
+fn parse_download(message: &[u8], integrity: u64) -> Option<Download> {
     let mut reader = Reader { bytes: message };
     let mut url = None;
     let mut sha256 = String::new();
@@ -70,12 +75,17 @@ fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
             _ => {}
         }
     }
-    let sha256 = if sha256.is_empty() {
-        cache::integrity_hex(&sri)?
+    let digest = if sha256.is_empty() {
+        cache::integrity_hex(&sri)
     } else {
-        sha256
+        Some(sha256)
     };
-    Some((url?, sha256))
+    Some(Download { url, digest })
+}
+
+fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
+    let Download { url, digest } = parse_download(message, integrity)?;
+    Some((url?, digest?))
 }
 
 #[must_use]
@@ -125,6 +135,8 @@ pub fn contexts(log: &[u8]) -> Vec<String> {
 pub struct Fetches {
     pub ran: BTreeSet<String>,
     pub downloaded: BTreeSet<String>,
+    pub archives: BTreeMap<String, String>,
+    pub unchecked: BTreeSet<String>,
 }
 
 impl Fetches {
@@ -134,22 +146,35 @@ impl Fetches {
             let Some(len) = reader.varint() else { break };
             let Some(event) = reader.take(len) else { break };
             let mut fields = Reader { bytes: event };
-            let mut repo = None;
-            let mut downloads = false;
+            let mut context = String::new();
+            let mut downloads = Vec::new();
             while !fields.bytes.is_empty() {
                 let Some((number, payload)) = fields.field() else {
                     break;
                 };
                 match number {
-                    CONTEXT => {
-                        repo = String::from_utf8_lossy(payload)
-                            .strip_prefix(REPOSITORY)
-                            .map(str::to_owned);
-                    }
-                    DOWNLOAD | DOWNLOAD_AND_EXTRACT => downloads = true,
+                    CONTEXT => context = String::from_utf8_lossy(payload).into_owned(),
+                    DOWNLOAD => downloads.push(parse_download(payload, 5)),
+                    DOWNLOAD_AND_EXTRACT => downloads.push(parse_download(payload, 6)),
                     _ => {}
                 }
             }
+            let repo = context.strip_prefix(REPOSITORY).map(str::to_owned);
+            let owner = repo.clone().unwrap_or(context);
+            for download in downloads.iter().flatten() {
+                match (&download.digest, &download.url) {
+                    (Some(digest), _) => {
+                        self.archives
+                            .entry(digest.clone())
+                            .or_insert_with(|| owner.clone());
+                    }
+                    (None, url) => {
+                        self.unchecked
+                            .insert(url.clone().unwrap_or_else(|| owner.clone()));
+                    }
+                }
+            }
+            let downloads = !downloads.is_empty();
             if let Some(repo) = repo {
                 if downloads {
                     self.downloaded.insert(repo.clone());
@@ -270,6 +295,37 @@ mod tests {
         assert!(fetches.download_free("+ext+hub"));
         assert!(!fetches.download_free("+ext+dl"));
         assert!(!fetches.download_free("cached+"));
+    }
+
+    #[test]
+    fn keeps_each_archive_digest_with_its_first_fetcher_and_the_unchecked_urls() {
+        let with = |context: &[u8], number: u8, message: &[u8]| {
+            let mut inner = field(1, b"location");
+            inner.extend(field(2, context));
+            inner.extend(field(number, message));
+            let mut out = vec![u8::try_from(inner.len()).expect("short")];
+            out.extend(inner);
+            out
+        };
+        let mut checked = field(1, b"https://a/x");
+        checked.extend(field(3, sha().as_bytes()));
+        let mut log = with(b"repository @@rules_x+", 5, &checked);
+        log.extend(with(b"repository @@rules_y+", 4, &checked));
+        log.extend(with(b"module extension ext", 4, &field(1, b"https://c/z")));
+        let mut fetches = Fetches::default();
+        fetches.add(&log);
+        assert_eq!(
+            fetches.archives.into_iter().collect::<Vec<_>>(),
+            [(sha(), "rules_x+".to_owned())]
+        );
+        assert_eq!(
+            fetches.unchecked.into_iter().collect::<Vec<_>>(),
+            ["https://c/z"]
+        );
+        assert_eq!(
+            fetches.downloaded.into_iter().collect::<Vec<_>>(),
+            ["rules_x+", "rules_y+"]
+        );
     }
 
     #[test]

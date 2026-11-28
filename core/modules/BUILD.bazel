@@ -164,6 +164,7 @@ test_suite(
 )
 
 exports_files([
+    "cold_start_byte_budget.json",
     "consumer_deps.bzl",
     "core_budget.json",
     "cuda.bzl",

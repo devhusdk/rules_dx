@@ -154,6 +154,69 @@ fn runfile(var: &str) -> String {
     dx_testing::read_text(&path)
 }
 
+fn stub_pins(
+    tools: &BTreeMap<String, String>,
+    targeted: &BTreeMap<String, Vec<String>>,
+    bundle: &[BundleTool],
+    host: (&str, &str),
+) -> String {
+    let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
+    let mut tags = String::from(
+        "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n\
+         dx_gazelle = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\n",
+    );
+    let mut pin = |tool: &str, stub: &std::path::Path, os: &str, cpu: &str| {
+        let sha256 = dx_testing::sha256_file(stub).unwrap_or_else(|error| panic!("{error}"));
+        tags.push_str(&asset_tag(tool, os, cpu, &stub_url(stub), &sha256));
+    };
+    for (tool, platform) in tools {
+        if targeted.contains_key(tool) {
+            continue;
+        }
+        let (os, cpu) = if platform == "any" {
+            ("any", "any")
+        } else {
+            host
+        };
+        let stub = stubs.join(tool);
+        if let Some(python) = bundle.iter().find(|python| &python.name == tool) {
+            let archive = stub_bundle(python, os == "windows")
+                .unwrap_or_else(|error| panic!("stub {tool} archive: {error}"));
+            std::fs::create_dir_all(&stubs)
+                .and_then(|()| std::fs::write(&stub, archive))
+                .unwrap_or_else(|error| panic!("write {}: {error}", stub.display()));
+        } else {
+            dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        }
+        pin(tool, &stub, os, cpu);
+    }
+    for (tool, keys) in targeted {
+        let stub = stubs.join(tool);
+        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        for target_key in keys {
+            let (os, cpu) = release_platform(target_key)
+                .unwrap_or_else(|| panic!("{tool}: registry key {target_key}"));
+            pin(tool, &stub, os, cpu);
+        }
+    }
+    tags
+}
+
+#[must_use]
+pub fn host_stub_pins() -> String {
+    let key = host().unwrap_or_else(|error| panic!("{error}"));
+    let host = release_platform(&key).unwrap_or_else(|| panic!("host key {key}"));
+    let registry = runfile("DX_PREBUILT_REGISTRY");
+    let bundle = bundle_tools(&runfile("DX_PREBUILT_PYTHON_HUB_TARGETS"))
+        .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
+    stub_pins(
+        &host_tools(&registry, &key),
+        &target_keys(&registry, &runfile("DX_PREBUILT_TARGET_TOOLS")),
+        &bundle,
+        host,
+    )
+}
+
 pub fn compiles_no_rules_dx_tool(var: &str) {
     let langs = dx_testing::env_text(var);
     let langs: Vec<&str> = langs.split_whitespace().collect();
@@ -173,48 +236,17 @@ pub fn compiles_no_rules_dx_tool(var: &str) {
     };
     let bundle = bundle_tools(&runfile("DX_PREBUILT_PYTHON_HUB_TARGETS"))
         .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
-    let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
-    let mut tags = String::new();
+    let extra = stub_pins(&tools, &targeted, &bundle, (os, cpu));
     let mut roots = vec!["//...".to_owned()];
     roots.extend(command_roots("@rules_dx", &langs));
     roots.extend(resolver_roots(&langs));
     for (tool, platform) in &tools {
-        if targeted.contains_key(tool) {
-            continue;
-        }
-        let (os, cpu) = if platform == "any" {
-            ("any", "any")
-        } else {
-            (os, cpu)
-        };
-        let stub = stubs.join(tool);
-        if let Some(python) = bundle.iter().find(|python| &python.name == tool) {
-            let archive = stub_bundle(python, os == "windows")
-                .unwrap_or_else(|error| panic!("stub {tool} archive: {error}"));
-            std::fs::create_dir_all(&stubs)
-                .and_then(|()| std::fs::write(&stub, archive))
-                .unwrap_or_else(|error| panic!("write {}: {error}", stub.display()));
-        } else {
-            dx_testing::write_text(&stub, &format!("stub {tool}\n"));
-        }
-        let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
-        let url = stub_url(&stub);
-        tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
-        if rooted(platform, &langs) {
+        if !targeted.contains_key(tool) && rooted(platform, &langs) {
             roots.extend(hub_targets(tool, &names, &bundle));
         }
     }
     let mut target_roots = Vec::new();
     for (tool, keys) in &targeted {
-        let stub = stubs.join(tool);
-        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
-        let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
-        let url = stub_url(&stub);
-        for target_key in keys {
-            let (os, cpu) = release_platform(target_key)
-                .unwrap_or_else(|| panic!("{tool}: registry key {target_key}"));
-            tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
-        }
         if keys.contains(&key) {
             roots.extend(hub_targets(tool, &names, &bundle));
         }
@@ -224,10 +256,6 @@ pub fn compiles_no_rules_dx_tool(var: &str) {
             targets: hub_targets(tool, &names, &bundle),
         });
     }
-    let extra = format!(
-        "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n\
-         dx_gazelle = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\n{tags}"
-    );
     let case = Case::languages_consumer(&format!("{}_prebuilt_guard", langs[0]), &langs, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
     let targets = case.bazel(&[

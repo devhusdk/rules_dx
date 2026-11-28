@@ -2250,7 +2250,7 @@ impl Case {
                 case.write(rel, text);
             }
         }
-        if !dx_families::needs_cc_toolchains(langs.iter().copied()) {
+        if dx_families::cc_toolchains_off(langs.iter().copied()) {
             let layer = format!(".dx/bazelrc/{}", dx_preset::Layer::Correctness.file_name());
             let text = dx_testing::read_text(&case.root().join(&layer));
             let off = dx_preset::render_cc_off(dx_preset::DEFAULT_REPO);

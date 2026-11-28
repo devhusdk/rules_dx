@@ -199,9 +199,11 @@ fn setup_flags_follow_the_named_languages() {
 
 #[test]
 fn cc_toolchains_follow_the_named_languages() {
-    assert!(needs_cc_toolchains(["python", "cc"]));
-    assert!(needs_cc_toolchains(["rust"]));
-    assert!(!needs_cc_toolchains(["go", "java", "python", "core"]));
+    assert!(!cc_toolchains_off(["python", "cc"]));
+    assert!(!cc_toolchains_off(["rust"]));
+    assert!(cc_toolchains_off(["go", "java", "python", "core"]));
+    assert!(!cc_toolchains_off(["core", "json", "markdown"]));
+    assert!(!cc_toolchains_off([]));
 }
 
 #[test]

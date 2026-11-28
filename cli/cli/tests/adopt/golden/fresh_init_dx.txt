@@ -270,13 +270,6 @@ common --@rules_dx//config:tool_xmllint=@rules_dx//config:off_tool
 common --@rules_dx//config:tool_zanuda=@rules_dx//config:off_tool
 common --@rules_dx//config:tool_zig_ast_check=@rules_dx//config:off_tool
 common --@rules_dx//config:tool_zig_fmt=@rules_dx//config:off_tool
-
-# No family needs a C or C++ toolchain.
-common:linux --@rules_dx//config:cc_toolchains=false
-common:linux --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
-common:macos --@rules_dx//config:cc_toolchains=false
-common:macos --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
-common:macos --repo_env=BAZEL_NO_APPLE_CPP_TOOLCHAIN=1
 === .dx/bazelrc/performance.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
 # Regenerate: `tools/dx init --apply`.

@@ -7555,6 +7555,8 @@ Tag `zig.lock`:
 | `@rules_dx//cuda:gpu_compute_capability` | `string_flag` |  |  |
 | `@rules_dx//cuda:gpu_driver` | `string_flag` |  |  |
 | `@rules_dx//fortran:kcov` | `bool_flag` | `False` |  |
+| `@rules_dx//perl:distribution` | `string_flag` | `perl` | `perl`, `strawberry` |
+| `@rules_dx//perl:xs` | `bool_flag` | `False` |  |
 | `@rules_dx//zig:kcov` | `bool_flag` | `False` |  |
 
 ## Platforms
@@ -7596,9 +7598,13 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//ocaml:exec_toolchain_type`
 - `@rules_dx//ocaml:profile_toolchain_type`
 - `@rules_dx//ocaml:toolchain_type`
+- `@rules_dx//perl:exec_toolchain_type`
+- `@rules_dx//perl:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
 - `@rules_dx//ruby:toolchain_type`
+- `@rules_dx//zig:target_toolchain_type`
+- `@rules_dx//zig:toolchain_type`
 
 ## Hub repositories
 
@@ -7665,6 +7671,8 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//ocaml:bisect_ppx_rewriter` | `alias` |
 | `@rules_dx//ocaml:dune` | `alias` |
 | `@rules_dx//ocaml:emitter` | `alias` |
+| `@rules_dx//perl:xs_disabled` | `config_setting` |
+| `@rules_dx//perl:xs_enabled` | `config_setting` |
 | `@rules_dx//php:runfiles` | `php_library` |
 | `@rules_dx//powershell:dx_coverage` | `alias` |
 | `@rules_dx//powershell:pester` | `alias` |
@@ -7678,7 +7686,9 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//rust:wasi_run` | `rust_library` |
 | `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
+| `@rules_dx//zig:abi` | `constraint_setting` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
+| `@rules_dx//zig:mode` | `alias` |
 | `@rules_dx//zig:sancov_build` | `config_setting` |
 
 ## Runnable targets

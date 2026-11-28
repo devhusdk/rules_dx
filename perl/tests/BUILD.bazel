@@ -49,6 +49,10 @@ hub_order_test(
         "toolchain_10_x86_64_windows_gnu",
         "toolchain_11_x86_64_windows_strawberry",
     ],
+    toolchain_types = [
+        "@rules_dx//perl:exec_toolchain_type",
+        "@rules_dx//perl:toolchain_type",
+    ],
 )
 
 rust_test(

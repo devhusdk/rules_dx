@@ -216,6 +216,12 @@
 //ocaml:exec_toolchain_type toolchain_type
 //ocaml:profile_toolchain_type toolchain_type
 //ocaml:toolchain_type toolchain_type
+//perl:distribution string_flag "perl" ["perl", "strawberry"]
+//perl:exec_toolchain_type toolchain_type
+//perl:toolchain_type toolchain_type
+//perl:xs bool_flag False
+//perl:xs_disabled config_setting
+//perl:xs_enabled config_setting
 //php:exec_toolchain_type toolchain_type
 //php:runfiles php_library
 //php:toolchain_type toolchain_type
@@ -237,9 +243,13 @@
 //rust:wasi_run rust_library
 //rust:wasmtime alias
 //thrift:thrift_compiler alias
+//zig:abi constraint_setting
 //zig:kcov bool_flag False
 //zig:kcov_build config_setting
+//zig:mode alias
 //zig:sancov_build config_setting
+//zig:target_toolchain_type toolchain_type
+//zig:toolchain_type toolchain_type
 @* hub @rules_dx//go:extensions.bzl%go
 @ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
 @bicep hub @rules_dx//bicep:extensions.bzl%bicep
